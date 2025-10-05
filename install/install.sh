@@ -364,6 +364,14 @@ ACTIVATE_CMD="source $VENV_PATH/bin/activate"
 sudo bash -c "$ACTIVATE_CMD && uv pip install -r $OPENALGO_PATH/requirements-nginx.txt"
 check_status "Failed to install Python dependencies"
 
+log_message "\nInitializing and upgrading database migrations..." "$BLUE"
+sudo -u www-data /bin/bash -c "source $VENV_PATH/bin/activate && alembic upgrade head"
+check_status "Failed to apply Alembic migrations"
+
+log_message "\nRunning sandbox database migration script..." "$BLUE"
+sudo -u www-data /bin/bash -c "source $VENV_PATH/bin/activate && python3 $OPENALGO_PATH/upgrade/migrate_sandbox.py"
+check_status "Failed to run sandbox migration script"
+
 # Verify gunicorn and eventlet installation
 log_message "\nVerifying gunicorn and eventlet installation..." "$BLUE"
 if ! sudo bash -c "$ACTIVATE_CMD && pip freeze | grep -q 'gunicorn=='"; then
@@ -376,6 +384,23 @@ if ! sudo bash -c "$ACTIVATE_CMD && pip freeze | grep -q 'eventlet=='"; then
     sudo bash -c "$ACTIVATE_CMD && uv pip install eventlet"
     check_status "Failed to install eventlet"
 fi
+
+# Install Node.js and npm if not present
+if ! command -v node &> /dev/null || ! command -v npm &> /dev/null; then
+    log_message "\nNode.js and npm not found. Installing..." "$BLUE"
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    check_status "Failed to install Node.js and npm"
+fi
+
+# Build frontend assets
+log_message "\nBuilding frontend assets (TailwindCSS, JavaScript)..." "$BLUE"
+cd $OPENALGO_PATH
+npm install
+check_status "Failed to install frontend dependencies"
+npm run build
+check_status "Failed to build frontend assets"
+cd - > /dev/null # Go back to previous directory
 
 # Configure .env file
 log_message "\nConfiguring environment file..." "$BLUE"
@@ -398,6 +423,10 @@ sudo sed -i "s|a25d94718479b170c16278e321ea6c989358bf499a658fd20c90033cef8ce772|
 
 # Update WebSocket URL for production
 sudo sed -i "s|WEBSOCKET_URL='.*'|WEBSOCKET_URL='wss://$DOMAIN/ws'|g" $OPENALGO_PATH/.env
+sudo sed -i "s|WEBSOCKET_HOST=127.0.0.1|WEBSOCKET_HOST=127.0.0.1|g" $OPENALGO_PATH/.env
+sudo sed -i "s|WEBSOCKET_PORT=8765|WEBSOCKET_PORT=8765|g" $OPENALGO_PATH/.env
+sudo sed -i "s|ZMQ_HOST=127.0.0.1|ZMQ_HOST=127.0.0.1|g" $OPENALGO_PATH/.env
+sudo sed -i "s|ZMQ_PORT=5555|ZMQ_PORT=5555|g" $OPENALGO_PATH/.env
 
 check_status "Failed to configure environment file"
 
@@ -583,7 +612,7 @@ WorkingDirectory=$OPENALGO_PATH
 # Simplified approach to ensure Python environment is properly loaded
 ExecStart=/bin/bash -c 'source $VENV_PATH/bin/activate && $VENV_PATH/bin/gunicorn \
     --worker-class eventlet \
-    -w 1 \
+    -w $(python3 -c "import multiprocessing; print(multiprocessing.cpu_count() * 2 + 1)") \
     --bind unix:$SOCKET_FILE \
     --log-level info \
     app:app'
@@ -596,6 +625,31 @@ TimeoutSec=60
 WantedBy=multi-user.target
 EOL
 check_status "Failed to create systemd service"
+
+# Check and handle existing systemd service for WebSocket proxy
+handle_existing "/etc/systemd/system/websocket_proxy-$DEPLOY_NAME.service" "systemd service" "WebSocket Proxy service file"
+
+# Create systemd service for WebSocket proxy
+log_message "\nCreating systemd service for WebSocket proxy..." "$BLUE"
+sudo tee /etc/systemd/system/websocket_proxy-$DEPLOY_NAME.service > /dev/null << EOL
+[Unit]
+Description=OpenAlgo WebSocket Proxy Daemon ($DEPLOY_NAME)
+After=network.target $SERVICE_NAME.service
+Wants=$SERVICE_NAME.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=$OPENALGO_PATH
+ExecStart=/bin/bash -c 'source $VENV_PATH/bin/activate && python3 $OPENALGO_PATH/websocket_proxy/server.py'
+Restart=always
+RestartSec=5
+TimeoutSec=60
+
+[Install]
+WantedBy=multi-user.target
+EOL
+check_status "Failed to create WebSocket proxy systemd service"
 
 # Set correct permissions
 log_message "\nSetting permissions..." "$BLUE"
@@ -630,6 +684,12 @@ log_message "\nStarting services..." "$BLUE"
 sudo systemctl daemon-reload
 sudo systemctl enable $SERVICE_NAME
 sudo systemctl start $SERVICE_NAME
+
+log_message "\nStarting WebSocket proxy service..." "$BLUE"
+sudo systemctl enable websocket_proxy-$DEPLOY_NAME.service
+sudo systemctl start websocket_proxy-$DEPLOY_NAME.service
+check_status "Failed to start WebSocket proxy service"
+
 sudo systemctl restart nginx
 check_status "Failed to start services"
 
