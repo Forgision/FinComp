@@ -4,8 +4,8 @@ This document outlines the technologies, development setup, and technical constr
 
 ## Core Technologies
 *   **Programming Language:** Python 3.8+ with full type hints support
-*   **Web Framework:** Flask 3.0.3 with a modular Blueprint architecture for organizing routes and views.
-*   **API Framework:** Flask-RESTX for building RESTful APIs, providing automatic OpenAPI/Swagger documentation, request parsing, and response marshalling.
+*   **Web Framework:** FastAPI with a modular Router architecture for organizing routes and views.
+*   **API Framework:** FastAPI for building RESTful APIs, providing automatic OpenAPI/Swagger documentation, request parsing, and response marshalling.
 *   **Database ORM:** SQLAlchemy 2.0+ is used for object-relational mapping, enabling database-agnostic operations.
 *   **Database Support:**
     *   SQLite for development and testing.
@@ -16,13 +16,13 @@ This document outlines the technologies, development setup, and technical constr
 *   **Password Hashing:** Argon2 (specifically Argon2id) with a pepper for securely hashing user passwords and API keys.
 *   **Encryption:** Fernet (from the `cryptography` library) for symmetric encryption of sensitive data at rest, such as broker credentials, API keys, and TOTP secrets.
 *   **Two-Factor Authentication (2FA):** Time-based One-Time Password (TOTP) support using `pyotp`.
-*   **Session Management:** Secure, signed cookies for managing web UI sessions, with a daily expiry mechanism.
-*   **CSRF Protection:** Flask-WTF (`WTF-CSRF`) is used to protect against Cross-Site Request Forgery attacks on web forms.
+*   **Session Management:** JWT-based secure, signed cookies for managing web UI sessions, with a daily expiry mechanism.
+*   **CSRF Protection:** `fastapi-csrf-protect` is used to protect against Cross-Site Request Forgery attacks on web forms.
 
 ## Real-time & Communication
 *   **WebSocket Server:** A standalone, asynchronous WebSocket proxy server for real-time market data streaming.
 *   **Internal Messaging:** ZeroMQ (ZMQ) is used as a high-performance message queue for communication between the WebSocket proxy and broker adapters.
-*   **Dashboard Updates:** Flask-SocketIO for real-time updates on the web dashboard.
+*   **Dashboard Updates:** FastAPI-SocketIO for real-time updates on the web dashboard.
 *   **Telegram Integration:** `python-telegram-bot` library for integrating with the Telegram Bot API.
 *   **Asynchronous Operations:** `asyncio` is used for handling asynchronous tasks, particularly within the Telegram bot service.
 
@@ -33,7 +33,7 @@ This document outlines the technologies, development setup, and technical constr
 *   **Charting:** Plotly is used for generating market data charts, which are rendered into images using the Kaleido engine for display in the Telegram bot.
 
 ## Performance & Monitoring
-*   **Rate Limiting:** Flask-Limiter for implementing rate limits on API endpoints and sensitive operations like login attempts.
+*   **Rate Limiting:** `slowapi` for implementing rate limits on API endpoints and sensitive operations like login attempts.
 *   **HTTP Client:** `httpx` is used as the modern, async-capable HTTP client for making requests to external broker APIs, featuring connection pooling.
 *   **Caching:** A session-based Time-To-Live (TTL) cache is implemented for temporary data storage.
 *   **Logging:** A custom, centralized logging system with colored output (`colorama`), automatic log rotation, and a `SensitiveDataFilter` to redact confidential information.
@@ -59,4 +59,5 @@ This document outlines the technologies, development setup, and technical constr
 *   **JavaScript:** Frontend dependencies are managed with `npm` and are listed in the `package.json` file.
 
 ## Python Environment Management
-*   **Package Installation:** All Python packages must be installed and removed using `uv`. This ensures consistency and leverages `uv`'s performance benefits.
+*   **Package Installation:** All Python packages must be installed using the `uv add` command. Native `pip` commands must not be used. This ensures consistency and leverages `uv`'s performance benefits.
+*   **Application Execution:** All Python scripts and applications should be run using the `uv run` command.

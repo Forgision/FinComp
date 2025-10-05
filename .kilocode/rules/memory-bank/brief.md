@@ -1,4 +1,4 @@
-This project is a comprehensive, broker-agnostic algorithmic trading platform built with Python and Flask. It provides a unified API interface for over 25 Indian stock brokers, enabling users to develop, backtest, and deploy automated trading strategies.
+This project is a comprehensive, broker-agnostic algorithmic trading platform built with Python and FastAPI. It provides a unified API interface for over 25 Indian stock brokers, enabling users to develop, backtest, and deploy automated trading strategies.
 
 Key features include:
 - A RESTful API for programmatic trading and a full-featured web interface.

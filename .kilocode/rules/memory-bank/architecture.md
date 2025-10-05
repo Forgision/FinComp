@@ -2,15 +2,15 @@
 
 ## Executive Summary
 
-OpenAlgo is a sophisticated, broker-agnostic algorithmic trading platform built with Python Flask that provides a unified API interface for 25+ Indian stock brokers. The platform enables algorithmic trading strategies through REST APIs, WebSocket connections, and an intuitive web interface.
+OpenAlgo is a sophisticated, broker-agnostic algorithmic trading platform built with Python FastAPI that provides a unified API interface for 25+ Indian stock brokers. The platform enables algorithmic trading strategies through REST APIs, WebSocket connections, and an intuitive web interface.
 
 ## Design Principles
 
-The architectural decisions in this project are guided by a set of design principles for creating scalable and maintainable Python applications. These principles are documented in detail in the [Scalable Python Project Design Principles](design/00_scalable_python_project_design_principles.md) document.
+The architectural decisions in this project are guided by a set of design principles for creating scalable and maintainable Python applications. These principles are documented in detail in the [Scalable Python Project Design Principles](design.md) document.
 
 ## Architectural Style
 
-OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** interface, combining the benefits of monolithic simplicity with modular organization through Flask Blueprints and service layers.
+OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** interface, combining the benefits of monolithic simplicity with modular organization through FastAPI Routers and service layers.
 
 ### Key Architectural Principles
 *   **Broker Abstraction:** Unified interface abstracting broker-specific implementations
@@ -25,8 +25,8 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 
 ### Core Technologies
 *   **Programming Language:** Python 3.8+ with full type hints support
-*   **Web Framework:** Flask 3.0.3 with modular Blueprint architecture
-*   **API Framework:** Flask-RESTX with automatic OpenAPI/Swagger documentation
+*   **Web Framework:** FastAPI with modular Router architecture
+*   **API Framework:** FastAPI with automatic OpenAPI/Swagger documentation
 *   **Database ORM:** SQLAlchemy 2.0+ with connection pooling (50 base, 100 max overflow)
 *   **Database Support:** SQLite (development), PostgreSQL/MySQL (production)
 
@@ -36,11 +36,11 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 *   **Encryption:** Fernet symmetric encryption for sensitive data
 *   **2FA Support:** TOTP (Time-based One-Time Password)
 *   **Session Management:** Secure cookies with daily expiry at 3:30 AM IST
-*   **CSRF Protection:** WTF-CSRF with secure cookie settings
+*   **CSRF Protection:** fastapi-csrf-protect with secure cookie settings
 
 ### Real-time & Communication
 *   **WebSocket Server:** Standalone proxy with ZeroMQ backend
-*   **Real-time Updates:** Flask-SocketIO for dashboard updates
+*   **Real-time Updates:** FastAPI-SocketIO for dashboard updates
 *   **Message Queue:** ZeroMQ for broker communication
 *   **Telegram Integration:** python-telegram-bot for notifications
 *   **Event Loop:** asyncio-based asynchronous processing
@@ -53,7 +53,7 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 *   **Responsive Design:** Mobile-first responsive layout
 
 ### Performance & Monitoring
-*   **Rate Limiting:** Flask-Limiter with per-key limits
+*   **Rate Limiting:** slowapi with per-key limits
 *   **Caching:** Session-based TTL cache
 *   **Logging:** Colored logging with sensitive data filtering
 *   **Monitoring:** Built-in latency and traffic analysis
@@ -69,61 +69,24 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 ## Directory Structure
 
 ```
-openalgo/
-├── app.py                     # Main Flask application entry point
-├── blueprints/                # Flask blueprints for modular routing
-│   ├── auth.py               # Authentication and user management
-│   ├── dashboard.py          # Main trading dashboard
-│   ├── orders.py             # Order management interface
-│   ├── analyzer.py           # Trade analytics
-│   ├── python_strategy.py    # Python strategy hosting
-│   ├── telegram.py           # Telegram bot management
-│   └── [15+ more blueprints]
-├── broker/                    # Broker-specific adapters (25+ brokers)
-│   ├── zerodha/              # Zerodha Kite Connect integration
-│   ├── angelone/             # Angel One SmartAPI integration
-│   ├── upstox/               # Upstox API integration
-│   └── [22+ more brokers]
-├── database/                  # Database models and operations
-│   ├── auth_db.py            # Authentication models
-│   ├── user_db.py            # User management
-│   ├── token_db.py           # Token and instrument data
-│   ├── telegram_db.py        # Telegram bot data
-│   └── [10+ more models]
-├── restx_api/                 # REST API endpoints
-│   ├── __init__.py           # API initialization and namespaces
-│   ├── place_order.py        # Order placement endpoints
-│   ├── market_data.py        # Market data endpoints
-│   └── [20+ API modules]
-├── services/                  # Business logic services
-│   ├── trading/              # Trading operations
-│   ├── market_data/          # Market data services
-│   ├── portfolio/            # Portfolio management
-│   └── telegram_bot_service.py # Telegram bot service
-├── utils/                     # Utility functions and helpers
-│   ├── logging.py            # Colored logging with filtering
-│   ├── constants.py          # System-wide constants
-│   ├── plugin_loader.py      # Dynamic broker loading
-│   └── [10+ utilities]
-├── templates/                 # Jinja2 HTML templates
-│   ├── base.html             # Base template with theme support
-│   ├── dashboard.html        # Trading dashboard UI
-│   └── [50+ templates]
-├── static/                    # Static assets
-│   ├── css/                  # Compiled TailwindCSS
-│   ├── js/                   # JavaScript modules
-│   └── images/               # UI assets
-├── websocket_proxy/           # WebSocket proxy server
-│   ├── server.py             # Main WebSocket server
-│   └── app_integration.py    # Flask integration
-├── strategies/                # Trading strategy examples
-│   ├── scripts/              # Python strategy files
-│   └── configs/              # Strategy configurations
-├── test/                      # Test suites
-├── logs/                      # Application logs
-├── keys/                      # Security keys and certificates
-└── docs/                      # Documentation
-*   `.env`, `.sample.env`: Environment variable configuration.```
+/
+├── app/
+│   ├── backend/              # Backend source code (FastAPI)
+│   │   ├── api/              # HTTP layer (e.g., FastAPI routers)
+│   │   │   └── v1/
+│   │   ├── models/           # Pydantic schemas (request/response contracts)
+│   │   └── services/         # Business logic layer
+│   ├── core/                 # Cross-cutting concerns (config, logging)
+│   ├── db/                   # Database schema and session management
+│   └── frontend/             # Frontend source code
+│       ├── static/           # Static assets (CSS, JS, images)
+│       └── templates/        # HTML templates
+├── test/                 # Test code, mirroring the 'app/backend' structure
+├── .env                  # Local environment variables (not committed)
+├── Dockerfile            # Instructions for building the application container
+├── docker-compose.yml    # Local development orchestration
+└── pyproject.toml        # Project dependencies and tooling configuration
+```
 
 ## Component Diagram (Mermaid)
 
@@ -135,12 +98,12 @@ graph TD
         WSClient[WebSocket Client]
     end
 
-    subgraph "OpenAlgo Application - Flask"
+    subgraph "OpenAlgo Application - FastAPI"
         direction TB
-        APILayer[API Layer - Flask-RESTX - Blueprints]
+        APILayer[API Layer - FastAPI - Routers]
         Auth[Auth & Session Mgmt]
         RateLimiter[Rate Limiter]
-        SocketIO[WebSocket - Flask-SocketIO]
+        SocketIO[WebSocket - FastAPI-SocketIO]
         CoreLogic[Core Application Logic]
         StrategyEngine[Strategy Engine - strategies]
         BrokerInterface[Broker Interface - broker]

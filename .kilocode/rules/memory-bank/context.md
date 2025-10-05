@@ -1,5 +1,5 @@
 # Current Context
 
-- **Current Work Focus:** Addressing high-priority items from `to-dos.md`.
-- **Recent Changes:** Completed the review and improvement of production deployment scripts, including WebSocket proxy integration, database initialization/migration, Gunicorn worker count adjustment, and frontend build steps.
-- **Next Steps:** Implement the Health Check Endpoint as designed in `12_deployment_architecture.md`.
+- **Current Work Focus:** Implementing the newly defined project structure.
+- **Recent Changes:** Completed the architectural design phase, including the creation of `design.md` and updating `architecture.md` to reflect a clear separation of frontend and backend concerns.
+- **Next Steps:** Refactor the existing codebase to align with the new folder structure.
