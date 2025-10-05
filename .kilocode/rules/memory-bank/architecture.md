@@ -4,6 +4,10 @@
 
 OpenAlgo is a sophisticated, broker-agnostic algorithmic trading platform built with Python Flask that provides a unified API interface for 25+ Indian stock brokers. The platform enables algorithmic trading strategies through REST APIs, WebSocket connections, and an intuitive web interface.
 
+## Design Principles
+
+The architectural decisions in this project are guided by a set of design principles for creating scalable and maintainable Python applications. These principles are documented in detail in the [Scalable Python Project Design Principles](design/00_scalable_python_project_design_principles.md) document.
+
 ## Architectural Style
 
 OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** interface, combining the benefits of monolithic simplicity with modular organization through Flask Blueprints and service layers.

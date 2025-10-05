@@ -7,28 +7,15 @@ import argparse
 import platform
 import stat
 
-# Global variable to hold the websocket proxy process
-websocket_proxy_process = None
-
 def cleanup():
     """
     Cleans up background processes when the script exits.
+    Note: The WebSocket proxy is now managed by FastAPI's lifespan events.
+    This cleanup function is primarily for processes started directly by this script.
     """
-    global websocket_proxy_process
     print("[OpenAlgo] Shutting down...")
-    if websocket_proxy_process and websocket_proxy_process.poll() is None:
-        print(f"[OpenAlgo] Terminating WebSocket proxy server with PID {websocket_proxy_process.pid}...")
-        websocket_proxy_process.terminate()
-        try:
-            # Wait for a short period for the process to terminate
-            websocket_proxy_process.wait(timeout=5)
-            print("[OpenAlgo] WebSocket proxy server shut down.")
-        except subprocess.TimeoutExpired:
-            print(f"[OpenAlgo] WebSocket proxy server with PID {websocket_proxy_process.pid} did not terminate in time. Killing it.")
-            websocket_proxy_process.kill()
-            print("[OpenAlgo] WebSocket proxy server killed.")
-    else:
-        print("[OpenAlgo] WebSocket proxy server was not running.")
+    # No direct cleanup needed for websocket_proxy_process here as it's managed by FastAPI.
+    # This function is kept for general cleanup if other background processes were to be added.
 
 def setup_signal_handlers():
     """
@@ -83,60 +70,26 @@ def set_permissions():
     except OSError as e:
         print(f"⚠️  Failed to set permissions for 'keys' directory: {e}")
 
-def start_websocket_proxy():
-    """
-    Starts the WebSocket proxy server in a background process.
-    """
-    global websocket_proxy_process
-    print("[OpenAlgo] Starting WebSocket proxy server on port 8765...")
-    try:
-        command = [sys.executable, "-m", "websocket_proxy.server"]
-        websocket_proxy_process = subprocess.Popen(command)
-        print(f"[OpenAlgo] WebSocket proxy server started with PID {websocket_proxy_process.pid}")
-    except FileNotFoundError:
-        print("❌ ERROR: Could not find 'websocket_proxy.server'. Make sure it's installed and in your PYTHONPATH.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ ERROR: Failed to start websocket proxy server: {e}")
-        sys.exit(1)
 
-def start_gunicorn_app():
+def start_uvicorn_app():
     """
-    Starts the main application using Gunicorn.
+    Starts the main FastAPI application using Uvicorn.
     """
-    print("[OpenAlgo] Starting application on port 5000 with eventlet...")
+    print("[OpenAlgo] Starting FastAPI application on port 8000...")
     try:
-        gunicorn_command = [
-            "gunicorn",
-            "--worker-class", "eventlet",
-            "--workers", "1",
-            "--bind", "0.0.0.0:5000",
-            "--timeout", "120",
-            "--graceful-timeout", "30",
-            "--log-level", "warning",
-            "app:app"
+        uvicorn_command = [
+            sys.executable, "-m", "uvicorn",
+            "app.main:app",
+            "--host", "0.0.0.0",
+            "--port", "8000",
+            "--reload" # Enable auto-reloading for development
         ]
-        gunicorn_process = subprocess.Popen(gunicorn_command)
-        gunicorn_process.wait()
+        uvicorn_process = subprocess.Popen(uvicorn_command)
+        uvicorn_process.wait()
     except FileNotFoundError:
-        print("❌ ERROR: 'gunicorn' command not found. Make sure Gunicorn is installed in your environment.")
+        print("❌ ERROR: 'uvicorn' command not found. Make sure Uvicorn is installed in your environment.")
     except Exception as e:
-        print(f"❌ ERROR: Failed to start Gunicorn: {e}")
-
-def start_debug_app():
-    """
-    Starts the Flask application in debug mode.
-    """
-    print("[OpenAlgo] Starting application in DEBUG MODE on port 5000...")
-    try:
-        from app import app
-        # The Flask dev server will handle its own lifecycle, including reloading.
-        # The proxy is started once and will persist through reloads.
-        app.run(host="0.0.0.0", port=5000, debug=True)
-    except ImportError:
-        print("❌ ERROR: Could not import 'app' from 'app'. Make sure 'app.py' exists and is in the PYTHONPATH.")
-    except Exception as e:
-        print(f"❌ ERROR: Failed to start debug server: {e}")
+        print(f"❌ ERROR: Failed to start Uvicorn: {e}")
 
 def main():
     """
@@ -155,13 +108,10 @@ def main():
     set_permissions()
     os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 
-    # Start the websocket proxy as a separate, long-running service.
-    start_websocket_proxy()
+    # The WebSocket proxy is now managed by FastAPI's lifespan events.
+    # No need to start it separately here.
 
-    if args.debug:
-        start_debug_app()
-    else:
-        start_gunicorn_app()
+    start_uvicorn_app() # Always start with Uvicorn for FastAPI
 
 if __name__ == "__main__":
     main()

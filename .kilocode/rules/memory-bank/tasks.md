@@ -1,5 +1,8 @@
 # Repetitive Task Workflows
 
+## General Workflow
+- **Error Handling:** If a to-do item results in an error, the next attempt should involve splitting it into smaller, more manageable to-do items. This improves resilience and makes debugging easier.
+
 ## Review Production Deployment Scripts
 
 **Last performed:** 2025-10-05

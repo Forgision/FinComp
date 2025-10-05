@@ -57,3 +57,6 @@ This document outlines the technologies, development setup, and technical constr
 ## Dependencies
 *   **Python:** Backend dependencies are managed with `pip` and are listed in the `requirements.txt` file. `uv` is used in deployment scripts for faster installation.
 *   **JavaScript:** Frontend dependencies are managed with `npm` and are listed in the `package.json` file.
+
+## Python Environment Management
+*   **Package Installation:** All Python packages must be installed and removed using `uv`. This ensures consistency and leverages `uv`'s performance benefits.
