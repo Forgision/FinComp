@@ -4,7 +4,7 @@ from marshmallow import ValidationError
 from limiter import limiter
 import os
 
-from restx_api.schemas import SplitOrderSchema
+from app.schemas import SplitOrderSchema
 from services.split_order_service import split_order, emit_analyzer_error
 from database.apilog_db import async_log_order, executor as log_executor
 from database.settings_db import get_analyze_mode

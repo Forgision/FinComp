@@ -4,7 +4,7 @@ from marshmallow import ValidationError
 from limiter import limiter
 import os
 
-from restx_api.schemas import SmartOrderSchema
+from app.schemas import SmartOrderSchema
 from services.place_smart_order_service import place_smart_order, emit_analyzer_error
 from database.apilog_db import async_log_order, executor
 from database.settings_db import get_analyze_mode

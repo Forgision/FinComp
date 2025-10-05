@@ -15,7 +15,7 @@ from utils.constants import (
     VALID_PRODUCT_TYPES,
     REQUIRED_ORDER_FIELDS
 )
-from restx_api.schemas import OrderSchema
+from app.schemas import OrderSchema
 from utils.logging import get_logger
 from services.telegram_alert_service import telegram_alert_service
 

@@ -5,7 +5,7 @@ from limiter import limiter
 import os
 import traceback
 
-from restx_api.schemas import ModifyOrderSchema
+from app.schemas import ModifyOrderSchema
 from services.modify_order_service import modify_order, emit_analyzer_error
 from database.apilog_db import async_log_order, executor
 from database.settings_db import get_analyze_mode
