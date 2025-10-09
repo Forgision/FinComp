@@ -71,21 +71,25 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 ```
 /
 ├── app/
-│   ├── backend/              # Backend source code (FastAPI)
-│   │   ├── api/              # HTTP layer (e.g., FastAPI routers)
-│   │   │   └── v1/
-│   │   ├── models/           # Pydantic schemas (request/response contracts)
-│   │   └── services/         # Business logic layer
+│   ├── auth/                 # Old auth router
 │   ├── core/                 # Cross-cutting concerns (config, logging)
 │   ├── db/                   # Database schema and session management
-│   └── frontend/             # Frontend source code
-│       ├── static/           # Static assets (CSS, JS, images)
-│       └── templates/        # HTML templates
-├── test/                 # Test code, mirroring the 'app/backend' structure
-├── .env                  # Local environment variables (not committed)
-├── Dockerfile            # Instructions for building the application container
-├── docker-compose.yml    # Local development orchestration
-└── pyproject.toml        # Project dependencies and tooling configuration
+│   ├── models/               # Old Pydantic schemas
+│   ├── services/             # Old business logic layer
+│   ├── utils/                # Old utility functions
+│   └── web/                  # New structure root
+│       ├── main.py           # Main application entrypoint
+│       ├── backend/          # New backend source code (FastAPI)
+│       │   └── api/
+│       │       └── v1/       # API version 1 routers
+│       └── frontend/         # New frontend source code
+│           ├── static/       # Static assets (CSS, JS, images)
+│           └── templates/    # HTML templates
+├── test/                     # Test code
+├── .env                      # Local environment variables (not committed)
+├── Dockerfile                # Instructions for building the application container
+├── docker-compose.yml        # Local development orchestration
+└── pyproject.toml            # Project dependencies and tooling configuration
 ```
 
 ## Component Diagram (Mermaid)

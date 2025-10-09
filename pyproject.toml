@@ -1,6 +1,6 @@
 [project]
 requires-python = ">=3.12"
-name = "openalgoUI"
+name = "FinComp"
 version = "1.0.0.35"
 description = "Broker-agnostic open-source trading automation"
 dependencies = [
@@ -148,11 +148,8 @@ dependencies = [
   "WTForms==3.1.2",
   "zipp==3.19.2",
   "zmq==0.0.0",
+  "fastapi>=0.118.0",
 ]
-
-[build-system]
-requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [tool.pylance]
 extraPaths = ["app"]

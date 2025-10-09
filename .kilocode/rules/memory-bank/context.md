@@ -1,5 +1,5 @@
 # Current Context
 
-- **Current Work Focus:** Implementing the newly defined project structure.
-- **Recent Changes:** Completed the architectural design phase, including the creation of `design.md` and updating `architecture.md` to reflect a clear separation of frontend and backend concerns.
-- **Next Steps:** Refactor the existing codebase to align with the new folder structure.
+- **Current Work Focus:** Syncing the Memory Bank with the current, partially refactored codebase.
+- **Recent Changes:** Updated `architecture.md` to show the co-existence of the old and new project structures.
+- **Next Steps:** Continue updating the memory bank files to reflect the current state of the project.

@@ -1,8 +1,15 @@
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+from pathlib import Path
 
+# Define the base directory of the project
+BASE_DIR = Path(__file__).resolve().parent.parent   # config/mnt/vault/@work-station/Python/FinComp/app/
+ 
 class Settings(BaseSettings):
+    # Project Configuration
+    BASE_DIR: Path = BASE_DIR
+    
     # Broker Configuration
     BROKER_API_KEY: str = "YOUR_BROKER_API_KEY"
     BROKER_API_SECRET: str = "YOUR_BROKER_API_SECRET"
@@ -105,7 +112,7 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "session"
     CSRF_COOKIE_NAME: str = "csrf_token"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
     def USE_HTTPS(self) -> bool:

@@ -287,3 +287,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             secure=settings.USE_HTTPS,
             max_age=settings.CSRF_TIME_LIMIT if settings.CSRF_TIME_LIMIT is not None else 3600 * 24 * 30 # Default 30 days
         )
+def flash(request: Request, message: str, category: str = "info"):
+    if 'flash_messages' not in request.session:
+        request.session['flash_messages'] = []
+    request.session['flash_messages'].append((category, message))
