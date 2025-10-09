@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from ....frontend import templates
 from sqlalchemy.orm import Session
-from app.services import user_service
-from app.db.session import get_db
+from ....frontend import templates
+from ....services import user_service
+from .....db.session import get_db
 # import qrcode
-import io
-import base64
+# import io
+# import base64
 
 core_router = APIRouter()
 # templates = Jinja2Templates(directory="templates")
@@ -16,10 +16,9 @@ core_router = APIRouter()
 def home(request: Request):
     return templates.TemplateResponse('index.html', {"request": request})
 
-# @core_router.route('/download')
-# @invalidate_session_if_invalid
-# def download():
-#     return render_template('download.html')
+@core_router.route('/download')
+def download(request: Request):
+    return templates.TemplateResponse('download.html', {"request": request})
 
 # @core_router.route('/faq')
 # @invalidate_session_if_invalid

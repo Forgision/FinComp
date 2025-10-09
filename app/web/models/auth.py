@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean
-from app.models.base import Base
+from .base import Base
 
 class Auth(Base):
     __tablename__ = "auth"

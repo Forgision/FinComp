@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.auth import Auth
 from app.utils.logging import get_logger
-from app.utils.security import verify_password
+from app.utils.web.security import verify_password
 from app.services import user_service
 import os
 import re

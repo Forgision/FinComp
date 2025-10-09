@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles # Import StaticFiles
 from app.core.config import settings
 from app.utils.logging import setup_logging, get_logger, log_startup_banner
-from app.utils.security import SecurityHeadersMiddleware, CSRFMiddleware
+from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
 from .backend.api import auth_router, broker_router, core_router, dashboard_router
 
 # Setup logging as early as possible
@@ -51,7 +51,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
 # Register routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(broker_router, prefix="/auth/broker", tags=["broker"])
-app.include_router(core_router, prefix="/core", tags=["core"])
+app.include_router(core_router, tags=["core"])
 # app.include_router(root_router, tags=["web"])
 app.include_router(dashboard_router, tags=["dashboard"])
 
@@ -61,14 +61,14 @@ async def startup_event():
     log_startup_banner(logger, "OpenAlgo FastAPI is running!", f"http://{settings.APP_HOST_IP}:{settings.APP_PORT}")
     logger.info("Application startup complete.")
 
-@app.get("/")
-async def root():
+@app.get("/test")
+async def test():
     return {"message": "Hello World"}
 
-@app.get("/favicon.ico", include_in_schema=False)
-async def get_favicon():
-    return Response(status_code=204)
+# @app.get("/favicon.ico", include_in_schema=False)
+# async def get_favicon():
+#     return Response(status_code=204)
 
-@app.get("/config")
-def get_config():
-    return settings.model_dump()
+# @app.get("/config")
+# def get_config():
+#     return settings.model_dump()

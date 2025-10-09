@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from ..models.user import User
-from app.utils.logging import get_logger
-from app.utils.security import hash_password
+from ...utils.logging import get_logger
+from ...utils.web.security import hash_password
 import pyotp
 import secrets
 
