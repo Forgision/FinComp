@@ -8,9 +8,12 @@ import base64
 from typing import Optional, Dict
 
 from app.core.config import settings
-from app.utils.logging import get_logger
+from ...utils.logger import logger
 
-logger = get_logger(__name__)
+SECURITY_LOG_LOCATION = "app.utils.web.security"
+# from app.utils.logging import get_logger
+
+# logger = get_logger(__name__)
 
 def get_csp_config() -> Optional[Dict[str, str]]:
     """
@@ -89,6 +92,7 @@ def get_csp_config() -> Optional[Dict[str, str]]:
 
     return csp_config
 
+
 def build_csp_header(csp_config: Optional[Dict[str, str]]) -> Optional[str]:
     """
     Build the Content Security Policy header value from the configuration.
@@ -104,6 +108,7 @@ def build_csp_header(csp_config: Optional[Dict[str, str]]) -> Optional[str]:
             directives.append(directive)
 
     return "; ".join(directives)
+
 
 def get_security_headers() -> Dict[str, str]:
     """
@@ -143,6 +148,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
 def generate_csrf_token(session_id: str) -> str:
     """Generates a new CSRF token."""
     salt = secrets.token_bytes(16)
@@ -155,6 +161,7 @@ def generate_csrf_token(session_id: str) -> str:
     # Encode salt, timestamp, and digest together
     token_parts = b"%s.%s.%s" % (base64.urlsafe_b64encode(salt), timestamp, base64.urlsafe_b64encode(h.digest()))
     return token_parts.decode('utf-8')
+
 
 def validate_csrf_token(token: str, session_id: str) -> bool:
     """Validates a given CSRF token."""
@@ -210,6 +217,13 @@ def verify_password(password: str, hashed_password: str) -> bool:
     except Exception as e:
         logger.error(f"Error verifying password: {e}")
         return False
+    
+
+def generate_api_key():
+    """Generate a secure random API key"""
+    # Generate 32 bytes of random data and encode as hex
+    return secrets.token_hex(32)
+
 
 class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp):

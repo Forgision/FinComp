@@ -199,7 +199,7 @@
             <div class="w-full">
                 <div class="card bg-base-200 shadow-xl">
                     <div class="card-body p-6 lg:p-8">
-                        <form id="setupForm" action="{{ url_for('core_bp.setup') }}" method="post" class="space-y-5">
+                        <form id="setupForm" action="{{ url_for('auth.setup') }}" method="post" class="space-y-5">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                             <!-- Username -->

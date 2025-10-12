@@ -1,70 +1,22 @@
 import logging
 import sys
 import os
+import site
 import re
+import inspect
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Optional
-
-# Add the project root to the Python path to resolve imports like 'app.core.config'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-# Load environment variables if .env file exists
-try:
-    from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env') # Adjusted path for app/utils
-    if os.path.exists(env_path):
-        load_dotenv(dotenv_path=env_path, override=False)
-except ImportError:
-    pass
-
-
+from ..core.config import settings
 
 try:
-    from colorama import Fore as ColoramaFore, Back as ColoramaBack, Style as ColoramaStyle, init
-    init(autoreset=True)
+    from colorama import Fore as ColoramaFore, Back as ColoramaBack, Style as ColoramaStyle, init as colorama_init  # type: ignore #(Library stubs not installed for "colorama")
+    colorama_init(autoreset=True)
     Fore = ColoramaFore
     Back = ColoramaBack
     Style = ColoramaStyle
     COLORAMA_AVAILABLE = True
-except ImportError:
-    # Dummy classes for colorama if not available
-    class DummyColor:
-        BLACK = ''
-        RED = ''
-        GREEN = ''
-        YELLOW = ''
-        BLUE = ''
-        MAGENTA = ''
-        CYAN = ''
-        WHITE = ''
-        RESET = ''
-
-    class DummyStyle:
-        BRIGHT = ''
-        DIM = ''
-        NORMAL = ''
-        RESET_ALL = ''
-
-    Fore = DummyColor()
-    Style = DummyStyle()
-    Back = DummyColor() # Add Back as well for completeness, though not used in the initial problem
-
-    COLORAMA_AVAILABLE = False
-
-# Sensitive patterns to filter out
-SENSITIVE_PATTERNS = [
-    (r'(api[_-]?key[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(password[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(token[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(secret[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(authorization[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(Bearer\s+)[\w\-\.]+', r'\1[REDACTED]'),
-]
-
-# Color mappings for different log levels
-if COLORAMA_AVAILABLE:
     LOG_COLORS = {
         'DEBUG': Fore.CYAN,
         'INFO': Fore.GREEN,
@@ -77,11 +29,25 @@ if COLORAMA_AVAILABLE:
     COMPONENT_COLORS = {
         'timestamp': Fore.BLUE,
         'module': Fore.MAGENTA,
+        'location': Fore.MAGENTA,
         'reset': Style.RESET_ALL,
     }
-else:
-    LOG_COLORS = {}
-    COMPONENT_COLORS = {}
+except ImportError:
+    COLORAMA_AVAILABLE = False
+
+PROJECT_NAME = 'app' # Adjust as needed for your project structure
+# logging method names to detect in code context
+LOGGING_LEVELS = ["debug", "info", "warning", "error", "critical"]
+
+# Sensitive patterns to filter out
+SENSITIVE_PATTERNS = [
+    (r'(api[_-]?key[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
+    (r'(password[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
+    (r'(token[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
+    (r'(secret[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
+    (r'(authorization[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
+    (r'(Bearer\s+)[\w\-\.]+', r'\1[REDACTED]'),
+]
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -109,26 +75,149 @@ class SensitiveDataFilter(logging.Filter):
         return True
 
 
+class LocationBuilder:
+    """Helper class to build location strings for log records."""
+
+    @staticmethod
+    def find_caller_frame():
+        frame = inspect.currentframe()
+
+        if frame is None:
+            return None
+
+        outer_frames = inspect.getouterframes(frame)
+
+        # --- Identify paths to exclude ---
+        site_paths = set()
+        if hasattr(site, "getsitepackages"):
+            site_paths.update(site.getsitepackages())
+        if hasattr(site, "getusersitepackages"):
+            site_paths.add(site.getusersitepackages())
+
+        stdlib_dir = os.path.dirname(os.__file__)
+        venv_dir = os.getenv("VIRTUAL_ENV")
+
+        skip_roots = {os.path.realpath(p) for p in site_paths if os.path.exists(p)}
+        if stdlib_dir:
+            skip_roots.add(os.path.realpath(stdlib_dir))
+        if venv_dir:
+            skip_roots.add(os.path.realpath(venv_dir))
+
+        filter_frames = []
+        for f in outer_frames:
+            file_path = os.path.realpath(f.filename)
+
+            # --- Exclusions ---
+            if file_path.endswith("logging/__init__.py"):
+                continue
+            elif not Path(file_path).exists():
+                continue
+            elif __file__ == file_path:
+                continue
+            elif ".vscode/extensions" in file_path:
+                continue
+            elif "site-packages" in file_path or "dist-packages" in file_path:
+                continue
+            elif any(file_path.startswith(root) for root in skip_roots):
+                continue
+            else:
+                # ✅ Accept first frame not matching any skip rule
+                code_context = f.code_context
+                if code_context:
+                    line = "".join(code_context).strip().lower()
+                    if any(f".{lvl}(" in line for lvl in LOGGING_LEVELS):
+                        filter_frames.append(f)
+                    else:
+                        continue
+
+        total_filtered = len(filter_frames)
+        if total_filtered == 1:
+            return filter_frames[0]
+        else:
+            return None
+
+    @staticmethod
+    def build_callerpath(frame_info):
+        # Convert file path to a module-style path for location.
+        file_path = frame_info.filename
+        frame = frame_info.frame
+        try:
+
+            path_obj = Path(file_path)
+            
+            # Determine the root for module path calculation.
+            # We assume 'app' is a root for application code.
+            parts = list(path_obj.parts)
+            if PROJECT_NAME in parts:
+                app_index = parts.index(PROJECT_NAME)
+                module_parts = parts[app_index:]
+            else:
+                # Fallback for files outside 'app' (e.g., scripts, tests)
+                module_parts = [path_obj.stem]
+
+            # Remove file extension from the last part.
+            if module_parts:
+                module_parts[-1] = Path(module_parts[-1]).stem
+
+            module_path = ".".join(module_parts)
+            
+            # For __init__.py files, the location is the package name.
+            if module_path.endswith(".__init__"):
+                module_path = module_path.rsplit(".__init__", 1)[0]
+                
+        except Exception:
+            # Fallback to Python's __name__ if path parsing fails.
+            module_path = frame.f_globals.get("__name__", "unknown")
+
+        # Try to get the class name from 'self' (instance methods) or 'cls' (class methods).
+        try:
+            class_name = ""
+            if 'self' in frame.f_locals:
+                class_name = frame.f_locals['self'].__class__.__name__
+            elif 'cls' in frame.f_locals:
+                cls_arg = frame.f_locals['cls']
+                if inspect.isclass(cls_arg):
+                    class_name = cls_arg.__name__
+        except (AttributeError, KeyError):
+            class_name = ""
+
+        # Get the function/method name.
+        function_name = frame.f_code.co_name
+
+        # Construct the final location string: module.class.function
+        location_parts = [module_path]
+        if class_name:
+            location_parts.append(class_name)
+        
+        # Add function name, but ignore for top-level module code.
+        if function_name != "<module>":
+            location_parts.append(function_name)
+        
+        location = ".".join(part for part in location_parts if part)
+
+        return location
+    
+
+class LocationInfoFilter(logging.Filter):
+    """
+    Filter to add detailed location information to log records.
+    It adds 'location' and 'custom_lineno' attributes.
+    """
+    def filter(self, record):
+        caller_frame = LocationBuilder.find_caller_frame()
+        record.location = LocationBuilder.build_callerpath(caller_frame)
+        return True
+
+
 class ColoredFormatter(logging.Formatter):
     """Custom formatter that adds colors to log levels and components for console output."""
     
     def __init__(self, fmt=None, datefmt=None, enable_colors=True):
         super().__init__(fmt, datefmt)
-        self.enable_colors = enable_colors and COLORAMA_AVAILABLE and self._supports_color()
+        self.enable_colors = settings.LOGS_COLORS_ENABLE and COLORAMA_AVAILABLE and self._supports_color()
     
     def _supports_color(self):
         """Check if the terminal supports color output."""
-        # Check for FORCE_COLOR environment variable first
-        force_color = os.environ.get('FORCE_COLOR', '').lower()
-        if force_color in ['1', 'true', 'yes', 'on']:
-            return True
-        elif force_color in ['0', 'false', 'no', 'off']:
-            return False
-        
-        # Check for NO_COLOR environment variable (standard)
-        if os.environ.get('NO_COLOR'):
-            return False
-        
         # Check if we're in a terminal that supports colors
         if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
             # Check environment variables
@@ -162,56 +251,183 @@ class ColoredFormatter(logging.Formatter):
         return False
     
     def format(self, record):
+        # The filter adds custom_lineno. We use it for the output.
+        record.lineno = getattr(record, 'custom_lineno', record.lineno)
+
         if not self.enable_colors:
             return super().format(record)
 
         # Get the original formatted message
-        # Wrap in try-except to handle format string mismatches from external libraries
         try:
             original_format = super().format(record)
-        except (TypeError, ValueError) as e:
-            # Handle cases where external libraries (like hpack) pass wrong types
-            # Example: hpack passes strings like '2' to %d format specifier
-            # Fallback to basic formatting without the problematic args
+        except (TypeError, ValueError):
             try:
-                record.message = str(record.msg)  # Convert message to string
-                record.args = None  # Clear args to avoid format issues
+                record.message = str(record.msg)
+                record.args = None
                 original_format = super().format(record)
             except Exception:
-                # Last resort: return raw message
                 return f"[{record.levelname}] {record.msg}"
         
-        # Apply colors to different components
+        # Apply colors
         level_color = LOG_COLORS.get(record.levelname, '')
         reset = COMPONENT_COLORS.get('reset', '')
         timestamp_color = COMPONENT_COLORS.get('timestamp', '')
-        module_color = COMPONENT_COLORS.get('module', '')
+        location_color = COMPONENT_COLORS.get('location', '')
         
-        # Parse the format to identify components
-        # This assumes the default format: [timestamp] LEVEL in module: message
-        if '[' in original_format and ']' in original_format:
-            # Color the timestamp
-            original_format = re.sub(
-                r'(\[.*?\])', 
-                f'{timestamp_color}\\1{reset}', 
-                original_format
-            )
+        # Color timestamp (first bracketed group)
+        original_format = re.sub(
+            r'(\[.*?\])',
+            f'{timestamp_color}\\1{reset}',
+            original_format,
+            count=1
+        )
         
-        # Color the log level
-        if record.levelname in original_format:
-            original_format = original_format.replace(
-                record.levelname,
-                f'{level_color}{record.levelname}{reset}'
-            )
+        # Color log level
+        original_format = original_format.replace(
+            record.levelname,
+            f'{level_color}{record.levelname}{reset}'
+        )
         
-        # Color the module name
-        if hasattr(record, 'module') and record.module in original_format:
-            original_format = original_format.replace(
-                f' in {record.module}:',
-                f' in {module_color}{record.module}{reset}:'
-            )
-        
+        # Color location
+        if hasattr(record, 'location'):
+            location_str = f"[{record.location}:{record.lineno}]"
+            colored_location = f"[{location_color}{record.location}{reset}:{record.lineno}]"
+            original_format = original_format.replace(location_str, colored_location)
+            
         return original_format
+
+
+class CallerLoggerAdapter(logging.LoggerAdapter):
+    """
+    A LoggerAdapter that automatically injects caller information:
+    project.module.Class.method
+    """
+
+    def _find_caller_frame(self):
+        frame = inspect.currentframe()
+
+        if frame is None:
+            return None
+
+        outer_frames = inspect.getouterframes(frame)
+
+        # --- Identify paths to exclude ---
+        site_paths = set()
+        if hasattr(site, "getsitepackages"):
+            site_paths.update(site.getsitepackages())
+        if hasattr(site, "getusersitepackages"):
+            site_paths.add(site.getusersitepackages())
+
+        stdlib_dir = os.path.dirname(os.__file__)
+        venv_dir = os.getenv("VIRTUAL_ENV")
+
+        skip_roots = {os.path.realpath(p) for p in site_paths if os.path.exists(p)}
+        if stdlib_dir:
+            skip_roots.add(os.path.realpath(stdlib_dir))
+        if venv_dir:
+            skip_roots.add(os.path.realpath(venv_dir))
+
+        filter_frames = []
+        for f in outer_frames:
+            file_path = os.path.realpath(f.filename)
+
+            # --- Exclusions ---
+            if file_path.endswith("logging/__init__.py"):
+                continue
+            elif not Path(file_path).exists():
+                continue
+            elif __file__ == file_path:
+                continue
+            elif ".vscode/extensions" in file_path:
+                continue
+            elif "site-packages" in file_path or "dist-packages" in file_path:
+                continue
+            elif any(file_path.startswith(root) for root in skip_roots):
+                continue
+            else:
+                # ✅ Accept first frame not matching any skip rule
+                code_context = f.code_context
+                if code_context:
+                    line = "".join(code_context).strip().lower()
+                    if any(f".{lvl}(" in line for lvl in LOGGING_LEVELS):
+                        filter_frames.append(f)
+                    else:
+                        continue
+
+        total_filtered = len(filter_frames)
+        if total_filtered == 1:
+            return filter_frames[0]
+        else:
+            return None
+
+    def _build_callerpath(self, frame_info):
+        # Convert file path to a module-style path for location.
+        file_path = frame_info.filename
+        frame = frame_info.frame
+        try:
+
+            path_obj = Path(file_path)
+            
+            # Determine the root for module path calculation.
+            # We assume 'app' is a root for application code.
+            parts = list(path_obj.parts)
+            if PROJECT_NAME in parts:
+                app_index = parts.index(PROJECT_NAME)
+                module_parts = parts[app_index:]
+            else:
+                # Fallback for files outside 'app' (e.g., scripts, tests)
+                module_parts = [path_obj.stem]
+
+            # Remove file extension from the last part.
+            if module_parts:
+                module_parts[-1] = Path(module_parts[-1]).stem
+
+            module_path = ".".join(module_parts)
+            
+            # For __init__.py files, the location is the package name.
+            if module_path.endswith(".__init__"):
+                module_path = module_path.rsplit(".__init__", 1)[0]
+                
+        except Exception:
+            # Fallback to Python's __name__ if path parsing fails.
+            module_path = frame.f_globals.get("__name__", "unknown")
+
+        # Try to get the class name from 'self' (instance methods) or 'cls' (class methods).
+        try:
+            class_name = ""
+            if 'self' in frame.f_locals:
+                class_name = frame.f_locals['self'].__class__.__name__
+            elif 'cls' in frame.f_locals:
+                cls_arg = frame.f_locals['cls']
+                if inspect.isclass(cls_arg):
+                    class_name = cls_arg.__name__
+        except (AttributeError, KeyError):
+            class_name = ""
+
+        # Get the function/method name.
+        function_name = frame.f_code.co_name
+
+        # Construct the final location string: module.class.function
+        location_parts = [module_path]
+        if class_name:
+            location_parts.append(class_name)
+        
+        # Add function name, but ignore for top-level module code.
+        if function_name != "<module>":
+            location_parts.append(function_name)
+        
+        location = ".".join(part for part in location_parts if part)
+
+        return location
+    
+    def process(self, msg, kwargs):
+        c_frame = LocationBuilder.find_caller_frame()
+        if c_frame is not None:
+            # Inject `location` into the log record's extra fields
+            extra = kwargs.get("extra", {})
+            extra["location"] = LocationBuilder.build_callerpath(c_frame)
+            kwargs["extra"] = extra
+        return msg, kwargs
 
 
 def cleanup_old_logs(log_dir: Path, retention_days: int):
@@ -237,45 +453,42 @@ def setup_logging():
     from app.core.config import settings # Import settings here to avoid circular dependency
 
     # Get configuration from environment
-    log_to_file = settings.LOG_TO_FILE
-    log_level = settings.LOG_LEVEL
-    log_dir = settings.LOG_DIR
-    log_format = settings.LOG_FORMAT
+    log_format = '[%(asctime)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
     log_retention = int(settings.LOG_RETENTION)
     log_colors = settings.LOG_COLORS
     
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, log_level, logging.INFO))
+    root_logger.setLevel(settings.LOG_LEVEL or logging.INFO)
     
     # Remove existing handlers
     root_logger.handlers = []
-    
-    # Create formatters
-    # Colored formatter for console (if colors are enabled)
-    console_formatter = ColoredFormatter(log_format, enable_colors=log_colors)
-    # Regular formatter for file output (no colors)
-    file_formatter = logging.Formatter(log_format)
-    
-    # Add sensitive data filter
+
+    # Create filters
     sensitive_filter = SensitiveDataFilter()
+    location_filter = LocationInfoFilter()
+
+    # Create formatters
+    console_formatter = ColoredFormatter(log_format, enable_colors=log_colors)
+    file_formatter = logging.Formatter(log_format)
     
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(console_formatter)
     console_handler.addFilter(sensitive_filter)
+    console_handler.addFilter(location_filter)
     root_logger.addHandler(console_handler)
     
     # File handler (if enabled)
-    if log_to_file:
-        log_path = Path(log_dir)
+    if settings.LOG_TO_FILE:
+        log_path = Path(settings.LOG_DIR)
         log_path.mkdir(exist_ok=True)
         
         # Clean up old logs
         cleanup_old_logs(log_path, log_retention)
         
         # Create file handler with daily rotation
-        log_file = log_path / f"openalgo_{datetime.now().strftime('%Y-%m-%d')}.log"
+        log_file = log_path / f"fincomp_{datetime.now().strftime('%Y-%m-%d')}.log"
         file_handler = TimedRotatingFileHandler(
             filename=str(log_file),
             when='midnight',
@@ -285,6 +498,7 @@ def setup_logging():
         )
         file_handler.setFormatter(file_formatter)
         file_handler.addFilter(sensitive_filter)
+        file_handler.addFilter(location_filter)
         root_logger.addHandler(file_handler)
     
     # Suppress noisy third-party loggers
@@ -309,23 +523,14 @@ def highlight_url(url: str, text: str = '') -> str:
     Returns:
         Formatted string with colors (if available) or plain text
     """
-    if not COLORAMA_AVAILABLE:
-        return text or url
-    
-    # Check if colors are enabled
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
-    force_color = os.getenv('FORCE_COLOR', '').lower() in ['1', 'true', 'yes', 'on']
-    
-    if not log_colors and not force_color:
+    if not COLORAMA_AVAILABLE or not settings.LOGS_COLORS_ENABLE:
         return text or url
     
     # Create bright, attention-grabbing formatting
     bright_cyan = Fore.CYAN + Style.BRIGHT
     bright_white = Fore.WHITE + Style.BRIGHT
     reset = Style.RESET_ALL
-    
-    display_text = text or url
-    
+        
     # Format: [bright_white]text[reset] -> [bright_cyan]url[reset]
     if text and text != url:
         return f"{bright_white}{text}{reset} -> {bright_cyan}{url}{reset}"
@@ -333,12 +538,11 @@ def highlight_url(url: str, text: str = '') -> str:
         return f"{bright_cyan}{url}{reset}"
 
 
-def log_startup_banner(logger_instance, title: str, url: str, separator_char: str = "=", width: int = 60):
+def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", width: int = 60):
     """
     Log a highlighted startup banner with URL.
     
     Args:
-        logger_instance: Logger instance to use
         title: Main title text
         url: URL to highlight
         separator_char: Character for separator lines
@@ -346,10 +550,10 @@ def log_startup_banner(logger_instance, title: str, url: str, separator_char: st
     """
     if not COLORAMA_AVAILABLE:
         # Fallback without colors
-        logger_instance.info(separator_char * width)
-        logger_instance.info(title)
-        logger_instance.info(f"Access the application at: {url}")
-        logger_instance.info(separator_char * width)
+        logger.log_info(separator_char * width)
+        logger.log_info(title)
+        logger.log_info(f"Access the application at: {url}")
+        logger.log_info(separator_char * width)
         return
     
     # Check if colors are enabled
@@ -358,10 +562,10 @@ def log_startup_banner(logger_instance, title: str, url: str, separator_char: st
     
     if not log_colors and not force_color:
         # Fallback without colors
-        logger_instance.info(separator_char * width)
-        logger_instance.info(title)
-        logger_instance.info(f"Access the application at: {url}")
-        logger_instance.info(separator_char * width)
+        logger.info(separator_char * width)
+        logger.info(title)
+        logger.info(f"Access the application at: {url}")
+        logger.info(separator_char * width)
         return
     
     # Create colorful banner
@@ -375,10 +579,10 @@ def log_startup_banner(logger_instance, title: str, url: str, separator_char: st
     title_line = f"{bright_green}{title}{reset}"
     url_line = f"Access the application at: {bright_cyan}{url}{reset}"
     
-    logger_instance.info(separator_line)
-    logger_instance.info(title_line)
-    logger_instance.info(url_line)
-    logger_instance.info(separator_line)
+    logger.info(separator_line)
+    logger.info(title_line)
+    logger.info(url_line)
+    logger.info(separator_line)
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -391,7 +595,9 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         Logger instance configured with the module name and color support
     """
+    # return CallerLoggerAdapter(logging.getLogger(name), {})
     return logging.getLogger(name)
 
 # Initialize logging on import
 setup_logging()
+logger = get_logger(__name__)

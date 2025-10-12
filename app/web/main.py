@@ -8,13 +8,16 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.staticfiles import StaticFiles # Import StaticFiles
 from app.core.config import settings
-from app.utils.logging import setup_logging, get_logger, log_startup_banner
+# from ..utils.logger import log_startup_banner
+# from app.utils.logging import setup_logging, get_logger, log_startup_banner
+from app.utils.logging import logger
 from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
 from .backend.api import auth_router, broker_router, core_router, dashboard_router
 
+
 # Setup logging as early as possible
-setup_logging()
-logger = get_logger(__name__)
+# setup_logging()
+# logger = get_logger(__name__)
 
 app = FastAPI(debug=settings.APP_DEBUG)
 
@@ -49,7 +52,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
 #     )
 
 # Register routers
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(auth_router)
 app.include_router(broker_router, prefix="/auth/broker", tags=["broker"])
 app.include_router(core_router, tags=["core"])
 # app.include_router(root_router, tags=["web"])
@@ -58,7 +61,12 @@ app.include_router(dashboard_router, tags=["dashboard"])
 @app.on_event("startup")
 async def startup_event():
     # Log startup banner
-    log_startup_banner(logger, "OpenAlgo FastAPI is running!", f"http://{settings.APP_HOST_IP}:{settings.APP_PORT}")
+    # log_startup_banner(logger, "OpenAlgo FastAPI is running!", f"http://{settings.APP_HOST_IP}:{settings.APP_PORT}")
+    separate_str = "=" * 60
+    logger.info(separate_str)
+    logger.info("OpenAlgo FastAPI is running!")
+    logger.info(f"Access the application at: http://{settings.APP_HOST_IP}:{settings.APP_PORT}")
+    logger.info(separate_str)
     logger.info("Application startup complete.")
 
 @app.get("/test")

@@ -51,10 +51,12 @@ class Settings(BaseSettings):
     LOG_TO_FILE: bool = False
     LOG_LEVEL: str = "INFO"
     LOG_DIR: str = "log"
-    LOG_FORMAT: str = "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+    LOG_FORMAT: str = "[%(asctime)s] - %(levelname)s - %(location)s - %(name)s - %(module)s - %(lineno)d: %(message)s"
+    LOG_MAX_FILE_SIZE: int = int(10 * 1024 * 1024)  # 10 MB
     LOG_RETENTION: int = 14
+    LOG_BACKUP_COUNT: int = 5
     LOG_COLORS: bool = True
-    FORCE_COLOR: int = 1
+    LOGS_COLORS_ENABLE: bool = True
 
     # Rate Limit Settings
     LOGIN_RATE_LIMIT_MIN: str = "5 per minute"
