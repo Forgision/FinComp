@@ -8,7 +8,7 @@ All existing code will continue to work without any changes.
 
 # Import all functions from the enhanced module
 # This makes the enhanced cache transparent to existing code
-from database.token_db_enhanced import (
+from .token_db_enhanced import (
     get_token,
     get_symbol,
     get_oa_symbol,

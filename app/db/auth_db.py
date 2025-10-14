@@ -121,12 +121,12 @@ def decrypt_token(encrypted_token):
         logger.error(f"Error decrypting token: {e}")
         return None
 
-def upsert_auth(name, auth_token, broker, feed_token=None, user_id=None, revoke=False):
+def upsert_auth(db, name, auth_token, broker, feed_token=None, user_id=None, revoke=False):
     """Store encrypted auth token and feed token if provided"""
     encrypted_token = encrypt_token(auth_token)
     encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
     
-    auth_obj = Auth.query.filter_by(name=name).first()
+    auth_obj = db.query(Auth).filter_by(name=name).first()
     if auth_obj:
         auth_obj.auth = encrypted_token
         auth_obj.feed_token = encrypted_feed_token
@@ -145,8 +145,8 @@ def upsert_auth(name, auth_token, broker, feed_token=None, user_id=None, revoke=
             logger.info(f"Cleared cache entries for revoked tokens of user: {name}")
     else:
         auth_obj = Auth(name=name, auth=encrypted_token, feed_token=encrypted_feed_token, broker=broker, user_id=user_id, is_revoked=revoke)
-        db_session.add(auth_obj)
-    db_session.commit()
+        db.add(auth_obj)
+    db.commit()
     return auth_obj.id
 
 def get_auth_token(name):

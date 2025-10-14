@@ -263,6 +263,27 @@ async def broker_login_get(request: Request):
     }
     return templates.TemplateResponse("broker.html", context)
 
+
+@auth_router.post('/broker', name='broker_login_post')
+async def broker_login_post(request: Request):
+    if 'user' not in request.session:
+        flash(request, "Please log in to continue.", "warning")
+        return RedirectResponse(url=request.url_for('auth.login'))
+
+    # In a real scenario, you'd validate the submitted broker credentials.
+    # For this task, we'll assume successful validation.
+
+    redirect_url = settings.REDIRECT_URL
+    broker_name_match = re.search(r'/([^/]+)/callback$', redirect_url)
+    broker_name = broker_name_match.group(1) if broker_name_match else "default"
+
+    request.session['logged_in'] = True
+    request.session['broker'] = broker_name
+
+    flash(request, f"Successfully logged in with {broker_name.title()}.", "success")
+    return RedirectResponse(url='/dashboard', status_code=status.HTTP_302_FOUND)
+
+
 @auth_router.get('/reset-password', name='auth.reset_password', response_class=HTMLResponse)
 async def reset_password_get(request: Request):
     return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": False})

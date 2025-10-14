@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.responses import Response
@@ -20,6 +20,7 @@ from ..utils.web import limiter
 from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
 from .backend.api import auth_router, broker_router, core_router, dashboard_router
 from .frontend import templates
+from app.utils.web.socketio import socket_app
 
 from app.db.auth_db import init_db as ensure_auth_tables_exists
 from app.db.user_db import init_db as ensure_user_tables_exists
@@ -86,6 +87,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Mount static files
 app.mount("/static", StaticFiles(directory=settings.BASE_DIR / "web/frontend/static"), name="static")
 
+# Mount Socket.IO app
+app.mount("/ws", socket_app)
+
 # add templete
 templates.env.globals['url_for'] = app.url_path_for
 
@@ -115,7 +119,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
 
 # Register routers
 app.include_router(auth_router)
-app.include_router(broker_router, prefix="/auth/broker", tags=["broker"])
+app.include_router(broker_router)
 app.include_router(core_router, tags=["core"])
 # app.include_router(root_router, tags=["web"])
 app.include_router(dashboard_router, tags=["dashboard"])
@@ -128,6 +132,14 @@ async def test():
 @app.exception_handler(CsrfProtectError)
 def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
+# Add rate limit exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={"detail": "Rate limit exceeded"}
+    )
 
 # @app.get("/favicon.ico", include_in_schema=False)
 # async def get_favicon():

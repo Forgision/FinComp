@@ -11,28 +11,26 @@ from starlette.responses import HTMLResponse, RedirectResponse, JSONResponse
 from starlette.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.utils.logging import get_logger # type: ignore
+from .....utils.web import limiter
+from .....utils.logging import logger # type: ignore
+from .....utils.auth_utils import handle_auth_success, handle_auth_failure # type: ignore
+from .....utils.plugin_loader import load_broker_auth_functions # type: ignore
+from .....utils.httpx_client import get_httpx_client # type: ignore
+from .....core.config import settings
+from .....db.session import get_db
 # from app.utils.security import verify_password # type: ignore
-# from app.services import user_service # type: ignore
-# from app.utils.auth_utils import handle_auth_success, handle_auth_failure # type: ignore
-# from app.utils.plugin_loader import load_broker_auth_functions # type: ignore
-# from app.utils.httpx_client import get_httpx_client # type: ignore
+from ....services import user_service # type: ignore
+from ....frontend import templates
 
 # Suppress Pylance import errors for internal app modules
 # Pylance does not correctly resolve these imports without additional configuration
 # in .vscode/settings.json, which the user has declined to modify.
-# type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore
+# type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore # type: ignore
 
-# Initialize logger
-logger = get_logger(__name__)
-
-# Initialize Jinja2Templates
-templates = Jinja2Templates(directory="templates")
 
 # Initialize broker_router
-broker_router = APIRouter(prefix="/auth/broker")
+broker_router = APIRouter(prefix="/auth/broker",  tags=["broker"])
+
 
 # Define getKotakOTP (moved to top for better organization and async)
 async def getKotakOTP(userid: str, access_token: str):
@@ -60,167 +58,6 @@ async def getKotakOTP(userid: str, access_token: str):
             logger.error(f"Error in getKotakOTP: {e}")
             return False, f"Error sending OTP: {str(e)}"
 
-@broker_router.post("/{broker}/loginflow")
-async def broker_loginflow(
-    broker: str,
-    request: Request,
-    mobile_number: str = Form(..., alias="mobilenumber"),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    # Check if user is not in session
-    if 'user' not in request.session:
-        return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
-
-    if broker == 'kotak':
-        # Strip any existing prefix and add +91
-        mobile_number = mobile_number.replace('+91', '').strip()
-        if not mobile_number.startswith('+91'):
-            mobile_number = f'+91{mobile_number}'
-        
-        # First get the access token
-        api_secret = settings.BROKER_API_SECRET
-        auth_string = base64.b64encode(f"{settings.BROKER_API_KEY}:{api_secret}".encode()).decode('utf-8')
-
-        async with get_httpx_client() as client:
-            # Define the payload
-            payload = json.dumps({
-                'grant_type': 'client_credentials'
-            })
-
-            # Define the headers with Basic Auth
-            headers = {
-                'accept': '*/*',
-                'Content-Type': 'application/json',
-                'Authorization': f'Basic {auth_string}'
-            }
-
-            try:
-                # Make API request to get access token
-                response = await client.post("https://napi.kotaksecurities.com/oauth2/token", content=payload, headers=headers)
-                response.raise_for_status()
-                data = response.json()
-
-                if 'access_token' in data:
-                    access_token = data['access_token']
-                    # Login with mobile number and password
-                    payload = json.dumps({
-                        "mobileNumber": mobile_number,
-                        "password": password
-                    })
-                    headers = {
-                        'accept': '*/*',
-                        'Content-Type': 'application/json',
-                        'Authorization': f'Bearer {access_token}'
-                    }
-                    response = await client.post("https://gw-napi.kotaksecurities.com/login/1.0/login/v2/validate", content=payload, headers=headers)
-                    response.raise_for_status()
-                    data_dict = response.json()
-
-                    if 'data' in data_dict:
-                        token = data_dict['data']['token']
-                        sid = data_dict['data']['sid']
-                        hsServerId = data_dict['data']['hsServerId']
-                        decode_jwt = jwt.decode(token, options={"verify_signature": False})
-                        userid = decode_jwt.get("sub")
-
-                        para = {
-                            "access_token": access_token,
-                            "token": token,
-                            "sid": sid,
-                            "hsServerId": hsServerId,
-                            "userid": userid
-                        }
-                        await getKotakOTP(userid, access_token)
-                        return templates.TemplateResponse("kotakotp.html", {"request": request, "para": para})
-                    else:
-                        error_message = data_dict.get('message', 'Unknown error occurred')
-                        return templates.TemplateResponse("kotak.html", {"request": request, "error_message": error_message})
-                else:
-                    error_message = data.get('message', 'Failed to get access token')
-                    return templates.TemplateResponse("kotak.html", {"request": request, "error_message": error_message})
-
-            except httpx.HTTPStatusError as e:
-                logger.error(f"Kotak API request failed: {e.response.text}")
-                return templates.TemplateResponse("kotak.html", {"request": request, "error_message": f"API Error: {e.response.text}"})
-            except Exception as e:
-                logger.error(f"Error in Kotak login flow: {e}")
-                return templates.TemplateResponse("kotak.html", {"request": request, "error_message": f"An unexpected error occurred: {str(e)}"})
-    
-    return RedirectResponse(url=f"/auth/broker/{broker}/callback", status_code=status.HTTP_302_FOUND)
-
-@broker_router.post("/{broker}/verifyotp")
-async def verify_otp(
-    broker: str,
-    request: Request,
-    otp: str = Form(...),
-    access_token: str = Form(...),
-    token: str = Form(...),
-    sid: str = Form(...),
-    hsServerId: str = Form(...),
-    userid: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if broker == 'kotak':
-        async with get_httpx_client() as client:
-            payload = json.dumps({
-                "userId": userid,
-                "otp": otp
-            })
-            headers = {
-                'accept': '*/*',
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {access_token}'
-            }
-            try:
-                response = await client.post("https://gw-napi.kotaksecurities.com/login/1.0/login/otp/verify", content=payload, headers=headers)
-                response.raise_for_status()
-                data_dict = response.json()
-
-                if data_dict.get('status') == 'success':
-                    # Assuming OTP is verified, proceed to handle_auth_success
-                    # Construct broker_response as expected by handle_auth_success
-                    broker_response = {
-                        "access_token": access_token,
-                        "request_token": token,  # Using token as request_token for consistency
-                        "sid": sid,
-                        "hsServerId": hsServerId,
-                        "user_id": userid,
-                        "broker": broker,
-                    }
-                    return await handle_auth_success(broker, broker_response, request, db)
-                else:
-                    error_message = data_dict.get('message', 'OTP verification failed')
-                    para = {
-                        "access_token": access_token,
-                        "token": token,
-                        "sid": sid,
-                        "hsServerId": hsServerId,
-                        "userid": userid
-                    }
-                    return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": error_message, "para": para})
-            except httpx.HTTPStatusError as e:
-                logger.error(f"Kotak OTP verification failed: {e.response.text}")
-                para = {
-                    "access_token": access_token,
-                    "token": token,
-                    "sid": sid,
-                    "hsServerId": hsServerId,
-                    "userid": userid
-                }
-                return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": f"API Error: {e.response.text}", "para": para})
-            except Exception as e:
-                logger.error(f"Error in Kotak OTP verification flow: {e}")
-                para = {
-                    "access_token": access_token,
-                    "token": token,
-                    "sid": sid,
-                    "hsServerId": hsServerId,
-                    "userid": userid
-                }
-                return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": f"An unexpected error occurred: {str(e)}", "para": para})
-
-    return RedirectResponse(url=f"/auth/broker/{broker}/callback", status_code=status.HTTP_302_FOUND)
 
 
 # TODO: Implement rate limiting for FastAPI.
@@ -234,6 +71,8 @@ async def broker_root(request: Request):
     return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND) # Updated redirect path
 
 @broker_router.api_route("/{broker}/callback", methods=["GET", "POST"])
+@limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
 async def broker_callback(broker: str, request: Request, db: Session = Depends(get_db)):
     logger.info(f'Broker callback initiated for: {broker}')
     logger.debug(f'Session contents: {dict(request.session)}')
@@ -329,12 +168,12 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                         auth_token, error_message = await auth_function(userid, enc_key)
                         
                         if auth_token:
-                            return await handle_auth_success(auth_token, request.session['user'], broker, db)
+                            return await handle_auth_success(request, db, auth_token, request.session['user'], broker)
                         else:
-                            return await handle_auth_failure(error_message, request, forward_url='aliceblue.html')
+                            return await handle_auth_failure(request, error_message, forward_url='aliceblue.html')
                     else:
                         error_msg = data_dict.get('emsg', 'Failed to get encryption key')
-                        return await handle_auth_failure(f"Failed to get encryption key: {error_msg}", request, forward_url='aliceblue.html')
+                        return await handle_auth_failure(request, f"Failed to get encryption key: {error_msg}", forward_url='aliceblue.html')
                 except Exception as e:
                     return JSONResponse(content={"error": f"Authentication error: {str(e)}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
@@ -420,7 +259,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             auth_token, error_message = await auth_function(password=password, twofa=twofa, twofa_type=twofatype)
             
             if auth_token:
-                return await handle_auth_success(auth_token, request.session['user'], broker, db)
+                return await handle_auth_success(request, db, auth_token, request.session['user'], broker)
             else:
                 return templates.TemplateResponse('tradejini.html', {"request": request, "error": error_message})
         
@@ -452,7 +291,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             
             if not is_valid:
                 logger.error(f"Dhan authentication validation failed: {validation_error}")
-                return await handle_auth_failure(f"Authentication validation failed: {validation_error}", request, forward_url='broker.html')
+                return await handle_auth_failure(request, f"Authentication validation failed: {validation_error}", forward_url='broker.html')
             
             logger.info("Dhan authentication validation successful")
         
@@ -548,12 +387,12 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
         if error:
             error_msg = f"OAuth error: {error}. {error_description if error_description else ''}"
             logger.error(error_msg)
-            return await handle_auth_failure(error_msg, request, forward_url='broker.html')
+            return await handle_auth_failure(request, error_msg, forward_url='broker.html')
         
         if not auth_code:
             error_msg = "Authorization code not provided"
             logger.error(error_msg)
-            return await handle_auth_failure(error_msg, request, forward_url='broker.html')
+            return await handle_auth_failure(request, error_msg, forward_url='broker.html')
             
         logger.debug(f'Pocketful broker - Received authorization code: {auth_code}')
         auth_token, feed_token, user_id, error_message = await auth_function(auth_code, state)
@@ -653,15 +492,17 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                     logger.info(f"Compositedge callback: Set session user to {username}")
                 else:
                     logger.error("No admin user found in database for Compositedge callback")
-                    return await handle_auth_failure("No user account found. Please login first.", request, forward_url='broker.html')
+                    return await handle_auth_failure(request, "No user account found. Please login first.", forward_url='broker.html')
             
-            return await handle_auth_success(auth_token, request.session['user'], broker, db, feed_token=feed_token, user_id=user_id)
+            return await handle_auth_success(request, db, auth_token, request.session['user'], broker, feed_token=feed_token, user_id=user_id)
         else:
-            return await handle_auth_success(auth_token, request.session['user'], broker, db, feed_token=feed_token)
+            return await handle_auth_success(request, db, auth_token, request.session['user'], broker, feed_token=feed_token)
     else:
-        return await handle_auth_failure(error_message, request, forward_url=forward_url)
+        return await handle_auth_failure(request, error_message, forward_url=forward_url)
 
 @broker_router.api_route("/{broker}/loginflow", methods=["POST", "GET"])
+@limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
 async def broker_loginflow(broker: str, request: Request):
     # Check if user is not in session first
     if 'user' not in request.session:
@@ -744,76 +585,3 @@ async def broker_loginflow(broker: str, request: Request):
     
     return HTMLResponse(content="Unsupported broker or method for loginflow", status_code=status.HTTP_400_BAD_REQUEST)
 
-
-@broker_router.post("/{broker}/verifyotp")
-async def verify_otp(
-    broker: str,
-    request: Request,
-    otp: str = Form(...),
-    access_token: str = Form(...),
-    token: str = Form(...),
-    sid: str = Form(...),
-    hsServerId: str = Form(...),
-    userid: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if broker == 'kotak':
-        async with get_httpx_client() as client:
-            payload = json.dumps({
-                "userId": userid,
-                "otp": otp
-            })
-            headers = {
-                'accept': '*/*',
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {access_token}'
-            }
-            try:
-                response = await client.post("https://gw-napi.kotaksecurities.com/login/1.0/login/otp/verify", content=payload, headers=headers)
-                response.raise_for_status()
-                data_dict = response.json()
-
-                if data_dict.get('status') == 'success':
-                    # Assuming OTP is verified, proceed to handle_auth_success
-                    # Construct broker_response as expected by handle_auth_success
-                    broker_response = {
-                        "access_token": access_token,
-                        "request_token": token,  # Using token as request_token for consistency
-                        "sid": sid,
-                        "hsServerId": hsServerId,
-                        "user_id": userid,
-                        "broker": broker,
-                    }
-                    return await handle_auth_success(broker, broker_response, request, db)
-                else:
-                    error_message = data_dict.get('message', 'OTP verification failed')
-                    para = {
-                        "access_token": access_token,
-                        "token": token,
-                        "sid": sid,
-                        "hsServerId": hsServerId,
-                        "userid": userid
-                    }
-                    return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": error_message, "para": para})
-            except httpx.HTTPStatusError as e:
-                logger.error(f"Kotak OTP verification failed: {e.response.text}")
-                para = {
-                    "access_token": access_token,
-                    "token": token,
-                    "sid": sid,
-                    "hsServerId": hsServerId,
-                    "userid": userid
-                }
-                return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": f"API Error: {e.response.text}", "para": para})
-            except Exception as e:
-                logger.error(f"Error in Kotak OTP verification flow: {e}")
-                para = {
-                    "access_token": access_token,
-                    "token": token,
-                    "sid": sid,
-                    "hsServerId": hsServerId,
-                    "userid": userid
-                }
-                return templates.TemplateResponse("kotakotp.html", {"request": request, "error_message": f"An unexpected error occurred: {str(e)}", "para": para})
-
-    return RedirectResponse(url=f"/auth/broker/{broker}/callback", status_code=status.HTTP_302_FOUND)

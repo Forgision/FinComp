@@ -71,20 +71,19 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 ```
 /
 ├── app/
-│   ├── auth/                 # Old auth router
 │   ├── core/                 # Cross-cutting concerns (config, logging)
 │   ├── db/                   # Database schema and session management
-│   ├── models/               # Old Pydantic schemas
-│   ├── services/             # Old business logic layer
-│   ├── utils/                # Old utility functions
-│   └── web/                  # New structure root
+│   ├── utils/                # Utility functions
+│   └── web/                  # Web application root
 │       ├── main.py           # Main application entrypoint
-│       ├── backend/          # New backend source code (FastAPI)
+│       ├── backend/          # Backend source code (FastAPI)
 │       │   └── api/
 │       │       └── v1/       # API version 1 routers
-│       └── frontend/         # New frontend source code
-│           ├── static/       # Static assets (CSS, JS, images)
-│           └── templates/    # HTML templates
+│       ├── frontend/         # Frontend source code
+│       │   ├── static/       # Static assets (CSS, JS, images)
+│       │   └── templates/    # HTML templates
+│       ├── models/           # Pydantic schemas
+│       └── services/         # Business logic layer
 ├── test/                     # Test code
 ├── .env                      # Local environment variables (not committed)
 ├── Dockerfile                # Instructions for building the application container

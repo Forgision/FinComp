@@ -25,7 +25,7 @@ def get_session_expiry_time():
     logger.debug(f"Session expiry time set to: {target_time_ist}")
     return remaining_time
 
-def set_session_login_time():
+def set_session_login_time(session):
     """Set the session login time in IST"""
     now_utc = datetime.now(pytz.timezone('UTC'))
     now_ist = now_utc.astimezone(pytz.timezone('Asia/Kolkata'))

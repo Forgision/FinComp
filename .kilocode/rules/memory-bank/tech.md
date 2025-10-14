@@ -37,6 +37,7 @@ This document outlines the technologies, development setup, and technical constr
 *   **HTTP Client:** `httpx` is used as the modern, async-capable HTTP client for making requests to external broker APIs, featuring connection pooling.
 *   **Caching:** A session-based Time-To-Live (TTL) cache is implemented for temporary data storage.
 *   **Logging:** A custom, centralized logging system with colored output (`colorama`), automatic log rotation, and a `SensitiveDataFilter` to redact confidential information.
+    *   **Usage Convention:** To maintain consistency and performance, all modules should import and use the pre-configured `logger` instance from `app.utils.logger` instead of creating new `UniversalLogger` instances.
 
 ## Strategy Hosting & Scheduling
 *   **Scheduling:** `APScheduler` (Advanced Python Scheduler) is used for cron-like scheduling of Python trading strategies.

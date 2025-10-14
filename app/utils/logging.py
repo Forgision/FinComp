@@ -37,7 +37,7 @@ except ImportError:
 
 PROJECT_NAME = 'app' # Adjust as needed for your project structure
 # logging method names to detect in code context
-LOGGING_LEVELS = ["debug", "info", "warning", "error", "critical"]
+LOGGING_LEVELS = ["debug", "info", "warning", "error", "critical", "exception"]
 
 # Sensitive patterns to filter out
 SENSITIVE_PATTERNS = [

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     BROKER_API_SECRET: str = "YOUR_BROKER_API_SECRET"
     BROKER_API_KEY_MARKET: str = "YOUR_BROKER_MARKET_API_KEY"
     BROKER_API_SECRET_MARKET: str = "YOUR_BROKER_MARKET_API_SECRET"
-    REDIRECT_URL: str = "http://127.0.0.1:5000/<broker>/callback"
+    REDIRECT_URL: str = "http://127.0.0.1:5000/fyers/callback"
     VALID_BROKERS: str = "fivepaisa,fivepaisaxts,aliceblue,angel,compositedge,dhan,dhan_sandbox,definedge,firstock,flattrade,fyers,groww,ibulls,iifl,indmoney,kotak,paytm,pocketful,shoonya,tradejini,upstox,wisdom,zebu,zerodha"
 
     # Security Configuration
@@ -119,5 +119,7 @@ class Settings(BaseSettings):
     @property
     def USE_HTTPS(self) -> bool:
         return self.HOST_SERVER.startswith('https://')
+    
+    model_config = SettingsConfigDict(env_file=os.path.join(BASE_DIR, '.env'), extra="ignore")
 
 settings = Settings()

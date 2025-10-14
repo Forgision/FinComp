@@ -4,10 +4,8 @@ with automatic protocol negotiation (HTTP/2 when available, HTTP/1.1 fallback)
 """
 import httpx
 from typing import Optional
-from utils.logging import get_logger
+from .logging import logger
 
-# Set up logging
-logger = get_logger(__name__)
 
 # Global httpx client for connection pooling
 _httpx_client = None
