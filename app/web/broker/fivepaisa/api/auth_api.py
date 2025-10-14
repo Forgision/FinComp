@@ -2,10 +2,8 @@ import json
 import os
 import httpx
 from typing import Tuple, Optional
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from .....utils.httpx_client import get_httpx_client
+from .....utils.logging import logger
 
 
 def authenticate_broker(clientcode: str, broker_pin: str, totp_code: str) -> Tuple[Optional[str], Optional[str]]:

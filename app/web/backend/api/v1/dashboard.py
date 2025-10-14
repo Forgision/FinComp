@@ -1,17 +1,15 @@
+import os
+
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.core.config import settings
-from app.utils.logging import get_logger
-import os
 
-# Initialize logger
-logger = get_logger(__name__)
+from .....utils.logging import logger
+from .....core.config import settings
+from ....frontend import templates
+
 
 dashboard_router = APIRouter()
-
-# Initialize Jinja2Templates with the templates directory
-templates = Jinja2Templates(directory=os.path.join(os.getcwd(), "templates"))
 
 # Placeholder for session validation dependency
 # This will be properly implemented later as a FastAPI dependency

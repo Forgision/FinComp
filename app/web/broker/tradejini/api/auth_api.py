@@ -1,10 +1,8 @@
 import os
 import json
 from urllib.parse import urlencode
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from .....utils.httpx_client import get_httpx_client
+from .....utils.logging import logger
 
 
 BASE_URL = 'https://api.tradejini.com/v2'

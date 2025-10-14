@@ -2,10 +2,8 @@ import os
 import json
 import urllib.parse
 from hashlib import sha256
-from utils.logging import get_logger
-from utils.httpx_client import get_httpx_client
-
-logger = get_logger(__name__)
+from .....utils.logging import logger
+from .....utils.httpx_client import get_httpx_client
 
 def authenticate_broker(otp_token, otp, api_secret=None):
     """

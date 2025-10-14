@@ -3,8 +3,10 @@ import httpx
 import base64
 import json
 from urllib.parse import urlencode
-from utils.config import get_broker_api_key, get_broker_api_secret
-from utils.httpx_client import get_httpx_client
+from .....utils.config import get_broker_api_key, get_broker_api_secret
+from .....utils.httpx_client import get_httpx_client
+from .....utils.logging import logger
+
 
 # Pocketful API endpoints
 BASE_URL = 'https://trade.pocketful.in'

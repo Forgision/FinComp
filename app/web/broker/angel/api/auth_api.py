@@ -1,7 +1,8 @@
 import httpx
 import json
 import os
-from utils.httpx_client import get_httpx_client
+from .....utils.httpx_client import get_httpx_client
+from .....utils.logging import logger
 
 def authenticate_broker(clientcode, broker_pin, totp_code):
     """

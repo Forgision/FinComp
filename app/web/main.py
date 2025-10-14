@@ -21,6 +21,7 @@ from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
 from .backend.api import auth_router, broker_router, core_router, dashboard_router
 from .frontend import templates
 from app.utils.web.socketio import socket_app
+from app.web.websocket.fastapi_integration import start_websocket_server, cleanup_websocket_server
 
 from app.db.auth_db import init_db as ensure_auth_tables_exists
 from app.db.user_db import init_db as ensure_user_tables_exists
@@ -71,6 +72,7 @@ async def lifespan(app: FastAPI):
     Handles application startup and shutdown events.
     """
     setup_environment()
+    start_websocket_server()
     separate_str = "=" * 60
     logger.info(separate_str)
     logger.info("OpenAlgo FastAPI is running!")
@@ -78,7 +80,7 @@ async def lifespan(app: FastAPI):
     logger.info(separate_str)
     logger.info("Application startup complete.")
     yield
-    # Add shutdown logic here if needed
+    cleanup_websocket_server()
 
 app = FastAPI(debug=settings.APP_DEBUG, lifespan=lifespan)
 app.state.limiter = limiter

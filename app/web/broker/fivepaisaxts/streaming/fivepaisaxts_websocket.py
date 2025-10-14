@@ -1,5 +1,5 @@
 import json
-import logging
+from .....utils.logging import logger
 import time
 import threading
 import socketio
@@ -72,7 +72,7 @@ class FivepaisaXTSWebSocketClient:
         self.on_message = None
         
         # Logger
-        self.logger = logging.getLogger("fivepaisaxts_websocket")
+        self.logger = logger
         
         # Subscriptions tracking
         self.subscriptions = {}

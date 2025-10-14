@@ -1,10 +1,8 @@
 import hashlib
 import json
 import os
-from utils.logging import get_logger
-from utils.httpx_client import get_httpx_client
-
-logger = get_logger(__name__)
+from .....utils.logging import logger
+from .....utils.httpx_client import get_httpx_client
 
 def sha256_hash(text):
     """

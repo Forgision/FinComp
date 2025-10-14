@@ -1,7 +1,10 @@
 import os
 import hashlib
 import json
-from utils.httpx_client import get_httpx_client
+from .....utils.httpx_client import get_httpx_client
+from .....utils.logging import logger
+
+logger = logger
 
 def authenticate_broker(request_token):
     try:
