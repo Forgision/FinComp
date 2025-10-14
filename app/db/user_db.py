@@ -1,30 +1,53 @@
-# database/user_db.py
+# db/user_db.py
+# This file manages the user database using SQLAlchemy and Argon2 for password hashing.
 
-import os
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
-from typing import Any
-from cachetools import TTLCache
+from sqlalchemy.pool import NullPool
+from cachetools import TTLCache # type: ignore # Library stubs not installed for "cachetools"
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import pyotp
-from ..utils.logging import get_logger
+from ..utils.logging import logger
 from ..core.config import settings
-from .base import Base
-from .session import db_session, engine
 
-logger = get_logger(__name__)
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()
 
 # Database connection details
-PASSWORD_PEPPER = settings.API_KEY_PEPPER
+DATABASE_URL = settings.DATABASE_URL
+PASSWORD_PEPPER = settings.API_KEY_PEPPER  # We'll use the same pepper for consistency
+
+# Engine and session setup
+# Conditionally create engine based on DB type
+if DATABASE_URL and 'sqlite' in DATABASE_URL:
+    # SQLite: Use NullPool to prevent connection pool exhaustion
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        poolclass=NullPool,
+        connect_args={'check_same_thread': False}
+    )
+else:
+    # For other databases like PostgreSQL, use connection pooling
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_size=50,
+        max_overflow=100,
+        pool_timeout=10
+    )
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+Base = declarative_base()
+Base.query = db_session.query_property()
 
 # Define a cache for the usernames with a max size and a 30-second TTL
 username_cache = TTLCache(maxsize=1024, ttl=30)
 
-class User(Base):
+class User(Base):   # type: ignore # Invalid base class "Base"
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     username = Column(String(80), unique=True, nullable=False)

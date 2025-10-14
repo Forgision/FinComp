@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block head %}
-<link href="{{ url_for('static', filename='css/prism.css') }}" rel="stylesheet" />
-<link href="{{ url_for('static', filename='css/tradingview.css') }}" rel="stylesheet" />
+<link href="{{ url_for('static', path='css/prism.css') }}" rel="stylesheet" />
+<link href="{{ url_for('static', path='css/tradingview.css') }}" rel="stylesheet" />
 <style>
 .webhook-url {
     max-width: 300px;
@@ -160,8 +160,8 @@
 </div>
 
 <!-- Include Prism JS and TradingView JS -->
-<script src="{{ url_for('static', filename='js/prism.js') }}"></script>
-<script src="{{ url_for('static', filename='js/tradingview.js') }}"></script>
+<script src="{{ url_for('static', path='js/prism.js') }}"></script>
+<script src="{{ url_for('static', path='js/tradingview.js') }}"></script>
 <script>
 function copyWebhook(url) {
     navigator.clipboard.writeText(url).then(() => {

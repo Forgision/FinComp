@@ -126,7 +126,7 @@
 {% endblock %}
 
 {% block head %}
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', path='js/app.js') }}"></script>
 <script>
     function showLoading(show) {
         document.getElementById('loadingIndicator').classList.toggle('hidden', !show);

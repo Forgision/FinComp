@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from ..models.user import User
 from ...utils.logging import get_logger
-from ...utils.web.security import hash_password
+from ...utils.web.security import password_to_hash
 import pyotp
 import secrets
 
@@ -11,7 +11,7 @@ def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
 def create_user(db: Session, username: str, email: str, password: str, is_admin: bool = False):
-    password_hash = hash_password(password)
+    password_hash = password_to_hash(password)
     db_user = User(username=username, email=email, password_hash=password_hash, is_admin=is_admin)
     db.add(db_user)
     db.commit()
@@ -35,7 +35,7 @@ def create_admin_user(db: Session, username: str, email: str, password: str):
     if get_total_users_count(db) > 0:
         return None  # Admin user already exists
 
-    password_hash = hash_password(password)
+    password_hash = password_to_hash(password)
     
     # Generate TOTP secret
     totp_secret = pyotp.random_base32()

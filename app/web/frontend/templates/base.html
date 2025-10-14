@@ -19,33 +19,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="OpenAlgo is your premier open source algorithmic trading platform, offering a robust and secure environment for developing and executing trading strategies.">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>OpenAlgo</title>
 
     <!-- Favicon and touch icons -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon/favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon/favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}">
-    <link rel="mask-icon" href="{{ url_for('static', filename='favicon/safari-pinned-tab.svg') }}" color="#5bbad5">
+    <link rel="shortcut icon" href="{{ url_for('static', path='favicon/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', path='favicon/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='favicon/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', path='favicon/favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', path='favicon/site.webmanifest') }}">
+    <link rel="mask-icon" href="{{ url_for('static', path='favicon/safari-pinned-tab.svg') }}" color="#5bbad5">
     
     <!-- Compiled Tailwind CSS with DaisyUI -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
     
     <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     
     <!-- Audio for alerts -->
-    <audio id="alert-sound" src="{{ url_for('static', filename='sounds/alert.mp3') }}" preload="auto"></audio>
+    <audio id="alert-sound" src="{{ url_for('static', path='sounds/alert.mp3') }}" preload="auto"></audio>
 
     <!-- Meta tags for color settings -->
     <meta name="msapplication-TileColor" content="#da532c">
     <meta name="theme-color" content="#ffffff">
 
     <!-- Theme and Mode Scripts -->
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/mode-toggle.js') }}"></script>
+    <script src="{{ url_for('static', path='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', path='js/mode-toggle.js') }}"></script>
 
     <!-- CSRF Token Helper -->
     <script>
@@ -65,8 +65,8 @@
     </script>
 
     <!-- Other Custom Scripts -->
-    <script src="{{ url_for('static', filename='js/socket-events.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/mobile-menu.js') }}"></script>
+    <script src="{{ url_for('static', path='js/socket-events.js') }}"></script>
+    <script src="{{ url_for('static', path='js/mobile-menu.js') }}"></script>
 
     {% block head %}{% endblock %}
 </head>
@@ -88,7 +88,7 @@
 
             <!-- Flash Messages -->
             <div class="container mx-auto px-4 mt-4">
-                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% with messages = get_flashed_messages(request, with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
                             <div class="alert {{ 'alert-success' if category == 'success' else 'alert-error' }} shadow-lg mb-4">
@@ -130,7 +130,7 @@
             <div class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
                 <!-- Sidebar content here -->
                 <div class="flex items-center gap-2 mb-8">
-                    <img src="{{ url_for('static', filename='favicon/logo.png') }}" alt="OpenAlgo" class="h-8 w-8">
+                    <img src="{{ url_for('static', path='favicon/logo.png') }}" alt="OpenAlgo" class="h-8 w-8">
                     <span class="text-xl font-semibold">OpenAlgo</span>
                 </div>
                 <ul class="menu menu-lg gap-2">
@@ -239,7 +239,7 @@
                     <div class="divider"></div>
                     <li>
                         <form method="POST" action="{{ url_for('auth.logout') }}" class="m-0">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                             <button type="submit" class="btn btn-ghost btn-sm text-error justify-start w-full">
                                 Logout
                             </button>

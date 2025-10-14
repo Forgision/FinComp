@@ -7,7 +7,7 @@
     <div class="hero">
         <div class="hero-content text-center">
             <div class="max-w-md">
-                <img src="{{ url_for('static', filename='images/yoga.png') }}" 
+                <img src="{{ url_for('static', path='images/yoga.png') }}" 
                      alt="Illustration of a person in a meditation pose" 
                      class="w-64 h-64 mx-auto mb-8 animate-float">
                 
@@ -36,7 +36,7 @@
                 
                 <div class="flex justify-center gap-4">
                     <form method="POST" action="{{ url_for('auth.logout') }}" class="inline-block">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                         <button type="submit" class="btn btn-error gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 

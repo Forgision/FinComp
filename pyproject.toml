@@ -150,6 +150,9 @@ dependencies = [
   "zmq==0.0.0",
   "fastapi[standard]>=0.118.0",
   "mypy==1.11.0",
+  "fastapi-limiter>=0.1.6",
+  "fastapi-csrf-protect>=1.0.7",
+  "slowapi>=0.1.9",
 ]
 
 [tool.pylance]

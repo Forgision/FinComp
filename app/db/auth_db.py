@@ -1,15 +1,12 @@
-# database/auth_db.py
+# app/db/auth_db.py
 
 import os
 import base64
 import pytz # type: ignore # Library stubs not installed for "pytz"
 from datetime import datetime
-from sqlalchemy import create_engine, UniqueConstraint
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import UniqueConstraint
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
 from cachetools import TTLCache # type: ignore # Library stubs not installed for "cachetools"
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -19,12 +16,12 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from ..utils.logging import logger
 # from ..utils.logger import logger
 from ..core.config import settings
+from .base import Base, db_session, engine
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()
 
-DATABASE_URL = settings.DATABASE_URL
-PEPPER = settings.API_KEY_PEPPER or 'default-pepper-change-in-production'
+PEPPER = settings.API_KEY_PEPPER
 
 # Setup Fernet encryption for auth tokens
 def get_encryption_key():
@@ -45,7 +42,9 @@ fernet = get_encryption_key()
 def get_session_based_cache_ttl():
     """Calculate cache TTL based on daily session expiry time in .env"""
     try:
-        __LOG_LOCATION = __file__ + ".base_cache_ttl"
+        import pytz
+        from datetime import datetime
+        
         # Get session expiry time from environment (default 3 AM)
         expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
         hour, minute = map(int, expiry_time.split(':'))
@@ -69,13 +68,11 @@ def get_session_based_cache_ttl():
         # Minimum 5 minutes, maximum 24 hours
         ttl_seconds = max(300, min(time_until_expiry, 24 * 3600))
         
-        logger.debug(f"Auth cache TTL set to {ttl_seconds} seconds until"
-                         f" session expiry at {today_expiry.strftime('%H:%M IST')}")
+        logger.debug(f"Auth cache TTL set to {ttl_seconds} seconds until session expiry at {today_expiry.strftime('%H:%M IST')}")
         return int(ttl_seconds)
         
     except Exception as e:
-        logger.warning(f"Could not calculate session-based cache TTL,"
-                           f" using 5-minute default: {e}")
+        logger.warning(f"Could not calculate session-based cache TTL, using 5-minute default: {e}")
         return 300  # Fallback to 5 minutes
 
 # Define auth token cache with TTL until session expiry to minimize DB hits
@@ -85,29 +82,8 @@ feed_token_cache = TTLCache(maxsize=1024, ttl=get_session_based_cache_ttl())
 # Define a cache for broker names with a 5-minute TTL (longer since broker rarely changes)
 broker_cache = TTLCache(maxsize=1024, ttl=3000)
 
-# Conditionally create engine based on DB type
-if DATABASE_URL and 'sqlite' in DATABASE_URL:
-    # SQLite: Use NullPool to prevent connection pool exhaustion
-    # NullPool creates a new connection for each request and closes it when done
-    engine = create_engine(
-        DATABASE_URL,
-        poolclass=NullPool,
-        connect_args={'check_same_thread': False}
-    )
-else:
-    # For other databases like PostgreSQL, use connection pooling
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=50,
-        max_overflow=100,
-        pool_timeout=10
-    )
 
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base = declarative_base()
-Base.query = db_session.query_property()
-
-class Auth(Base):   # type: ignore #Variable "FinComp.app.db.auth_db.Base" is not valid as a type
+class Auth(Base):   # type: ignore # Invalid base class "Base"
     __tablename__ = 'auth'
     id = Column(Integer, primary_key=True)
     name = Column(String(255), unique=True, nullable=False)
@@ -117,7 +93,7 @@ class Auth(Base):   # type: ignore #Variable "FinComp.app.db.auth_db.Base" is no
     user_id = Column(String(255), nullable=True)  # Add user_id column
     is_revoked = Column(Boolean, default=False)
 
-class ApiKeys(Base):    # type: ignore #Variable "FinComp.app.db.auth_db.Base" is not valid as a type
+class ApiKeys(Base):   # type: ignore # Invalid base class "Base"
     __tablename__ = 'api_keys'
     id = Column(Integer, primary_key=True)
     user_id = Column(String, nullable=False, unique=True)
@@ -126,7 +102,6 @@ class ApiKeys(Base):    # type: ignore #Variable "FinComp.app.db.auth_db.Base" i
     created_at = Column(DateTime(timezone=True), default=func.now())
 
 def init_db():
-    __LOG_LOCATION = __file__ + ".init_db"
     logger.info("Initializing Auth DB")
     Base.metadata.create_all(bind=engine)
 
@@ -138,7 +113,6 @@ def encrypt_token(token):
 
 def decrypt_token(encrypted_token):
     """Decrypt auth token"""
-    __LOG_LOCATION = __file__ + ".decrypt_token"
     if not encrypted_token:
         return ''
     try:
@@ -149,7 +123,6 @@ def decrypt_token(encrypted_token):
 
 def upsert_auth(name, auth_token, broker, feed_token=None, user_id=None, revoke=False):
     """Store encrypted auth token and feed token if provided"""
-    __LOG_LOCATION = __file__ + ".upsert_auth"
     encrypted_token = encrypt_token(auth_token)
     encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
     
@@ -199,7 +172,6 @@ def get_auth_token(name):
         return None
 
 def get_auth_token_dbquery(name):
-    __LOG_LOCATION = __file__ + ".get_auth_token_dbquery"
     try:
         # Handle None or empty name gracefully
         if not name:
@@ -220,7 +192,6 @@ def get_auth_token_dbquery(name):
 
 def get_feed_token(name):
     """Get decrypted feed token"""
-    __LOG_LOCATION = __file__ + ".get_feed_token"
     # Handle None or empty name gracefully
     if not name:
         logger.debug("get_feed_token called with empty/None name, returning None")
@@ -242,7 +213,6 @@ def get_feed_token(name):
         return None
 
 def get_feed_token_dbquery(name):
-    __LOG_LOCATION = __file__ + ".get_feed_token_dbquery"
     try:
         # Handle None or empty name gracefully  
         if not name:
@@ -263,7 +233,6 @@ def get_feed_token_dbquery(name):
 
 def get_user_id(name):
     """Get the stored user_id (DefinEdge uid) for a user"""
-    __LOG_LOCATION = __file__ + ".get_user_id"
     try:
         if not name:
             logger.debug("get_user_id called with empty/None name")
@@ -282,7 +251,6 @@ def get_user_id(name):
 
 def upsert_api_key(user_id, api_key):
     """Store both hashed and encrypted API key"""
-    __LOG_LOCATION = __file__ + ".upsert_api_key"
     # Hash with Argon2 for verification
     peppered_key = api_key + PEPPER
     hashed_key = ph.hash(peppered_key)
@@ -310,8 +278,7 @@ def get_api_key(user_id):
         api_key_obj = ApiKeys.query.filter_by(user_id=user_id).first()
         return api_key_obj is not None
     except Exception as e:
-        logger.error(f"Error while querying the database for API key: {e}",
-                         location=__file__ + ".get_api_key")
+        logger.error(f"Error while querying the database for API key: {e}")
         return None
 
 def get_api_key_for_tradingview(user_id):
@@ -322,19 +289,16 @@ def get_api_key_for_tradingview(user_id):
             return decrypt_token(api_key_obj.api_key_encrypted)
         return None
     except Exception as e:
-        logger.error(f"Error while querying the database for API key: {e}",
-                         location=__file__ + ".get_api_key_for_tradingview")
+        logger.error(f"Error while querying the database for API key: {e}")
         return None
 
 def verify_api_key(provided_api_key):
     """Verify an API key using Argon2"""
     from flask import request, has_request_context
-    from utils.ip_helper import get_real_ip # type: ignore # Import "utils.ip_helper" could not be resolved
-    # TODO: solve Import "database.traffic_db" could not be resolved
-    from database.traffic_db import InvalidAPIKeyTracker
+    from ..utils.ip_helper import get_real_ip
+    from ..db.traffic_db import InvalidAPIKeyTracker
     import hashlib
 
-    __LOG_LOCATION = __file__ + ".verify_api_key"
     peppered_key = provided_api_key + PEPPER
     try:
         # Query all API keys
@@ -377,7 +341,6 @@ def get_username_by_apikey(provided_api_key):
 
 def get_broker_name(provided_api_key):
     """Get only the broker name for a valid API key with caching"""
-    __LOG_LOCATION = AUTH_DB_LOG_LOCATION + ".get_broker_name"
     # Check if broker name is in cache
     if provided_api_key in broker_cache:
         return broker_cache[provided_api_key]
@@ -402,7 +365,6 @@ def get_broker_name(provided_api_key):
 
 def get_auth_token_broker(provided_api_key, include_feed_token=False):
     """Get auth token, feed token (optional) and broker for a valid API key"""
-    __LOG_LOCATION = AUTH_DB_LOG_LOCATION + ".get_auth_token_broker"
     user_id = verify_api_key(provided_api_key)
     
     if user_id:

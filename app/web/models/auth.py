@@ -1,13 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean
-from .base import Base
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 
-class Auth(Base):
-    __tablename__ = "auth"
+class SMTPConfig(BaseModel):
+    smtp_server: Optional[str] = Field(None, description="SMTP server address")
+    smtp_port: Optional[int] = Field(None, description="SMTP server port")
+    smtp_username: Optional[str] = Field(None, description="SMTP username")
+    smtp_password: Optional[str] = Field(None, description="SMTP password")
+    smtp_use_tls: bool = Field(True, description="Use TLS for SMTP connection")
+    smtp_from_email: Optional[EmailStr] = Field(None, description="From email address")
+    smtp_helo_hostname: Optional[str] = Field(None, description="HELO/EHLO hostname")
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    auth = Column(Text, nullable=False)
-    feed_token = Column(Text, nullable=True)
-    broker = Column(String, nullable=False)
-    user_id = Column(String, nullable=True)
-    is_revoked = Column(Boolean, default=False)
+class SMTPTest(BaseModel):
+    test_email: EmailStr = Field(..., description="Email address to send a test email to")
+
+class SMTPDebug(BaseModel):
+    success: bool
+    message: str
+    details: List[str]

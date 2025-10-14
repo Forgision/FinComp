@@ -8,7 +8,7 @@ import base64
 from typing import Optional, Dict
 
 from app.core.config import settings
-from ...utils.logger import logger
+from ...utils.logging import logger
 
 SECURITY_LOG_LOCATION = "app.utils.web.security"
 # from app.utils.logging import get_logger
@@ -201,7 +201,7 @@ def validate_csrf_token(token: str, session_id: str) -> bool:
 import argon2 # Import argon2-cffi
 
 # Password Hashing
-def hash_password(password: str) -> str:
+def password_to_hash(password: str) -> str:
     """Hashes a password using Argon2."""
     ph = argon2.PasswordHasher()
     return ph.hash(password)
@@ -210,7 +210,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     """Verifies a password against a hash using Argon2."""
     ph = argon2.PasswordHasher()
     try:
-        ph.verify(hashed_password, password)
+        ph.verify(hashed_password, password+settings.API_KEY_PEPPER)
         return True
     except argon2.exceptions.VerifyMismatchError:
         return False

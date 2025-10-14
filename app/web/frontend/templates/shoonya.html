@@ -10,11 +10,11 @@
             <div class="card flex-shrink-0 w-full max-w-md shadow-2xl bg-base-100 order-1 lg:order-2">
                 <div class="card-body">
                     <div class="flex justify-center mb-6">
-                        <img class="h-20 w-auto" src="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}" alt="OpenAlgo">
+                        <img class="h-20 w-auto" src="{{ url_for('static', path='favicon/apple-touch-icon.png') }}" alt="OpenAlgo">
                     </div>
 
                     <form action="/shoonya/callback" method="POST" class="space-y-6">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                         <div class="form-control w-full">
                             <label class="label">
                                 <span class="label-text">User ID</span>
