@@ -7,10 +7,8 @@ from sqlalchemy.sql import func
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import pytz
-from app.utils.logging import get_logger
-from .base import Base, db_session, engine
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.db.base import Base, db_session, engine
 
 class OrderLog(Base):
     __tablename__ = 'order_logs'

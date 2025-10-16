@@ -1,12 +1,11 @@
 import httpx
-import os
+from app.core.config import settings
 import requests
 import hashlib
-from utils.httpx_client import get_httpx_client
-from broker.fivepaisaxts.baseurl import INTERACTIVE_URL, MARKET_DATA_URL
-from utils.logging import get_logger
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.fivepaisaxts.baseurl import INTERACTIVE_URL, MARKET_DATA_URL
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 
 def authenticate_broker(request_token):
@@ -14,8 +13,8 @@ def authenticate_broker(request_token):
         # Get the shared httpx client
         client = get_httpx_client()
         # Fetching the necessary credentials from environment variables
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
 
         
         # Make POST request to get the final token
@@ -62,8 +61,8 @@ def authenticate_broker(request_token):
 def get_feed_token():
     try:
         # Fetch credentials for feed token
-        BROKER_API_KEY_MARKET = os.getenv('BROKER_API_KEY_MARKET')
-        BROKER_API_SECRET_MARKET = os.getenv('BROKER_API_SECRET_MARKET')
+        BROKER_API_KEY_MARKET = settings.BROKER_API_KEY_MARKET
+        BROKER_API_SECRET_MARKET = settings.BROKER_API_SECRET_MARKET
 
         # Construct payload for feed token request
         feed_payload = {

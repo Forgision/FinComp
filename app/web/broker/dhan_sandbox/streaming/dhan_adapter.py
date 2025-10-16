@@ -2,23 +2,15 @@
 Fixed Dhan WebSocket adapter for OpenAlgo.
 Implements the broker-specific WebSocket adapter for Dhan with proper mode mapping.
 """
-import logging
-import os
+from app.utils.logging import logger
 import threading
 import time
 from typing import Dict, List, Optional, Any, Set
 
-# Add the project root to Python path if not already there
-import sys
-import os
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-# Now import using relative paths from the project root
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from database.token_db import get_token
-from database.auth_db import get_auth_token
+from app.core.config import settings
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.db.token_db import get_token
+from app.db.auth_db import get_auth_token
 
 # Import the WebSocket client
 from .dhan_websocket import DhanWebSocket
@@ -35,8 +27,8 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def __init__(self):
         """Initialize the WebSocket adapter"""
         super().__init__()
-        # Set a default logger name, will be updated in initialize()
-        self.logger = logging.getLogger("websocket_adapter")
+        # Use the pre-configured logger instance
+        self.logger = logger
         self.ws_client = None
         self.user_id = None
         # broker_name will be set in initialize()
@@ -75,15 +67,15 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             **kwargs: Additional arguments (optional)
         """
         self.broker_name = broker_name.lower()  # Store broker name for later use
-        # Update logger name based on broker name
-        self.logger = logging.getLogger(f"{self.broker_name}_websocket_adapter")
+        # Use the pre-configured logger instance
+        self.logger = logger
         self.logger.info(f"Initializing {self.broker_name} WebSocket adapter")
         self.user_id = user_id
         
         # Load authentication tokens
         try:
             # Use BROKER_API_KEY as client_id
-            self.client_id = os.getenv("BROKER_API_KEY")
+            self.client_id = settings.BROKER_API_KEY
             self.logger.info(f"Retrieved API KEY: {self.client_id[:5]}... (length: {len(self.client_id) if self.client_id else 0})")
             if not self.client_id:
                 error_msg = f"No BROKER_API_KEY available for {self.broker_name} authentication"
@@ -91,7 +83,7 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 return {"status": "error", "message": error_msg}
                 
             # Use BROKER_API_SECRET as access_token
-            self.access_token = os.getenv("BROKER_API_SECRET")
+            self.access_token = settings.BROKER_API_SECRET
             self.logger.info(f"Retrieved API SECRET: {self.access_token[:5]}... (length: {len(self.access_token) if self.access_token else 0})")
             if not self.access_token:
                 error_msg = f"No BROKER_API_SECRET available for {self.broker_name} authentication"

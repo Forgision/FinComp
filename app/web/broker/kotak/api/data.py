@@ -3,13 +3,8 @@ import json
 import time
 import threading
 import pandas as pd
-from database.token_db import get_token
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-logger = get_logger(__name__)
+from app.db.token_db import get_token
+from app.utils.logging import logger
 
 class KotakWebSocket:
     def __init__(self):

@@ -1,17 +1,15 @@
-import os
 import httpx
 import json
 from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_margin_data(auth_token):
     """Fetch margin data from Shoonya's API using the provided auth token."""
     
     # Fetch UserID and AccountID from environment variables
-    userid = os.getenv('BROKER_API_KEY')
+    userid = settings.BROKER_API_KEY
     userid = userid[:-2]  # Trim the last two characters
     actid = userid  # Assuming AccountID is the same as UserID
 

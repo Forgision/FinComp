@@ -9,7 +9,6 @@ Format: datetime - module.class.method - line number - level - message
 
 import inspect
 import logging
-import os
 import sys
 import re
 from functools import cache
@@ -92,7 +91,7 @@ class ColoredFormatter(logging.Formatter):
         # Check if we're in a terminal that supports colors
         if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
             # Check environment variables
-            term = os.environ.get('TERM', '')
+            term = settings.TERM
             if 'color' in term.lower() or term in ['xterm', 'xterm-256color', 'screen', 'screen-256color']:
                 return True
                 
@@ -114,8 +113,8 @@ class ColoredFormatter(logging.Formatter):
                 pass
             
             # Check if running in Windows Terminal, VS Code, or similar
-            wt_session = os.environ.get('WT_SESSION')
-            vscode_term = os.environ.get('VSCODE_INJECTION')
+            wt_session = settings.WT_SESSION
+            vscode_term = settings.VSCODE_INJECTION
             if wt_session or vscode_term:
                 return True
                 
@@ -292,10 +291,9 @@ class UniversalLogger:
         # Create file handler
         # Create log directory if it doesn't exist
         if settings.LOG_TO_FILE and settings.LOG_DIR:
-            if not os.path.exists(settings.LOG_DIR):
-                os.makedirs(settings.LOG_DIR)
+            Path(settings.LOG_DIR).mkdir(parents=True, exist_ok=True)
 
-            log_file = os.path.join(settings.LOG_DIR, f"{name}.log")
+            log_file = Path(settings.LOG_DIR) / f"{name}.log"
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=settings.LOG_MAX_FILE_SIZE,
@@ -523,8 +521,8 @@ def log_startup_banner(l, title: str, url: str, separator_char: str = "=", width
         return
     
     # Check if colors are enabled
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
-    force_color = os.getenv('FORCE_COLOR', '').lower() in ['1', 'true', 'yes', 'on']
+    log_colors = settings.LOGS_COLORS_ENABLE
+    force_color = settings.FORCE_COLOR
     
     if not log_colors and not force_color:
         # Fallback without colors

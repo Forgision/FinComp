@@ -5,13 +5,7 @@ import time
 import websocket
 import struct
 from broker.pocketful.api.packet_decoder import decodeDetailedMarketData, decodeCompactMarketData, decodeSnapquoteData, decodeOrderUpdate, decodeTradeUpdate
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-# Configure logging
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 # Global variables for WebSocket communication
 websock = None

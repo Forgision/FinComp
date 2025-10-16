@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 import pytz
-from database.analyzer_db import AnalyzerLog, db_session
-from database.symbol import SymToken
+from app.db.analyzer_db import AnalyzerLog, db_session
+from app.db.symbol import SymToken
 from sqlalchemy import func
 import json
-from extensions import socketio
-from utils.constants import (
+from app.utils.web.socketio import socketio
+from app.utils.constants import (
     VALID_EXCHANGES,
     VALID_ACTIONS,
     VALID_PRICE_TYPES,
@@ -22,9 +22,8 @@ from utils.constants import (
     DEFAULT_TRIGGER_PRICE,
     DEFAULT_DISCLOSED_QUANTITY
 )
-from utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 # Global variable to track order sequence
 _order_sequence = 0

@@ -13,12 +13,11 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.staticfiles import StaticFiles # Import StaticFiles
 from app.core.config import settings
-# from ..utils.logger import log_startup_banner
-# from app.utils.logging import setup_logging, get_logger, log_startup_banner
 from app.utils.logging import logger
 from ..utils.web import limiter
 from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
-from .backend.api import auth_router, broker_router, core_router, dashboard_router
+from .backend.routes import auth_router, broker_router, dashboard_router, analyzer_router, apikey_router, brlogin_router, chartink_router, latency_router, log_router, master_contract_status_router, orders_router, pnltracker_router, python_strategy_router, sandbox_router, search_router, security_router, settings_router, strategy_router, telegram_router, traffic_router, tv_json_router, websocket_router
+from .backend.routes.core import core_router as core_router
 from .frontend import templates
 from app.utils.web.socketio import socket_app
 from app.web.websocket.fastapi_integration import start_websocket_server, cleanup_websocket_server
@@ -125,6 +124,25 @@ app.include_router(broker_router)
 app.include_router(core_router, tags=["core"])
 # app.include_router(root_router, tags=["web"])
 app.include_router(dashboard_router, tags=["dashboard"])
+app.include_router(analyzer_router, tags=["analyzer"])
+app.include_router(apikey_router, tags=["apikey"])
+app.include_router(brlogin_router, tags=["brlogin"])
+app.include_router(chartink_router, tags=["chartink"])
+app.include_router(latency_router, tags=["latency"])
+app.include_router(log_router, tags=["logs"])
+app.include_router(master_contract_status_router)
+app.include_router(orders_router)
+app.include_router(pnltracker_router)
+app.include_router(python_strategy_router)
+app.include_router(sandbox_router)
+app.include_router(search_router)
+app.include_router(security_router)
+app.include_router(settings_router)
+app.include_router(strategy_router)
+app.include_router(telegram_router)
+app.include_router(traffic_router)
+app.include_router(tv_json_router)
+app.include_router(websocket_router)
 
 
 @app.get("/test")

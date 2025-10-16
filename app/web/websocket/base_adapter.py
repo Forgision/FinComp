@@ -1,11 +1,11 @@
+from app.core.config import settings
 import json
 import threading
 import zmq
 import random
 import socket
-import os
 from abc import ABC, abstractmethod
-from ...utils.logging import logger, get_logger
+from app.utils.logging import logger
 
 
 def is_port_available(port):
@@ -33,7 +33,7 @@ def find_free_zmq_port(start_port=5556, max_attempts=50):
         int: Available port number, or None if no port is available
     """
     # Create logger here instead of using self.logger because this is a standalone function
-    logger = get_logger("zmq_port_finder")
+    logger = logger
     
     # First check if any ports in the bound_ports set are actually free now
     # This handles cases where the process that had the port died without cleanup
@@ -77,7 +77,7 @@ class BaseBrokerWebSocketAdapter(ABC):
     _context_lock = threading.Lock()
     
     def __init__(self):
-        self.logger = get_logger("broker_adapter")
+        self.logger = logger
         self.logger.info("BaseBrokerWebSocketAdapter initializing")
         
         try:
@@ -87,7 +87,10 @@ class BaseBrokerWebSocketAdapter(ABC):
             # Create socket and bind to port
             self.socket = self._create_socket()
             self.zmq_port = self._bind_to_available_port()
-            os.environ["ZMQ_PORT"] = str(self.zmq_port)
+            # ZMQ_PORT is managed through settings, this line might be redundant or require a different approach
+            # if os.environ is strictly to be avoided. For now, commenting out if not critical for external processes.
+            # If an external process truly needs this env var, consider passing it explicitly or re-evaluating.
+            # os.environ["ZMQ_PORT"] = str(self.zmq_port)
             
             # Initialize instance variables
             self.subscriptions = {}
@@ -126,7 +129,7 @@ class BaseBrokerWebSocketAdapter(ABC):
         """
         with self._port_lock:
             # Try default port from environment first
-            default_port = int(os.getenv('ZMQ_PORT', '5555'))
+            default_port = int(settings.ZMQ_PORT)
             
             if (default_port not in self._bound_ports and 
                 is_port_available(default_port)):

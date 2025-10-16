@@ -1,12 +1,10 @@
 # api/funds.py
 
 import json
-import logging
-from utils.httpx_client import get_httpx_client
-from broker.indmoney.api.baseurl import get_url
-from utils.logging import get_logger
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.indmoney.api.baseurl import get_url
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 # Default response format for margin data
 DEFAULT_MARGIN_RESPONSE = {

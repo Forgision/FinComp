@@ -76,12 +76,12 @@ def _create_http_client() -> httpx.Client:
     Returns:
         httpx.Client: A configured HTTP client with protocol auto-negotiation
     """
-    import os
+    from app.core.config import settings
     
     try:
         # Detect if running in standalone mode (Docker/production) vs integrated mode (local dev)
         # In standalone mode, disable HTTP/2 to avoid protocol negotiation issues
-        app_mode = os.environ.get('APP_MODE', 'integrated').strip().strip("'\"")
+        app_mode = settings.APP_MODE.strip().strip("'\"")
         is_standalone = app_mode == 'standalone'
 
         # Disable HTTP/2 in standalone/Docker environments to avoid protocol negotiation issues

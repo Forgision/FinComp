@@ -1,13 +1,11 @@
 import httpx
 import json
-import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.flattrade.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token , get_br_symbol, get_symbol
+from app.web.broker.flattrade.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 
@@ -15,7 +13,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
 
     AUTH_TOKEN = auth
 
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     api_key = full_api_key.split(':::')[0]
 
     data = f'{{"uid": "{api_key}", "actid": "{api_key}"}}'
@@ -76,7 +74,7 @@ def get_open_position(tradingsymbol, exchange, producttype,auth):
 def place_order_api(data,auth):
     AUTH_TOKEN = auth
 
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     BROKER_API_KEY = full_api_key.split(':::')[0]
     data['apikey'] = BROKER_API_KEY
     token = get_token(data['symbol'], data['exchange'])
@@ -248,7 +246,7 @@ def close_all_positions(current_api_key,auth):
 def cancel_order(orderid,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     api_key = full_api_key.split(':::')[0]
     data = {"uid": api_key, "norenordno": orderid}
     
@@ -281,7 +279,7 @@ def modify_order(data,auth):
 
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     api_key = full_api_key.split(':::')[0]
 
     token = get_token(data['symbol'], data['exchange'])

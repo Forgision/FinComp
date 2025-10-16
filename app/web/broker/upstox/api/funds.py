@@ -1,21 +1,19 @@
 # api/funds.py
 
-import os
 import json
 import httpx
-from utils.httpx_client import get_httpx_client
-from broker.upstox.api.order_api import get_positions
-from broker.upstox.mapping.order_data import map_order_data
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.upstox.api.order_api import get_positions
+from app.web.broker.upstox.mapping.order_data import map_order_data
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_margin_data(auth_token):
     """Fetch margin data from Upstox's API using the provided auth token with httpx connection pooling."""
     logger.debug("Attempting to fetch margin data...")
     try:
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         if not api_key:
             logger.error("BROKER_API_KEY environment variable not set.")
             return {}

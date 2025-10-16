@@ -1,10 +1,10 @@
 import json
-import os
 import urllib.parse
 import httpx
+from app.core.config import settings
 from utils.httpx_client import get_httpx_client
-from database.auth_db import get_auth_token
-from database.token_db import get_br_symbol, get_oa_symbol, get_token
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_br_symbol, get_oa_symbol, get_token
 from broker.paytm.mapping.transform_data import (
     transform_data,
     map_product_type,
@@ -13,12 +13,10 @@ from broker.paytm.mapping.transform_data import (
     map_exchange,
     reverse_map_order_type
 )
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 def get_api_response(endpoint, auth, method="GET", payload='', max_retries=3, retry_delay=2):
-    base_url = "https://developer.paytmmoney.com"
+    base_url = settings.PAYTM_BASE_URL
     headers = {
         'x-jwt-token': auth,
         'Content-Type': 'application/json',

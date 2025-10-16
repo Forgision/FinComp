@@ -1,6 +1,5 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import gzip
@@ -8,19 +7,18 @@ import shutil
 import json
 import io
 from datetime import datetime
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from database.user_db import find_user_by_username
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.db.user_db import find_user_by_username
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
-logger = get_logger(__name__)
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -541,9 +539,9 @@ def master_contract_download():
     """Download and process DefinedGe master contracts"""
     try:
         # Import here to avoid circular imports
-        from database.master_contract_status_db import update_status
-        from database.token_db import get_symbol_count
-        from extensions import socketio
+        from app.db.master_contract_status_db import update_status
+        from app.db.token_db import get_symbol_count
+        from app.utils.web.socketio import socketio
         
         # Update status to downloading
         update_status('definedge', 'downloading', 'Master contract download in progress')
@@ -601,8 +599,8 @@ def master_contract_download():
     except Exception as e:
         logger.error(f"Error in DefinedGe master contract download: {e}")
         try:
-            from database.master_contract_status_db import update_status
-            from extensions import socketio
+            from app.db.master_contract_status_db import update_status
+            from app.utils.web.socketio import socketio
             update_status('definedge', 'error', f'Download failed: {str(e)}')
             try:
                 return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

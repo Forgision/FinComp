@@ -2,12 +2,12 @@ import asyncio
 import threading
 import sys
 import platform
-import os
+from app.core.config import settings
 import signal
 import atexit
 
 from .server import main as websocket_main
-from ...utils.logging import get_logger, highlight_url
+from app.utils.logging import logger, highlight_url
 
 # Set the correct event loop policy for Windows to avoid ZeroMQ warnings
 if platform.system() == 'Windows':
@@ -19,27 +19,15 @@ _websocket_server_started = False
 _websocket_proxy_instance = None
 _websocket_thread = None
 
-logger = get_logger(__name__)
 
-# Check if we're in the Flask child process that should start the WebSocket server
-def should_start_websocket():
+def should_start_websocket() -> bool:
     """
-    Determine if the current process should start the WebSocket server
-    
-    In Flask debug mode with reloader enabled, we only want to start the
-    WebSocket server in the child process, not the parent process that
-    monitors for file changes.
+    Determine if the current process should start the WebSocket server.
+    In a FastAPI context, we always start the WebSocket server.
     
     Returns:
-        bool: True if we should start the WebSocket server, False otherwise
+        bool: Always True in a FastAPI context.
     """
-    # In debug mode, only start in the Flask child process
-    if os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true'):
-        # WERKZEUG_RUN_MAIN is set to 'true' by Flask in the child process
-        # that actually runs the application
-        return True # Always start websocket in FastAPI context
-    
-    # In non-debug mode, always start
     return True
 
 def cleanup_websocket_server():
@@ -102,7 +90,7 @@ def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     cleanup_websocket_server()
     # Use os._exit() for immediate termination across all platforms
-    os._exit(0)
+    sys.exit(0)
 
 def start_websocket_server():
     """
@@ -122,12 +110,9 @@ def start_websocket_server():
             
             # Import here to avoid circular imports
             from app.web.websocket.server import WebSocketProxy
-            import os
-            from dotenv import load_dotenv
             
-            load_dotenv()
-            ws_host = os.getenv('WEBSOCKET_HOST', '127.0.0.1')
-            ws_port = int(os.getenv('WEBSOCKET_PORT', '8765'))
+            ws_host = settings.WEBSOCKET_HOST
+            ws_port = settings.WEBSOCKET_PORT
             
             # Create and store the proxy instance
             _websocket_proxy_instance = WebSocketProxy(host=ws_host, port=ws_port)

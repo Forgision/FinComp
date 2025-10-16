@@ -1,6 +1,5 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import requests
@@ -17,13 +16,12 @@ import time
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
-logger = get_logger(__name__)
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 # Create engine with optimized settings for SQLite concurrency
 engine = create_engine(
@@ -147,10 +145,10 @@ def download_csv_indmoney_data(output_path):
     # Get the access token for Indmoney broker from the database
     # Since Indmoney might have multiple users, we need to get the first valid one
     try:
-        from database.auth_db import Auth, db_session
+        from app.db.auth_db import Auth, db_session
         auth_obj = Auth.query.filter_by(broker='indmoney', is_revoked=False).first()
         if auth_obj:
-            from database.auth_db import decrypt_token
+            from app.db.auth_db import decrypt_token
             auth_token = decrypt_token(auth_obj.auth)
         else:
             auth_token = None

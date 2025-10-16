@@ -1,6 +1,5 @@
 # database/auth_db.py
 
-import os
 import base64
 from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -14,16 +13,16 @@ from argon2.exceptions import VerifyMismatchError
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from utils.logging import get_logger
+from app.utils.logging import logger
+from app.core.config import settings
 
 # Initialize logger
-logger = get_logger(__name__)
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()
 
-DATABASE_URL = os.getenv('DATABASE_URL')
-PEPPER = os.getenv('API_KEY_PEPPER', 'default-pepper-change-in-production')
+DATABASE_URL = settings.DATABASE_URL
+PEPPER = settings.API_KEY_PEPPER
 
 # Setup Fernet encryption for auth tokens
 def get_encryption_key():
@@ -48,7 +47,7 @@ def get_session_based_cache_ttl():
         from datetime import datetime
         
         # Get session expiry time from environment (default 3 AM)
-        expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
+        expiry_time = settings.SESSION_EXPIRY_TIME
         hour, minute = map(int, expiry_time.split(':'))
         
         # Calculate time until next session expiry

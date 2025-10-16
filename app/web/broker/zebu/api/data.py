@@ -1,14 +1,12 @@
 import httpx
 import json
-import os
 import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
-from database.token_db import get_token, get_br_symbol, get_oa_symbol
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.token_db import get_token, get_br_symbol, get_oa_symbol
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="POST", payload=None):
@@ -16,7 +14,7 @@ def get_api_response(endpoint, auth, method="POST", payload=None):
     Common function to make API calls to Zebu using httpx with connection pooling
     """
     AUTH_TOKEN = auth
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
 
     if payload is None:
         data = {
@@ -83,7 +81,7 @@ class BrokerData:
                 api_exchange = "BSE"
 
             payload = {
-                "uid": os.getenv('BROKER_API_KEY'),
+                "uid": settings.BROKER_API_KEY,
                 "exch": api_exchange,
                 "token": token
             }
@@ -131,7 +129,7 @@ class BrokerData:
                 api_exchange = "BSE"
 
             payload = {
-                "uid": os.getenv('BROKER_API_KEY'),
+                "uid": settings.BROKER_API_KEY,
                 "exch": api_exchange,
                 "token": token
             }
@@ -234,7 +232,7 @@ class BrokerData:
             else:
                 # For intraday data, use TPSeries endpoint
                 payload = {
-                    "uid": os.getenv('BROKER_API_KEY'),
+                    "uid": settings.BROKER_API_KEY,
                     "exch": exchange,
                     "token": token,
                     "st": str(start_ts),

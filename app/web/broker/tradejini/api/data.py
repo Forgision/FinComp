@@ -1,17 +1,15 @@
 import json
-import os
 import time
 import threading
 import pandas as pd
 import httpx
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List, Tuple, Union
-from database.token_db import get_token, get_br_symbol, get_oa_symbol, get_symbol
-from utils.httpx_client import get_httpx_client
-from broker.tradejini.api.nxtradstream import NxtradStream
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.token_db import get_token, get_br_symbol, get_oa_symbol, get_symbol
+from app.utils.httpx_client import get_httpx_client
+from .nxtradstream import NxtradStream
+from app.utils.logging import logger
+from app.core.config import settings
 
 class TradejiniWebSocket:
     def __init__(self):
@@ -35,7 +33,7 @@ class TradejiniWebSocket:
             self.auth_token = auth_token
             
             # Get API key from environment if not provided in token
-            api_key = os.environ.get('BROKER_API_SECRET', '')
+            api_key = settings.BROKER_API_SECRET
             
             # Format the auth token exactly as per TradeJini requirements
             if ':' not in auth_token and api_key:
@@ -688,8 +686,8 @@ class BrokerData:
             endpoint = "/api/mkt-data/chart/interval-data"
             url = f"{base_url}{endpoint}"
             
-            # Get API key from environment
-            api_key = os.getenv('BROKER_API_SECRET')
+            # Get API key from settings
+            api_key = settings.BROKER_API_SECRET
             if not api_key:
                 error_msg = "BROKER_API_SECRET environment variable not set"
                 logger.error(error_msg)

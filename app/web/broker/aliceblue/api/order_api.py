@@ -6,10 +6,8 @@ from utils.httpx_client import get_httpx_client
 from database.auth_db import get_auth_token
 from database.token_db import get_br_symbol, get_oa_symbol
 from broker.aliceblue.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.config import get_broker_api_key , get_broker_api_secret
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.core.config import settings
+from app.utils.logging import logger
 
 
 def get_api_response(endpoint, auth, method="GET", payload=None):
@@ -22,7 +20,7 @@ def get_api_response(endpoint, auth, method="GET", payload=None):
         url = f"https://ant.aliceblueonline.com{endpoint}"
         
         headers = {
-            'Authorization': f'Bearer {get_broker_api_secret()} {AUTH_TOKEN}',
+            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
             'Content-Type': 'application/json'
         }
         
@@ -125,7 +123,7 @@ def place_order_api(data, auth):
         
         # Prepare headers and payload
         headers = {
-            'Authorization': f'Bearer {get_broker_api_secret()} {AUTH_TOKEN}',
+            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
             'Content-Type': 'application/json'
         }
         
@@ -340,7 +338,7 @@ def cancel_order(orderid, auth):
         
         # Prepare headers and payload
         headers = {
-            'Authorization': f'Bearer {get_broker_api_secret()} {AUTH_TOKEN}',
+            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
             'Content-Type': 'application/json'
         }
         
@@ -387,7 +385,7 @@ def modify_order(data, auth):
         
         # Prepare headers
         headers = {
-            'Authorization': f'Bearer {get_broker_api_secret()} {AUTH_TOKEN}',
+            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
             'Content-Type': 'application/json'
         }
         

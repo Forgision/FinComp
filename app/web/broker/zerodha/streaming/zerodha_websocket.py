@@ -1,6 +1,3 @@
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
 
 """
 Enhanced Zerodha WebSocket client with improved stability for handling 1800+ symbols.
@@ -21,6 +18,8 @@ import websockets.client
 import websockets.exceptions
 from datetime import datetime
 from collections import deque
+from app.utils.logging import logger
+
 
 class ZerodhaWebSocket:
     """
@@ -59,7 +58,7 @@ class ZerodhaWebSocket:
         self.running = False
         self.loop = None
         self.ws_thread = None
-        self.logger = get_logger(__name__)
+        self.logger = logger
         self.lock = threading.Lock()
         
         # Subscription management

@@ -18,21 +18,22 @@ A balanced and intuitive folder structure is crucial. The structure should be or
 ```
 /
 ├── app/
-│   ├── backend/              # Backend source code (FastAPI)
-│   │   ├── api/              # HTTP layer (e.g., FastAPI routers)
-│   │   │   └── v1/
-│   │   ├── models/           # Pydantic schemas (request/response contracts)
-│   │   └── services/         # Business logic layer
 │   ├── core/                 # Cross-cutting concerns (config, logging)
 │   ├── db/                   # Database schema and session management
-│   └── frontend/             # Frontend source code
-│       ├── static/           # Static assets (CSS, JS, images)
-│       └── templates/        # HTML templates
-├── test/                 # Test code, mirroring the 'app/backend' structure
-├── .env                  # Local environment variables (not committed)
-├── Dockerfile            # Instructions for building the application container
-├── docker-compose.yml    # Local development orchestration
-└── pyproject.toml        # Project dependencies and tooling configuration
+│   └── web/                  # Web application root
+│       ├── __init__.py
+│       ├── main.py           # Main application entrypoint
+│       ├── backend/          # Backend source code (FastAPI)
+│       ├── broker/           # Broker-specific implementations
+│       ├── frontend/         # Frontend source code
+│       ├── models/           # Pydantic schemas
+│       ├── services/         # Business logic layer
+│       └── websocket/        # WebSocket proxy server
+├── test/                     # Test code
+├── .env                      # Local environment variables (not committed)
+├── Dockerfile                # Instructions for building the application container
+├── docker-compose.yml        # Local development orchestration
+└── pyproject.toml            # Project dependencies and tooling configuration
 ```
 
 ## 3. Architectural Principles

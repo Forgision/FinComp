@@ -1,11 +1,11 @@
 # api/funds.py for Fyers
 
-import os
 import json
 from typing import Dict, Any, Optional
 import httpx
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_margin_data(auth_token: str) -> Dict[str, str]:
@@ -32,7 +32,7 @@ def get_margin_data(auth_token: str) -> Dict[str, str]:
         "utiliseddebits": "0.00"
     }
     
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     if not api_key:
         logger.error("BROKER_API_KEY environment variable not set")
         return default_response

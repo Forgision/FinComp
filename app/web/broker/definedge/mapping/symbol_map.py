@@ -1,6 +1,4 @@
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 def get_br_symbol(symbol, exchange):
     """Convert OpenAlgo symbol to DefinedGe Securities symbol format"""

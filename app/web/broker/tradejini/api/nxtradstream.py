@@ -7,12 +7,9 @@ import traceback
 import errno
 import json
 import re
-import os
 import sys
 from datetime import datetime
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 CURRENT_VERSION = 1

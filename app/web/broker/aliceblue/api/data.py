@@ -1,16 +1,13 @@
-import os
 import json
 import time
-import os
 from datetime import datetime
 import pandas as pd
 import threading
 import httpx
 from typing import Dict, List, Any, Union, Tuple, Optional
 from requests.exceptions import Timeout, HTTPError
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Mock token map for testing
@@ -141,7 +138,7 @@ class BrokerData:
                     logger.warning(f"Error closing existing WebSocket: {str(e)}")
                 
             # Get user ID from environment variable or fallback
-            user_id = os.environ.get("BROKER_API_KEY", "")
+            user_id = settings.BROKER_API_KEY
             if not user_id:
                 logger.error("Missing API secret (user ID) for AliceBlue WebSocket")
                 return None
@@ -602,7 +599,7 @@ class BrokerData:
             client = get_httpx_client()
             
             # Get user_id from environment variables and session_id from class instance
-            user_id = os.environ.get("BROKER_API_SECRET")
+            user_id = settings.BROKER_API_SECRET
             session_id = self.session_id
             
             if not user_id or not session_id:
@@ -953,11 +950,9 @@ class BrokerData:
             aliceblue_timeframe = self.timeframe_map[timeframe]
             
             # Get credentials - AliceBlue historical API uses user_id in Bearer token
-            from utils.config import get_broker_api_key, get_broker_api_secret
-
             # IMPORTANT: AliceBlue historical API uses user_id (BROKER_API_KEY), not client_id!
             # This is different from other APIs which use BROKER_API_SECRET
-            user_id = get_broker_api_key()  # This should be '1412368' in your case
+            user_id = settings.BROKER_API_KEY  # This should be '1412368' in your case
             auth_token = self.session_id  # This is the session token from login
 
             if not user_id or not auth_token:

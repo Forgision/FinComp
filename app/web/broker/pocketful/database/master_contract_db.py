@@ -1,6 +1,3 @@
-#database/master_contract_db.py
-
-import os
 import pandas as pd
 import numpy as np
 import gzip
@@ -9,18 +6,19 @@ import json
 import gzip
 import io
 import zipfile
+from pathlib import Path
 # Use httpx client for connection pooling
 import httpx
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
-logger = get_logger(__name__)
 
 
 
@@ -59,7 +57,7 @@ data_types = {
     "Reserved column3": str, 
 }
 
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -138,9 +136,10 @@ def download_csv_pocketful_data(output_path):
         
         # Extract the ZIP file contents
         with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
-            zip_file.extractall(output_path)
+            extracted_path = Path(output_path)
+            zip_file.extractall(extracted_path)
             extracted_files = zip_file.namelist()
-            downloaded_files.extend([os.path.join(output_path, name) for name in extracted_files])
+            downloaded_files.extend([str(extracted_path / name) for name in extracted_files])
             logger.info("Extraction successful!")
     except httpx.HTTPError as e:
         logger.error(f"Failed to download ZIP archive. HTTP Error: {e}")
@@ -484,12 +483,10 @@ def process_pocketful_indices_csv(path):
 
 def delete_pocketful_temp_data(output_path):
     # Check each file in the directory
-    for filename in os.listdir(output_path):
-        # Construct the full file path
-        file_path = os.path.join(output_path, filename)
+    for file_path in Path(output_path).iterdir():
         # If the file is a CSV, delete it
-        if filename.endswith(".csv") and os.path.isfile(file_path):
-            os.remove(file_path)
+        if file_path.suffix == ".csv" and file_path.is_file():
+            file_path.unlink()
             logger.info(f"Deleted {file_path}")
     
 

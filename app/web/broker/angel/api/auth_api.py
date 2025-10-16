@@ -1,14 +1,14 @@
 import httpx
 import json
-import os
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
+from app.core.config import settings
 
 def authenticate_broker(clientcode, broker_pin, totp_code):
     """
     Authenticate with the broker and return the auth token.
     """
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
 
     try:
         # Get the shared httpx client

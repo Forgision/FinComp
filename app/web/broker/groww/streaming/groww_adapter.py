@@ -1,21 +1,15 @@
 import threading
 import json
-import logging
 import time
 import zmq
 from typing import Dict, Any, Optional, List
 
-from database.auth_db import get_auth_token
-from database.token_db import get_token
+from app.db.token_db import get_auth_token
+from app.db.token_db import get_token
 
-import sys
-import os
-
-# Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.utils.logging import logger
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .groww_mapping import GrowwExchangeMapper, GrowwCapabilityRegistry
 from .nats_websocket import GrowwNATSWebSocket
 
@@ -24,7 +18,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("groww_websocket")
+        self.logger = logger
         self.ws_client = None
         self.user_id = None
         self.broker_name = "groww"

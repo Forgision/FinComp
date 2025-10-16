@@ -4,9 +4,9 @@ from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from .....utils.logging import logger
-from .....core.config import settings
-from ....frontend import templates
+from ....utils.logging import logger
+from ....core.config import settings
+from ...frontend import templates
 
 
 dashboard_router = APIRouter()

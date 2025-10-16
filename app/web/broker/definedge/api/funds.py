@@ -1,10 +1,9 @@
 # api/funds.py
 
 import json
-from utils.logging import get_logger
-from utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
 
-logger = get_logger(__name__)
 
 def get_margin_data(auth_token):
     """Fetch margin data from DefinedGe Securities API using the provided auth token."""

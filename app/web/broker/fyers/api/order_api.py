@@ -1,10 +1,10 @@
 import json
-import os
 import httpx
-from .....db.token_db import get_br_symbol, get_oa_symbol
-from ..mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.db.token_db import get_br_symbol, get_oa_symbol
+from app.web.broker.fyers.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="GET", payload=''):
@@ -25,7 +25,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         
         url = f"https://api-t1.fyers.in{endpoint}"
         headers = {
@@ -111,7 +111,7 @@ def place_order_api(data, auth):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
+        BROKER_API_KEY = settings.BROKER_API_KEY
         data['apikey'] = BROKER_API_KEY
         
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
@@ -260,7 +260,7 @@ def close_all_positions(current_api_key, auth):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         
         url = "https://api-t1.fyers.in/api/v3/positions"
         headers = {
@@ -312,7 +312,7 @@ def cancel_order(orderid, auth):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
         headers = {
@@ -365,7 +365,7 @@ def modify_order(data, auth):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
         headers = {

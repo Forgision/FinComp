@@ -8,12 +8,12 @@ import base64
 from typing import Optional, Dict
 
 from app.core.config import settings
-from ...utils.logging import logger
+from app.utils.logging import logger
 
-SECURITY_LOG_LOCATION = "app.utils.web.security"
-# from app.utils.logging import get_logger
 
-# logger = get_logger(__name__)
+def generate_api_key():
+    """Generate a secure random API key"""
+    return secrets.token_hex(32)
 
 def get_csp_config() -> Optional[Dict[str, str]]:
     """
@@ -218,12 +218,6 @@ def verify_password(password: str, hashed_password: str) -> bool:
         logger.error(f"Error verifying password: {e}")
         return False
     
-
-def generate_api_key():
-    """Generate a secure random API key"""
-    # Generate 32 bytes of random data and encode as hex
-    return secrets.token_hex(32)
-
 
 class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp):

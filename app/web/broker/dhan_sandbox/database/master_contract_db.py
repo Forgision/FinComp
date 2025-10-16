@@ -1,6 +1,5 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import requests
@@ -16,16 +15,13 @@ import io
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
 
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))

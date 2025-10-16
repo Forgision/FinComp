@@ -1,14 +1,10 @@
 # api/funds.py
 
-import os
 import httpx
 import json
-from flask import session
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
+from fastapi import Request
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
 
 
 def get_margin_data(auth_token):

@@ -1,22 +1,19 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
+from pathlib import Path
 
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
 
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -104,8 +101,8 @@ def download_csv_paytm_data(output_path):
 
     logger.info("Downloading Master Contract CSV Files")
     # Create output directory if it doesn't exist
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    if not settings.BASE_DIR.joinpath(output_path).exists():
+        settings.BASE_DIR.joinpath(output_path).mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created directory: {output_path}")
 
     # URLs of the CSV files to be downloaded
@@ -124,7 +121,7 @@ def download_csv_paytm_data(output_path):
             response = client.get(url)
             response.raise_for_status() # Raise an exception for bad status codes
             # Construct the full output path for the file
-            file_path = os.path.join(output_path, f"{key}.csv")
+            file_path = settings.BASE_DIR.joinpath(output_path, f"{key}.csv")
             # Write the content to the file
             with open(file_path, 'wb') as file:
                 file.write(response.content)
@@ -208,7 +205,7 @@ def assign_values(row):
 def process_paytm_csv(path):
     """Processes the Paytm CSV file to fit the existing database schema and performs exchange name mapping."""
     logger.info("Processing Paytm Scrip Master CSV Data")
-    file_path = os.path.join(path, "master.csv")
+    file_path = settings.BASE_DIR.joinpath(path, "master.csv")
 
     df = pd.read_csv(file_path, low_memory=False)
     df.columns = df.columns.str.strip()
@@ -267,13 +264,10 @@ def process_paytm_csv(path):
     
 def delete_paytm_temp_data(output_path):
     # Check each file in the directory
-    for filename in os.listdir(output_path):
-        # Construct the full file path
-        file_path = os.path.join(output_path, filename)
-        # If the file is a CSV, delete it
-        if filename.endswith(".csv") and os.path.isfile(file_path):
-            os.remove(file_path)
-            logger.info(f"Deleted {file_path}")
+    for filename in settings.BASE_DIR.joinpath(output_path).iterdir():
+        if filename.suffix == ".csv" and filename.is_file():
+            filename.unlink()
+            logger.info(f"Deleted {filename}")
     
 
 def master_contract_download():

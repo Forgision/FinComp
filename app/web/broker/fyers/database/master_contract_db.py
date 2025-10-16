@@ -1,11 +1,11 @@
 #database/master_contract_db.py
 
-import os
+from app.core.config import settings
 import pandas as pd
 import numpy as np
 import httpx
 from typing import List, Tuple, Optional, Dict, Any
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 import requests
 import gzip
 import shutil
@@ -19,10 +19,10 @@ import io
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from .....db.auth_db import get_auth_token
-from .....utils.web.socketio import socketio
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio
 # from extensions import socketio  # Import SocketIO
-from .....utils.logging import logger
+from app.utils.logging import logger
 
 
 
@@ -60,7 +60,7 @@ data_types = {
     "Reserved column3": str, 
 }
 
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -133,7 +133,6 @@ def download_csv_fyers_data(output_path: str) -> Tuple[bool, List[str], Optional
             - List[str]: List of paths to downloaded files
             - Optional[str]: Error message if any error occurred, None otherwise
     """
-    from utils.httpx_client import get_httpx_client
     logger.info("Downloading Master Contract CSV Files")
     
     # URLs of the CSV files to be downloaded

@@ -4,32 +4,21 @@ Handles market data streaming from Zebu broker
 """
 import threading
 import json
-import logging
 import time
 from typing import Dict, Any, Optional, List
 from enum import IntEnum
+from pathlib import Path
 
-from database.auth_db import get_auth_token
-from database.token_db import get_token
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
 
 import sys
-import os
+from app.core.config import settings
+from app.utils.logging import logger
 
-# Add parent directory to path to allow imports FIRST
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-# CRITICAL: Import config to load .env file which sets ZMQ_PORT
-# This must happen before any WebSocket server initialization
-import utils.config  # This loads .env file at module level
-
-# Ensure ZMQ_PORT is set (fallback if not in .env)
-if not os.getenv('ZMQ_PORT'):
-    os.environ['ZMQ_PORT'] = '5555'
-    temp_logger = logging.getLogger("zebu_init")
-    temp_logger.info("ZMQ_PORT not found in environment, setting to 5555")
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .zebu_mapping import ZebuExchangeMapper, ZebuCapabilityRegistry
 from .zebu_websocket import ZebuWebSocket
 
@@ -62,7 +51,7 @@ class MarketDataCache:
         self._cache = {}
         self._initialized_tokens = set()
         self._lock = threading.Lock()
-        self.logger = logging.getLogger("market_cache")
+        self.logger = logger
 
     def get(self, token: str) -> Dict[str, Any]:
         """Get cached data for a token"""
@@ -243,10 +232,10 @@ class ZebuWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("zebu_websocket")
+        self.logger = logger
 
         # Log the actual ZMQ port being used
-        actual_zmq_port = os.getenv('ZMQ_PORT', '5555')
+        actual_zmq_port = settings.ZMQ_PORT
         self.logger.info(f"Zebu adapter initialized - Expected ZMQ port: {actual_zmq_port}, Actual bound port: {self.zmq_port}")
 
         # Warn if there's a mismatch
@@ -296,7 +285,7 @@ class ZebuWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # For Zebu, BROKER_API_KEY should contain the vendor code (e.g., 'Z56004')
         # This vendor code is used as both actid and uid in WebSocket authentication
 
-        api_key = os.getenv('BROKER_API_KEY', '')
+        api_key = settings.BROKER_API_KEY
 
         if api_key:
             # Use the BROKER_API_KEY (vendor code) as the account ID

@@ -1,12 +1,9 @@
 # api/funds.py
 
-import os
 import json
 import httpx
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
 
 
 def get_margin_data(auth_token):

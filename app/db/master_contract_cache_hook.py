@@ -3,11 +3,13 @@ Master Contract Cache Hook
 Automatically loads symbols into memory cache after successful master contract download
 """
 
-from utils.logging import get_logger
-from extensions import socketio
 import time 
 
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.utils.web.socketio import socketio
+from app.db.token_db import load_cache_for_broker
+from app.db.token_db_enhanced import get_cache, get_cache_stats
+
 
 def load_symbols_to_cache(broker: str) -> bool:
     """
@@ -23,9 +25,6 @@ def load_symbols_to_cache(broker: str) -> bool:
     try:
         logger.info(f"Starting cache load for broker: {broker}")
         start_time = time.time()
-        
-        # Import the enhanced token_db module
-        from database.token_db_enhanced import load_cache_for_broker, get_cache_stats
         
         # Load all symbols into cache
         success = load_cache_for_broker(broker)
@@ -130,9 +129,7 @@ def refresh_cache_if_needed(broker: str):
     Args:
         broker: The broker name to check cache for
     """
-    try:
-        from database.token_db_enhanced import get_cache
-        
+    try:        
         cache = get_cache()
         
         # Check if cache is valid

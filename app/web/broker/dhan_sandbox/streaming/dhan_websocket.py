@@ -2,23 +2,19 @@
 Complete Dhan WebSocket client wrapper for OpenAlgo.
 Based on Dhan V2 API documentation with proper binary packet parsing.
 """
-import os
+from app.core.config import settings
 import asyncio
 import json
-import logging
 import struct
 from datetime import datetime
 import websockets
-import os
 import time
 import threading
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Callable, Union
 
 import websockets
-
-# Set up logging
-logger = logging.getLogger("dhan_websocket")
+from app.utils.logging import logger
 
 class DhanWebSocket:
     """
@@ -1593,7 +1589,7 @@ class DhanWebSocket:
         Returns True if any token is for NSE equity (1) or NSE F&O (2).
         """
         # Check if 20-level depth is disabled (can be set via environment variable)
-        if os.getenv('DHAN_DISABLE_20_LEVEL_DEPTH', '').lower() == 'true':
+        if settings.DHAN_DISABLE_20_LEVEL_DEPTH.lower() == 'true':
             logger.info("20-level depth is disabled via environment variable")
             return False
             

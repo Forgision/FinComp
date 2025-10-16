@@ -1,11 +1,10 @@
+import pyotp
 from sqlalchemy.orm import Session
 from ..models.user import User
-from ...utils.logging import get_logger
+from ...utils.logging import logger
 from ...utils.web.security import password_to_hash
-import pyotp
 import secrets
 
-logger = get_logger(__name__)
 
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
@@ -24,9 +23,6 @@ def get_total_users_count(db: Session) -> int:
     """
     return db.query(User).count()
 
-def generate_api_key():
-    """Generates a secure, random API key."""
-    return secrets.token_urlsafe(32)
 
 def create_admin_user(db: Session, username: str, email: str, password: str):
     """

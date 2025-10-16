@@ -1,9 +1,9 @@
 import json
-import os
 import httpx
 import pyotp
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 
@@ -101,8 +101,8 @@ def authenticate_broker(code):
         tuple: (access_token, error_message)
     """
     try:
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
         
         if not BROKER_API_KEY or not BROKER_API_SECRET:
             return None, "BROKER_API_KEY and BROKER_API_SECRET environment variables are required for Groww TOTP authentication"

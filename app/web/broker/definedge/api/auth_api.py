@@ -1,9 +1,9 @@
-import os
 import json
 import urllib.parse
 from hashlib import sha256
-from .....utils.logging import logger
-from .....utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.core.config import settings
 
 def authenticate_broker(otp_token, otp, api_secret=None):
     """
@@ -21,8 +21,8 @@ def authenticate_broker(otp_token, otp, api_secret=None):
     try:
         # Get API credentials from environment if not provided
         if not api_secret:
-            api_secret = os.getenv('BROKER_API_SECRET')
-        api_token = os.getenv('BROKER_API_KEY')
+            api_secret = settings.BROKER_API_SECRET
+        api_token = settings.BROKER_API_KEY
         
         # Step 2: Verify OTP with auth code to get session keys
         session_response = login_step2(otp_token, otp, api_secret)
@@ -56,9 +56,9 @@ def login_step1(api_token=None, api_secret=None):
     try:
         # Get credentials from environment if not provided
         if not api_token:
-            api_token = os.getenv('BROKER_API_KEY')
+            api_token = settings.BROKER_API_KEY
         if not api_secret:
-            api_secret = os.getenv('BROKER_API_SECRET')
+            api_secret = settings.BROKER_API_SECRET
         
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()

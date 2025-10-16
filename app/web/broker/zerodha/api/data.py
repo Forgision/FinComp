@@ -1,16 +1,12 @@
 import json
-import os
 import urllib.parse
-from database.token_db import get_br_symbol, get_oa_symbol
+from app.db.token_db import get_br_symbol, get_oa_symbol
 from broker.zerodha.database.master_contract_db import SymToken, db_session
 import pandas as pd
 from datetime import datetime, timedelta
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 class ZerodhaPermissionError(Exception):

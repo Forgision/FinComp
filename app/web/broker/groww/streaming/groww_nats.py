@@ -6,11 +6,10 @@ Implements core NATS protocol without external dependencies
 import json
 import random
 import string
-import logging
 from typing import Dict, Any, Optional, Callable, List, Union, Tuple
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from app.utils.logging import logger
 
 # NATS Protocol Commands
 INFO = "INFO"

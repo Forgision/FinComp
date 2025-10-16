@@ -1,10 +1,8 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Compositedge Broking Parameters https://symphonyfintech.com/xts-trading-front-end-api/
 
-from database.token_db import get_br_symbol,get_token
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.token_db import get_br_symbol,get_token
+from app.utils.logging import logger
 
 
 def transform_data(data,token):

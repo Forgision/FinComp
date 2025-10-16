@@ -1,9 +1,7 @@
 import json
-from database.token_db import get_symbol 
+from app.db.token_db import get_symbol 
 from broker.dhan.mapping.transform_data import map_exchange
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 def map_order_data(order_data):

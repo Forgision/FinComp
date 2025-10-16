@@ -1,16 +1,16 @@
-import os
 import hashlib
 import json
 import base64
 import httpx
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
+from app.core.config import settings
 
 def authenticate_broker(userid, encKey):
     try:
         # Fetching the necessary credentials from environment variables
-        BROKER_API_KEY = os.environ.get("BROKER_API_KEY")
-        BROKER_API_SECRET = os.environ.get("BROKER_API_SECRET")
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
 
         if not BROKER_API_SECRET or not BROKER_API_KEY:
             logger.error("API keys not found in environment variables")
@@ -18,7 +18,7 @@ def authenticate_broker(userid, encKey):
         
         logger.debug(f"Authenticating with AliceBlue for user {userid}")
         
-        # Proper AliceBlue API authentication flow according to V2 API docs:        
+        # Proper AliceBlue API authentication flow according to V2 API docs:
         # Step 1: Get the shared httpx client with connection pooling
         client = get_httpx_client()
         

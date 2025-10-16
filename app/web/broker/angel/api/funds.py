@@ -1,17 +1,15 @@
 # api/funds.py
 
-import os
 import httpx
 import json
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_margin_data(auth_token):
     """Fetch margin data from the broker's API using the provided auth token."""
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()

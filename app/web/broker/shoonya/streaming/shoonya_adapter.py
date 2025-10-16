@@ -4,24 +4,20 @@ Handles market data streaming from Shoonya broker
 """
 import threading
 import json
-import logging
 import time
 from typing import Dict, Any, Optional, List
 from enum import IntEnum
 
-from database.auth_db import get_auth_token
-from database.token_db import get_token
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
 
-import sys
-import os
+from app.utils.logging import logger
 
-# Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .shoonya_mapping import ShoonyaExchangeMapper, ShoonyaCapabilityRegistry
 from .shoonya_websocket import ShoonyaWebSocket
+from app.core.config import settings
 
 
 # Configuration constants
@@ -52,7 +48,7 @@ class MarketDataCache:
         self._cache = {}
         self._initialized_tokens = set()
         self._lock = threading.Lock()
-        self.logger = logging.getLogger("market_cache")
+        self.logger = logger
     
     def get(self, token: str) -> Dict[str, Any]:
         """Get cached data for a token"""
@@ -233,7 +229,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("shoonya_websocket")
+        self.logger = logger
         self._setup_adapter()
         self._setup_market_cache()
         self._setup_connection_management()
@@ -273,7 +269,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.broker_name = broker_name
         
         # Get Shoonya credentials
-        api_key = os.getenv('BROKER_API_KEY', '')
+        api_key = settings.BROKER_API_KEY
         if api_key:
             self.actid = api_key[:-2] if len(api_key) > 2 else api_key
         else:

@@ -4,11 +4,11 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import NullPool
 from typing import List
-from utils.logging import get_logger
+from ..utils.logging import logger
+from ..core.config import settings
 
-logger = get_logger(__name__)
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = settings.DATABASE_URL
 # Conditionally create engine based on DB type
 if DATABASE_URL and 'sqlite' in DATABASE_URL:
     # SQLite: Use NullPool to prevent connection pool exhaustion

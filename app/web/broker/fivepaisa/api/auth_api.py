@@ -1,9 +1,9 @@
 import json
-import os
 import httpx
 from typing import Tuple, Optional
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def authenticate_broker(clientcode: str, broker_pin: str, totp_code: str) -> Tuple[Optional[str], Optional[str]]:
@@ -19,8 +19,8 @@ def authenticate_broker(clientcode: str, broker_pin: str, totp_code: str) -> Tup
         Tuple[Optional[str], Optional[str]]: (access_token, error_message)
     """
     # Retrieve the BROKER_API_KEY and BROKER_API_SECRET environment variables
-    broker_api_key = os.getenv('BROKER_API_KEY')
-    api_secret = os.getenv('BROKER_API_SECRET')
+    broker_api_key = settings.BROKER_API_KEY
+    api_secret = settings.BROKER_API_SECRET
 
     if not broker_api_key or not api_secret:
         return None, "BROKER_API_KEY or BROKER_API_SECRET not found in environment variables"

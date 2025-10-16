@@ -1,4 +1,3 @@
-import os
 import httpx
 import zipfile
 import io
@@ -7,17 +6,16 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from extensions import socketio  # Import SocketIO
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 
 
 # Database setup
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base = declarative_base()
@@ -91,8 +89,7 @@ def download_and_unzip_zebu_data(output_path):
     logger.info("Downloading and Unzipping Zebu Data")
 
     # Create the tmp directory if it doesn't exist
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    Path(output_path).mkdir(parents=True, exist_ok=True)
 
     downloaded_files = []
 
@@ -553,11 +550,9 @@ def delete_zebu_temp_data(output_path):
     """
     Deletes the Zebu symbol files from the tmp folder after processing.
     """
-    for filename in os.listdir(output_path):
-        file_path = os.path.join(output_path, filename)
-        if filename.endswith(".txt") and os.path.isfile(file_path):
-            os.remove(file_path)
-            logger.info(f"Deleted {file_path}")
+    for file_path in Path(output_path).glob("*.txt"):
+        file_path.unlink()
+        logger.info(f"Deleted {file_path}")
 
 def master_contract_download():
     """

@@ -1,23 +1,21 @@
 import httpx
 import json
-import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token
-from database.token_db import get_br_symbol , get_oa_symbol, get_symbol
-from broker.dhan.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from broker.dhan.mapping.transform_data import map_exchange_type, map_exchange
-from utils.httpx_client import get_httpx_client
-from broker.dhan.api.baseurl import get_url
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
+from app.db.token_db import get_br_symbol , get_oa_symbol, get_symbol
+from app.web.broker.dhan.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.web.broker.dhan.mapping.transform_data import map_exchange_type, map_exchange
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.dhan.api.baseurl import get_url
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 
 def get_api_response(endpoint, auth, method="GET", payload=''):
 
     AUTH_TOKEN = auth
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
@@ -104,7 +102,7 @@ def get_open_position(tradingsymbol, exchange, product, auth):
 
 def place_order_api(data,auth):
     AUTH_TOKEN = auth
-    BROKER_API_KEY = os.getenv('BROKER_API_KEY')
+    BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
     token = get_token(data['symbol'], data['exchange'])
     newdata = transform_data(data, token)  
@@ -148,7 +146,7 @@ def place_order_api(data,auth):
 def place_smartorder_api(data,auth):
 
     AUTH_TOKEN = auth
-    BROKER_API_KEY = os.getenv('BROKER_API_KEY')
+    BROKER_API_KEY = settings.BROKER_API_KEY
     #If no API call is made in this function then res will return None
     res = None
 
@@ -319,7 +317,7 @@ def modify_order(data,auth):
 
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    BROKER_API_KEY = os.getenv('BROKER_API_KEY')
+    BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
 
     orderid = data["orderid"];

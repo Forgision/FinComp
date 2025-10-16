@@ -3,11 +3,10 @@ Socket.IO Error Handler
 Handles common Socket.IO errors like disconnected sessions gracefully
 """
 
-from utils.logging import get_logger
+from app.utils.logging import logger
 from flask_socketio import disconnect
 import functools
 
-logger = get_logger(__name__)
 
 def handle_disconnected_session(f):
     """

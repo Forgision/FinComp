@@ -7,9 +7,8 @@ import ssl
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any, Union
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 class AliceBlueWebSocket:
     """
@@ -145,8 +144,8 @@ class AliceBlueWebSocket:
         auth_message = {
             "susertoken": self.enc_token,
             "t": "c",
-            "actid": f"{self.user_id}_API",
-            "uid": f"{self.user_id}_API",
+            "actid": f"{settings.BROKER_API_KEY}_API",
+            "uid": f"{settings.BROKER_API_KEY}_API",
             "source": "API"
         }
         

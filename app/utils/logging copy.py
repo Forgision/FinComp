@@ -1,20 +1,11 @@
 import logging
-import os
 import re
 import sys
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Optional
-
-# Load environment variables if .env file exists
-try:
-    from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-    if os.path.exists(env_path):
-        load_dotenv(dotenv_path=env_path, override=False)
-except ImportError:
-    pass
+from app.core.config import settings
 
 try:
     from colorama import Fore, Back, Style, init
@@ -90,20 +81,20 @@ class ColoredFormatter(logging.Formatter):
     def _supports_color(self):
         """Check if the terminal supports color output."""
         # Check for FORCE_COLOR environment variable first
-        force_color = os.environ.get('FORCE_COLOR', '').lower()
+        force_color = settings.FORCE_COLOR
         if force_color in ['1', 'true', 'yes', 'on']:
             return True
         elif force_color in ['0', 'false', 'no', 'off']:
             return False
         
         # Check for NO_COLOR environment variable (standard)
-        if os.environ.get('NO_COLOR'):
+        if settings.NO_COLOR:
             return False
         
         # Check if we're in a terminal that supports colors
         if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
             # Check environment variables
-            term = os.environ.get('TERM', '')
+            term = settings.TERM
             if 'color' in term.lower() or term in ['xterm', 'xterm-256color', 'screen', 'screen-256color']:
                 return True
                 
@@ -125,8 +116,8 @@ class ColoredFormatter(logging.Formatter):
                 pass
             
             # Check if running in Windows Terminal, VS Code, or similar
-            wt_session = os.environ.get('WT_SESSION')
-            vscode_term = os.environ.get('VSCODE_INJECTION')
+            wt_session = settings.WT_SESSION
+            vscode_term = settings.VSCODE_INJECTION
             if wt_session or vscode_term:
                 return True
                 
@@ -206,12 +197,12 @@ def cleanup_old_logs(log_dir: Path, retention_days: int):
 def setup_logging():
     """Initialize the logging configuration from environment variables."""
     # Get configuration from environment
-    log_to_file = os.getenv('LOG_TO_FILE', 'False').lower() == 'true'
-    log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
-    log_dir = os.getenv('LOG_DIR', 'log')
-    log_format = os.getenv('LOG_FORMAT', '[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
-    log_retention = int(os.getenv('LOG_RETENTION', '14'))
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
+    log_to_file = settings.LOG_TO_FILE
+    log_level = settings.LOG_LEVEL.upper()
+    log_dir = settings.LOG_DIR
+    log_format = settings.LOG_FORMAT
+    log_retention = settings.LOG_RETENTION
+    log_colors = settings.LOGS_COLORS_ENABLE
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -282,8 +273,8 @@ def highlight_url(url: str, text: str = None) -> str:
         return text or url
     
     # Check if colors are enabled
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
-    force_color = os.getenv('FORCE_COLOR', '').lower() in ['1', 'true', 'yes', 'on']
+    log_colors = settings.LOGS_COLORS_ENABLE
+    force_color = settings.FORCE_COLOR
     
     if not log_colors and not force_color:
         return text or url
@@ -322,8 +313,8 @@ def log_startup_banner(logger_instance, title: str, url: str, separator_char: st
         return
     
     # Check if colors are enabled
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
-    force_color = os.getenv('FORCE_COLOR', '').lower() in ['1', 'true', 'yes', 'on']
+    log_colors = settings.LOGS_COLORS_ENABLE
+    force_color = settings.FORCE_COLOR
     
     if not log_colors and not force_color:
         # Fallback without colors

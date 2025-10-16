@@ -1,8 +1,8 @@
 import hashlib
 import json
-import os
 from .....utils.logging import logger
 from .....utils.httpx_client import get_httpx_client
+from app.core.config import settings
 
 def sha256_hash(text):
     """
@@ -34,8 +34,8 @@ def authenticate_broker(userid, password, totp_code):
             - On failure: (None, error_message_string)
     """
     # Get the Firstock API credentials from environment variables
-    api_key = os.getenv('BROKER_API_SECRET')  # This should be the apiKey
-    vendor_code = os.getenv('BROKER_API_KEY')  # This should be the vendorCode
+    api_key = settings.BROKER_API_SECRET  # This should be the apiKey
+    vendor_code = settings.BROKER_API_KEY  # This should be the vendorCode
     
     # Validate required environment variables
     if not api_key:

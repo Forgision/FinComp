@@ -2,14 +2,14 @@
 import asyncio
 import threading
 import json
-import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .upstox_client import UpstoxWebSocketClient
-from database.auth_db import get_auth_token
+from app.db.auth_db import get_auth_token
+from app.utils.logging import logger
 
 
 class UpstoxWebSocketAdapter(BaseBrokerWebSocketAdapter):
@@ -24,7 +24,7 @@ class UpstoxWebSocketAdapter(BaseBrokerWebSocketAdapter):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("upstox_websocket")
+        self.logger = logger
         self.ws_client: Optional[UpstoxWebSocketClient] = None
         self.event_loop: Optional[asyncio.AbstractEventLoop] = None
         self.ws_thread: Optional[threading.Thread] = None

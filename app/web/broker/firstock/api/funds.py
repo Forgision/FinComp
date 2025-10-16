@@ -1,9 +1,7 @@
 import json
-import os
-from utils.logging import get_logger
-from utils.httpx_client import get_httpx_client
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.core.config import settings
 
 
 def get_margin_data(auth_token):
@@ -18,7 +16,7 @@ def get_margin_data(auth_token):
     """
     try:
         # Get user ID from environment variable and trim the last 4 characters
-        userid = os.getenv('BROKER_API_KEY')
+        userid = settings.BROKER_API_KEY
         if not userid:
             logger.error("BROKER_API_KEY not found in environment variables")
             return {}

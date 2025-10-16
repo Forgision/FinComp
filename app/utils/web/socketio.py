@@ -1,6 +1,6 @@
 import socketio
 
-sio = socketio.AsyncServer(
+socketio = socketio.AsyncServer(
     cors_allowed_origins='*',
     ping_timeout=10,
     ping_interval=5,
@@ -9,4 +9,4 @@ sio = socketio.AsyncServer(
     async_mode='asgi'
 )
 
-socket_app = socketio.ASGIApp(sio)
+socket_app = socketio.ASGIApp(socketio)

@@ -1,5 +1,4 @@
 import json
-import os
 import urllib.parse
 from database.token_db import get_br_symbol, get_oa_symbol, get_brexchange
 from broker.compositedge.database.master_contract_db import SymToken, db_session
@@ -10,12 +9,8 @@ from utils.httpx_client import get_httpx_client
 from database.auth_db import get_feed_token
 from broker.compositedge.baseurl import MARKET_DATA_URL
 import pytz
-from utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
-
-# Configure logging
-logger = get_logger(__name__)
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):
     AUTH_TOKEN = auth

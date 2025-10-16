@@ -1,20 +1,14 @@
 import http.client
 import json
-import os
-import urllib.parse
-from database.token_db import get_br_symbol, get_oa_symbol
-from broker.pocketful.database.master_contract_db import SymToken, db_session
-import pandas as pd
-from datetime import datetime, timedelta
-from broker.pocketful.api.pocketfulwebsocket import PocketfulSocket, get_ws_connection_status, get_snapquotedata
 import time
-from utils.logging import get_logger
+import urllib.parse
+from datetime import datetime, timedelta
+import pandas as pd
+from app.db.token_db import get_br_symbol, get_oa_symbol
+from app.web.broker.pocketful.database.master_contract_db import SymToken, db_session
+from app.web.broker.pocketful.api.pocketfulwebsocket import PocketfulSocket, get_ws_connection_status, get_snapquotedata
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
-
-
-# Configure logging
-logger = get_logger(__name__)
 
 class PocketfulPermissionError(Exception):
     """Custom exception for Pocketful API permission errors"""
@@ -470,9 +464,6 @@ class BrokerData:
             max_attempts = 15  # Increased attempts further
             snapquote_data = None
             
-            # Set debug logging to see all messages
-            logging.getLogger('broker.pocketful.api.packet_decoder').setLevel(logging.DEBUG)
-            logging.getLogger('broker.pocketful.api.pocketfulwebsocket').setLevel(logging.DEBUG)
             
             # Send a dummy heartbeat to ensure connection is active
             if hasattr(self.ws_connection, '_send_heartbeat'):

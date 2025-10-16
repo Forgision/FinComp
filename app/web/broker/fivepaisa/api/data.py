@@ -1,25 +1,23 @@
 import json
 from datetime import datetime, timedelta
-import os
 from typing import Dict, Any, Optional
 import httpx
 import pytz
-from utils.httpx_client import get_httpx_client
-from database.token_db import get_br_symbol, get_token, get_oa_symbol
-from broker.fivepaisa.mapping.transform_data import map_exchange, map_exchange_type
+from app.utils.httpx_client import get_httpx_client
+from app.db.token_db import get_br_symbol, get_token, get_oa_symbol
+from app.web.broker.fivepaisa.mapping.transform_data import map_exchange, map_exchange_type
 import traceback
 import pandas as pd
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Retrieve the BROKER_API_KEY environment variable
-broker_api_key = os.getenv('BROKER_API_KEY')
+broker_api_key = settings.BROKER_API_KEY
 api_key, user_id, client_id = broker_api_key.split(':::')
 
 # Base URL for 5Paisa API
-BASE_URL = "https://Openapi.5paisa.com"
+BASE_URL = settings.FIVEPAISA_BASE_URL
 
 def get_api_response(endpoint: str, auth: str, method: str = "GET", payload: str = '') -> dict:
     """Generic function to make API calls to 5Paisa using shared httpx client

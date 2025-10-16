@@ -3,7 +3,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.pool import NullPool
-import os
+from app.core.config import settings
 import logging
 from datetime import datetime, timedelta
 import json
@@ -12,7 +12,7 @@ from database.settings_db import get_security_settings
 logger = logging.getLogger(__name__)
 
 # Use a separate database for logs
-LOGS_DATABASE_URL = os.getenv('LOGS_DATABASE_URL', 'sqlite:///db/logs.db')
+LOGS_DATABASE_URL = settings.LOGS_DATABASE_URL
 
 # Conditionally create engine based on DB type
 if LOGS_DATABASE_URL and 'sqlite' in LOGS_DATABASE_URL:

@@ -1,9 +1,7 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Upstox Broking Parameters https://upstox.com/developer/api-documentation/orders
 
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 def transform_data(data,token):
     """

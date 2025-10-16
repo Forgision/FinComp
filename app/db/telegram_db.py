@@ -2,7 +2,6 @@
 Telegram Database Module using SQLAlchemy for secure database operations
 """
 
-import os
 import json
 import base64
 from datetime import datetime, timedelta
@@ -15,12 +14,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.pool import NullPool
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 # Database configuration
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///db/telegram.db')
+DATABASE_URL = settings.TELEGRAM_DATABASE_URL
+
 if DATABASE_URL.startswith('sqlite:///') and ':memory:' not in DATABASE_URL:
     # Ensure the directory exists for file-based SQLite, but not for in-memory
     db_path = DATABASE_URL.replace('sqlite:///', '')
@@ -28,11 +27,11 @@ if DATABASE_URL.startswith('sqlite:///') and ':memory:' not in DATABASE_URL:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 # Encryption setup for API keys
-TELEGRAM_KEY_SALT = os.getenv('TELEGRAM_KEY_SALT', 'telegram-openalgo-salt').encode()
+TELEGRAM_KEY_SALT = settings.TELEGRAM_KEY_SALT.encode()
 
 def get_encryption_key():
     """Generate a Fernet key for encrypting API keys"""
-    pepper = os.getenv('API_KEY_PEPPER', 'default-pepper-change-in-production')
+    pepper = settings.API_KEY_PEPPER
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -681,7 +680,7 @@ def get_user_credentials(telegram_id: int) -> Optional[Dict]:
             return {
                 'username': user.openalgo_username,
                 'api_key': api_key,
-                'host_url': user.host_url or os.getenv('HOST_SERVER', 'http://127.0.0.1:5000'),
+                'host_url': user.host_url or settings.HOST_SERVER,
                 'broker': user.broker
             }
         return None

@@ -1,17 +1,14 @@
-import os
 import json
 import httpx
 from typing import Dict, Any
-from utils.httpx_client import get_httpx_client
-from broker.fivepaisa.api.order_api import get_positions
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.fivepaisa.api.order_api import get_positions
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Retrieve the BROKER_API_KEY environment variable
-broker_api_key = os.getenv('BROKER_API_KEY')
+broker_api_key = settings.BROKER_API_KEY
 
 def get_margin_data(auth_token: str) -> Dict[str, Any]:
     """Fetch margin data from the broker's API using the provided auth token.

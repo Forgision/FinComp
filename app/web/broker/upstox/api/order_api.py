@@ -1,13 +1,11 @@
 import json
-import os
 import httpx
-from utils.httpx_client import get_httpx_client
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_symbol
-from broker.upstox.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token, get_br_symbol, get_symbol
+from app.web.broker.upstox.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="GET", payload=''):
@@ -23,7 +21,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
     """
     logger.debug(f"Requesting {method} on endpoint: {endpoint}")
     try:
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         if not api_key:
             logger.error("BROKER_API_KEY environment variable not set.")
             return {'status': 'error', 'message': 'BROKER_API_KEY not set'}
@@ -117,7 +115,7 @@ def place_order_api(data, auth):
     """
     logger.info(f"Placing order with data: {data}")
     try:
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         if not api_key:
             logger.error("BROKER_API_KEY not set. Cannot place order.")
             return None, {"status": "error", "message": "BROKER_API_KEY not set"}, None

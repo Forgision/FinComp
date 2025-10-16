@@ -2,7 +2,7 @@ import json
 import logging
 import time
 import threading
-import socketio
+from app.utils.web.socketio import socketio
 import requests
 from typing import Dict, Any, Optional, List, Callable
 from broker.compositedge.baseurl import MARKET_DATA_URL,INTERACTIVE_URL,BASE_URL

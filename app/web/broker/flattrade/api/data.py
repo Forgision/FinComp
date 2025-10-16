@@ -1,14 +1,12 @@
 import httpx
 import json
-import os
 import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
-from database.token_db import get_token, get_br_symbol, get_oa_symbol
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.token_db import get_token, get_br_symbol, get_oa_symbol
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="POST", payload=None):
@@ -16,7 +14,7 @@ def get_api_response(endpoint, auth, method="POST", payload=None):
     Common function to make API calls to Flattrade using httpx with connection pooling
     """
     AUTH_TOKEN = auth
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     api_key = full_api_key.split(':::')[0]
 
     if payload is None:
@@ -90,7 +88,7 @@ class BrokerData:
                 exchange="BSE"
 
             payload = {
-                "uid": os.getenv('BROKER_API_KEY').split(':::')[0],
+                "uid": settings.BROKER_API_KEY.split(':::')[0],
                 "exch": exchange,
                 "token": token
             }
@@ -137,7 +135,7 @@ class BrokerData:
                 exchange="BSE"
             
             payload = {
-                "uid": os.getenv('BROKER_API_KEY').split(':::')[0],
+                "uid": settings.BROKER_API_KEY.split(':::')[0],
                 "exch": exchange,
                 "token": token
             }
@@ -247,7 +245,7 @@ class BrokerData:
             else:
                 # For intraday data, use TPSeries endpoint
                 payload = {
-                    "uid": os.getenv('BROKER_API_KEY').split(':::')[0],
+                    "uid": settings.BROKER_API_KEY.split(':::')[0],
                     "exch": exchange,
                     "token": token,
                     "st": str(start_ts),  # Start time in epoch

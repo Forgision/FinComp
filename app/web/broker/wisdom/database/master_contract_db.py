@@ -1,6 +1,6 @@
 # database/master_contract_db.py
 
-import os
+from app.core.config import settings
 import pandas as pd
 import numpy as np
 import gzip
@@ -10,20 +10,18 @@ import gzip
 import io
 import csv
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.httpx_client import get_httpx_client
-from broker.wisdom.baseurl import MARKET_DATA_URL
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.wisdom.baseurl import MARKET_DATA_URL
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
-
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -110,8 +108,8 @@ def download_csv_compositedge_data(output_path):
         else:
             header = headers_fo
 
-        segment_output_path = f"{output_path}/{segment}.csv"
-        os.makedirs(output_path, exist_ok=True)
+        segment_output_path = settings.BASE_DIR.joinpath(output_path, f"{segment}.csv")
+        settings.BASE_DIR.joinpath(output_path).mkdir(parents=True, exist_ok=True)
 
         csv_data = data["result"].split("\n")  # Convert result string to list of rows
         csv_data = [row.split("|") for row in csv_data if row.strip()]  # Convert each row into a list
@@ -455,13 +453,12 @@ def process_index_data(index_data):
 
 def delete_compositedge_temp_data(output_path):
     # Check each file in the directory
-    for filename in os.listdir(output_path):
-        # Construct the full file path
-        file_path = os.path.join(output_path, filename)
+    output_path_obj = settings.BASE_DIR.joinpath(output_path)
+    for file_path_obj in output_path_obj.iterdir():
         # If the file is a CSV, delete it
-        if filename.endswith(".csv") and os.path.isfile(file_path):
-            os.remove(file_path)
-            logger.info(f"Deleted {file_path}")
+        if file_path_obj.suffix == ".csv" and file_path_obj.is_file():
+            file_path_obj.unlink()
+            logger.info(f"Deleted {file_path_obj}")
     
 
 def master_contract_download():

@@ -3,9 +3,7 @@ import json
 import ssl
 
 import websocket
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 # from neo_api_client.logger import logger

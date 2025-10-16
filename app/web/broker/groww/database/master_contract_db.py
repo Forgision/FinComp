@@ -1,24 +1,22 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import httpx
 from io import StringIO
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
+from app.utils.web.socketio import socketio
+from app.utils.logging import logger
+from app.core.config import settings
 
 
+from os import makedirs, remove, listdir, rmdir, path
 
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -403,10 +401,10 @@ def download_groww_instrument_data(output_path):
     logger.info("Downloading Groww Instrument Data...")
 
     # Ensure the output directory exists
-    os.makedirs(output_path, exist_ok=True)
+    makedirs(output_path, exist_ok=True)
 
     # File path for the saved CSV
-    file_path = os.path.join(output_path, "master.csv")
+    file_path = path.join(output_path, "master.csv")
     csv_url = "https://growwapi-assets.groww.in/instruments/instrument.csv"
 
     # Expected headers - Updated to match actual CSV structure
@@ -497,13 +495,13 @@ def process_groww_data(path):
     logger.info("Processing Groww Instrument Data")
     
     # Check for both possible file names
-    master_file = os.path.join(path, "master.csv")
-    instruments_file = os.path.join(path, "instruments.csv")
+    master_file = path.join(output_path, "master.csv")
+    instruments_file = path.join(output_path, "instruments.csv")
     
     # Use master.csv if it exists, otherwise try instruments.csv
-    if os.path.exists(master_file):
+    if path.exists(master_file):
         file_path = master_file
-    elif os.path.exists(instruments_file):
+    elif path.exists(instruments_file):
         file_path = instruments_file
     else:
         logger.info(f"No instrument files found in {path}")
@@ -803,15 +801,15 @@ def delete_groww_temp_data(output_path):
         
         # Check each Groww-specific file
         for filename in groww_files:
-            file_path = os.path.join(output_path, filename)
+            file_path = path.join(output_path, filename)
             # Check if the file exists and delete it
-            if os.path.isfile(file_path):
-                os.remove(file_path)
+            if path.isfile(file_path):
+                remove(file_path)
                 logger.info(f"Deleted Groww temporary file: {file_path}")
         
         # Check if the directory is now empty
-        if not os.listdir(output_path):
-            os.rmdir(output_path)
+        if not listdir(output_path):
+            rmdir(output_path)
             logger.info(f"Deleted empty directory: {output_path}")
     except Exception as e:
         logger.error(f"Error deleting temporary files: {e}")

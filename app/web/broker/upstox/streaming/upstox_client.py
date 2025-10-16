@@ -3,13 +3,13 @@ import asyncio
 import json
 import ssl
 import websockets
-import logging
 import uuid
 from typing import Dict, Any, Optional, List, Callable
 from google.protobuf.json_format import MessageToDict
 import requests
 
-from . import MarketDataFeedV3_pb2
+from app.web.broker.upstox.streaming import MarketDataFeedV3_pb2
+from app.utils.logging import logger
 
 
 class UpstoxWebSocketClient:
@@ -24,7 +24,7 @@ class UpstoxWebSocketClient:
     def __init__(self, auth_token: str):
         self.auth_token = auth_token
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
-        self.logger = logging.getLogger("upstox_websocket")
+        self.logger = logger
         self._subscriptions: set = set()
         self.running = False
         self.ws_task: Optional[asyncio.Task] = None

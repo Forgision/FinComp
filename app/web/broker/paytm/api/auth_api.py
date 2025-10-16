@@ -1,6 +1,6 @@
-import os
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
+from app.core.config import settings
 
 def authenticate_broker(request_token):
     """
@@ -20,8 +20,8 @@ def authenticate_broker(request_token):
             - error_message: Error details if authentication fails, None on success
     """
     try:
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
 
         url = 'https://developer.paytmmoney.com/accounts/v2/gettoken'
         data = {

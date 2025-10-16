@@ -1,6 +1,5 @@
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.core.config import settings
+from app.utils.logging import logger
 
 """
 Fixed Zerodha WebSocket adapter that properly handles NIFTY index data.
@@ -8,14 +7,13 @@ The key fixes are in the _handle_ticks method for proper topic generation.
 """
 import asyncio
 import json
-import os
 import threading
 import time
 from typing import Dict, List, Optional, Set, Any, Callable
 
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from database.token_db import get_token
-from database.auth_db import get_auth_token
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.db.token_db import get_token
+from app.db.auth_db import get_auth_token
 
 # Import the WebSocket client
 from .zerodha_websocket import ZerodhaWebSocket
@@ -29,7 +27,7 @@ class ZerodhaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def __init__(self):
         """Initialize the Zerodha WebSocket adapter"""
         super().__init__()
-        self.logger = get_logger("zerodha_websocket")
+        self.logger = logger
         self.ws_client = None
         self.user_id = None
         self.broker_name = "zerodha"
@@ -69,7 +67,7 @@ class ZerodhaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.user_id = user_id
             
             # Get API key from environment
-            self.api_key = os.getenv('BROKER_API_KEY')
+            self.api_key = settings.BROKER_API_KEY
             if not self.api_key:
                 return {'status': 'error', 'message': 'API key not found in environment variables'}
             

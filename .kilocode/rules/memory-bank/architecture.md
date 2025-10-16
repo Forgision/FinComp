@@ -24,10 +24,10 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 ## Technology Stack
 
 ### Core Technologies
-*   **Programming Language:** Python 3.8+ with full type hints support
+*   **Programming Language:** Python 3.12+ with full type hints support
 *   **Web Framework:** FastAPI with modular Router architecture
 *   **API Framework:** FastAPI with automatic OpenAPI/Swagger documentation
-*   **Database ORM:** SQLAlchemy 2.0+ with connection pooling (50 base, 100 max overflow)
+*   **Database ORM:** SQLAlchemy 2.0+ with connection pooling
 *   **Database Support:** SQLite (development), PostgreSQL/MySQL (production)
 
 ### Security & Authentication
@@ -35,8 +35,8 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 *   **API Authentication:** API key-based with Argon2 hashing
 *   **Encryption:** Fernet symmetric encryption for sensitive data
 *   **2FA Support:** TOTP (Time-based One-Time Password)
-*   **Session Management:** Secure cookies with daily expiry at 3:30 AM IST
-*   **CSRF Protection:** fastapi-csrf-protect with secure cookie settings
+*   **Session Management:** `SessionMiddleware` for managing web UI sessions.
+*   **CSRF Protection:** `fastapi-csrf-protect` with secure cookie settings
 
 ### Real-time & Communication
 *   **WebSocket Server:** Standalone proxy with ZeroMQ backend
@@ -53,18 +53,18 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 *   **Responsive Design:** Mobile-first responsive layout
 
 ### Performance & Monitoring
-*   **Rate Limiting:** slowapi with per-key limits
+*   **Rate Limiting:** `slowapi` with per-key limits
 *   **Caching:** Session-based TTL cache
 *   **Logging:** Colored logging with sensitive data filtering
 *   **Monitoring:** Built-in latency and traffic analysis
-*   **Connection Pooling:** httpx with connection reuse
+*   **Connection Pooling:** `httpx` with connection reuse
 
 ### Deployment & Infrastructure
-*   **WSGI Server:** Gunicorn (Linux) / Waitress (Windows)
+*   **ASGI Server:** Uvicorn (development), Gunicorn with Uvicorn workers (production)
 *   **Process Manager:** Systemd (Linux) / Windows Service
 *   **Container Support:** Docker with docker-compose
 *   **Cloud Support:** AWS Elastic Beanstalk ready
-*   **Environment Management:** python-dotenv with validation
+*   **Environment Management:** `python-dotenv` with validation
 
 ## Directory Structure
 
@@ -73,17 +73,15 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 ├── app/
 │   ├── core/                 # Cross-cutting concerns (config, logging)
 │   ├── db/                   # Database schema and session management
-│   ├── utils/                # Utility functions
 │   └── web/                  # Web application root
+│       ├── __init__.py
 │       ├── main.py           # Main application entrypoint
 │       ├── backend/          # Backend source code (FastAPI)
-│       │   └── api/
-│       │       └── v1/       # API version 1 routers
+│       ├── broker/           # Broker-specific implementations
 │       ├── frontend/         # Frontend source code
-│       │   ├── static/       # Static assets (CSS, JS, images)
-│       │   └── templates/    # HTML templates
 │       ├── models/           # Pydantic schemas
-│       └── services/         # Business logic layer
+│       ├── services/         # Business logic layer
+│       └── websocket/        # WebSocket proxy server
 ├── test/                     # Test code
 ├── .env                      # Local environment variables (not committed)
 ├── Dockerfile                # Instructions for building the application container

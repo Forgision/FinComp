@@ -1,13 +1,13 @@
 import json
-import os
 import httpx
-from .....db.token_db import get_br_symbol, get_oa_symbol
+from app.db.token_db import get_br_symbol, get_oa_symbol
 import pandas as pd
 from datetime import datetime
 import urllib.parse
 import time
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="GET", payload=''):
@@ -28,7 +28,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
         client = get_httpx_client()
         
         AUTH_TOKEN = auth
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         
         url = f"https://api-t1.fyers.in{endpoint}"
         headers = {

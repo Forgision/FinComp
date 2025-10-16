@@ -1,6 +1,5 @@
 import logging
 import sys
-import os
 import site
 import re
 import inspect
@@ -94,8 +93,8 @@ class LocationBuilder:
         if hasattr(site, "getusersitepackages"):
             site_paths.add(site.getusersitepackages())
 
-        stdlib_dir = os.path.dirname(os.__file__)
-        venv_dir = os.getenv("VIRTUAL_ENV")
+        stdlib_dir = os.path.dirname(sys.__file__)
+        venv_dir = settings.VIRTUAL_ENV
 
         skip_roots = {os.path.realpath(p) for p in site_paths if os.path.exists(p)}
         if stdlib_dir:
@@ -139,6 +138,8 @@ class LocationBuilder:
     @staticmethod
     def build_callerpath(frame_info):
         # Convert file path to a module-style path for location.
+        if frame_info is None:
+            return "unknown"
         file_path = frame_info.filename
         frame = frame_info.frame
         try:
@@ -221,7 +222,7 @@ class ColoredFormatter(logging.Formatter):
         # Check if we're in a terminal that supports colors
         if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
             # Check environment variables
-            term = os.environ.get('TERM', '')
+            term = settings.TERM
             if 'color' in term.lower() or term in ['xterm', 'xterm-256color', 'screen', 'screen-256color']:
                 return True
                 
@@ -243,8 +244,8 @@ class ColoredFormatter(logging.Formatter):
                 pass
             
             # Check if running in Windows Terminal, VS Code, or similar
-            wt_session = os.environ.get('WT_SESSION')
-            vscode_term = os.environ.get('VSCODE_INJECTION')
+            wt_session = settings.WT_SESSION
+            vscode_term = settings.VSCODE_INJECTION
             if wt_session or vscode_term:
                 return True
                 
@@ -318,8 +319,8 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         if hasattr(site, "getusersitepackages"):
             site_paths.add(site.getusersitepackages())
 
-        stdlib_dir = os.path.dirname(os.__file__)
-        venv_dir = os.getenv("VIRTUAL_ENV")
+        stdlib_dir = os.path.dirname(sys.__file__)
+        venv_dir = settings.VIRTUAL_ENV
 
         skip_roots = {os.path.realpath(p) for p in site_paths if os.path.exists(p)}
         if stdlib_dir:
@@ -557,8 +558,8 @@ def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", 
         return
     
     # Check if colors are enabled
-    log_colors = os.getenv('LOG_COLORS', 'True').lower() == 'true'
-    force_color = os.getenv('FORCE_COLOR', '').lower() in ['1', 'true', 'yes', 'on']
+    log_colors = settings.LOG_COLORS_ENABLE
+    force_color = settings.FORCE_COLOR
     
     if not log_colors and not force_color:
         # Fallback without colors

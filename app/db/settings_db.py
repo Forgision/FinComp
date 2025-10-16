@@ -1,11 +1,11 @@
 # database/settings_db.py
 
 from sqlalchemy import Column, Integer, String, Boolean, MetaData, Text
-import os
-from ..utils.logging import logger
+from app.core.config import settings
+from app.utils.logging import logger
 from cryptography.fernet import Fernet
 import base64
-from .base import Base, db_session, engine
+from app.db.base import Base, db_session, engine
 
 
 class Settings(Base):
@@ -65,7 +65,7 @@ def set_analyze_mode(mode: bool):
 def _get_encryption_key():
     """Get or create encryption key for SMTP password"""
     # Use API_KEY_PEPPER as the base for encryption key
-    pepper = os.getenv('API_KEY_PEPPER', 'default-pepper-key')
+    pepper = settings.API_KEY_PEPPER
     # Create a stable key from the pepper
     key = base64.urlsafe_b64encode(pepper.ljust(32)[:32].encode())
     return key

@@ -1,10 +1,8 @@
-from flask import request, g, has_request_context
-from database.traffic_db import TrafficLog, logs_session
+from app.db.traffic_db import TrafficLog, logs_session
 import time
-from utils.logging import get_logger
-from utils.ip_helper import get_real_ip
+from app.utils.logging import logger
+from app.utils.ip_helper import get_real_ip
 
-logger = get_logger(__name__)
 
 class TrafficLoggerMiddleware:
     def __init__(self, app):

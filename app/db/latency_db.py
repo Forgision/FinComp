@@ -3,14 +3,14 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.pool import NullPool
-import os
+from app.core.config import settings
 import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 # Use a separate database for latency logs
-LATENCY_DATABASE_URL = os.getenv('LATENCY_DATABASE_URL', 'sqlite:///db/latency.db')
+LATENCY_DATABASE_URL = settings.LATENCY_DATABASE_URL
 
 # Conditionally create engine based on DB type
 if LATENCY_DATABASE_URL and 'sqlite' in LATENCY_DATABASE_URL:

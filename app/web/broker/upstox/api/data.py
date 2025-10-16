@@ -1,20 +1,18 @@
 import json
-import os
 import httpx
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 from database.token_db import get_token, get_br_symbol, get_oa_symbol
 import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
 import numpy as np
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="GET", payload=''):
     """Common function to make API calls to Upstox v3 using httpx with connection pooling"""
-    AUTH_TOKEN = auth
+    AUTH_TOKEN = settings.BROKER_API_KEY
     
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()

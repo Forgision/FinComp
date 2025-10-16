@@ -5,28 +5,31 @@ Integrates with the OpenAlgo WebSocket proxy system
 
 import json
 import threading
-import logging
 import time
 import zmq
 from typing import Dict, Any, Optional
+from app.utils.logging import logger
 
 # Import base adapter
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-try:
-    from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-    from websocket_proxy.mapping import SymbolMapper
-except ImportError:
-    # Direct import if websocket_proxy module has issues
-    import sys
-    import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../../../websocket_proxy'))
-    sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-    from base_adapter import BaseBrokerWebSocketAdapter
-    from mapping import SymbolMapper
-from database.auth_db import get_auth_token
+# try:
+from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
+from websocket_proxy.mapping import SymbolMapper
+# except ImportError:
+#     # Direct import if websocket_proxy module has issues
+#     import sys
+#     import os
+#     from pathlib import Path
+#     ws_dir = Path(__file__).resolve().parent.parent.parent.parent / 'websocket'
+#     sys.path.append(str(ws_dir))
+#     sys.path.append(str(ws_dir.parent))
+#     from base_adapter import BaseBrokerWebSocketAdapter # type: ignore
+#     from mapping import SymbolMapper
+    
+from app.db.auth_db import get_auth_token
 
 # Import our HSM implementation
 from .fyers_adapter import FyersAdapter
@@ -37,7 +40,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("fyers_websocket_adapter")
+        self.logger = logger
         self.fyers_adapter = None
         self.user_id = None
         self.broker_name = "fyers"

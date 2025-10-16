@@ -1,17 +1,17 @@
 import httpx
 import json
-import os
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
 from broker.indmoney.api.baseurl import get_url, BASE_URL
+from app.core.config import settings
 
 
 
 def authenticate_broker(code):
     try:
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
-        REDIRECT_URL = os.getenv('REDIRECT_URL')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
+        REDIRECT_URL = settings.REDIRECT_URL
         
         # For IndMoney, the access token is directly provided in BROKER_API_SECRET
         # No OAuth flow needed - just return the access token

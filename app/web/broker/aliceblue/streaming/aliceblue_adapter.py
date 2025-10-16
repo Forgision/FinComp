@@ -7,7 +7,7 @@ import hashlib
 import ssl
 import os
 from typing import Dict, Any, Optional, List
-from dotenv import load_dotenv
+from app.core.config import settings
 
 from .aliceblue_client import Aliceblue, Instrument
 from database.auth_db import get_auth_token, get_feed_token
@@ -91,8 +91,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     raise ValueError(f"No authentication tokens found for user {user_id}")
                 
                 # Read BROKER_API_KEY from environment for client_id
-                load_dotenv()
-                broker_api_key = os.getenv('BROKER_API_KEY')
+                broker_api_key = settings.BROKER_API_KEY
                 if not broker_api_key:
                     self.logger.error("BROKER_API_KEY not found in environment variables")
                     raise ValueError("BROKER_API_KEY not found in environment variables")

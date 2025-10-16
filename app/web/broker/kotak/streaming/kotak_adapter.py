@@ -4,18 +4,10 @@ Each instance is fully isolated and safe for multi-client use.
 """
 import threading
 import time
-import sys
-import os
-
-# Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from .kotak_websocket import KotakWebSocket
-from database.auth_db import get_auth_token
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.db.auth_db import get_auth_token
+from app.utils.logging import logger
 
 class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """
@@ -461,8 +453,8 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return False
         
         try:
-            from broker.kotak.streaming.kotak_mapping import get_kotak_exchange
-            from database.token_db import get_token
+            from app.web.broker.kotak.streaming.kotak_mapping import get_kotak_exchange
+            from app.db.token_db import get_token
             
             kotak_exchange = get_kotak_exchange(exchange)
             token = get_token(symbol, exchange)
@@ -502,8 +494,8 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return
         
         try:
-            from broker.kotak.streaming.kotak_mapping import get_kotak_exchange
-            from database.token_db import get_token
+            from app.web.broker.kotak.streaming.kotak_mapping import get_kotak_exchange
+            from app.db.token_db import get_token
             
             kotak_exchange = get_kotak_exchange(exchange)
             token = get_token(symbol, exchange)
@@ -545,8 +537,8 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return False
         
         try:
-            from broker.kotak.streaming.kotak_mapping import get_kotak_exchange
-            from database.token_db import get_token
+            from app.web.broker.kotak.streaming.kotak_mapping import get_kotak_exchange
+            from app.db.token_db import get_token
             
             kotak_exchange = get_kotak_exchange(exchange)
             token = get_token(symbol, exchange)
@@ -580,8 +572,8 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return
         
         try:
-            from broker.kotak.streaming.kotak_mapping import get_kotak_exchange
-            from database.token_db import get_token
+            from app.web.broker.kotak.streaming.kotak_mapping import get_kotak_exchange
+            from app.db.token_db import get_token
             
             kotak_exchange = get_kotak_exchange(exchange)
             token = get_token(symbol, exchange)

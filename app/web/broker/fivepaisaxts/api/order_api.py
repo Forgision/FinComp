@@ -1,20 +1,19 @@
 import json
-import os
 from tokenize import Token
 import httpx
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.fivepaisaxts.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.httpx_client import get_httpx_client
-from broker.fivepaisaxts.baseurl import INTERACTIVE_URL
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token , get_br_symbol, get_symbol
+from app.web.broker.fivepaisaxts.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.fivepaisaxts.baseurl import INTERACTIVE_URL
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 
 def get_api_response(endpoint, auth, method="GET",  payload=''):
     AUTH_TOKEN = auth
-    api_key = os.getenv('BROKER_API_KEY')
+    from app.core.config import settings
+    api_key = settings.BROKER_API_KEY
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()

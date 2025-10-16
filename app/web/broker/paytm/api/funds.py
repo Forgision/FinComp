@@ -1,12 +1,9 @@
 # api/funds.py
 
-import os
 import json
-from utils.httpx_client import get_httpx_client
-from broker.paytm.api.order_api import get_positions
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.paytm.api.order_api import get_positions
+from app.utils.logging import logger
 
 
 def get_margin_data(auth_token):

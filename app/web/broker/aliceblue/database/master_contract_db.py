@@ -1,6 +1,5 @@
 #database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import gzip
@@ -15,13 +14,9 @@ from utils.httpx_client import get_httpx_client
 from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
 
 
 # Define the headers as provided
@@ -53,12 +48,13 @@ data_types = {
     "Strike price": float,
     "Option type": str,
     "Underlying FyToken": str,
-    "Reserved column1": str,  
-    "Reserved column2": str, 
-    "Reserved column3": str, 
+    "Reserved column1": str,
+    "Reserved column2": str,
+    "Reserved column3": str,
 }
 
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+from app.core.config import settings
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))

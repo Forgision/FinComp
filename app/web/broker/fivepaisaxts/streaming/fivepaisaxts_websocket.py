@@ -1,11 +1,11 @@
 import json
-from .....utils.logging import logger
+from app.utils.logging import logger
 import time
 import threading
-import socketio
+from app.utils.web.socketio import socketio
 import requests
 from typing import Dict, Any, Optional, List, Callable
-from broker.fivepaisaxts.baseurl import MARKET_DATA_URL,INTERACTIVE_URL,BASE_URL
+from app.web.broker.fivepaisaxts.baseurl import MARKET_DATA_URL,INTERACTIVE_URL,BASE_URL
 
 
 class FivepaisaXTSWebSocketClient:

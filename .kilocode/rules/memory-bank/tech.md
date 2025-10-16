@@ -3,7 +3,7 @@
 This document outlines the technologies, development setup, and technical constraints for the OpenAlgo algorithmic trading platform.
 
 ## Core Technologies
-*   **Programming Language:** Python 3.8+ with full type hints support
+*   **Programming Language:** Python 3.12+ with full type hints support
 *   **Web Framework:** FastAPI with a modular Router architecture for organizing routes and views.
 *   **API Framework:** FastAPI for building RESTful APIs, providing automatic OpenAPI/Swagger documentation, request parsing, and response marshalling.
 *   **Database ORM:** SQLAlchemy 2.0+ is used for object-relational mapping, enabling database-agnostic operations.
@@ -16,7 +16,7 @@ This document outlines the technologies, development setup, and technical constr
 *   **Password Hashing:** Argon2 (specifically Argon2id) with a pepper for securely hashing user passwords and API keys.
 *   **Encryption:** Fernet (from the `cryptography` library) for symmetric encryption of sensitive data at rest, such as broker credentials, API keys, and TOTP secrets.
 *   **Two-Factor Authentication (2FA):** Time-based One-Time Password (TOTP) support using `pyotp`.
-*   **Session Management:** JWT-based secure, signed cookies for managing web UI sessions, with a daily expiry mechanism.
+*   **Session Management:** `SessionMiddleware` for managing web UI sessions.
 *   **CSRF Protection:** `fastapi-csrf-protect` is used to protect against Cross-Site Request Forgery attacks on web forms.
 
 ## Real-time & Communication
@@ -44,9 +44,9 @@ This document outlines the technologies, development setup, and technical constr
 *   **Process Management:** The `subprocess` module is used to run trading strategies in isolated processes, with platform-specific configurations for Windows and Linux/macOS.
 
 ## Deployment & Infrastructure
-*   **WSGI Server:**
-    *   Gunicorn for production deployments on Linux.
-    *   Waitress for production deployments on Windows.
+*   **ASGI Server:**
+    *   Uvicorn for development and production deployments.
+    *   Gunicorn with Uvicorn workers for production deployments on Linux.
 *   **Process Manager:**
     *   Systemd for managing the application as a service on Linux.
     *   Windows Service integration for Windows deployments.
@@ -56,7 +56,7 @@ This document outlines the technologies, development setup, and technical constr
 *   **Environment Management:** `python-dotenv` is used to load configuration from `.env` files.
 
 ## Dependencies
-*   **Python:** Backend dependencies are managed with `pip` and are listed in the `requirements.txt` file. `uv` is used in deployment scripts for faster installation.
+*   **Python:** Backend dependencies are managed with `uv` and are listed in the `pyproject.toml` file.
 *   **JavaScript:** Frontend dependencies are managed with `npm` and are listed in the `package.json` file.
 
 ## Python Environment Management

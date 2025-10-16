@@ -1,22 +1,17 @@
 import httpx
 import json
-import os
-import logging
 import traceback
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_oa_symbol
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token, get_br_symbol, get_oa_symbol
 from ..mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
 from ..mapping.order_data import transform_tradebook_data, transform_holdings_data, map_trade_data
 
 from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Configure logging
-logger = get_logger(__name__)
-logger.setLevel(logging.INFO)
 
 def get_api_response(endpoint, auth, method="GET", data=None, params=None):
     """
@@ -34,7 +29,7 @@ def get_api_response(endpoint, auth, method="GET", data=None, params=None):
     """
     try:
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             raise ValueError("Error: BROKER_API_SECRET not set")
             
@@ -125,7 +120,7 @@ def get_order_book(auth):
     """
     try:
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             raise ValueError("Error: BROKER_API_SECRET not set")
             
@@ -233,7 +228,7 @@ def get_trade_book(auth):
     """
     try:
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             raise ValueError("Error: BROKER_API_SECRET not set")
             
@@ -374,7 +369,7 @@ def get_positions(auth):
     """
     try:
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             raise ValueError("Error: BROKER_API_SECRET not set")
             
@@ -852,7 +847,7 @@ def place_order_api(data, auth):
             return None, {"status": "error", "message": error_msg}, None
         
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             error_msg = "BROKER_API_SECRET not set in environment"
             logger.error(error_msg)

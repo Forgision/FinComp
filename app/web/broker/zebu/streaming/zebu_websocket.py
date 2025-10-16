@@ -4,11 +4,11 @@ Handles connection to Zebu's market data streaming API
 Based on Noren WebSocket API (same as Flattrade)
 """
 import json
-import logging
 import threading
 import time
 import websocket
 from typing import Any, Callable, Dict, Optional
+from app.utils.logging import logger
 
 
 class ZebuWebSocket:
@@ -82,7 +82,7 @@ class ZebuWebSocket:
         self._heartbeat_lock = threading.Lock()
 
         # Logging
-        self.logger = logging.getLogger("zebu_websocket")
+        self.logger = logger
 
     def connect(self) -> bool:
         """

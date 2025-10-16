@@ -1,8 +1,8 @@
 import importlib
 from typing import Dict, Type, Optional
 
-from .base_adapter import BaseBrokerWebSocketAdapter
-from ...utils.logging import logger
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.utils.logging import logger
 
 # Registry of all supported broker adapters
 BROKER_ADAPTERS: Dict[str, Type[BaseBrokerWebSocketAdapter]] = {}

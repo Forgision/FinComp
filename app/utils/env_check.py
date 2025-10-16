@@ -1,7 +1,7 @@
-import os
 from pathlib import Path
 import sys
 from dotenv import load_dotenv
+from app.core.config import settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_PATH = BASE_DIR / '.env'
@@ -162,7 +162,7 @@ def load_and_check_env_variables():
     ]
 
     # Check if each required environment variable is set
-    missing_vars = [var for var in required_vars if os.getenv(var) is None]
+    missing_vars = [var for var in required_vars if not hasattr(settings, var) or getattr(settings, var) is None]
 
     if missing_vars:
         missing_list = ', '.join(missing_vars)
@@ -171,9 +171,9 @@ def load_and_check_env_variables():
         sys.exit(1)
 
     # Special validation for broker-specific API key formats
-    broker_api_key = os.getenv('BROKER_API_KEY', '')
-    broker_api_secret = os.getenv('BROKER_API_SECRET', '')
-    redirect_url = os.getenv('REDIRECT_URL', '')
+    broker_api_key = settings.BROKER_API_KEY
+    broker_api_secret = settings.BROKER_API_SECRET
+    redirect_url = settings.REDIRECT_URL
     
     # Extract broker name from redirect URL for validation
     broker_name = None
@@ -212,20 +212,20 @@ def load_and_check_env_variables():
             sys.exit(1)
 
     # Validate environment variable values
-    flask_debug = os.getenv('FLASK_DEBUG', '').lower()
+    flask_debug = str(settings.FLASK_DEBUG).lower()
     if flask_debug not in ['true', 'false', '1', '0', 't', 'f']:
         print("\nError: FLASK_DEBUG must be 'True' or 'False'")
         print("Example: FLASK_DEBUG='False'")
         sys.exit(1)
 
-    flask_env = os.getenv('FLASK_ENV', '').lower()
+    flask_env = settings.FLASK_ENV.lower()
     if flask_env not in ['development', 'production']:
         print("\nError: FLASK_ENV must be 'development' or 'production'")
         print("Example: FLASK_ENV='production'")
         sys.exit(1)
 
     try:
-        port = int(os.getenv('FLASK_PORT'))
+        port = settings.FLASK_PORT
         if port < 0 or port > 65535:
             raise ValueError
     except ValueError:
@@ -235,7 +235,7 @@ def load_and_check_env_variables():
         
     # Validate WebSocket port
     try:
-        ws_port = int(os.getenv('WEBSOCKET_PORT'))
+        ws_port = settings.WEBSOCKET_PORT
         if ws_port < 0 or ws_port > 65535:
             raise ValueError
     except ValueError:
@@ -244,7 +244,7 @@ def load_and_check_env_variables():
         sys.exit(1)
 
     # Check REDIRECT_URL configuration
-    redirect_url = os.getenv('REDIRECT_URL')
+    redirect_url = settings.REDIRECT_URL
     default_value = 'http://127.0.0.1:5000/<broker>/callback'
     
     if redirect_url == default_value:
@@ -268,7 +268,7 @@ def load_and_check_env_variables():
         sys.exit(1)
 
     # Validate broker name
-    valid_brokers_str = os.getenv('VALID_BROKERS', '')
+    valid_brokers_str = settings.VALID_BROKERS
     if not valid_brokers_str:
         print("\nError: VALID_BROKERS not configured in .env file.")
         print("\nSolution: Check the .sample.env file for the latest configuration")
@@ -306,7 +306,7 @@ def load_and_check_env_variables():
     rate_limit_pattern = re.compile(r'^\d+\s+per\s+(second|minute|hour|day)$')
     
     for var in rate_limit_vars:
-        value = os.getenv(var, '')
+        value = getattr(settings, var, '')
         if not rate_limit_pattern.match(value):
             print(f"\nError: Invalid {var} format.")
             print("Format should be: 'number per timeunit'")
@@ -315,7 +315,7 @@ def load_and_check_env_variables():
 
     # Validate SESSION_EXPIRY_TIME format (24-hour format)
     time_pattern = re.compile(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
-    session_expiry = os.getenv('SESSION_EXPIRY_TIME', '')
+    session_expiry = settings.SESSION_EXPIRY_TIME
     if not time_pattern.match(session_expiry):
         print("\nError: Invalid SESSION_EXPIRY_TIME format.")
         print("Format should be 24-hour time (HH:MM)")
@@ -324,7 +324,7 @@ def load_and_check_env_variables():
 
     # Validate SMART_ORDER_DELAY is a valid float
     try:
-        delay = float(os.getenv('SMART_ORDER_DELAY', '0'))
+        delay = settings.SMART_ORDER_DELAY
         if delay < 0:
             raise ValueError
     except ValueError:
@@ -333,20 +333,20 @@ def load_and_check_env_variables():
         sys.exit(1)
         
     # Validate WEBSOCKET_URL format
-    websocket_url = os.getenv('WEBSOCKET_URL', '')
+    websocket_url = settings.WEBSOCKET_URL
     if not websocket_url.startswith('ws://') and not websocket_url.startswith('wss://'):
         print("\nError: WEBSOCKET_URL must start with 'ws://' or 'wss://'")
         print("Example: WEBSOCKET_URL='ws://localhost:8765'")
         sys.exit(1)
         
     # Validate logging configuration
-    log_to_file = os.getenv('LOG_TO_FILE', '').lower()
+    log_to_file = str(settings.LOG_TO_FILE).lower()
     if log_to_file not in ['true', 'false']:
         print("\nError: LOG_TO_FILE must be 'True' or 'False'")
         print("Example: LOG_TO_FILE=False")
         sys.exit(1)
         
-    log_level = os.getenv('LOG_LEVEL', '').upper()
+    log_level = settings.LOG_LEVEL.upper()
     valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
     if log_level not in valid_log_levels:
         print(f"\nError: LOG_LEVEL must be one of: {', '.join(valid_log_levels)}")
@@ -355,7 +355,7 @@ def load_and_check_env_variables():
         
     # Validate LOG_RETENTION is a positive integer
     try:
-        retention = int(os.getenv('LOG_RETENTION', '0'))
+        retention = settings.LOG_RETENTION
         if retention < 1:
             raise ValueError
     except ValueError:
@@ -364,14 +364,14 @@ def load_and_check_env_variables():
         sys.exit(1)
         
     # Validate LOG_DIR is not empty
-    log_dir = os.getenv('LOG_DIR', '').strip()
+    log_dir = settings.LOG_DIR.strip()
     if not log_dir:
         print("\nError: LOG_DIR cannot be empty")
         print("Example: LOG_DIR=log")
         sys.exit(1)
         
     # Validate LOG_FORMAT is not empty
-    log_format = os.getenv('LOG_FORMAT', '').strip()
+    log_format = settings.LOG_FORMAT.strip()
     if not log_format:
         print("\nError: LOG_FORMAT cannot be empty")
         print("Example: LOG_FORMAT=[%(asctime)s] %(levelname)s in %(module)s: %(message)s")

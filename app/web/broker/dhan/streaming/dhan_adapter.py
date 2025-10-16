@@ -3,36 +3,27 @@ Dhan WebSocket Adapter for OpenAlgo
 Manages both 5-level and 20-level depth connections
 """
 import threading
-import json
-import logging
 import time
-import asyncio
-import platform
 from typing import Dict, Any, Optional, List
 from collections import defaultdict
 from datetime import datetime, time as dt_time
 
-from database.auth_db import get_auth_token
-from database.token_db import get_token
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
 
-import sys
-import os
-
-# Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
-from .dhan_mapping import DhanExchangeMapper, DhanCapabilityRegistry
-from .dhan_websocket import DhanWebSocket
-
+from app.utils.logging import logger
+from app.core.config import settings
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
+from app.web.broker.dhan.streaming.dhan_mapping import DhanExchangeMapper, DhanCapabilityRegistry
+from app.web.broker.dhan.streaming.dhan_websocket import DhanWebSocket
 
 class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """Dhan-specific implementation of the WebSocket adapter"""
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("dhan_websocket")
+        self.logger = logger
         self.user_id = None
         self.broker_name = "dhan"
         
@@ -76,13 +67,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.broker_name = broker_name
         
         # For Dhan, use credentials from .env file
-        import os
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        # Get Dhan credentials from environment
-        client_id = os.getenv('BROKER_API_KEY')  # This is the Dhan client ID
-        auth_token = os.getenv('BROKER_API_SECRET')  # This is the Dhan access token
+        # Get Dhan credentials from settings
+        client_id = settings.BROKER_API_KEY  # This is the Dhan client ID
+        auth_token = settings.BROKER_API_SECRET  # This is the Dhan access token
         
         if not client_id or not auth_token:
             # Fall back to database if env vars not set
@@ -207,12 +194,12 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         actual_depth = depth_level
         
         if mode == 3:  # Depth mode
-            # Force 5-level depth for all exchanges (keeping 20-level code intact but not using it)
-            if depth_level == 20:
+            # Check if 20-level depth is disabled via settings
+            if depth_level == 20 and settings.DHAN_DISABLE_20_LEVEL_DEPTH:
                 actual_depth = 5
                 is_fallback = True
-                self.logger.debug(f"Using 5-level depth for {exchange} instead of requested 20-level depth")
-            elif not DhanCapabilityRegistry.is_depth_level_supported(exchange, depth_level):
+                self.logger.debug(f"20-level depth disabled by settings, using 5-level depth for {exchange}")
+            elif depth_level == 20 and not DhanCapabilityRegistry.is_depth_level_supported(exchange, depth_level):
                 actual_depth = DhanCapabilityRegistry.get_fallback_depth_level(exchange, depth_level)
                 is_fallback = True
                 self.logger.debug(

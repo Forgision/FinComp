@@ -1,13 +1,10 @@
 import json
-import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_symbol
-from broker.firstock.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.logging import get_logger
-from utils.httpx_client import get_httpx_client
-
-# Initialize logger
-logger = get_logger(__name__)
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token, get_br_symbol, get_symbol
+from app.web.broker.firstock.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.core.config import settings
 
 
 def get_api_response(endpoint, auth, method="POST", payload=None):
@@ -18,7 +15,7 @@ def get_api_response(endpoint, auth, method="POST", payload=None):
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
         
-        api_key = os.getenv('BROKER_API_KEY')
+        api_key = settings.BROKER_API_KEY
         if not api_key:
             raise Exception("BROKER_API_KEY not found in environment variables")
             
@@ -85,7 +82,7 @@ def get_ltp(auth, exchange, token):
     """Get Last Traded Price from Firstock"""
     payload = {
         "jKey": auth,
-        "userId": os.getenv('BROKER_API_KEY')[:-4],
+        "userId": settings.BROKER_API_KEY[:-4],
         "exchange": exchange,
         "token": token
     }
@@ -159,7 +156,7 @@ def place_order_api(data, auth):
     Place order through Firstock API
     Returns: response, response_data, orderid
     """
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]
     
     token = get_token(data['symbol'], data['exchange'])
@@ -415,7 +412,7 @@ def cancel_order(orderid, auth):
         "field": "orderNumber"
     }
     """
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]  # Remove last 4 characters
     
     # Prepare request data
@@ -480,7 +477,7 @@ def modify_order(data, auth):
     Success: {"status": "success", "orderid": "1234567890111"}
     Error: {"status": "error", "message": "error message"}
     """
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]  # Remove last 4 characters
 
     # Get token and transform symbol
@@ -575,7 +572,7 @@ def placeorder(data, auth):
     Returns:
         dict: API response with order details
     """
-    api_key = os.getenv('BROKER_API_KEY')
+    api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]  # Remove last 4 characters
     
     token = get_token(data['symbol'], data['exchange'])

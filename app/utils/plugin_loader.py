@@ -2,8 +2,8 @@
 
 import os
 import importlib
-from ..core.config import settings
-from .logging import logger
+from app.core.config import settings
+from app.utils.logging import logger
 
 
 def load_broker_auth_functions(broker_directory='broker'):

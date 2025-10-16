@@ -3,16 +3,11 @@ import json
 import logging
 import time
 from typing import Dict, Any, Optional, List
-import os
-from dotenv import load_dotenv
-
-from database.auth_db import get_auth_token
-from database.token_db import get_token
-
 import sys
 
-# Load environment variables
-load_dotenv()
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
+from app.core.config import settings
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
@@ -69,7 +64,7 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             
             # For Firstock, we need to get the broker-specific user ID from BROKER_API_KEY
             # The BROKER_API_KEY contains the Firstock user ID (e.g., RR0884_API)
-            broker_api_key = os.getenv('BROKER_API_KEY', '')
+            broker_api_key = settings.BROKER_API_KEY
             if broker_api_key:
                 # Extract the user ID part (remove _API suffix if present)
                 self.firstock_user_id = broker_api_key.replace('_API', '')
@@ -97,7 +92,7 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.logger.info(f"Using Firstock user ID '{self.firstock_user_id}' from auth_data")
             else:
                 # Get from BROKER_API_KEY environment variable
-                broker_api_key = os.getenv('BROKER_API_KEY', '')
+                broker_api_key = settings.BROKER_API_KEY
                 if broker_api_key:
                     # Extract the user ID part (remove _API suffix if present)
                     self.firstock_user_id = broker_api_key.replace('_API', '')

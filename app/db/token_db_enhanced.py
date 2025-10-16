@@ -9,9 +9,8 @@ import time
 from dataclasses import dataclass, field
 from collections import defaultdict
 import pytz
-from utils.logging import get_logger
+from ..utils.logging import logger
 
-logger = get_logger(__name__)
 
 @dataclass
 class CacheStats:
@@ -165,12 +164,12 @@ class BrokerSymbolCache:
     
     def _set_session_timing(self):
         """Set session start and next reset time from SESSION_EXPIRY_TIME env variable"""
-        import os
+        from app.core.config import settings
         now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
         self.session_start = now_ist
         
-        # Get session expiry time from environment (default to 3:00 if not set)
-        expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
+        # Get session expiry time from settings
+        expiry_time = settings.SESSION_EXPIRY_TIME
         try:
             hour, minute = map(int, expiry_time.split(':'))
         except ValueError:

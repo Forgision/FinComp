@@ -2,9 +2,7 @@
 import urllib.parse
 import http.client
 import json
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 def get_margin_data(auth_token):

@@ -1,17 +1,12 @@
+from app.core.config import settings
 import http.client
 import json
-import os
 import urllib.parse
-from database.auth_db import get_auth_token
-from database.token_db import get_br_symbol, get_oa_symbol
-from broker.zerodha.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_br_symbol, get_oa_symbol
+from app.web.broker.zerodha.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
 
 def get_api_response(endpoint, auth, method="GET", payload=None):
     """
@@ -117,7 +112,7 @@ def get_open_position(tradingsymbol, exchange, product,auth):
 def place_order_api(data,auth):
     AUTH_TOKEN = auth
     
-    BROKER_API_KEY = os.getenv('BROKER_API_KEY')
+    BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
     #token = get_token(data['symbol'], data['exchange'])
     newdata = transform_data(data)

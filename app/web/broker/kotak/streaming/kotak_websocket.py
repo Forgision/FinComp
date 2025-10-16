@@ -7,10 +7,7 @@ import json
 import threading
 import time
 from .HSWebSocketLib import HSWebSocket
-from utils.logging import get_logger
-
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 class KotakWebSocket:

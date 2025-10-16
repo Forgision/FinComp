@@ -1,13 +1,7 @@
 import struct
 import json
 import ctypes
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-# Configure logging
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 def decodeSnapquoteData(message):
     """

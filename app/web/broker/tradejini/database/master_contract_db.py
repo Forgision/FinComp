@@ -5,12 +5,11 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 try:
-    from extensions import socketio  # Import SocketIO
+    from app.utils.web.socketio import socketio  # Import SocketIO
 except ImportError:
     socketio = None
 
@@ -18,7 +17,8 @@ except ImportError:
 client = httpx.Client(timeout=30.0)
 
 # Database setup
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+from app.core.config import settings
+DATABASE_URL = settings.DATABASE_URL
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base = declarative_base()

@@ -1,19 +1,17 @@
 # api/funds.py
 
-import os
 import http.client
 import json
-from utils.httpx_client import get_httpx_client
-from broker.ibulls.baseurl import INTERACTIVE_URL
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.ibulls.baseurl import INTERACTIVE_URL
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def get_margin_data(auth_token):
     """Fetch margin data from Compositedge's API using the provided auth token."""
-    api_key = os.getenv('BROKER_API_KEY')
-    api_secret = os.getenv('BROKER_API_SECRET')
+    api_key = settings.BROKER_API_KEY
+    api_secret = settings.BROKER_API_SECRET
 
     client = get_httpx_client()
 

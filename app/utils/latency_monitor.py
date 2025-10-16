@@ -1,12 +1,9 @@
 import time
 from functools import wraps
-from flask import g, request
-from database.latency_db import OrderLatency, latency_session, init_latency_db
-from database.auth_db import get_broker_name
-from utils.logging import get_logger
-from flask_restx import Resource
+from app.db.latency_db import OrderLatency, latency_session, init_latency_db
+from app.db.auth_db import get_broker_name
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 class LatencyTracker:
     """Helper class to track latencies across different stages of order execution"""

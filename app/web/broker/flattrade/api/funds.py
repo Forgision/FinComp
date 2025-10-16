@@ -1,10 +1,8 @@
-import os
 import httpx
 import json
-from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def calculate_pnl(entry):
@@ -28,7 +26,7 @@ def fetch_data(endpoint, payload, headers, client):
 
 def get_margin_data(auth_token):
     """Fetch and process margin and position data."""
-    full_api_key = os.getenv('BROKER_API_KEY')
+    full_api_key = settings.BROKER_API_KEY
     userid = full_api_key.split(':::')[0]
     actid = userid
 

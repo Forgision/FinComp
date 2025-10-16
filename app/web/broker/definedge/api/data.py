@@ -2,10 +2,9 @@ import http.client
 import json
 import pandas as pd
 from datetime import datetime, timedelta
-from database.token_db import get_br_symbol, get_token, get_oa_symbol
-from utils.logging import get_logger
+from app.db.token_db import get_br_symbol, get_token, get_oa_symbol
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 def authenticate_broker(api_token, api_secret, otp):
     """
@@ -13,7 +12,7 @@ def authenticate_broker(api_token, api_secret, otp):
     Returns: (auth_token, error_message)
     """
     try:
-        from broker.definedge.api.auth_api import authenticate_broker as auth_broker
+        from app.web.broker.definedge.api.auth_api import authenticate_broker as auth_broker
         return auth_broker(api_token, api_secret, otp)
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
@@ -25,11 +24,11 @@ def get_quotes(symbol, exchange, auth_token):
         api_session_key, susertoken, api_token = auth_token.split(":::")
 
         # Use httpx client for consistency
-        from utils.httpx_client import get_httpx_client
+        from app.utils.httpx_client import get_httpx_client
         client = get_httpx_client()
 
         # Get token for the symbol
-        from database.token_db import get_token
+        from app.db.token_db import get_token
         token_id = get_token(symbol, exchange)
         
         logger.info(f"Getting quotes for {symbol} ({exchange}) with token: {token_id}")
@@ -310,7 +309,7 @@ class BrokerData:
                 
                 try:
                     # Use httpx client for consistency
-                    from utils.httpx_client import get_httpx_client
+                    from app.utils.httpx_client import get_httpx_client
                     client = get_httpx_client()
                     
                     headers = {

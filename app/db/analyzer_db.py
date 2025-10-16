@@ -8,8 +8,8 @@ from sqlalchemy.sql import func
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import pytz
-from ..utils.logging import logger
-from .base import Base, db_session, engine
+from app.utils.logging import logger
+from app.db.base import Base, db_session, engine
 
 class AnalyzerLog(Base):
     __tablename__ = 'analyzer_logs'

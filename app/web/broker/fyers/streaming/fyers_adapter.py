@@ -10,9 +10,9 @@ import threading
 from typing import Dict, List, Any, Optional, Callable
 from collections import defaultdict
 
-from .fyers_hsm_websocket import FyersHSMWebSocket
-from .fyers_token_converter import FyersTokenConverter
-from .fyers_mapping import FyersDataMapper
+from app.web.broker.fyers.streaming.fyers_hsm_websocket import FyersHSMWebSocket
+from app.web.broker.fyers.streaming.fyers_token_converter import FyersTokenConverter
+from app.web.broker.fyers.streaming.fyers_mapping import FyersDataMapper
 
 class FyersAdapter:
     """

@@ -1,11 +1,9 @@
 import httpx
 import hashlib
 import json
-import os
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
-
-logger = logger
+from app.core.config import settings
 
 def sha256_hash(text):
     """Generate SHA256 hash."""
@@ -16,8 +14,8 @@ def authenticate_broker(userid, password, totp_code):
     Authenticate with Shoonya and return the auth token.
     """
     # Get the Shoonya API key and other credentials from environment variables
-    api_secretkey = os.getenv('BROKER_API_SECRET')
-    vendor_code = os.getenv('BROKER_API_KEY')
+    api_secretkey = settings.BROKER_API_SECRET
+    vendor_code = settings.BROKER_API_KEY
     #imei = '1234567890abcdef' # Default IMEI if not provided
     imei = 'abc1234' # Default IMEI if not provided
 

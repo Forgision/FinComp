@@ -1,11 +1,10 @@
-import os
 import httpx
 import base64
 import json
 from urllib.parse import urlencode
-from .....utils.config import get_broker_api_key, get_broker_api_secret
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
+from app.core.config import settings
 
 
 # Pocketful API endpoints
@@ -31,8 +30,8 @@ def authenticate_broker(auth_code=None, state=None):
             return None, None, None, "No authorization code provided. Please authenticate through the OAuth flow."
         
         # Get client credentials from environment
-        client_id = get_broker_api_key()
-        client_secret = get_broker_api_secret()
+        client_id = settings.BROKER_API_KEY
+        client_secret = settings.BROKER_API_SECRET
         
         if not client_id or not client_secret:
             return None, None, None, "Missing API credentials. Please set BROKER_API_KEY and BROKER_API_SECRET in your environment."
@@ -43,7 +42,7 @@ def authenticate_broker(auth_code=None, state=None):
         
         # Get the redirect URL from environment variable
         # This should match the registered redirect URI in Pocketful
-        redirect_uri = os.getenv('REDIRECT_URL', 'http://127.0.0.1:5000/pocketful/callback')
+        redirect_uri = settings.REDIRECT_URL
         
         # Prepare the token request
         headers = {
@@ -126,12 +125,12 @@ def get_authorization_url():
         Tuple of (url, state) or (None, error_message)
     """
     try:
-        client_id = get_broker_api_key()
+        client_id = settings.BROKER_API_KEY
         if not client_id:
             return None, "Missing API key. Please set BROKER_API_KEY in your environment."
         
         # Get the redirect URL from environment variable
-        redirect_uri = os.getenv('REDIRECT_URL', 'http://127.0.0.1:5000/pocketful/callback')
+        redirect_uri = settings.REDIRECT_URL
         
         # Define scopes - add more as needed
         scope = "orders holdings"

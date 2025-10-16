@@ -1,6 +1,5 @@
 # database/master_contract_db.py
 
-import os
 import pandas as pd
 import numpy as np
 import gzip
@@ -14,16 +13,15 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.httpx_client import get_httpx_client
-from broker.ibulls.baseurl import MARKET_DATA_URL
-from utils.logging import get_logger
+from app.db.auth_db import get_auth_token
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.ibulls.baseurl import MARKET_DATA_URL
+from app.utils.logging import logger
+from app.core.config import settings
 
-logger = get_logger(__name__)
 
-
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))

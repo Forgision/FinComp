@@ -1,6 +1,6 @@
 import json
-from .....db.token_db import get_symbol, get_oa_symbol
-from .....utils.logging import logger
+from app.db.token_db import get_symbol, get_oa_symbol
+from app.utils.logging import logger
 
 
     # Mapping of (Exchange Code, Segment Code) to Exchange

@@ -1,27 +1,21 @@
 import json
-import os
 import urllib.parse
 from database.token_db import get_br_symbol, get_oa_symbol, get_brexchange
 from broker.iifl.database.master_contract_db import SymToken, db_session
-from flask import session  
+from flask import session
 import pandas as pd
 from datetime import datetime, timedelta
 from utils.httpx_client import get_httpx_client
 from database.auth_db import get_feed_token
 from broker.iifl.baseurl import MARKET_DATA_URL
 import pytz
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-# Configure logging
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):
     AUTH_TOKEN = auth
     if feed_token:
         FEED_TOKEN = feed_token
-    logger.info(f"Feed Token: {FEED_TOKEN}")
     
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()

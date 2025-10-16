@@ -1,14 +1,14 @@
 import json
-import os
 import httpx
 from .....utils.httpx_client import get_httpx_client
+from app.core.config import settings
 from .....utils.logging import logger
 
 def authenticate_broker(code):
     try:
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
-        REDIRECT_URL = os.getenv('REDIRECT_URL')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
+        REDIRECT_URL = settings.REDIRECT_URL
 
         if not all([BROKER_API_KEY, BROKER_API_SECRET, REDIRECT_URL]):
             logger.error("Broker API key, secret, or redirect URL is not set in environment variables.")

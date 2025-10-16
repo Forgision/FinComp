@@ -1,9 +1,7 @@
 import json
-from database.token_db import get_symbol
+from app.db.token_db import get_symbol
 from broker.paytm.mapping.transform_data import map_product_type
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 def map_order_data(order_data):

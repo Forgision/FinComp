@@ -1,30 +1,29 @@
 import json
-import os
+from app.core.config import settings
 import uuid
 import re
 import datetime
 from datetime import datetime
-from database.auth_db import get_auth_token
-from database.token_db import get_token
-from database.token_db import get_br_symbol, get_oa_symbol, get_symbol
-from broker.groww.database.master_contract_db import format_openalgo_to_groww_symbol, format_groww_to_openalgo_symbol
-from utils.httpx_client import get_httpx_client
-from broker.groww.mapping.transform_data import (
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
+from app.db.token_db import get_br_symbol, get_oa_symbol, get_symbol
+from app.web.broker.groww.database.master_contract_db import format_openalgo_to_groww_symbol, format_groww_to_openalgo_symbol
+from app.utils.httpx_client import get_httpx_client
+from app.web.broker.groww.mapping.transform_data import (
     # Functions
     transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data,
     map_exchange_type, map_exchange, map_segment_type, map_validity, map_order_type, map_transaction_type,
     # Constants
     VALIDITY_DAY, VALIDITY_IOC,
-    EXCHANGE_NSE, EXCHANGE_BSE, 
+    EXCHANGE_NSE, EXCHANGE_BSE,
     SEGMENT_CASH, SEGMENT_FNO,
     PRODUCT_CNC, PRODUCT_MIS, PRODUCT_NRML,
     ORDER_TYPE_MARKET, ORDER_TYPE_LIMIT, ORDER_TYPE_SL, ORDER_TYPE_SLM,
     TRANSACTION_TYPE_BUY, TRANSACTION_TYPE_SELL,
     ORDER_STATUS_NEW, ORDER_STATUS_ACKED, ORDER_STATUS_APPROVED, ORDER_STATUS_CANCELLED
 )
-from utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 # API Endpoints
 GROWW_BASE_URL = 'https://api.groww.in'
@@ -163,7 +162,7 @@ def direct_get_order_book(auth):
                     symbol_converted = False
                     
                     try:
-                        from database.token_db import get_oa_symbol
+                        from app.db.token_db import get_oa_symbol
                         if token:
                             openalgo_symbol = get_oa_symbol(token, 'NFO')
                             logger.info(f"OpenAlgo Symbol: {openalgo_symbol}")
@@ -738,7 +737,7 @@ def get_positions(auth):
                         try:
                             # Import get_oa_symbol from token_db with fallback paths
                             try:
-                                from database.token_db import get_oa_symbol
+                                from app.db.token_db import get_oa_symbol
                             except ImportError:
                                 from openalgo.database.token_db import get_oa_symbol
                             
@@ -876,7 +875,7 @@ def get_positions(auth):
                                 try:
                                     # Import get_oa_symbol with fallback paths
                                     try:
-                                        from database.token_db import get_oa_symbol
+                                        from app.db.token_db import get_oa_symbol
                                     except ImportError:
                                         from openalgo.database.token_db import get_oa_symbol
                                     
@@ -1182,7 +1181,7 @@ def direct_place_order_api(data, auth):
     """
     try:
         # Import the shared httpx client
-        from utils.httpx_client import get_httpx_client
+        from app.utils.httpx_client import get_httpx_client
         
         # API endpoint for placing orders
         api_url = "https://api.groww.in/v1/order/create"
@@ -1193,7 +1192,7 @@ def direct_place_order_api(data, auth):
         quantity = int(data.get('quantity'))
         
         # First, try to look up the broker symbol (brsymbol) directly from the database
-        from broker.groww.database.master_contract_db import SymToken, db_session
+        from app.web.broker.groww.database.master_contract_db import SymToken, db_session
         
         # Look up the symbol in the database
         with db_session() as session:
@@ -1433,68 +1432,6 @@ def place_order_api(data, auth):
     return direct_place_order_api(data, auth)
 
 
-def direct_place_order(auth_token, symbol, quantity, price=None, order_type="MARKET", transaction_type="BUY", product="CNC", order_reference_id=None):
-    """
-    Directly place an order with Groww SDK (for testing)
-    
-    Args:
-        auth_token (str): Authentication token
-        symbol (str): Trading symbol
-        quantity (int): Quantity to trade
-        price (float, optional): Price for limit orders. Defaults to None.
-        order_type (str, optional): Order type. Defaults to "MARKET".
-        transaction_type (str, optional): BUY or SELL. Defaults to "BUY".
-        product (str, optional): Product type. Defaults to "CNC".
-        order_reference_id (str, optional): Custom reference ID. If None, a valid ID will be generated.
-        
-    Returns:
-        dict: Order response
-    """
-    try:
-        # Initialize Groww API client
-        groww = init_groww_client(auth_token)
-        
-        # Default exchange and segment
-        exchange = EXCHANGE_NSE
-        segment = SEGMENT_CASH
-        validity = VALIDITY_DAY
-        
-        # Generate a valid Groww order reference ID if not provided
-        if not order_reference_id:
-            timestamp = datetime.now().strftime('%Y%m%d')
-            uuid_part = str(uuid.uuid4()).replace('-', '')[:8]
-            order_reference_id = f"{timestamp}-{uuid_part}"
-            
-            # Ensure it meets Groww's requirements
-            order_reference_id = re.sub(r'[^a-zA-Z0-9-]', '', order_reference_id)[:20]
-            if len(order_reference_id) < 8:
-                order_reference_id = order_reference_id.ljust(8, '0')
-        
-        logger.info(f"Placing {transaction_type} order for {quantity} of {symbol} at {price if price else 'MARKET'}")
-        logger.info(f"SDK Parameters: exchange={{exchange}}, segment={{segment}}, product={{product}}, order_type={order_type}")
-        logger.info(f"Using order reference ID: {order_reference_id}")
-        
-        # Place order using SDK
-        response = groww.place_order(
-            trading_symbol=symbol,
-            quantity=quantity,
-            price=price,
-            validity=validity,
-            exchange=exchange,
-            segment=segment,
-            product=product,
-            order_type=order_type,
-            transaction_type=transaction_type,
-            order_reference_id=order_reference_id
-        )
-        logger.info(f"Direct order response: {response}")
-        return response
-    
-    except Exception as e:
-        logger.error(f"Direct order error: {e}")
-        import traceback
-        traceback.print_exc()
-        return {"status": "error", "message": str(e)}
 
 def place_smartorder_api(data, auth):
     """
@@ -1757,7 +1694,7 @@ def close_all_positions(token=None, auth=None):
         return {"status": "error", "message": "Authentication token is required"}, 400
     
     try:
-        from database.token_db import get_br_symbol
+        from app.db.token_db import get_br_symbol
     except ImportError:
         from openalgo.database.token_db import get_br_symbol
     """
@@ -2192,7 +2129,7 @@ def direct_modify_order(data, auth):
     """
     try:
         # Import the shared httpx client
-        from utils.httpx_client import get_httpx_client
+        from app.utils.httpx_client import get_httpx_client
         
         # API endpoint for modifying orders
         api_url = "https://api.groww.in/v1/order/modify"

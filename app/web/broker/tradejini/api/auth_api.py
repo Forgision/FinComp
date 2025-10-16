@@ -1,8 +1,8 @@
-import os
 import json
 from urllib.parse import urlencode
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
+from app.core.config import settings
 
 
 BASE_URL = 'https://api.tradejini.com/v2'
@@ -24,7 +24,7 @@ def authenticate_broker(password=None, twofa=None, twofa_type=None):
         # Force twofa_type to be totp
         twofa_type = 'totp'
             
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
         if not BROKER_API_SECRET:
             return None, 'BROKER_API_SECRET environment variable not set'
         
@@ -66,8 +66,6 @@ def authenticate_broker(password=None, twofa=None, twofa_type=None):
         else:
             error_msg = response_data.get('message', 'Authentication failed')
             return None, error_msg
-    except requests.exceptions.RequestException as e:
-        return None, f'Request failed: {str(e)}'
     except json.JSONDecodeError:
         return None, 'Invalid JSON response from server'
     except Exception as e:
@@ -77,8 +75,8 @@ def get_auth_url():
     """
     Generate the authorization URL for Tradejini OAuth flow
     """
-    BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
-    REDIRECT_URI = os.getenv('REDIRECT_URI')
+    BROKER_API_SECRET = settings.BROKER_API_SECRET
+    REDIRECT_URI = settings.REDIRECT_URI
     
     params = {
         'client_id': BROKER_API_SECRET,
@@ -92,15 +90,15 @@ def get_auth_url():
 
 def authenticate_broker_oauth(code):
     try:
-        BROKER_API_KEY = os.getenv('BROKER_API_KEY')
-        BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
+        BROKER_API_KEY = settings.BROKER_API_KEY
+        BROKER_API_SECRET = settings.BROKER_API_SECRET
         
         url = f'{BASE_URL}/api-gw/oauth/token'
         data = {
             'code': code,
             'client_id': BROKER_API_KEY,
             'client_secret': BROKER_API_SECRET,
-            'redirect_uri': os.getenv('REDIRECT_URI'),
+            'redirect_uri': settings.REDIRECT_URI,
             'grant_type': 'authorization_code'
         }
         

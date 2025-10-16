@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
 from pathlib import Path
+import os
 
 # Define the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent   # config/mnt/vault/@work-station/Python/FinComp/app/
@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     BROKER_API_KEY_MARKET: str = "YOUR_BROKER_MARKET_API_KEY"
     BROKER_API_SECRET_MARKET: str = "YOUR_BROKER_MARKET_API_SECRET"
     REDIRECT_URL: str = "http://127.0.0.1:5000/fyers/callback"
+    BROKER_USER_ID: Optional[str] = None
+    BROKER_PASSWORD: Optional[str] = None
+    BROKER_TOTP_SECRET: Optional[str] = None
     VALID_BROKERS: str = "fivepaisa,fivepaisaxts,aliceblue,angel,compositedge,dhan,dhan_sandbox,definedge,firstock,flattrade,fyers,groww,ibulls,iifl,indmoney,kotak,paytm,pocketful,shoonya,tradejini,upstox,wisdom,zebu,zerodha"
+    PAYTM_BASE_URL: str = "https://developer.paytmmoney.com"
+    FIVEPAISA_BASE_URL: str = "https://Openapi.5paisa.com"
 
     # Security Configuration
     APP_KEY: str = "3daa0403ce2501ee7432b75bf100048e3cf510d63d2754f952e93d88bf07ea84"
@@ -27,16 +32,18 @@ class Settings(BaseSettings):
     LATENCY_DATABASE_URL: str = "sqlite:///db/latency.db"
     LOGS_DATABASE_URL: str = "sqlite:///db/logs.db"
     SANDBOX_DATABASE_URL: str = "sqlite:///db/sandbox.db"
+    TELEGRAM_DATABASE_URL: str = "sqlite:///db/telegram.db"
 
     # Ngrok Configuration
     NGROK_ALLOW: str = "FALSE"
-    HOST_SERVER: str = "http://127.0.0.1:5000"
+    HOST_SERVER: str = "http://127.0.0.1:8000"
 
     # FastAPI App Host and Port Configuration
     APP_HOST_IP: str = "127.0.0.1"
-    APP_PORT: int = 5000
+    APP_PORT: int = 8000
     APP_DEBUG: bool = False
     APP_ENV: str = "development"
+    APP_MODE: str = "integrated"
 
     # WebSocket Configuration
     WEBSOCKET_HOST: str = "127.0.0.1"
@@ -46,6 +53,17 @@ class Settings(BaseSettings):
     # ZeroMQ Configuration
     ZMQ_HOST: str = "127.0.0.1"
     ZMQ_PORT: int = 5555
+    TELEGRAM_MESSAGE_RATE_LIMIT: str = "10 per minute"
+    WEBHOOK_RATE_LIMIT: str = "100 per minute"
+    STRATEGY_RATE_LIMIT: str = "200 per minute"
+    API_RATE_LIMIT: str = "50 per second"
+    # Environment Variables for Logging and System
+    VIRTUAL_ENV: Optional[str] = None
+    TERM: str = ""
+    WT_SESSION: Optional[str] = None
+    VSCODE_INJECTION: Optional[str] = None
+    FORCE_COLOR: str = ""
+    NO_COLOR: bool = False
 
     # Logging configuration
     LOG_TO_FILE: bool = False
@@ -55,7 +73,6 @@ class Settings(BaseSettings):
     LOG_MAX_FILE_SIZE: int = int(10 * 1024 * 1024)  # 10 MB
     LOG_RETENTION: int = 14
     LOG_BACKUP_COUNT: int = 5
-    LOG_COLORS: bool = True
     LOGS_COLORS_ENABLE: bool = True
 
     # Rate Limit Settings
@@ -70,7 +87,6 @@ class Settings(BaseSettings):
 
     # API Configuration
     SMART_ORDER_DELAY: float = 0.5
-    SESSION_EXPIRY_TIME: str = "03:00"
 
     # CORS Configuration
     CORS_ENABLED: bool = True

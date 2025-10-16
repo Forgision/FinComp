@@ -6,7 +6,7 @@ import os
 import logging
 import threading
 from urllib.parse import urlencode
-from utils.logging import get_logger
+from app.utils.logging import logger
 
 class FirstockWebSocket:
     """
@@ -68,7 +68,7 @@ class FirstockWebSocket:
         self.pending_subscriptions = []  # Queue subscriptions until authenticated
         
         # Logger
-        self.logger = get_logger("firstock_websocket")
+        self.logger = logger
         
         if not self._sanity_check():
             self.logger.error("Invalid initialization parameters")

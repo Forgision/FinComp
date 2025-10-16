@@ -1,23 +1,23 @@
 import json
-import os
 from typing import Dict, Any, Optional
 import httpx
-from utils.httpx_client import get_httpx_client
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_symbol, get_oa_symbol
-from broker.fivepaisa.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from broker.fivepaisa.mapping.transform_data import map_exchange, map_exchange_type, reverse_map_exchange
-from utils.logging import get_logger
+from app.utils.httpx_client import get_httpx_client
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token, get_br_symbol, get_symbol, get_oa_symbol
+from app.web.broker.fivepaisa.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
+from app.web.broker.fivepaisa.mapping.transform_data import map_exchange, map_exchange_type, reverse_map_exchange
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 
 # Base URL for 5Paisa API
 BASE_URL = "https://Openapi.5paisa.com"
 
+from app.core.config import settings
+
 # Retrieve the BROKER_API_KEY and BROKER_API_SECRET environment variables
-broker_api_key = os.getenv('BROKER_API_KEY')
-api_secret = os.getenv('BROKER_API_SECRET')
+broker_api_key = settings.BROKER_API_KEY
+api_secret = settings.BROKER_API_SECRET
 api_key, user_id, client_id = broker_api_key.split(':::')
 
 json_data = {

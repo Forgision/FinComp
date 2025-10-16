@@ -1,9 +1,9 @@
-import os
 import json
 import hashlib
 from typing import Dict, Any, Tuple, Optional
-from .....utils.httpx_client import get_httpx_client
-from .....utils.logging import logger
+from app.utils.httpx_client import get_httpx_client
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 async def authenticate_broker(request_token: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -26,8 +26,8 @@ async def authenticate_broker(request_token: str) -> Tuple[Optional[str], Option
     }
     
     # Get environment variables
-    broker_api_key = os.getenv('BROKER_API_KEY')
-    broker_api_secret = os.getenv('BROKER_API_SECRET')
+    broker_api_key = settings.BROKER_API_KEY
+    broker_api_secret = settings.BROKER_API_SECRET
     
     # Validate environment variables
     if not broker_api_key or not broker_api_secret:

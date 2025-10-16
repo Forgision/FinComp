@@ -11,16 +11,16 @@ from starlette.responses import HTMLResponse, RedirectResponse, JSONResponse
 from starlette.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from .....utils.web import limiter
-from .....utils.logging import logger # type: ignore
-from .....utils.auth_utils import handle_auth_success, handle_auth_failure # type: ignore
-from .....utils.plugin_loader import load_broker_auth_functions # type: ignore
-from .....utils.httpx_client import get_httpx_client # type: ignore
-from .....core.config import settings
-from .....db.session import get_db
+from ....utils.web import limiter
+from ....utils.logging import logger # type: ignore
+from ....utils.auth_utils import handle_auth_success, handle_auth_failure # type: ignore
+from ....utils.plugin_loader import load_broker_auth_functions # type: ignore
+from ....utils.httpx_client import get_httpx_client # type: ignore
+from ....core.config import settings
+from ....db.session import get_db
 # from app.utils.security import verify_password # type: ignore
-from ....services import user_service # type: ignore
-from ....frontend import templates
+from ...services import user_service # type: ignore
+from ...frontend import templates
 
 # Suppress Pylance import errors for internal app modules
 # Pylance does not correctly resolve these imports without additional configuration
@@ -286,7 +286,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
         auth_token, error_message = await auth_function(code)
         
         if auth_token:
-            from broker.dhan.api.funds import test_auth_token # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
+            from ...broker.dhan.api.funds import test_auth_token # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
             is_valid, validation_error = await test_auth_token(auth_token)
             
             if not is_valid:
@@ -402,7 +402,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             api_token = settings.BROKER_API_KEY
             api_secret = settings.BROKER_API_SECRET
             
-            from broker.definedge.api.auth_api import login_step1 # Assuming this path will be valid in FastAPI context # type: ignore
+            from ...broker.definedge.api.auth_api import login_step1 # Assuming this path will be valid in FastAPI context # type: ignore
             
             try:
                 step1_response = await login_step1(api_token, api_secret)
@@ -428,7 +428,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                 api_token = settings.BROKER_API_KEY
                 api_secret = settings.BROKER_API_SECRET
                 
-                from broker.definedge.api.auth_api import login_step1 # type: ignore # type: ignore
+                from ...broker.definedge.api.auth_api import login_step1 # type: ignore # type: ignore
                 
                 try:
                     step1_response = await login_step1(api_token, api_secret)
@@ -455,7 +455,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                 
                 api_secret = settings.BROKER_API_SECRET
                 
-                from broker.definedge.api.auth_api import authenticate_broker # type: ignore # type: ignore
+                from ...broker.definedge.api.auth_api import authenticate_broker # type: ignore # type: ignore
                 
                 try:
                     auth_token, feed_token, user_id, error_message = await authenticate_broker(otp_token, otp_code, api_secret)

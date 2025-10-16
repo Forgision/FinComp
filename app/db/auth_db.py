@@ -1,6 +1,5 @@
 # app/db/auth_db.py
 
-import os
 import base64
 import pytz # type: ignore # Library stubs not installed for "pytz"
 from datetime import datetime
@@ -13,10 +12,10 @@ from argon2.exceptions import VerifyMismatchError
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from ..utils.logging import logger
+from app.utils.logging import logger
 # from ..utils.logger import logger
-from ..core.config import settings
-from .base import Base, db_session, engine
+from app.core.config import settings
+from app.db.base import Base, db_session, engine
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()
@@ -46,7 +45,7 @@ def get_session_based_cache_ttl():
         from datetime import datetime
         
         # Get session expiry time from environment (default 3 AM)
-        expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
+        expiry_time = settings.SESSION_EXPIRY_TIME
         hour, minute = map(int, expiry_time.split(':'))
         
         # Calculate time until next session expiry

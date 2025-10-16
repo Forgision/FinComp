@@ -10,23 +10,23 @@ from fastapi_csrf_protect.flexible import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from .....utils.web import limiter
-from .....db.session import get_db
-from .....db.user_db import add_user, find_user_by_username, find_user_by_email
-from .....db.settings_db import get_smtp_settings, set_smtp_settings
-from .....db.auth_db import upsert_api_key, upsert_auth, auth_cache, feed_token_cache
-from ....frontend import templates
-from ....models.user import User
-from ....models.auth import SMTPConfig, SMTPTest, SMTPDebug
-from .....utils.auth_utils import mask_api_credential
-from .....utils.web.security import verify_password
-from .....utils.email_utils import send_password_reset_email, send_test_email
-from .....utils.email_debug import debug_smtp_connection
-from ....frontend import templates
-from ....services import user_service
-from .....utils.web.flash import flash
-from .....utils.web.security import generate_api_key, generate_csrf_token, validate_csrf_token
-from .....utils.logging import logger
+from ....utils.web import limiter
+from ....db.session import get_db
+from ....db.user_db import add_user, find_user_by_username, find_user_by_email
+from ....db.settings_db import get_smtp_settings, set_smtp_settings
+from ....db.auth_db import upsert_api_key, upsert_auth, auth_cache, feed_token_cache
+from ...frontend import templates
+from ...models.user import User
+from ...models.auth import SMTPConfig, SMTPTest, SMTPDebug
+from ....utils.auth_utils import mask_api_credential
+from ....utils.web.security import verify_password
+from ....utils.email_utils import send_password_reset_email, send_test_email
+from ....utils.email_debug import debug_smtp_connection
+from ...frontend import templates
+from ...services import user_service
+from ....utils.web.flash import flash
+from ....utils.web.security import generate_api_key, generate_csrf_token, validate_csrf_token
+from ....utils.logging import logger
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -82,7 +82,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
             
         # Clear symbol cache
         try:
-            from .....db.master_contract_cache_hook import clear_cache_on_logout
+            from ..db.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:

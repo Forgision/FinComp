@@ -1,27 +1,23 @@
 import threading
 import json
-import logging
 import time
 from typing import Dict, Any, Optional, List
-import sys
-import os
-
-# Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from .nxtradstream import NxtradStream
-from database.auth_db import get_auth_token
-from database.token_db import get_token
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
+from app.utils.logging import logger
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .tradejini_mapping import TradejiniExchangeMapper, TradejiniCapabilityRegistry
+from app.core.config import settings
 
 class TradejiniWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """Tradejini-specific implementation of the WebSocket adapter"""
 
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("tradejini_websocket")
+        self.logger = logger
         self.ws_client = None
         self.user_id = None
         self.broker_name = "tradejini"
@@ -59,7 +55,7 @@ class TradejiniWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 raise ValueError(f"No authentication token found for user {user_id}")
 
             # Get API key from environment for Tradejini
-            api_key = os.getenv('BROKER_API_SECRET', '')
+            api_key = settings.BROKER_API_SECRET
 
             # Format token for Tradejini WebSocket (api_key:access_token)
             if api_key and ':' not in auth_token:
@@ -79,7 +75,7 @@ class TradejiniWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 raise ValueError("Missing required authentication data")
 
             # Get API key from environment or auth_data for Tradejini
-            api_key = auth_data.get('api_key', os.getenv('BROKER_API_SECRET', ''))
+            api_key = auth_data.get('api_key', settings.BROKER_API_SECRET)
 
             # Format token for Tradejini WebSocket (api_key:access_token)
             if api_key and ':' not in auth_token:

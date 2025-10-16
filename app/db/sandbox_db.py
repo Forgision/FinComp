@@ -1,6 +1,5 @@
 # database/sandbox_db.py
 
-import os
 from sqlalchemy import create_engine, UniqueConstraint, Index, CheckConstraint
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,18 +7,12 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, DECIMAL
 from sqlalchemy.sql import func
 from sqlalchemy.pool import NullPool
 from datetime import datetime
-from utils.logging import get_logger
-from dotenv import load_dotenv
+from app.utils.logging import logger
+from app.core.config import settings
 
-# Initialize logger
-logger = get_logger(__name__)
-
-# Load environment variables
-load_dotenv()
 
 # Sandbox database URL - separate database for isolation
-# Get from environment variable or use default path in /db directory
-SANDBOX_DATABASE_URL = os.getenv('SANDBOX_DATABASE_URL', 'sqlite:///db/sandbox.db')
+SANDBOX_DATABASE_URL = settings.SANDBOX_DATABASE_URL
 
 # Conditionally create engine based on DB type
 if SANDBOX_DATABASE_URL and 'sqlite' in SANDBOX_DATABASE_URL:

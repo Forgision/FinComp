@@ -1,7 +1,7 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Pocketful API Parameters https://api.pocketful.in/docs/
 
-from database.token_db import get_br_symbol, get_token
+from app.db.token_db import get_br_symbol, get_token
 
 def transform_data(data, client_id=None):
     """

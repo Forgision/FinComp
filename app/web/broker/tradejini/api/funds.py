@@ -1,9 +1,7 @@
-import os
 import json
 from utils.httpx_client import get_httpx_client
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 def calculate_pnl(entry):
@@ -23,7 +21,7 @@ def get_margin_data(auth_token):
     """
     try:
         # Get API key from environment
-        api_key = os.getenv('BROKER_API_SECRET')
+        api_key = settings.BROKER_API_SECRET
         if not api_key:
             logger.info("Error: BROKER_API_SECRET not set")
             return {}

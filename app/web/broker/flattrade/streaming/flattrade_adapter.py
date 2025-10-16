@@ -8,30 +8,14 @@ import logging
 import time
 from typing import Dict, Any, Optional, List
 from enum import IntEnum
+from app.db.auth_db import get_auth_token
+from app.db.token_db import get_token
+from app.core.config import settings
 
-from database.auth_db import get_auth_token
-from database.token_db import get_token
-
-import sys
-import os
-
-# Add parent directory to path to allow imports FIRST
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-
-# CRITICAL: Import config to load .env file which sets ZMQ_PORT
-# This must happen before any WebSocket server initialization
-import utils.config  # This loads .env file at module level
-
-# Ensure ZMQ_PORT is set (fallback if not in .env)
-if not os.getenv('ZMQ_PORT'):
-    os.environ['ZMQ_PORT'] = '5555'
-    temp_logger = logging.getLogger("flattrade_init")
-    temp_logger.info("ZMQ_PORT not found in environment, setting to 5555")
-
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
-from .flattrade_mapping import FlattradeExchangeMapper, FlattradeCapabilityRegistry
-from .flattrade_websocket import FlattradeWebSocket
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
+from app.web.broker.flattrade.streaming.flattrade_mapping import FlattradeExchangeMapper, FlattradeCapabilityRegistry
+from app.web.broker.flattrade.streaming.flattrade_websocket import FlattradeWebSocket
 
 
 # Configuration constants
@@ -246,7 +230,7 @@ class FlattradeWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.logger = logging.getLogger("flattrade_websocket")
 
         # Log the actual ZMQ port being used
-        actual_zmq_port = os.getenv('ZMQ_PORT', '5555')
+        actual_zmq_port = settings.ZMQ_PORT
         self.logger.info(f"Flattrade adapter initialized - Expected ZMQ port: {actual_zmq_port}, Actual bound port: {self.zmq_port}")
 
         # Warn if there's a mismatch
@@ -293,7 +277,7 @@ class FlattradeWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.broker_name = broker_name
         
         # Get Flattrade credentials
-        api_key = os.getenv('BROKER_API_KEY', '')
+        api_key = settings.BROKER_API_KEY
         if ':::' in api_key:
             self.actid = api_key.split(':::')[0]
         else:

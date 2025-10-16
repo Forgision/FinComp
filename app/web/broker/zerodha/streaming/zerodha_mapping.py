@@ -1,6 +1,4 @@
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 """
 Zerodha WebSocket data mapping utilities.
@@ -100,7 +98,7 @@ class ZerodhaDataTransformer:
     """Transforms data between Zerodha and OpenAlgo formats"""
     
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = logger
     
     def transform_tick(self, tick_data: Dict, symbol: str, exchange: str) -> Dict:
         """

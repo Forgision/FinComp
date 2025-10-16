@@ -1,16 +1,14 @@
 import asyncio as aio
 import websockets
 import json
-from app.utils.logging import get_logger, highlight_url
+from app.utils.logging import logger, highlight_url
+from app.core.config import settings
 import signal
 import zmq
 import zmq.asyncio
 import threading
 import time
-import os
 import socket
-from typing import Dict, Set, Any, Optional
-from dotenv import load_dotenv
 
 from app.web.websocket.port_check import is_port_in_use, find_available_port
 from app.db.auth_db import get_broker_name
@@ -20,7 +18,6 @@ from app.web.websocket.broker_factory import create_broker_adapter
 from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 # Initialize logger
-logger = get_logger("websocket_proxy")
 
 class WebSocketProxy:
     """
@@ -65,8 +62,8 @@ class WebSocketProxy:
         self.context = zmq.asyncio.Context()
         self.socket = self.context.socket(zmq.SUB)
         # Connecting to ZMQ
-        ZMQ_HOST = os.getenv('ZMQ_HOST', '127.0.0.1')
-        ZMQ_PORT = os.getenv('ZMQ_PORT')
+        ZMQ_HOST = settings.ZMQ_HOST
+        ZMQ_PORT = settings.ZMQ_PORT
         self.socket.connect(f"tcp://{ZMQ_HOST}:{ZMQ_PORT}")  # Connect to broker adapter publisher
         
         # Set up ZeroMQ subscriber to receive all messages
@@ -394,7 +391,7 @@ class WebSocketProxy:
                 logger.info(f"Found broker '{broker_name}' for user {user_id} from database")
             else:
                 # Fallback to environment variable
-                valid_brokers = os.getenv('VALID_BROKERS', 'angel').split(',')
+                valid_brokers = settings.VALID_BROKERS.split(',')
                 broker_name = valid_brokers[0].strip() if valid_brokers else 'angel'
                 logger.warning(f"No broker found in database for user {user_id}, using fallback: {broker_name}")
             
@@ -402,17 +399,17 @@ class WebSocketProxy:
             # In a production system, these would be stored encrypted in the database per user
             broker_config = {
                 'broker_name': broker_name,
-                'api_key': os.getenv('BROKER_API_KEY'),
-                'api_secret': os.getenv('BROKER_API_SECRET'),
-                'api_key_market': os.getenv('BROKER_API_KEY_MARKET'),
-                'api_secret_market': os.getenv('BROKER_API_SECRET_MARKET'),
-                'broker_user_id': os.getenv('BROKER_USER_ID'),
-                'password': os.getenv('BROKER_PASSWORD'),
-                'totp_secret': os.getenv('BROKER_TOTP_SECRET')
+                'api_key': settings.BROKER_API_KEY,
+                'api_secret': settings.BROKER_API_SECRET,
+                'api_key_market': settings.BROKER_API_KEY_MARKET,
+                'api_secret_market': settings.BROKER_API_SECRET_MARKET,
+                'broker_user_id': settings.BROKER_USER_ID,
+                'password': settings.BROKER_PASSWORD,
+                'totp_secret': settings.BROKER_TOTP_SECRET
             }
             
             # Validate broker is supported
-            valid_brokers_list = os.getenv('VALID_BROKERS', '').split(',')
+            valid_brokers_list = settings.VALID_BROKERS.split(',')
             valid_brokers_list = [b.strip() for b in valid_brokers_list if b.strip()]
             
             if broker_name not in valid_brokers_list:
@@ -522,7 +519,7 @@ class WebSocketProxy:
             client_id: ID of the client
         """
         try:
-            valid_brokers = os.getenv('VALID_BROKERS', '').split(',')
+            valid_brokers = settings.VALID_BROKERS.split(',')
             supported_brokers = [broker.strip() for broker in valid_brokers if broker.strip()]
             
             await self.send_message(client_id, {
@@ -986,8 +983,8 @@ async def main():
         load_dotenv()
         
         # Get WebSocket configuration from environment variables
-        ws_host = os.getenv('WEBSOCKET_HOST', '127.0.0.1')
-        ws_port = int(os.getenv('WEBSOCKET_PORT', '8765'))
+        ws_host = settings.WEBSOCKET_HOST
+        ws_port = settings.WEBSOCKET_PORT
         
         # Create and start the WebSocket proxy
         proxy = WebSocketProxy(host=ws_host, port=ws_port)

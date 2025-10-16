@@ -3,11 +3,11 @@ Shoonya WebSocket Client Implementation
 Handles connection to Shoonya's market data streaming API
 """
 import json
-import logging
 import threading
 import time
 import websocket
 from typing import Any, Callable, Dict, Optional
+from app.utils.logging import logger
 
 
 class ShoonyaWebSocket:
@@ -76,7 +76,7 @@ class ShoonyaWebSocket:
         self._heartbeat_lock = threading.Lock()
         
         # Logging
-        self.logger = logging.getLogger("shoonya_websocket")
+        self.logger = logger
 
     def connect(self) -> bool:
         """

@@ -1,24 +1,25 @@
 import threading
 import json
-import logging
 import time
 import base64
 from typing import Dict, Any, Optional, List
 
 from broker.compositedge.streaming.compositedge_websocket import CompositedgeWebSocketClient
-from database.auth_db import get_auth_token, get_feed_token
-from database.token_db import get_token
+from app.db.auth_db import get_auth_token, get_feed_token
+from app.db.token_db import get_token
 
 import sys
 import os
 
 # Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 from .compositedge_mapping import CompositedgeExchangeMapper, CompositedgeCapabilityRegistry
-from database.token_db import get_symbol
+from app.db.token_db import get_symbol
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 class CompositedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
@@ -26,7 +27,7 @@ class CompositedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
     
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger("compositedge_websocket")
+        self.logger = logger.bind(broker_name="compositedge_websocket")
         self.ws_client = None
         self.user_id = None
         self.broker_name = "compositedge"
@@ -67,19 +68,19 @@ class CompositedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 
             # For XTS, we need API key and secret, not just tokens
             # These should be stored in environment variables or config
-            api_key = os.getenv('BROKER_API_KEY_MARKET')
-            api_secret = os.getenv('BROKER_API_SECRET_MARKET')
+            api_key = settings.BROKER_API_KEY_MARKET
+            api_secret = settings.BROKER_API_SECRET_MARKET
             
             if not api_key or not api_secret:
-                self.logger.error("Missing BROKER_API_KEY_MARKET or BROKER_API_SECRET_MARKET environment variables")
-                raise ValueError("Missing Compositedge XTS API credentials in environment variables")
+                self.logger.error("Missing BROKER_API_KEY_MARKET or BROKER_API_SECRET_MARKET settings")
+                raise ValueError("Missing Compositedge XTS API credentials in settings")
                 
         else:
             # Use provided tokens
             auth_token = auth_data.get('auth_token')
             feed_token = auth_data.get('feed_token')
-            api_key = auth_data.get('api_key', os.getenv('BROKER_API_KEY_MARKET'))
-            api_secret = auth_data.get('api_secret', os.getenv('BROKER_API_SECRET_MARKET'))
+            api_key = auth_data.get('api_key', settings.BROKER_API_KEY_MARKET)
+            api_secret = auth_data.get('api_secret', settings.BROKER_API_SECRET_MARKET)
             
             if not auth_token or not feed_token:
                 self.logger.error("Missing required authentication data")
@@ -660,7 +661,7 @@ class CompositedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             
             # Log the socket state before publishing
             self.logger.info(f"ZMQ Socket State - Port: {getattr(self, 'zmq_port', 'Unknown')}, Connected: {getattr(self, 'connected', False)}")
-            self.logger.info(f"Environment ZMQ_PORT: {os.environ.get('ZMQ_PORT', 'Not Set')}")
+            self.logger.info(f"Configured ZMQ_PORT: {self.zmq_port}")
             
             # Publish to ZeroMQ
             self.publish_market_data(topic, market_data)

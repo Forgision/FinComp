@@ -10,8 +10,8 @@ from cachetools import TTLCache # type: ignore # Library stubs not installed for
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import pyotp
-from ..utils.logging import logger
-from ..core.config import settings
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Initialize Argon2 hasher

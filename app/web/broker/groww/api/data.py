@@ -1,5 +1,4 @@
 import json
-import os
 import pytz
 from datetime import datetime, timedelta
 import pandas as pd
@@ -7,15 +6,14 @@ import httpx
 from typing import Dict, List, Any, Union, Optional
 import time
 import traceback
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
-from database.token_db import get_br_symbol, get_oa_symbol, get_token
+from app.db.token_db import get_br_symbol, get_oa_symbol, get_token
 from datetime import datetime, timedelta
 import pandas as pd
 import pytz
-from utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 # API endpoints are handled by the Groww SDK
 
 # Exchange constants for Groww API

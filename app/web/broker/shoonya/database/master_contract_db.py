@@ -1,22 +1,19 @@
-import os
 import requests
 import zipfile
 import io
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
 from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from extensions import socketio  # Import SocketIO
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-
+from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.logging import logger
+from app.core.config import settings
 
 
 # Database setup
-DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
+DATABASE_URL = settings.DATABASE_URL
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Base = declarative_base()
@@ -90,8 +87,9 @@ def download_and_unzip_shoonya_data(output_path):
     logger.info("Downloading and Unzipping shoonya Data")
 
     # Create the tmp directory if it doesn't exist
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    output_path_obj = Path(output_path)
+    if not output_path_obj.exists():
+        output_path_obj.mkdir(parents=True, exist_ok=True)
 
     downloaded_files = []
 
@@ -606,10 +604,10 @@ def delete_shoonya_temp_data(output_path):
     """
     Deletes the shoonya symbol files from the tmp folder after processing.
     """
-    for filename in os.listdir(output_path):
-        file_path = os.path.join(output_path, filename)
-        if filename.endswith(".txt") and os.path.isfile(file_path):
-            os.remove(file_path)
+    output_path_obj = Path(output_path)
+    for file_path_obj in output_path_obj.iterdir():
+        if file_path_obj.suffix == ".txt" and file_path_obj.is_file():
+            file_path_obj.unlink()
             logger.info(f"Deleted {file_path}")
 
 def master_contract_download():
