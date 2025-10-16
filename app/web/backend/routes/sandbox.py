@@ -29,21 +29,6 @@ sandbox_router = APIRouter(
     dependencies=[Depends(check_session_validity_fastapi)]
 )
 
-@sandbox_router.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == 429:
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={
-                'status': 'error',
-                'message': 'Rate limit exceeded. Please try again later.'
-            }
-        )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"message": exc.detail}
-    )
-
 @sandbox_router.get('/', response_class=HTMLResponse)
 async def sandbox_config(request: Request, db: Session = Depends(get_db)):
     """Render the sandbox configuration page"""

@@ -16,11 +16,11 @@ from app.utils.logging import logger
 from app.web.services.tradebook_service import get_tradebook
 from app.web.services.history_service import get_history
 from app.db.session import get_db
-from app.web.frontend.templates import templates
+from app.web.frontend import templates
 
 
 # Define the FastAPI router
-pnltracker_router = APIRouter(prefix="/pnltracker", tags=["PnL Tracker"])
+pnltracker_router = APIRouter(prefix="/pnltracker", tags=["PnL-Tracker"])
 
 def convert_timestamp_to_ist(df, symbol=""):
     """

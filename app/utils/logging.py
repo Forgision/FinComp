@@ -1,3 +1,4 @@
+import os
 import logging
 import sys
 import site
@@ -93,7 +94,7 @@ class LocationBuilder:
         if hasattr(site, "getusersitepackages"):
             site_paths.add(site.getusersitepackages())
 
-        stdlib_dir = os.path.dirname(sys.__file__)
+        stdlib_dir = os.path.dirname(__file__)
         venv_dir = settings.VIRTUAL_ENV
 
         skip_roots = {os.path.realpath(p) for p in site_paths if os.path.exists(p)}
@@ -456,7 +457,7 @@ def setup_logging():
     # Get configuration from environment
     log_format = '[%(asctime)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
     log_retention = int(settings.LOG_RETENTION)
-    log_colors = settings.LOG_COLORS
+    log_colors = settings.LOGS_COLORS_ENABLE
     
     # Configure root logger
     root_logger = logging.getLogger()

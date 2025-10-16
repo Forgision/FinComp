@@ -1,7 +1,7 @@
 """
 Telegram Database Module using SQLAlchemy for secure database operations
 """
-
+import os
 import json
 import base64
 from datetime import datetime, timedelta

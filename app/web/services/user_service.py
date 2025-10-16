@@ -1,6 +1,6 @@
 import pyotp
 from sqlalchemy.orm import Session
-from ..models.user import User
+from app.db.user_db import User
 from ...utils.logging import logger
 from ...utils.web.security import password_to_hash
 import secrets

@@ -7,18 +7,18 @@ from typing import List, Dict, Optional
 from app.db.symbol import enhanced_search_symbols
 from app.utils.session import check_session_validity_fastapi
 from app.utils.logging import logger
-from app.core.session import get_db
+from app.db.session import get_db
 from app.web.frontend import templates
 
 search_router = APIRouter(prefix="/search", tags=["Search"])
 
 
-@search_router.get("/token", response_class=HTMLResponse)
+@search_router.get("/token", response_class=HTMLResponse, name= "token")
 async def token(request: Request, session_valid: bool = Depends(check_session_validity_fastapi)):
     """Route for the search form page"""
     return templates.TemplateResponse("token.html", {"request": request})
 
-@search_router.get("/", response_class=HTMLResponse)
+@search_router.get("/", response_class=HTMLResponse, name= "search_bp.token")
 async def search(
     request: Request,
     symbol: str = Query("", alias="symbol"),

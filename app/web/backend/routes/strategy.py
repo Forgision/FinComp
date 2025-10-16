@@ -272,7 +272,7 @@ def squareoff_positions(strategy_id: int, db: Session):
     except Exception as e:
         logger.error(f'Error in squareoff_positions for strategy {strategy_id}: {str(e)}')
 
-@strategy_router.get("/", response_class=HTMLResponse)
+@strategy_router.get("/", response_class=HTMLResponse, name="strategy_bp.index")
 async def index(request: Request, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
     """List all strategies"""
     try:

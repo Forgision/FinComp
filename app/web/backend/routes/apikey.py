@@ -27,7 +27,7 @@ async def check_session_validity_dependency(request: Request):
         )
     return request.session["user"]
 
-@apikey_router.get('/apikey', response_class=HTMLResponse)
+@apikey_router.get('/apikey', response_class=HTMLResponse, name="manage_api_key")
 async def get_manage_api_key(
     request: Request,
     login_username: str = Depends(check_session_validity_dependency)
@@ -46,7 +46,7 @@ async def get_manage_api_key(
         }
     )
 
-@apikey_router.post('/apikey', response_class=JSONResponse)
+@apikey_router.post('/apikey', response_class=JSONResponse, name="manage_api_key")
 async def post_manage_api_key(
     request: Request,
     db: Session = Depends(get_db),

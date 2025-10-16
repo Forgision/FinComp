@@ -90,7 +90,11 @@ def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     cleanup_websocket_server()
     # Use os._exit() for immediate termination across all platforms
-    sys.exit(0)
+    #TODO: try except is temporary solution, debug the below code and fix it.
+    try:
+        sys.exit(0)
+    except asyncio.exceptions.CancelledError as e:
+        logger.exception("System exit failed, forcing termination")
 
 def start_websocket_server():
     """

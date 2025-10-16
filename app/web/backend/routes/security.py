@@ -5,17 +5,17 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime, timedelta
 import re
+from slowapi.errors import RateLimitExceeded
+from pydantic import BaseModel
 
-from app.db.connection import get_db # Main DB session
+from app.db.session import get_db # Main DB session
 from app.db.traffic_db import IPBan, Error404Tracker, InvalidAPIKeyTracker, logs_session, TrafficLog # Traffic DB session and models
 from app.db.settings_db import get_security_settings, set_security_settings
 from app.utils.session import check_session_validity_fastapi
 from app.utils.web import limiter
 from app.web.frontend import templates
-from slowapi.errors import RateLimitExceeded
-from pydantic import BaseModel
+from app.utils.logging import logger
 
-logger = logging.getLogger(__name__)
 
 security_router = APIRouter(prefix="/security", tags=["security"])
 
@@ -36,7 +36,7 @@ class BanIPRequest(BaseModel):
 class UnbanIPRequest(BaseModel):
     ip_address: str
 
-class BanHostRequest(Baseodel):
+class BanHostRequest(BaseModel):
     host: str
     reason: str = "Host ban"
     permanent: bool = False

@@ -1,7 +1,7 @@
 import importlib
 import traceback
 from typing import Tuple, Dict, Any, Optional, Union
-from database.auth_db import get_auth_token_broker
+from app.db.auth_db import get_auth_token_broker
 from app.utils.logging import logger
 
 def import_broker_module(broker_name: str) -> Optional[Any]:

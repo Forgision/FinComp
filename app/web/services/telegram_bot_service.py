@@ -27,7 +27,7 @@ import base64
 from openalgo import api as openalgo_api
 
 # Database imports
-from database.telegram_db import (
+from app.db.telegram_db import (
     get_telegram_user,
     create_or_update_telegram_user,
     get_bot_config,
@@ -38,7 +38,7 @@ from database.telegram_db import (
     delete_telegram_user,
     get_user_credentials
 )
-from database.auth_db import get_username_by_apikey
+from app.db.auth_db import get_username_by_apikey
 from app.utils.logging import logger
 from app.core.config import settings
 

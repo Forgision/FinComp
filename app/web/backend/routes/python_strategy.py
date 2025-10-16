@@ -34,8 +34,8 @@ from functools import partial
 # FastAPI specific imports
 from app.db.session import get_db
 from app.utils.session import check_session_validity_fastapi
-from app.web.models.master_contract_status import MasterContractStatus as DBMasterContractStatus
-from app.web.models.auth import Auth as DBAuth
+from app.db.master_contract_status_db import MasterContractStatus as DBMasterContractStatus
+from app.db.auth_db import Auth as DBAuth
 from app.utils.logging import logger
 from app.web.frontend import templates
 
@@ -704,8 +704,64 @@ def unschedule_strategy(strategy_id: str):
         save_configs()
     
     logger.info(f"Unscheduled strategy {strategy_id}")
+    
+def restore_strategies_after_login():
+    """Called after successful login to restore strategies that were waiting"""
+    logger.info("Checking for strategies to restore after login...")
+    
+    # Re-run restore_strategy_states now that we have a proper session
+    restore_strategy_states()
+    
+    # Then check and start any pending strategies
+    success, message = check_and_start_pending_strategies()
+    logger.info(f"Post-login strategy restoration: {message}")
+    return success, message
 
-@python_strategy_router.get('/', response_class=HTMLResponse, dependencies=[Depends(check_session_validity_fastapi)])
+# Initialize basic components on import (no database access)
+ensure_directories()
+load_configs()
+init_scheduler()
+
+# Flag to track if full initialization has been done
+_initialized = False
+
+def initialize_with_app_context():
+    """Initialize components that require app context/database access"""
+    global _initialized
+    if _initialized:
+        return
+    _initialized = True
+
+    try:
+        # Now safe to restore strategy states (requires database)
+        restore_strategy_states()
+
+        # Restore scheduled strategies
+        for strategy_id, config in STRATEGY_CONFIGS.items():
+            if config.get('is_scheduled'):
+                start_time = config.get('schedule_start')
+                stop_time = config.get('schedule_stop')
+                days = config.get('schedule_days', ['mon', 'tue', 'wed', 'thu', 'fri'])
+                if start_time:
+                    try:
+                        schedule_strategy(strategy_id, start_time, stop_time, days)
+                        logger.info(f"Restored schedule for strategy {strategy_id} at {start_time} IST")
+                    except Exception as e:
+                        logger.error(f"Failed to restore schedule for {strategy_id}: {e}")
+
+        logger.info(f"Python Strategy System fully initialized on {OS_TYPE}")
+    except Exception as e:
+        logger.warning(f"Deferred initialization skipped (likely no app context yet): {e}")
+        _initialized = False  # Reset flag to retry later
+
+    # Note: Flask removed before_app_first_request in newer versions
+    # The initialization is now handled in the index route and other entry points
+
+    logger.info(f"Python Strategy System initialized (basic) on {OS_TYPE}")
+
+@python_strategy_router.get('/', response_class=HTMLResponse,
+                            dependencies=[Depends(check_session_validity_fastapi)],
+                            name= "python_strategy_bp.index")
 async def index(request: Request, db: Session = Depends(get_db)):
     """Main dashboard"""
     # Ensure initialization is done when first accessed

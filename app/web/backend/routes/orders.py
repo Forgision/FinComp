@@ -199,7 +199,7 @@ async def positions(request: Request, db: Session = Depends(get_db)):
 
     return templates.TemplateResponse("positions.html", {"request": request, "positions_data": positions_data})
 
-@orders_router.get("/holdings")
+@orders_router.get("/holdings", name="orders.holdings")
 async def holdings(request: Request, db: Session = Depends(get_db)):
     login_username = request.session.get('user')
     auth_token = get_auth_token(login_username)

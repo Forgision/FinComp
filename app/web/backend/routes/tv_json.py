@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from collections import OrderedDict
 
 from app.web.models.tradingview_models import TradingViewRequest
-from app.db.connection import get_db
+from app.db.session import get_db
 from app.db.symbol import enhanced_search_symbols
 from app.db.auth_db import get_api_key_for_tradingview
 from app.utils.session import check_session_validity_fastapi # Assuming this is adapted for FastAPI
@@ -20,11 +20,11 @@ templates = Jinja2Templates(directory="app/web/frontend/templates") # Assuming t
 
 tv_json_router = APIRouter(prefix="/tradingview", tags=["tradingview"])
 
-@tv_json_router.get("/", response_class=Response)
+@tv_json_router.get("/", response_class=Response, name="tradingview_json")
 async def tradingview_json_get(request: Request, user: str = Depends(check_session_validity_fastapi)):
     return templates.TemplateResponse("tradingview.html", {"request": request, "host": host})
 
-@tv_json_router.post("/")
+@tv_json_router.post("/", name="tradingview_json")
 async def tradingview_json_post(
     request_body: TradingViewRequest,
     db: Session = Depends(get_db),

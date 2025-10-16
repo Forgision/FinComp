@@ -13,12 +13,12 @@ import io
 import traceback
 
 # Assuming these imports will be available or need to be created/imported from other modules
-from app.db.connection import get_db
+from app.db.session import get_db
 from app.utils.session import check_session_validity_fastapi # This will be a FastAPI dependency
 from app.db.apilog_db import OrderLog # Adjusted import path
 from app.core.config import settings # For template directory
 from app.utils.logging import logger
-from app.web.frontend.templates import templates
+from app.web.frontend import templates
 
 log_router = APIRouter(prefix="/logs", tags=["logs"])
 

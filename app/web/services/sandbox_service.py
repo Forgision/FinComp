@@ -18,11 +18,12 @@ from app.utils.logging import logger
 from app.web.services.telegram_alert_service import telegram_alert_service
 
 # Import sandbox managers
-from app.sandbox.order_manager import OrderManager
-from app.sandbox.position_manager import PositionManager
-from app.sandbox.holdings_manager import HoldingsManager
-from app.sandbox.fund_manager import FundManager, get_user_funds
-
+from app.web.sandbox.order_manager import OrderManager
+from app.web.sandbox.position_manager import PositionManager
+from app.web.sandbox.holdings_manager import HoldingsManager
+from app.web.sandbox.fund_manager import FundManager, get_user_funds
+from app.web.sandbox.squareoff_thread import reload_squareoff_schedule, get_squareoff_scheduler_status
+from app.web.sandbox.squareoff_thread import get_squareoff_scheduler_status
 
 
 def is_sandbox_mode() -> bool:
@@ -654,8 +655,6 @@ def sandbox_reload_squareoff_schedule() -> Tuple[bool, Dict[str, Any], int]:
         - HTTP status code (int)
     """
     try:
-        from app.sandbox.squareoff_thread import reload_squareoff_schedule, get_squareoff_scheduler_status
-
         # Reload the schedule from config
         success, message = reload_squareoff_schedule()
 
@@ -696,8 +695,6 @@ def sandbox_get_squareoff_status() -> Tuple[bool, Dict[str, Any], int]:
         - HTTP status code (int)
     """
     try:
-        from app.sandbox.squareoff_thread import get_squareoff_scheduler_status
-
         status = get_squareoff_scheduler_status()
 
         return True, {

@@ -16,7 +16,7 @@ from ....db.user_db import add_user, find_user_by_username, find_user_by_email
 from ....db.settings_db import get_smtp_settings, set_smtp_settings
 from ....db.auth_db import upsert_api_key, upsert_auth, auth_cache, feed_token_cache
 from ...frontend import templates
-from ...models.user import User
+from app.db.user_db import User
 from ...models.auth import SMTPConfig, SMTPTest, SMTPDebug
 from ....utils.auth_utils import mask_api_credential
 from ....utils.web.security import verify_password
@@ -82,7 +82,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
             
         # Clear symbol cache
         try:
-            from ..db.master_contract_cache_hook import clear_cache_on_logout
+            from app.db.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:
@@ -104,7 +104,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(url=request.url_for('auth.login'), status_code=status.HTTP_302_FOUND)
 
 
-@auth_router.get("/change", name="auth.change", response_class=HTMLResponse)
+@auth_router.get("/change", name="auth.change_password", response_class=HTMLResponse)
 async def change_password_get(request: Request, db: Session = Depends(get_db)):
     if 'user' not in request.session:
         flash(request, "You must be logged in to change your password.", "warning")
@@ -134,7 +134,7 @@ async def change_password_get(request: Request, db: Session = Depends(get_db)):
     })
 
 
-@auth_router.post("/change", name="auth.change")
+@auth_router.post("/change", name="auth.change_password")
 async def change_password_post(
     request: Request,
     db: Session = Depends(get_db),
@@ -440,7 +440,7 @@ async def reset_password_email(request: Request, token: str):
         return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
 
 
-@auth_router.post("/smtp-config", name="auth.smtp_config", status_code=status.HTTP_200_OK)
+@auth_router.post("/smtp-config", name="auth.configure_smtp", status_code=status.HTTP_200_OK)
 async def configure_smtp(
     request: Request,
     smtp_config: SMTPConfig,

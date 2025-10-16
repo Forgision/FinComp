@@ -25,7 +25,7 @@ async def get_current_user(request: Request):
     return request.session.get("user")
 
 
-@dashboard_router.get("/dashboard", response_class=HTMLResponse)
+@dashboard_router.get("/dashboard", response_class=HTMLResponse, name= "dashboard")
 async def dashboard(request: Request, current_user: str = Depends(get_current_user)):
     # The original Flask code had a lot of logic related to fetching funds
     # and handling different modes (analyze vs live broker).

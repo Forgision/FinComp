@@ -17,49 +17,49 @@
         <ul class="menu menu-horizontal px-1 gap-1">
             <li>
                 <a href="{{ url_for('dashboard') }}"
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'dashboard' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'dashboard' }}">
                     Dashboard
                 </a>
             </li>
             <li>
                 <a href="{{ url_for('orderbook') }}" 
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'orderbook' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'orderbook' }}">
                     Orderbook
                 </a>
             </li>
             <li>
                 <a href="{{ url_for('tradebook') }}" 
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'tradebook' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'tradebook' }}">
                     Tradebook
                 </a>
             </li>
             <li>
                 <a href="{{ url_for('positions') }}" 
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'positions' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'positions' }}">
                     Positions
                 </a>
             </li>
             <li>
                 <a href="{{ url_for('tradingview_json') }}" 
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'tradingview_json' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'tradingview_json' }}">
                     Tradingview
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('index') }}" 
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint.startswith('chartink_bp.') }}">
+                <a href="{{ url_for('chartink_bp.index') }}" 
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name.startswith('chartink') }}">
                     Chartink
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('index') }}"
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint.startswith('strategy_bp.') }}">
+                <a href="{{ url_for('strategy_bp.index') }}"
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name.startswith('strategy') }}">
                     Strategy
                 </a>
             </li>
             <li>
                 <a href="{{ url_for('analyzer') }}"
-                   class="text-base hover:bg-base-200 {{ 'active' if request.endpoint == 'analyzer' }}">
+                   class="text-base hover:bg-base-200 {{ 'active' if request.scope['route'].name == 'analyzer' }}">
                     API Analyzer
                 </a>
             </li>
@@ -166,7 +166,7 @@
         <div class="dropdown dropdown-end">
             <label tabindex="0" class="cursor-pointer">
                 <div class="bg-primary text-primary-content rounded-full w-10 h-10 flex items-center justify-center">
-                    <span class="text-lg font-medium" style="line-height: 1;">{{ session['user'][0]|upper if session.user else 'O' }}</span>
+                    <span class="text-lg font-medium" style="line-height: 1;">{{ session['user'][0]|upper if session and session.user else 'O' }}</span>
                 </div>
             </label>
             <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-100 rounded-box w-52">
@@ -187,7 +187,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('index') }}" class="text-base">
+                    <a href="{{ url_for('telegram_index') }}" class="text-base">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
@@ -195,7 +195,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('holdings') }}" class="text-base">
+                    <a href="{{ url_for('orders.holdings') }}" class="text-base">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                         </svg>
@@ -203,7 +203,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('index') }}" class="text-base">
+                    <a href="{{ url_for('python_strategy_bp.index') }}" class="text-base">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>

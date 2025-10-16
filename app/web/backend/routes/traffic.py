@@ -12,7 +12,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import func
 from app.db.traffic_db import TrafficLog, logs_session
-from app.db.session import get_logs_db
+from .security import get_logs_db
 from app.utils.session import check_session_validity_fastapi
 from app.utils.logging import logger
 from app.utils.web import limiter

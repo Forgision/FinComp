@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.responses import Response
@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.utils.logging import logger
 from ..utils.web import limiter
 from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
-from .backend.routes import auth_router, broker_router, dashboard_router, analyzer_router, apikey_router, brlogin_router, chartink_router, latency_router, log_router, master_contract_status_router, orders_router, pnltracker_router, python_strategy_router, sandbox_router, search_router, security_router, settings_router, strategy_router, telegram_router, traffic_router, tv_json_router, websocket_router
+from .backend.routes import auth_router, broker_router, dashboard_router, analyzer_router, apikey_router, chartink_router, latency_router, log_router, master_contract_status_router, orders_router, pnltracker_router, python_strategy_router, sandbox_router, search_router, security_router, settings_router, strategy_router, telegram_router, traffic_router, tv_json_router, websocket_router
 from .backend.routes.core import core_router as core_router
 from .frontend import templates
 from app.utils.web.socketio import socket_app
@@ -126,7 +126,6 @@ app.include_router(core_router, tags=["core"])
 app.include_router(dashboard_router, tags=["dashboard"])
 app.include_router(analyzer_router, tags=["analyzer"])
 app.include_router(apikey_router, tags=["apikey"])
-app.include_router(brlogin_router, tags=["brlogin"])
 app.include_router(chartink_router, tags=["chartink"])
 app.include_router(latency_router, tags=["latency"])
 app.include_router(log_router, tags=["logs"])
@@ -159,6 +158,21 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
     return JSONResponse(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         content={"detail": "Rate limit exceeded"}
+    )
+    
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 429:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                'status': 'error',
+                'message': 'Rate limit exceeded. Please try again later.'
+            }
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"message": exc.detail}
     )
 
 # @app.get("/favicon.ico", include_in_schema=False)

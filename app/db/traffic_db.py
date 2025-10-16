@@ -7,9 +7,9 @@ from app.core.config import settings
 import logging
 from datetime import datetime, timedelta
 import json
-from database.settings_db import get_security_settings
+from app.db.settings_db import get_security_settings
+from app.utils.logging import logger
 
-logger = logging.getLogger(__name__)
 
 # Use a separate database for logs
 LOGS_DATABASE_URL = settings.LOGS_DATABASE_URL
