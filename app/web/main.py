@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import socketio
 from starlette.responses import Response
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +20,7 @@ from ..utils.web.security import SecurityHeadersMiddleware, CSRFMiddleware
 from .backend.routes import auth_router, broker_router, dashboard_router, analyzer_router, apikey_router, chartink_router, latency_router, log_router, master_contract_status_router, orders_router, pnltracker_router, python_strategy_router, sandbox_router, search_router, security_router, settings_router, strategy_router, telegram_router, traffic_router, tv_json_router, websocket_router
 from .backend.routes.core import core_router as core_router
 from .frontend import templates
-from app.utils.web.socketio import socket_app
+from app.utils.web.socketio import sio
 from app.web.websocket.fastapi_integration import start_websocket_server, cleanup_websocket_server
 
 from app.db.auth_db import init_db as ensure_auth_tables_exists
@@ -81,22 +82,19 @@ async def lifespan(app: FastAPI):
     yield
     cleanup_websocket_server()
 
-app = FastAPI(debug=settings.APP_DEBUG, lifespan=lifespan)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+_app = FastAPI(debug=settings.APP_DEBUG, lifespan=lifespan)
+_app.state.limiter = limiter
+_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount static files
-app.mount("/static", StaticFiles(directory=settings.BASE_DIR / "web/frontend/static"), name="static")
-
-# Mount Socket.IO app
-app.mount("/ws", socket_app)
+_app.mount("/static", StaticFiles(directory=settings.BASE_DIR / "web/frontend/static"), name="static")
 
 # add templete
-templates.env.globals['url_for'] = app.url_path_for
+templates.env.globals['url_for'] = _app.url_path_for
 
 # Apply CORS middleware if enabled
 # if settings.CORS_ENABLED:
-#     app.add_middleware(
+#     _app.add_middleware(
 #         CORSMiddleware,
 #         allow_origins=[origin.strip() for origin in settings.CORS_ALLOWED_ORIGINS.split(',')] if settings.CORS_ALLOWED_ORIGINS else [],
 #         allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
@@ -107,60 +105,66 @@ templates.env.globals['url_for'] = app.url_path_for
 #     )
 
 # Apply Session Middleware
-app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
+_app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
 
 # # Apply Security Headers middleware
-# app.add_middleware(SecurityHeadersMiddleware)
+# _app.add_middleware(SecurityHeadersMiddleware)
 
 # Apply CSRF middleware if enabled
 # if settings.CSRF_ENABLED:
-#     app.add_middleware(
+#     _app.add_middleware(
 #         CSRFMiddleware
 #     )
 
 # Register routers
-app.include_router(auth_router)
-app.include_router(broker_router)
-app.include_router(core_router, tags=["core"])
-# app.include_router(root_router, tags=["web"])
-app.include_router(dashboard_router, tags=["dashboard"])
-app.include_router(analyzer_router, tags=["analyzer"])
-app.include_router(apikey_router, tags=["apikey"])
-app.include_router(chartink_router, tags=["chartink"])
-app.include_router(latency_router, tags=["latency"])
-app.include_router(log_router, tags=["logs"])
-app.include_router(master_contract_status_router)
-app.include_router(orders_router)
-app.include_router(pnltracker_router)
-app.include_router(python_strategy_router)
-app.include_router(sandbox_router)
-app.include_router(search_router)
-app.include_router(security_router)
-app.include_router(settings_router)
-app.include_router(strategy_router)
-app.include_router(telegram_router)
-app.include_router(traffic_router)
-app.include_router(tv_json_router)
-app.include_router(websocket_router)
+_app.include_router(auth_router)
+_app.include_router(broker_router)
+_app.include_router(core_router, tags=["core"])
+# _app.include_router(root_router, tags=["web"])
+_app.include_router(dashboard_router, tags=["dashboard"])
+_app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
+_app.include_router(telegram_router, prefix="/api/v1/telegram", tags=["Telegram"])
+_app.include_router(analyzer_router, tags=["analyzer"])
+_app.include_router(apikey_router, tags=["apikey"])
+_app.include_router(chartink_router, tags=["chartink"])
+_app.include_router(latency_router, tags=["latency"])
+_app.include_router(log_router, tags=["logs"])
+_app.include_router(master_contract_status_router)
+_app.include_router(orders_router)
+_app.include_router(pnltracker_router)
+_app.include_router(python_strategy_router)
+_app.include_router(sandbox_router)
+_app.include_router(search_router)
+_app.include_router(security_router)
+_app.include_router(settings_router)
+_app.include_router(strategy_router)
+_app.include_router(telegram_router)
+_app.include_router(traffic_router)
+_app.include_router(tv_json_router)
+_app.include_router(websocket_router)
+#Following are from app/web/backend/api
+# _app.include_router(account_router, prefix="/api/v1/account", tags=["Account"])
+# _app.include_router(market_data_router, prefix="/api/v1/data", tags=["Market Data"])
+# _app.include_router(utility_router, prefix="/api/v1/utility", tags=["Utility"])
 
 
-@app.get("/test")
+@_app.get("/test")
 async def test():
     return {"message": "Hello World"}
 
-@app.exception_handler(CsrfProtectError)
+@_app.exception_handler(CsrfProtectError)
 def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 # Add rate limit exception handler
-@app.exception_handler(RateLimitExceeded)
+@_app.exception_handler(RateLimitExceeded)
 async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         content={"detail": "Rate limit exceeded"}
     )
     
-@app.exception_handler(HTTPException)
+@_app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 429:
         return JSONResponse(
@@ -182,3 +186,5 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 # @app.get("/config")
 # def get_config():
 #     return settings.model_dump()
+
+app = socketio.ASGIApp(sio, _app)
