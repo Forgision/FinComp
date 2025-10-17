@@ -89,7 +89,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
             logger.error(f"Error clearing symbol cache on logout: {cache_error}")
         
         # Revoke auth token in the database
-        inserted_id = upsert_auth(username, "", "", revoke=True, db=db)
+        inserted_id = upsert_auth(db, username, "", "", revoke=True)
         if inserted_id:
             logger.info(f"Auth revoked in the database for user: {username}")
         else:

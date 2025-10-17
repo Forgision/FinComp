@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-
+from app.core.config import settings
 from .logging import logger
 
 # Placeholder for get_db and Session. Will be properly imported in main.py

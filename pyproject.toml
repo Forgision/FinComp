@@ -153,6 +153,7 @@ dependencies = [
   "fastapi-limiter>=0.1.6",
   "fastapi-csrf-protect>=1.0.7",
   "slowapi>=0.1.9",
+  "python-jose>=3.5.0",
 ]
 
 [tool.pylance]

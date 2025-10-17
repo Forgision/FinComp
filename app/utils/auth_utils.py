@@ -98,7 +98,7 @@ async def handle_auth_success(request: Request, db, auth_token, user_session_key
     request.session['broker'] = broker
     
     # Set session expiry and login time
-    set_session_login_time(request.session)
+    set_session_login_time(request)
     
     logger.info(f"User {user_session_key} logged in successfully with broker {broker}")
 
