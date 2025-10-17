@@ -95,6 +95,16 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Non-Functional Requirements
+
+- **NFR-001 (Performance)**: The system MUST [e.g., respond to API requests under 200ms p95].
+- **NFR-002 (Security)**: All endpoints MUST be [e.g., authenticated and authorized].
+- **NFR-003 (API Design)**: The API MUST adhere to RESTful principles and use Pydantic models for validation.
+- **NFR-004 (Code Quality)**: All code MUST pass `ruff` linting and `black` formatting checks.
+- **NFR-005 (Tooling)**: The project MUST use `uv` for dependency management and execution.
+- **NFR-006 (User Experience)**: All user-facing components MUST adhere to a consistent design language and user experience.
+- **NFR-007 (Frontend Technology)**: The frontend MUST be built using HTML/JS/CSS with Jinja2 for server-side rendering.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

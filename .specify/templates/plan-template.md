@@ -17,7 +17,7 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Language/Version**: [e.g., Python >=3.12, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
@@ -31,7 +31,15 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **I. Strict Code Quality**: Does the proposed plan adhere to the project's code quality standards (ruff, black, PEP 8) and naming conventions?
+- **II. Comprehensive Testing**: Is a TDD approach feasible and is the 90% code coverage target realistic for this feature?
+- **III. API Design and Consistency**: If creating new endpoints, do they follow RESTful principles and use Pydantic models?
+- **IV. Performance as a Feature**: Have potential performance impacts been considered and benchmarked if necessary?
+- **V. Modular Architecture**: Does the plan respect the defined project structure (`app/core/`, `app/db/`, `app/web/`, `app/algo/`, `test/`) and use dependency injection?
+- **VI. Component Interface Definitions**: If adding a new broker or algorithm, does it adhere to the defined interface?
+- **VII. Dependency and Environment Management**: Does the plan account for using `uv` for dependency management and script execution?
+- **VIII. User Experience Consistency**: Does the plan ensure a consistent user experience, adhering to established design patterns and guidelines?
+- **IX. Frontend Technology Stack**: Does the plan utilize HTML/JS/CSS with Jinja2 for server-side rendering, as required?
 
 ## Project Structure
 
@@ -56,39 +64,25 @@ specs/[###-feature]/
 -->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+/
+├── app/                  # Main application container.
+│   ├── core/             # Core components shared across the application.
+│   │   ├── models/       # Pydantic models for request/response validation and data transfer objects (DTOs).
+│   │   └── services/     # Implements the business logic, decoupling the API from the database. Contains CRUD operations and other data processing tasks.
+│   ├── db/               # Database related files
+│   │   └── models/       # Database schemas (SQLAlchemy models).
+│   ├── web/              # Web-facing components, including the API and frontend.
+│   │   ├── main.py       # The main FastAPI application instance and entry point.
+│   │   ├── backend/      # API endpoints (routes) that the frontend consumes. Handles HTTP requests and responses.
+│   │   ├── broker/       # Contains integrations with third-party broker APIs.
+│   │   ├── frontend/     # All frontend-related code: HTML templates, CSS, JavaScript, and static assets. Also includes routes that serve web pages.
+│   │   └── websocket/    # Real-time communication layer using WebSockets.
+│   └── algo/             # Houses quantitative trading strategies and algorithms.
+├── test/                 # Contains all tests for the application (unit, integration, etc.).
+├── .env                  # Environment variable configuration for local development.
+├── Dockerfile            # Defines the Docker image for the application.
+├── docker-compose.yml    # Orchestrates multi-container Docker applications for development.
+└── pyproject.toml        # Project metadata and dependencies, managed by Poetry.
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real

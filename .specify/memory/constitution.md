@@ -1,50 +1,57 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# OpenAlgo SpecKit Migration Constitution
+<!-- 
+This document outlines the non-negotiable principles and standards for the OpenAlgo SpecKit Migration project. 
+Adherence to this constitution is mandatory for all contributions.
+-->
+
+<!--
+Sync Impact Report:
+- Version: 1.3.1 → 1.3.2
+- Modified Principles:
+  - V. Modular Architecture
+- Templates requiring updates:
+  - [ ] .specify/templates/plan-template.md
+  - [ ] .specify/templates/spec-template.md
+  - [ ] .specify/templates/tasks-template.md
+-->
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Strict Code Quality
+All code MUST adhere to PEP 8 standards. Automated linting and formatting are enforced through pre-commit hooks using `ruff` for linting and `black` for formatting. Naming conventions are strictly followed: `PascalCase` for classes and Pydantic models, and `snake_case` for functions, methods, and variables.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Comprehensive Testing
+Test-Driven Development (TDD) is non-negotiable. Tests MUST be written before the implementation code. A minimum of 90% code coverage is required for all core business logic. Unittest is the sole testing framework for this project.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. API Design and Consistency
+All APIs MUST be RESTful. Endpoints should have clear, consistent, and predictable naming schemes. Pydantic models MUST be used for all request and response data validation to ensure type safety and clear contracts.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Performance as a Feature
+Code must be written with performance considerations in mind. Critical code paths and database queries should be benchmarked and optimized. Any feature that introduces a significant performance regression requires explicit justification and approval.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Modular Architecture
+The project is undergoing a strategic restructuring to align with the modular architecture defined in `.specify/memory/structure.md`. The current codebase, located in the `app/` directory, is in a transitional state and will be refactored to match the target structure. The legacy Flask-based project, located in the `.garbage/` directory, serves as a reference for existing functionalities. All new development and refactoring efforts MUST adhere to the target structure to ensure a consistent and maintainable codebase.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Component Interface Definitions
+All broker integrations in `app/web/broker/` and trading algorithms in `app/algo/` MUST adhere to their respective defined interfaces. This ensures consistency, modularity, and allows for dynamic loading and execution of components.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Dependency and Environment Management
+The project MUST use `uv` for managing the Python environment and requires Python version 3.12 or higher. New packages MUST be added using the `uv add` command. All Python scripts and modules MUST be executed using the `uv run` command to ensure they run within the project's managed environment.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### VIII. User Experience Consistency
+All user-facing components MUST adhere to a consistent design language and user experience. This includes consistent naming, layout, and interaction patterns across the application. Any new UI components must be reviewed for consistency before implementation.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### IX. Frontend Technology Stack
+The frontend MUST be built using HTML, JavaScript, and CSS. Server-side rendering MUST be implemented using Jinja2 templates, served via FastAPI. This ensures a clear separation of concerns between the frontend presentation layer and the backend API.
+
+## Development Workflow
+
+### Code Review and Quality Gates
+All code contributions must be submitted via Pull Requests. A PR must be reviewed and approved by at least one other team member before merging. All automated checks (linting, testing, coverage) must pass.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+### Amendment Process
+This constitution is the single source of truth for project standards. Any amendments require a formal proposal, review, and approval from the project leads. An approved amendment must include a migration plan for existing code if applicable. All changes will be reflected in the version number.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.3.2 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-17
