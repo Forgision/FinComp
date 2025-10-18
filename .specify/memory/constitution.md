@@ -6,10 +6,8 @@ Adherence to this constitution is mandatory for all contributions.
 
 <!--
 Sync Impact Report:
-- Version: 1.3.2 → 1.4.0
-- Modified Principles:
-  - V. Modular Architecture
-  - VI. Component Interface Definitions
+- Version: 1.6.0 -> 1.7.0
+- Change: Merged sections "X. Iterative Linting Error Resolution" and "XI. Error Resolution Policy" into a single "X. Linting and Error Resolution Policy" to remove redundancy.
 - Templates requiring updates:
   - [ ] .specify/templates/plan-template.md
   - [ ] .specify/templates/spec-template.md
@@ -53,6 +51,31 @@ All user-facing components MUST adhere to a consistent design language and user 
 ### IX. Frontend Technology Stack
 The frontend MUST be built using HTML, JavaScript, and CSS. Server-side rendering MUST be implemented using Jinja2 templates, served via FastAPI. This ensures a clear separation of concerns between the frontend presentation layer and the backend API.
 
+### X. Linting and Error Resolution Policy
+All `ruff` linting errors MUST be resolved using the systematic, iterative workflow defined in `.kilocode/rules/ruff-linting-strategy.md`. This process is non-negotiable for maintaining code quality and codifies our approach to technical debt. The core workflow is as follows:
+
+1.  **Generate Report**: Create a comprehensive error report to establish a baseline for the current state of linting issues.
+    ```bash
+    uv run .specify/python-tools/check_ruff_errors.py
+    ```
+
+2.  **Triage and Prioritize**: Analyze the report to identify and prioritize the most frequent error codes for efficient resolution.
+    ```bash
+    uv run .specify/python-tools/categorize_ruff_errors.py
+    ```
+
+3.  **Automated Fixes**: Always attempt automated correction first. Run the following commands in sequence to apply both safe and unsafe fixes:
+    ```bash
+    # Apply standard, safe fixes
+    ruff --fix .
+    # Apply unsafe fixes (e.g., for unused imports)
+    ruff --fix --unsafe-fixes .
+    ```
+
+4.  **Manual Fixes**: For errors that persist after automated attempts, perform surgical manual fixes. Use targeted tools like `apply_diff` instead of rewriting entire files.
+
+5.  **Validate and Repeat**: After each round of fixes, return to Step 1 to generate a new report and repeat the cycle until no errors remain.
+
 ## Development Workflow
 
 ### Code Review and Quality Gates
@@ -63,4 +86,4 @@ All code contributions must be submitted via Pull Requests. A PR must be reviewe
 ### Amendment Process
 This constitution is the single source of truth for project standards. Any amendments require a formal proposal, review, and approval from the project leads. An approved amendment must include a migration plan for existing code if applicable. All changes will be reflected in the version number.
 
-**Version**: 1.4.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-18
+**Version**: 1.7.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-18

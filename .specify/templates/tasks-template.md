@@ -246,6 +246,7 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- Adhere to the linting and error resolution policy for all `ruff` errors as defined in the constitution.
 
 
 

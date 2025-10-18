@@ -40,6 +40,7 @@
 - **VII. Dependency and Environment Management**: Does the plan account for using `uv` for dependency management and script execution?
 - **VIII. User Experience Consistency**: Does the plan ensure a consistent user experience, adhering to established design patterns and guidelines?
 - **IX. Frontend Technology Stack**: Does the plan utilize HTML/JS/CSS with Jinja2 for server-side rendering, as required?
+- **X. Linting and Error Resolution Policy**: Does the plan acknowledge and follow the project's iterative linting error resolution process?
 
 ## Project Structure
 
