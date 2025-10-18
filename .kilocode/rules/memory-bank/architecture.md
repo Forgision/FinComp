@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-OpenAlgo is a sophisticated, broker-agnostic algorithmic trading platform built with Python FastAPI that provides a unified API interface for 25+ Indian stock brokers. The platform enables algorithmic trading strategies through REST APIs, WebSocket connections, and an intuitive web interface.
+OpenAlgo is a sophisticated, broker-agnostic algorithmic trading platform built with Python FastAPI that provides a unified API interface for 26+ Indian stock brokers, including Finvasia. The platform enables algorithmic trading strategies through REST APIs, WebSocket connections, and an intuitive web interface.
 
 ## Design Principles
 
