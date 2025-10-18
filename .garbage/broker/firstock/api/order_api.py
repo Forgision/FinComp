@@ -1,10 +1,15 @@
 import json
 import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_symbol
-from broker.firstock.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.logging import get_logger
+
+from broker.firstock.mapping.transform_data import (
+    map_product_type,
+    reverse_map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_symbol, get_token
 from utils.httpx_client import get_httpx_client
+from utils.logging import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -17,30 +22,30 @@ def get_api_response(endpoint, auth, method="POST", payload=None):
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         api_key = os.getenv('BROKER_API_KEY')
         if not api_key:
             raise Exception("BROKER_API_KEY not found in environment variables")
-            
+
         api_key = api_key[:-4]  # Remove last 4 characters
-        
+
         if payload is None:
             payload = {
                 "jKey": auth,
                 "userId": api_key
             }
-        
+
         headers = {'Content-Type': 'application/json'}
         url = f"https://api.firstock.in/V1{endpoint}"
-        
+
         # Make request using shared httpx client
         response = client.request(method, url, json=payload, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility
         response.status = response.status_code
-        
+
         return response.json()
-        
+
     except Exception as e:
         if "timeout" in str(e).lower():
             logger.error("Request timeout while calling Firstock API")
@@ -95,7 +100,7 @@ def get_holdings(auth):
     """Get holdings from Firstock"""
     response = get_api_response("/holdings", auth)
     logger.info(f"Raw holdings response: {json.dumps(response, indent=2)}")
-    
+
     # If successful, get LTP for each holding
     if response.get('status') == 'success':
         for holding in response.get('data', []):
@@ -109,7 +114,7 @@ def get_holdings(auth):
                 else:
                     logger.info(f"Failed to get LTP for {nse_entry['tradingSymbol']}")
                     nse_entry['ltp'] = '0.00'
-    
+
     return response
 
 def get_open_position(tradingsymbol, exchange, producttype, auth):
@@ -129,29 +134,29 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
     tradingsymbol = get_br_symbol(tradingsymbol, exchange)
     if '&' in tradingsymbol:
         tradingsymbol = tradingsymbol.replace('&', '%26')
-    
+
     # Convert product type to Firstock format
     producttype = map_product_type(producttype)
-    
+
     positions_data = get_positions(auth)
     net_qty = '0'
-    
+
     if positions_data.get('status') == 'success':
         positions = positions_data.get('data', [])
         if isinstance(positions, list):
             for position in positions:
-                if (position.get('tradingSymbol') == tradingsymbol and 
-                    position.get('exchange') == exchange and 
+                if (position.get('tradingSymbol') == tradingsymbol and
+                    position.get('exchange') == exchange and
                     position.get('product') == producttype):
                     net_qty = position.get('netQuantity', '0')
                     break
         elif isinstance(positions, dict):
             # Handle case where single position is returned as dict
-            if (positions.get('tradingSymbol') == tradingsymbol and 
-                positions.get('exchange') == exchange and 
+            if (positions.get('tradingSymbol') == tradingsymbol and
+                positions.get('exchange') == exchange and
                 positions.get('product') == producttype):
                 net_qty = positions.get('netQuantity', '0')
-    
+
     return net_qty
 
 def place_order_api(data, auth):
@@ -161,7 +166,7 @@ def place_order_api(data, auth):
     """
     api_key = os.getenv('BROKER_API_KEY')
     api_key = api_key[:-4]
-    
+
     token = get_token(data['symbol'], data['exchange'])
     transformed_data = transform_data(data, token)
     transformed_data.update({
@@ -170,31 +175,31 @@ def place_order_api(data, auth):
     })
 
     logger.info(f"{transformed_data}")
-    
+
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         headers = {'Content-Type': 'application/json'}
-        url = f"https://api.firstock.in/V1/placeOrder"
-        
+        url = "https://api.firstock.in/V1/placeOrder"
+
         # Make request using shared httpx client
         response = client.request("POST", url, json=transformed_data, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility
         response.status = response.status_code
-        
+
         response_data = response.json()
         logger.info(f"Response Status: {response.status}")
         logger.info(f"Response Data: {response_data}")
-        
+
         if response_data.get('status') == 'success':
             orderid = response_data.get('data', {}).get('orderNumber')
         else:
             orderid = None
-            
+
         return response, response_data, orderid
-        
+
     except Exception as e:
         logger.error(f"Error placing order: {e}")
         return None, {"status": "failed", "error": str(e)}, None
@@ -213,15 +218,15 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-    
+
 
     # Get current open position for the symbol
     current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
 
-    logger.info(f"position_size : {position_size}") 
-    logger.info(f"Open Position : {current_position}") 
-    
+    logger.info(f"position_size : {position_size}")
+    logger.info(f"Open Position : {current_position}")
+
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -236,9 +241,9 @@ def place_smartorder_api(data,auth):
         res, response, orderid = place_order_api(data,AUTH_TOKEN)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
-        
+
         return res , response, orderid
-        
+
     elif position_size == current_position:
         if int(data['quantity'])==0:
             response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
@@ -246,8 +251,8 @@ def place_smartorder_api(data,auth):
             response = {"status": "success", "message": "No action needed. Position size matches current position"}
         orderid = None
         return res, response, orderid  # res remains None as no API call was made
-   
-   
+
+
 
     if position_size == 0 and current_position>0 :
         action = "SELL"
@@ -283,9 +288,9 @@ def place_smartorder_api(data,auth):
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
-        
+
         return res , response, orderid
-    
+
 
 
 
@@ -301,7 +306,7 @@ def close_all_positions(current_api_key, auth):
         tuple: (dict with status and message, HTTP status code)
     """
     positions_response = get_positions(auth)
-    
+
     # Initialize counters for summary
     positions_closed = 0
     positions_failed = 0
@@ -358,7 +363,7 @@ def close_all_positions(current_api_key, auth):
 
             # Place the order to close the position
             res, response, orderid = place_order_api(place_order_payload, auth)
-            
+
             if response and response.get('status') == 'success':
                 positions_closed += 1
             else:
@@ -373,7 +378,7 @@ def close_all_positions(current_api_key, auth):
     # Prepare response message
     response = {
         "status": "success" if positions_failed == 0 else "partial",
-        "message": f"Closed {positions_closed} positions" + 
+        "message": f"Closed {positions_closed} positions" +
                   (f", {positions_failed} failed" if positions_failed > 0 else ""),
         "details": {
             "positions_closed": positions_closed,
@@ -417,29 +422,29 @@ def cancel_order(orderid, auth):
     """
     api_key = os.getenv('BROKER_API_KEY')
     api_key = api_key[:-4]  # Remove last 4 characters
-    
+
     # Prepare request data
     request_data = {
         "jKey": auth,
         "userId": api_key,
         "orderNumber": str(orderid)  # Ensure orderid is string
     }
-    
+
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         headers = {'Content-Type': 'application/json'}
-        url = f"https://api.firstock.in/V1/cancelOrder"
-        
+        url = "https://api.firstock.in/V1/cancelOrder"
+
         # Make request using shared httpx client
         response = client.request("POST", url, json=request_data, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility
         response.status = response.status_code
-        
+
         response_data = response.json()
-        
+
         if response_data.get("status") == "success":
             return {
                 "status": "success",
@@ -456,7 +461,7 @@ def cancel_order(orderid, auth):
                 "name": response_data.get("name"),
                 "field": error.get("field")
             }, int(response_data.get("code", 400))
-            
+
     except Exception as e:
         logger.error(f"Error cancelling order: {e}")
         return {
@@ -498,18 +503,18 @@ def modify_order(data, auth):
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         headers = {'Content-Type': 'application/json'}
-        url = f"https://api.firstock.in/V1/modifyOrder"
-        
+        url = "https://api.firstock.in/V1/modifyOrder"
+
         # Make request using shared httpx client
         response = client.request("POST", url, json=transformed_data, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility
         response.status = response.status_code
-        
+
         response_data = response.json()
-        
+
         if response_data.get("status") == "success":
             return {
                 "status": "success",
@@ -517,7 +522,7 @@ def modify_order(data, auth):
                 "details": response_data.get("data", {})
             }, 200
         else:
-            error_msg = (response_data.get("error", {}).get("message") or 
+            error_msg = (response_data.get("error", {}).get("message") or
                         response_data.get("message", "Failed to modify order"))
             return {
                 "status": "error",
@@ -525,7 +530,7 @@ def modify_order(data, auth):
                 "code": response_data.get("code"),
                 "name": response_data.get("name")
             }, response.status or 400
-            
+
     except Exception as e:
         logger.error(f"Error modifying order: {e}")
         return {
@@ -538,7 +543,7 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     #logger.info(f"{order_book_response}")
@@ -560,7 +565,7 @@ def cancel_all_orders_api(data,auth):
             canceled_orders.append(orderid)
         else:
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations
 
 
@@ -577,12 +582,12 @@ def placeorder(data, auth):
     """
     api_key = os.getenv('BROKER_API_KEY')
     api_key = api_key[:-4]  # Remove last 4 characters
-    
+
     token = get_token(data['symbol'], data['exchange'])
     transformed_data = transform_data(data, token)
     transformed_data.update({
         "jKey": auth,
         "userId": api_key
     })
-    
+
     return get_api_response("/placeOrder", auth, payload=transformed_data)

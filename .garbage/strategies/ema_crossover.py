@@ -1,9 +1,8 @@
-from openalgo import api
-import pandas as pd
-import numpy as np
 import time
-import threading
 from datetime import datetime, timedelta
+
+import pandas as pd
+from openalgo import api
 
 # Get API key from openalgo portal
 api_key = 'your-openalgo-api-key'
@@ -28,27 +27,27 @@ def calculate_ema_signals(df):
     Calculate EMA crossover signals.
     """
     close = df['close']
-    
+
     # Calculate EMAs
     ema_fast = close.ewm(span=fast_period, adjust=False).mean()
     ema_slow = close.ewm(span=slow_period, adjust=False).mean()
-    
+
     # Create crossover signals
     crossover = pd.Series(False, index=df.index)
     crossunder = pd.Series(False, index=df.index)
-    
+
     # Previous values of EMAs
     prev_fast = ema_fast.shift(1)
     prev_slow = ema_slow.shift(1)
-    
+
     # Current values of EMAs
     curr_fast = ema_fast
     curr_slow = ema_slow
-    
+
     # Generate crossover signals
     crossover = (prev_fast < prev_slow) & (curr_fast > curr_slow)
     crossunder = (prev_fast > prev_slow) & (curr_fast < curr_slow)
-    
+
     return pd.DataFrame({
         'EMA_Fast': ema_fast,
         'EMA_Slow': ema_slow,

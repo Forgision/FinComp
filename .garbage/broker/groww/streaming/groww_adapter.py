@@ -1,27 +1,25 @@
-import threading
-import json
 import logging
+import os
+import sys
+import threading
 import time
-import zmq
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 
 from database.auth_db import get_auth_token
-from database.token_db import get_token
-
-import sys
-import os
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
 from websocket_proxy.mapping import SymbolMapper
-from .groww_mapping import GrowwExchangeMapper, GrowwCapabilityRegistry
+
+from .groww_mapping import GrowwExchangeMapper
 from .nats_websocket import GrowwNATSWebSocket
+
 
 class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """Groww-specific implementation of the WebSocket adapter"""
-    
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger("groww_websocket")
@@ -31,7 +29,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.running = False
         self.lock = threading.Lock()
         self.subscription_keys = {}  # Map correlation_id to subscription keys
-    
+
     def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize connection with Groww WebSocket API
@@ -46,54 +44,54 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         self.user_id = user_id
         self.broker_name = broker_name
-        
+
         # Get tokens from database if not provided
         if not auth_data:
             # Fetch authentication token from database
             auth_token = get_auth_token(user_id)
-            
+
             if not auth_token:
                 self.logger.error(f"No authentication token found for user {user_id}")
                 raise ValueError(f"No authentication token found for user {user_id}")
         else:
             # Use provided token
             auth_token = auth_data.get('auth_token')
-            
+
             if not auth_token:
                 self.logger.error("Missing required authentication data")
                 raise ValueError("Missing required authentication data")
-        
+
         # Create WebSocket client with callbacks
         self.ws_client = GrowwNATSWebSocket(
             auth_token=auth_token,
             on_data=self._on_data,
             on_error=self._on_error
         )
-        
+
         self.running = True
-        
+
     def connect(self) -> None:
         """Establish connection to Groww WebSocket"""
         if not self.ws_client:
             self.logger.error("WebSocket client not initialized. Call initialize() first.")
             return
-            
+
         try:
             self.logger.info("Connecting to Groww WebSocket")
             self.ws_client.connect()
             self.connected = True
             self.logger.info("Connected to Groww WebSocket successfully")
-            
+
             # Resubscribe to existing subscriptions if any
             with self.lock:
                 for correlation_id, sub_info in self.subscriptions.items():
                     self._resubscribe(correlation_id, sub_info)
-                    
+
         except Exception as e:
             self.logger.error(f"Failed to connect to Groww WebSocket: {e}")
             self.connected = False
             raise
-    
+
     def unsubscribe_all(self) -> Dict[str, Any]:
         """
         Unsubscribe from all active subscriptions with proper cleanup
@@ -229,7 +227,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.subscriptions.clear()
             self.subscription_keys.clear()
             self.cleanup_zmq()
-    
+
     def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5) -> Dict[str, Any]:
         """
         Subscribe to market data with Groww-specific implementation
@@ -245,14 +243,14 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         # Validate the mode
         if mode not in [1, 2, 3]:
-            return self._create_error_response("INVALID_MODE", 
+            return self._create_error_response("INVALID_MODE",
                                               f"Invalid mode {mode}. Must be 1 (LTP), 2 (Quote), or 3 (Depth)")
-                                              
+
         # Groww only supports depth level 5
         if mode == 3 and depth_level != 5:
             self.logger.info(f"Groww only supports depth level 5, using 5 instead of {depth_level}")
             depth_level = 5
-        
+
         # Map symbol to token using symbol mapper
         token_info = SymbolMapper.get_token_from_symbol(symbol, exchange)
         if not token_info:
@@ -289,16 +287,16 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         # Log token details for debugging F&O
         if exchange in ['NFO', 'BFO']:
-            self.logger.info(f"F&O Subscription Debug:")
+            self.logger.info("F&O Subscription Debug:")
             self.logger.info(f"  Symbol: {symbol}")
             self.logger.info(f"  Exchange: {exchange} -> Groww: {groww_exchange}")
             self.logger.info(f"  Segment: {segment}")
             self.logger.info(f"  Token from DB: {token}")
             self.logger.info(f"  Brexchange: {brexchange}")
-        
+
         # Generate unique correlation ID
         correlation_id = f"{symbol}_{exchange}_{mode}"
-        
+
         # Store subscription for reconnection
         with self.lock:
             self.subscriptions[correlation_id] = {
@@ -311,7 +309,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'mode': mode,
                 'depth_level': depth_level
             }
-        
+
         # Subscribe if connected
         if self.connected and self.ws_client:
             try:
@@ -330,7 +328,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     else:
                         # Enhanced logging for BSE depth subscriptions
                         if 'BSE' in groww_exchange:
-                            self.logger.info(f"🔴 Creating BSE DEPTH subscription:")
+                            self.logger.info("🔴 Creating BSE DEPTH subscription:")
                             self.logger.info(f"   Exchange: {groww_exchange}")
                             self.logger.info(f"   Segment: {segment}")
                             self.logger.info(f"   Token: {token}")
@@ -355,11 +353,11 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Extra logging for F&O
                 if exchange in ['NFO', 'BFO']:
                     self.logger.info(f"F&O subscription key created: {sub_key}")
-                
+
             except Exception as e:
                 self.logger.error(f"Error subscribing to {symbol}.{exchange}: {e}")
                 return self._create_error_response("SUBSCRIPTION_ERROR", str(e))
-        
+
         mode_name = {1: 'LTP', 2: 'Quote', 3: 'Depth'}.get(mode, str(mode))
         return self._create_success_response(
             f'Successfully subscribed to {symbol}.{exchange} in {mode_name} mode',
@@ -368,7 +366,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             mode=mode,
             depth_level=depth_level
         )
-    
+
     def unsubscribe(self, symbol: str, exchange: str, mode: int = 2) -> Dict[str, Any]:
         """
         Unsubscribe from market data
@@ -383,36 +381,36 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         # Generate correlation ID
         correlation_id = f"{symbol}_{exchange}_{mode}"
-        
+
         # Check if subscribed
         with self.lock:
             if correlation_id not in self.subscriptions:
-                return self._create_error_response("NOT_SUBSCRIBED", 
+                return self._create_error_response("NOT_SUBSCRIBED",
                                                   f"Not subscribed to {symbol}.{exchange}")
-            
+
             # Remove from subscriptions
             del self.subscriptions[correlation_id]
-        
+
         # Unsubscribe if we have a subscription key
         if correlation_id in self.subscription_keys:
             sub_key = self.subscription_keys[correlation_id]
-            
+
             if self.connected and self.ws_client:
                 try:
                     self.ws_client.unsubscribe(sub_key)
                     self.logger.info(f"Unsubscribed from {symbol}.{exchange}")
                 except Exception as e:
                     self.logger.error(f"Error unsubscribing from {symbol}.{exchange}: {e}")
-                    
+
             del self.subscription_keys[correlation_id]
-        
+
         return self._create_success_response(
             f"Unsubscribed from {symbol}.{exchange}",
             symbol=symbol,
             exchange=exchange,
             mode=mode
         )
-    
+
     def _resubscribe(self, correlation_id: str, sub_info: Dict):
         """Resubscribe to a symbol after reconnection"""
         try:
@@ -420,18 +418,18 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             segment = sub_info['segment']
             token = sub_info['token']
             mode = sub_info['mode']
-            
+
             if mode in [1, 2]:  # LTP or Quote mode
                 sub_key = self.ws_client.subscribe_ltp(groww_exchange, segment, token, sub_info['symbol'])
             elif mode == 3:  # Depth mode
                 sub_key = self.ws_client.subscribe_depth(groww_exchange, segment, token, sub_info['symbol'])
-                
+
             self.subscription_keys[correlation_id] = sub_key
             self.logger.info(f"Resubscribed to {sub_info['symbol']}.{sub_info['exchange']}")
-            
+
         except Exception as e:
             self.logger.error(f"Error resubscribing: {e}")
-    
+
     def _on_data(self, data: Dict[str, Any]) -> None:
         """Callback for market data from WebSocket"""
         try:
@@ -439,7 +437,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             is_bse_depth = False
             if 'depth_data' in data and 'exchange' in data and 'BSE' in data.get('exchange', ''):
                 is_bse_depth = True
-                self.logger.info(f"🔴 BSE DEPTH DATA RECEIVED!")
+                self.logger.info("🔴 BSE DEPTH DATA RECEIVED!")
                 self.logger.info(f"   Depth data: {data.get('depth_data', {})}")
 
             # Debug log the raw message data to see what we're actually receiving
@@ -457,7 +455,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if not (has_market_data or has_subscription_info):
                 self.logger.warning(f"Received data without market data or subscription info: {data}")
                 return
-            
+
             # Find matching subscription based on the data
             subscription = None
             correlation_id = None
@@ -479,16 +477,16 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Special logging for BSE depth
                 if 'BSE' in exchange and mode == 'depth':
-                    self.logger.info(f"🔴 BSE DEPTH: Looking for subscription")
+                    self.logger.info("🔴 BSE DEPTH: Looking for subscription")
 
                 self.logger.info(f"Looking for subscription: symbol={symbol_from_data}, exchange={exchange}, mode={mode}")
                 self.logger.info(f"Available subscriptions: {list(self.subscriptions.keys())}")
-                
+
                 # Find matching subscription based on symbol, exchange and mode
                 with self.lock:
                     for cid, sub in self.subscriptions.items():
                         self.logger.debug(f"Checking {cid}: symbol={sub.get('symbol')}, exchange={sub.get('exchange')}, groww_exchange={sub.get('groww_exchange')}, mode={sub.get('mode')}")
-                        
+
                         # For index subscriptions, the OpenAlgo exchange is NSE_INDEX/BSE_INDEX but Groww sends NSE/BSE
                         # Check if this is an index subscription
                         is_index_match = ((mode == 'index' or mode == 'index_depth') and
@@ -505,21 +503,21 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                                            (mode == 'depth' and sub['mode'] == 3) or
                                            (mode == 'index' and sub['mode'] in [1, 2]) or
                                            (mode == 'index_depth' and sub['mode'] == 3)))
-                        
+
                         if is_index_match or is_regular_match:
                             subscription = sub
                             correlation_id = cid
                             self.logger.info(f"Matched subscription: {cid}")
                             break
-            
+
             # Try to match based on exchange token from protobuf data
             elif 'exchange_token' in data or 'token' in data:
                 token = data.get('exchange_token') or data.get('token')
                 segment = data.get('segment', 'CASH')
                 exchange = data.get('exchange', 'NSE')
-                
+
                 self.logger.info(f"Processing message with token: {token}, segment: {segment}, exchange: {exchange}")
-                
+
                 # Find matching subscription
                 with self.lock:
                     for cid, sub in self.subscriptions.items():
@@ -527,16 +525,16 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             subscription = sub
                             correlation_id = cid
                             break
-            
+
             if not subscription:
                 # Enhanced logging for BSE depth debugging
                 if 'BSE' in str(data) and 'depth' in str(data).lower():
-                    self.logger.error(f"🔴 BSE DEPTH DATA RECEIVED BUT NO SUBSCRIPTION FOUND!")
+                    self.logger.error("🔴 BSE DEPTH DATA RECEIVED BUT NO SUBSCRIPTION FOUND!")
                     self.logger.error(f"   Data: {data}")
                     self.logger.error(f"   Active subscriptions: {self.subscriptions}")
                 self.logger.warning(f"Received data for unsubscribed token/symbol: {data}")
                 return
-            
+
             # Extract symbol and exchange from subscription
             symbol = subscription['symbol']
             # Always use the subscription's exchange for correct labeling (NSE_INDEX, BSE_INDEX, etc.)
@@ -666,14 +664,14 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Verify publication by checking if we can access the data
             if actual_mode == 1 and market_data.get('ltp', 0) > 0:
                 self.logger.info(f"✅ LTP DATA VERIFIED: {exchange}:{symbol} = ₹{market_data['ltp']} published successfully")
-            
+
         except Exception as e:
             self.logger.error(f"Error processing market data: {e}", exc_info=True)
-    
+
     def _on_error(self, error: str) -> None:
         """Callback for WebSocket errors"""
         self.logger.error(f"Groww WebSocket error: {error}")
-    
+
     def _normalize_market_data(self, message: Dict, mode: int) -> Dict[str, Any]:
         """
         Normalize Groww data format to a common format
@@ -689,7 +687,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         if 'ltp_data' in message:
             # This is parsed protobuf data from our NATS implementation
             ltp_data = message['ltp_data']
-            
+
             if mode == 1:  # LTP mode
                 return {
                     'ltp': ltp_data.get('ltp', 0),
@@ -730,7 +728,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     'close': ltp_data.get('close', 0),
                     'volume': ltp_data.get('volume', 0)
                 }
-        
+
         # Handle depth data from protobuf
         if 'depth_data' in message:
             depth_data = message['depth_data']
@@ -743,13 +741,13 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'low': 0,
                 'close': 0
             }
-            
+
             # Add depth data in the same format as Angel
             result['depth'] = {
                 'buy': [],
                 'sell': []
             }
-            
+
             # Extract buy levels
             buy_levels = depth_data.get('buy', [])
             for i in range(5):  # Groww supports 5 levels
@@ -761,7 +759,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         'quantity': 0,
                         'orders': 0
                     })
-            
+
             # Extract sell levels
             sell_levels = depth_data.get('sell', [])
             for i in range(5):  # Groww supports 5 levels
@@ -773,22 +771,22 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         'quantity': 0,
                         'orders': 0
                     })
-            
+
             return result
-        
-        # Handle index data from protobuf  
+
+        # Handle index data from protobuf
         if 'index_data' in message:
             index_data = message['index_data']
             return {
                 'ltp': index_data.get('value', 0),
                 'ltt': index_data.get('timestamp', int(time.time() * 1000))
             }
-        
+
         # Handle legacy formats
         # Check if it's LTP data
         if 'ltp' in message:
             ltp_data = message.get('ltp', {})
-            
+
             # Extract values from nested structure if present
             if isinstance(ltp_data, dict):
                 # Format: {"NSE": {"CASH": {"token": {"tsInMillis": ..., "ltp": ...}}}}
@@ -808,7 +806,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     'ltp': ltp_data,
                     'ltt': message.get('tsInMillis', int(time.time() * 1000))
                 }
-        
+
         # Check if it's depth/market depth data
         if 'buyBook' in message or 'sellBook' in message:
             result = {
@@ -819,7 +817,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     'sell': []
                 }
             }
-            
+
             # Extract buy book
             buy_book = message.get('buyBook', {})
             for i in range(1, 6):  # Groww uses 1-5 indexing
@@ -829,7 +827,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     'quantity': level.get('qty', 0),
                     'orders': level.get('orders', 0)
                 })
-            
+
             # Extract sell book
             sell_book = message.get('sellBook', {})
             for i in range(1, 6):  # Groww uses 1-5 indexing
@@ -839,9 +837,9 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     'quantity': level.get('qty', 0),
                     'orders': level.get('orders', 0)
                 })
-            
+
             return result
-        
+
         # Default format for quote/other data
         return {
             'ltp': message.get('ltp', message.get('last_price', 0)),

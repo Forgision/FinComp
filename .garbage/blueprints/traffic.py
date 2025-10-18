@@ -1,13 +1,14 @@
-from flask import Blueprint, jsonify, render_template, request, session, Response
-from database.traffic_db import TrafficLog, logs_session
-from utils.session import check_session_validity
-from limiter import limiter
-from sqlalchemy import func
-import logging
-from datetime import datetime
-import pytz
 import csv
 import io
+import logging
+from datetime import datetime
+
+import pytz
+from database.traffic_db import TrafficLog, logs_session
+from flask import Blueprint, Response, jsonify, render_template, request
+from limiter import limiter
+from sqlalchemy import func
+from utils.session import check_session_validity
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,10 @@ def generate_csv(logs):
     """Generate CSV file from traffic logs"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write header
     writer.writerow(['Timestamp', 'Client IP', 'Method', 'Path', 'Status Code', 'Duration (ms)', 'Host', 'Error'])
-    
+
     # Write data
     for log in logs:
         writer.writerow([
@@ -48,7 +49,7 @@ def generate_csv(logs):
             log.host,
             log.error
         ])
-    
+
     return output.getvalue()
 
 @traffic_bp.route('/', methods=['GET'])
@@ -108,7 +109,7 @@ def get_stats():
             'error_requests': all_logs.filter(TrafficLog.status_code >= 400).count(),
             'avg_duration': round(float(all_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
         }
-        
+
         # Get API-specific stats
         api_logs = TrafficLog.query.filter(TrafficLog.path.like('/api/v1/%'))
         api_stats = {
@@ -116,7 +117,7 @@ def get_stats():
             'error_requests': api_logs.filter(TrafficLog.status_code >= 400).count(),
             'avg_duration': round(float(api_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
         }
-        
+
         # Get endpoint usage stats
         endpoint_stats = {}
         for endpoint in [
@@ -132,7 +133,7 @@ def get_stats():
                 'errors': endpoint_logs.filter(TrafficLog.status_code >= 400).count(),
                 'avg_duration': round(float(endpoint_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
             }
-        
+
         return jsonify({
             'overall': overall_stats,
             'api': api_stats,
@@ -150,19 +151,19 @@ def export_logs():
     try:
         # Get all logs for the current day
         logs = TrafficLog.get_recent_logs(limit=None)  # None to get all logs
-        
+
         # Generate CSV
         csv_data = generate_csv(logs)
-        
+
         # Create the response
         response = Response(
             csv_data,
             mimetype='text/csv',
             headers={'Content-Disposition': 'attachment; filename=traffic_logs.csv'}
         )
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error exporting traffic logs: {e}")
         return jsonify({'error': str(e)}), 500

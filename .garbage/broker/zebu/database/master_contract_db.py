@@ -1,13 +1,13 @@
-import os
-import httpx
-import zipfile
 import io
-import pandas as pd
+import os
+import zipfile
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+
+import pandas as pd
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -569,7 +569,7 @@ def master_contract_download():
     try:
         download_and_unzip_zebu_data(output_path)
         delete_symtoken_table()
-        
+
         # Placeholders for processing different exchanges
         token_df = process_zebu_nse_data(output_path)
         copy_from_dataframe(token_df)
@@ -583,9 +583,9 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         token_df = process_zebu_bfo_data(output_path)
         copy_from_dataframe(token_df)
-        
+
         delete_zebu_temp_data(output_path)
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
     except Exception as e:
         logger.info(f"{e}")

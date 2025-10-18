@@ -1,7 +1,7 @@
 # api/funds.py
 
-import os
 import json
+
 import httpx
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
@@ -18,24 +18,24 @@ def get_margin_data(auth_token):
         "m2mrealized": "0.00",
         "utiliseddebits": "0.00",
     }
-    
+
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/limits/getRmsLimits"
         headers = {
             'Authorization': f'Bearer {auth_token}',
         }
-        
+
         # Make the API request using the shared client
-        logger.debug(f"Making getRmsLimits request to AliceBlue API")
+        logger.debug("Making getRmsLimits request to AliceBlue API")
         response = client.get(url, headers=headers)
         response.raise_for_status()
-        
+
         margin_data = response.json()
         logger.debug(f"Funds Details: {json.dumps(margin_data, indent=2)}")
-        
+
         # Process the margin data
         for item in margin_data:
             if item.get('stat') == 'Not_Ok':

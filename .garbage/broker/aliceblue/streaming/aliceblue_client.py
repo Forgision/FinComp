@@ -1,15 +1,12 @@
-import requests
-import json
-import hashlib
 import enum
+import hashlib
+import json
 import logging
-from datetime import time, datetime
-from time import sleep
-from collections import namedtuple
-import os
-import websocket
-import ssl
 import threading
+from collections import namedtuple
+
+import requests
+import websocket
 
 logger = logging.getLogger(__name__)
 
@@ -195,19 +192,19 @@ class Aliceblue:
             'Authorization': f'Bearer {self.session_id}'
         }
 
-    # 
+    #
     #     Headers with authorization. For some requests authorization
     #     is not required. It will be send as empty String
-    #     
+    #
     def _request(self, method, req_type, data=None):
 
         headers = self._user_agent()
-        
+
         if req_type != '':
             headers.update(self._user_authorization())
 
         url = self.base + method
-        
+
         response = requests.post(url, json=data, headers=headers, verify=not self.disable_ssl)
 
         if response.status_code == 200:
@@ -293,7 +290,7 @@ class Aliceblue:
     def get_contract_master(self, exchange):
         url = self.base_url_c % exchange
         response = requests.get(url)
-        
+
         if response.status_code == 200:
             return response.content
         else:
@@ -332,10 +329,10 @@ class Aliceblue:
         # Create WebSocket session first
         session_data = {"loginType": "API"}
         session_response = self._request("ws/createWsSession", "A", session_data)
-        
+
         if session_response.get('stat') == 'Ok':
             ws_session = session_response['result']['wsSess']
-            
+
             # Connect to WebSocket
             websocket.enableTrace(True)
             self.ws = websocket.WebSocketApp("wss://ws1.aliceblueonline.com/NorenWS",
@@ -343,7 +340,7 @@ class Aliceblue:
                                            on_message=on_message,
                                            on_error=on_error,
                                            on_close=on_close)
-            
+
             if run_in_background:
                 self.__ws_thread = threading.Thread(target=self.ws.run_forever)
                 self.__ws_thread.daemon = True

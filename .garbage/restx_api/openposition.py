@@ -1,14 +1,14 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
-import traceback
 
-from restx_api.account_schema import OpenPositionSchema
-from services.openposition_service import get_open_position, emit_analyzer_error
-from database.apilog_db import async_log_order, executor as log_executor
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
 from database.settings_db import get_analyze_mode
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
+from restx_api.account_schema import OpenPositionSchema
+from services.openposition_service import emit_analyzer_error, get_open_position
 from utils.logging import get_logger
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
@@ -41,16 +41,16 @@ class OpenPosition(Resource):
 
             # Extract API key
             api_key = position_data.pop('apikey', None)
-            
+
             # Call the service function to get the open position quantity
             success, response_data, status_code = get_open_position(
                 position_data=position_data,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
 
-        except Exception as e:
+        except Exception:
             logger.exception("An unexpected error occurred in OpenPosition endpoint.")
             error_message = 'An unexpected error occurred'
             if get_analyze_mode():

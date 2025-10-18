@@ -1,15 +1,16 @@
 # database/apilog_db.py
 
-import os
 import json
-from sqlalchemy import create_engine, Column, Integer, DateTime, Text
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
+import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+
 import pytz
+from sqlalchemy import Column, DateTime, Integer, Text, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 from utils.logging import get_logger
 
 logger = get_logger(__name__)

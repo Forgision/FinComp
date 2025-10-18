@@ -7,11 +7,15 @@ OpenAlgo – New Broker Integration Test
 • Final green / red roll‑up
 """
 
-import os, sys, time, traceback
+import os
+import sys
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple
+from typing import Dict, List
+
 import pandas as pd
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 colorama_init(autoreset=True)
 
@@ -94,7 +98,7 @@ class Tester:
         sr=StageResult(name)
         class Ctx:
             def __enter__(self_non): return sr
-            def __exit__(self_non,*exc): 
+            def __exit__(self_non,*exc):
                 self.report.add(sr)
                 print(sr.summary_line())  # live progress
         return Ctx()

@@ -12,16 +12,15 @@ Features:
 
 import os
 import sys
+from datetime import datetime
 from decimal import Decimal
-from datetime import datetime, date
+
 import pytz
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.sandbox_db import (
-    SandboxPositions, SandboxHoldings, db_session
-)
+from database.sandbox_db import SandboxHoldings, SandboxPositions, db_session
 from services.quotes_service import get_quotes
 from utils.logging import get_logger
 

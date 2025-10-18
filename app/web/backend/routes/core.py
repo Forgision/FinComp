@@ -1,41 +1,39 @@
-import qrcode
-import io
 import base64
+import io
 
-from fastapi import APIRouter, Depends, Request, Form, status
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+import qrcode
+from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.db.models.auth_db import upsert_api_key
+from app.db.models.session import get_db
+from app.db.models.user_db import add_user, find_user_by_username
 from app.utils.logging import logger
-from app.db.session import get_db
-from app.db.user_db import add_user, find_user_by_username
-from app.db.auth_db import upsert_api_key
 from app.utils.session import check_session_validity_fastapi
-from app.utils.web.flash import flash
-from app.web.frontend import templates
-from app.utils.web.security import generate_api_key # Assuming this path based on design principles
-
+from app.utils.web.security import (
+    generate_api_key,  # Assuming this path based on design principles
+)
 
 core_router = APIRouter()
 
 @core_router.get('/')
 async def home(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return templates.TemplateResponse('index.html', {"request": request})
+    return JSONResponse(content={"message": "Welcome to OpenAlgo!"})
 
 @core_router.get('/download')
 async def download(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return templates.TemplateResponse('download.html', {"request": request})
+    return JSONResponse(content={"message": "Download page."})
 
 @core_router.get('/faq')
 async def faq(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return templates.TemplateResponse('faq.html', {"request": request})
+    return JSONResponse(content={"message": "FAQ page."})
 
 @core_router.get('/setup')
 async def get_setup(request: Request, db: Session = Depends(get_db)):
     if find_user_by_username(db) is not None:
         return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse('setup.html', {"request": request})
+    return JSONResponse(content={"message": "Setup page."})
 
 @core_router.post('/setup')
 async def post_setup(
@@ -78,10 +76,10 @@ async def post_setup(
         request.session['totp_secret'] = user.totp_secret
 
         # Flash message with SMTP setup info and redirect to login
-        flash(request, 'Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.', 'success')
+        # flash(request, 'Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.', 'success')
         return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
     else:
         # If the user already exists or an error occurred, show an error message
         logger.error(f"Failed to create admin user {username}")
-        flash(request, 'User already exists or an error occurred', 'error')
-        return templates.TemplateResponse('setup.html', {"request": request, "error_message": "User already exists or an error occurred"})
+        # flash(request, 'User already exists or an error occurred', 'error')
+        return JSONResponse(content={"error_message": "User already exists or an error occurred"}, status_code=400)

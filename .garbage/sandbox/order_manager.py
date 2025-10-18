@@ -12,19 +12,17 @@ Features:
 
 import os
 import sys
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
 import pytz
-import uuid
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.sandbox_db import (
-    SandboxOrders, SandboxTrades, SandboxPositions, db_session
-)
-from sandbox.fund_manager import FundManager
+from database.sandbox_db import SandboxOrders, SandboxPositions, db_session
 from database.symbol import SymToken
+from sandbox.fund_manager import FundManager
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -113,8 +111,9 @@ class OrderManager:
             # Validate MIS orders - reject if after square-off time but before market open
             # Exception: Allow orders that reduce/close existing positions
             if product == 'MIS':
-                from sandbox.squareoff_manager import SquareOffManager
                 from datetime import time
+
+                from sandbox.squareoff_manager import SquareOffManager
 
                 som = SquareOffManager()
                 square_off_time = som.square_off_times.get(exchange)
@@ -290,7 +289,7 @@ class OrderManager:
                     if order_qty <= existing_qty:
                         # Order will only reduce/close position - no new margin needed
                         actual_margin_to_block = Decimal('0')
-                        logger.info(f"Order will reduce position - no margin required")
+                        logger.info("Order will reduce position - no margin required")
                     else:
                         # Order will reverse position - only block margin for excess quantity
                         excess_qty = order_qty - existing_qty
@@ -656,8 +655,8 @@ class OrderManager:
     def get_orderbook(self):
         """Get all orders for the user for current session only"""
         try:
-            from datetime import datetime, time, timedelta
             import os
+            from datetime import datetime, time, timedelta
 
             # Get session expiry time from config (e.g., '03:00')
             session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')

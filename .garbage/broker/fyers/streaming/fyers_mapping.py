@@ -4,18 +4,19 @@ Maps Fyers HSM data to OpenAlgo format for compatibility
 """
 
 import time
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 
 class FyersDataMapper:
     """
     Maps Fyers HSM WebSocket data to OpenAlgo format
     """
-    
+
     def __init__(self):
         """Initialize the data mapper"""
         pass
-    
+
     def map_to_openalgo_ltp(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to OpenAlgo LTP format
@@ -29,10 +30,10 @@ class FyersDataMapper:
         try:
             if not fyers_data or "ltp" not in fyers_data:
                 return None
-            
+
             # Get the symbol - prefer original_symbol if available
             symbol = fyers_data.get("original_symbol") or fyers_data.get("symbol", "")
-            
+
             # Parse exchange and symbol from original_symbol (e.g., "BSE:TCS-A")
             if ":" in symbol:
                 exchange, symbol_name = symbol.split(":", 1)
@@ -42,26 +43,26 @@ class FyersDataMapper:
             else:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
-            
+
             print(f"LTP Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}")
-            
+
             # Apply multiplier and precision to LTP
             ltp = fyers_data.get("ltp", 0)
             multiplier = fyers_data.get("multiplier", 100)  # Default 100
             precision = fyers_data.get("precision", 2)     # Default 2
-            
+
             # Apply segment-specific conversion
             segment_divisor = 1
             if exchange in ["BSE", "MCX", "NSE", "NFO"]:
                 segment_divisor = 100  # These exchanges send prices in paisa/paise format
-            
+
             # Convert to actual price
             if multiplier > 0:
                 ltp = ltp / multiplier / segment_divisor
-            
+
             # Round to precision
             ltp = round(ltp, precision)
-            
+
             # Map to OpenAlgo LTP format
             openalgo_data = {
                 "symbol": f"{exchange}:{symbol_name}",
@@ -71,13 +72,13 @@ class FyersDataMapper:
                 "timestamp": int(time.time()),
                 "data_type": "LTP"
             }
-            
+
             return openalgo_data
-            
+
         except Exception as e:
             print(f"Error mapping LTP data: {e}")
             return None
-    
+
     def map_to_openalgo_quote(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to OpenAlgo Quote format
@@ -91,10 +92,10 @@ class FyersDataMapper:
         try:
             if not fyers_data:
                 return None
-            
+
             # Get the symbol
             symbol = fyers_data.get("original_symbol") or fyers_data.get("symbol", "")
-            
+
             # Parse exchange and symbol
             if ":" in symbol:
                 exchange, symbol_name = symbol.split(":", 1)
@@ -104,31 +105,31 @@ class FyersDataMapper:
             else:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
-            
-            
+
+
             # Get multiplier and precision from data
             multiplier = fyers_data.get("multiplier", 100)
             precision = fyers_data.get("precision", 2)
-            
+
             # Check if this is an index based on symbol or type
             is_index = (
-                "-INDEX" in symbol or 
+                "-INDEX" in symbol or
                 "-INDEX" in symbol.upper() or
                 "INDEX" in symbol.upper() or
                 fyers_data.get("type") == "if"  # Index feed type in HSM
             )
-            
+
             # Apply segment-specific conversion
             segment_divisor = 1
             if not is_index and exchange in ["BSE", "MCX", "NSE", "NFO"]:
                 segment_divisor = 100  # These exchanges send prices in paisa/paise format
-            
+
             def convert_price(value):
                 if not value or multiplier <= 0:
                     return 0.0
                 # Apply multiplier and segment conversion
                 return round(value / multiplier / segment_divisor, precision)
-            
+
             # Map to OpenAlgo Quote format
             openalgo_data = {
                 "symbol": f"{exchange}:{symbol_name}",
@@ -155,13 +156,13 @@ class FyersDataMapper:
                 "timestamp": int(time.time()),
                 "data_type": "Quote"
             }
-            
+
             return openalgo_data
-            
+
         except Exception as e:
             print(f"Error mapping Quote data: {e}")
             return None
-    
+
     def map_to_openalgo_depth(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Map Fyers depth data to OpenAlgo Depth format
@@ -175,10 +176,10 @@ class FyersDataMapper:
         try:
             if not fyers_data or fyers_data.get("type") != "dp":
                 return None
-            
+
             # Get the symbol
             symbol = fyers_data.get("original_symbol") or fyers_data.get("symbol", "")
-            
+
             # Parse exchange and symbol
             if ":" in symbol:
                 exchange, symbol_name = symbol.split(":", 1)
@@ -188,11 +189,11 @@ class FyersDataMapper:
             else:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
-            
+
             # Apply multiplier and precision
             multiplier = fyers_data.get("multiplier", 100)
             precision = fyers_data.get("precision", 2)
-            
+
             # Apply segment-specific conversion based on exchange
             segment_divisor = 1
             if exchange == "BSE":
@@ -203,46 +204,46 @@ class FyersDataMapper:
                 segment_divisor = 100  # NSE prices also in paisa format
             elif exchange == "NFO":
                 segment_divisor = 100  # NFO prices also in paisa format
-            
+
             def convert_price(value):
                 if value and multiplier > 0:
                     # First apply the multiplier conversion, then segment-specific conversion
                     price = value / multiplier / segment_divisor
                     return round(price, precision)
                 return 0.0
-            
+
             # Build buy and sell arrays (matching other brokers' format)
             buy_levels = []
             sell_levels = []
-            
+
             for i in range(1, 6):  # 5 levels
                 bid_price = convert_price(fyers_data.get(f"bid_price{i}", 0))
                 bid_size = fyers_data.get(f"bid_size{i}", 0)
                 bid_orders = fyers_data.get(f"bid_order{i}", 0)
-                
+
                 ask_price = convert_price(fyers_data.get(f"ask_price{i}", 0))
                 ask_size = fyers_data.get(f"ask_size{i}", 0)
                 ask_orders = fyers_data.get(f"ask_order{i}", 0)
-                
+
                 if bid_price > 0:
                     buy_levels.append({
                         "price": bid_price,
                         "quantity": bid_size,  # Changed from "size" to "quantity"
                         "orders": bid_orders
                     })
-                
+
                 if ask_price > 0:
                     sell_levels.append({
                         "price": ask_price,
                         "quantity": ask_size,  # Changed from "size" to "quantity"
                         "orders": ask_orders
                     })
-            
+
             # Calculate LTP (average of best bid and ask if available)
             ltp = 0
             if buy_levels and sell_levels:
                 ltp = (buy_levels[0]["price"] + sell_levels[0]["price"]) / 2
-            
+
             # Map to OpenAlgo Depth format (matching other brokers)
             openalgo_data = {
                 "symbol": f"{exchange}:{symbol_name}",
@@ -256,13 +257,13 @@ class FyersDataMapper:
                 "timestamp": int(time.time()),
                 "data_type": "Depth"
             }
-            
+
             return openalgo_data
-            
+
         except Exception as e:
             print(f"Error mapping Depth data: {e}")
             return None
-    
+
     def map_index_to_synthetic_depth(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Map Fyers index data to synthetic OpenAlgo Depth format
@@ -277,10 +278,10 @@ class FyersDataMapper:
         try:
             if not fyers_data or fyers_data.get("type") != "if":
                 return None
-            
+
             # Get the symbol
             symbol = fyers_data.get("original_symbol") or fyers_data.get("symbol", "")
-            
+
             # Parse exchange and symbol
             if ":" in symbol:
                 exchange, symbol_name = symbol.split(":", 1)
@@ -290,29 +291,29 @@ class FyersDataMapper:
             else:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
-            
+
             print(f"Index Depth Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}")
-            
+
             # Get LTP from index data and apply proper conversion
             raw_ltp = fyers_data.get("ltp", 0)
             if not raw_ltp:
                 return None
-            
+
             # Apply multiplier and precision conversion for index data
             multiplier = fyers_data.get("multiplier", 100)
             precision = fyers_data.get("precision", 2)
-            
+
             # For indices, apply proper price conversion
             if multiplier > 0:
                 ltp = round(raw_ltp / multiplier, precision)
             else:
                 ltp = raw_ltp
-            
+
             # Create synthetic depth levels around LTP
             # For indices, we'll create small bid-ask spreads around the LTP
             spread_bps = 5  # 0.05% spread on each side
             spread = ltp * spread_bps / 10000
-            
+
             # Create 5 synthetic bid levels (decreasing prices)
             buy_levels = []
             for i in range(5):
@@ -323,7 +324,7 @@ class FyersDataMapper:
                     "quantity": 1000 * (6 - i),  # Higher quantity at better prices
                     "orders": 1
                 })
-            
+
             # Create 5 synthetic ask levels (increasing prices)
             sell_levels = []
             for i in range(5):
@@ -334,7 +335,7 @@ class FyersDataMapper:
                     "quantity": 1000 * (6 - i),  # Higher quantity at better prices
                     "orders": 1
                 })
-            
+
             # Map to OpenAlgo Depth format
             openalgo_data = {
                 "symbol": f"{exchange}:{symbol_name}",
@@ -348,13 +349,13 @@ class FyersDataMapper:
                 "timestamp": int(time.time()),
                 "data_type": "Depth"
             }
-            
+
             return openalgo_data
-            
+
         except Exception as e:
             print(f"Error mapping Index to synthetic Depth data: {e}")
             return None
-    
+
     def map_fyers_data(self, fyers_data: Dict[str, Any], requested_type: str = "Quote") -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to appropriate OpenAlgo format based on requested type
@@ -368,10 +369,10 @@ class FyersDataMapper:
         """
         if not fyers_data:
             return None
-        
+
         # Determine data type from Fyers data if not specified
         fyers_type = fyers_data.get("type", "sf")
-        
+
         if requested_type == "LTP":
             return self.map_to_openalgo_ltp(fyers_data)
         elif requested_type == "Quote":
@@ -390,9 +391,9 @@ class FyersDataMapper:
         elif fyers_type == "dp":
             # Depth data
             return self.map_to_openalgo_depth(fyers_data)
-        
+
         return None
-    
+
     def extract_symbol_info(self, symbol: str) -> Dict[str, str]:
         """
         Extract exchange and symbol from OpenAlgo format
@@ -409,13 +410,13 @@ class FyersDataMapper:
             # Default to NSE if no exchange specified
             exchange = "NSE"
             symbol_name = symbol
-        
+
         return {
             "exchange": exchange,
             "symbol": symbol_name,
             "full_symbol": f"{exchange}:{symbol_name}"
         }
-    
+
     def is_valid_data(self, data: Dict[str, Any]) -> bool:
         """
         Check if the data contains valid market data
@@ -428,19 +429,19 @@ class FyersDataMapper:
         """
         if not data:
             return False
-        
+
         # Check for required fields
         required_fields = ["symbol", "exchange"]
         for field in required_fields:
             if field not in data or not data[field]:
                 return False
-        
+
         # Check for at least one price field
         price_fields = ["ltp", "open", "high", "low", "close", "bid_price", "ask_price"]
         has_price = any(field in data and data[field] is not None for field in price_fields)
-        
+
         return has_price
-    
+
     def format_timestamp(self, timestamp: int) -> str:
         """
         Format timestamp to readable string

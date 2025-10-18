@@ -1,7 +1,8 @@
 # utils/plugin_loader.py
 
-import os
 import importlib
+import os
+
 from flask import current_app
 from utils.logging import get_logger
 

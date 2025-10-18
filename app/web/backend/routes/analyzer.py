@@ -1,21 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import pytz
-import json
-import io
 import csv
+import io
+import json
 import traceback
-import os
+from datetime import datetime, timedelta
 
-from app.db.analyzer_db import AnalyzerLog
-from app.db.session import get_db
+import pytz
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+from app.db.models.analyzer_db import AnalyzerLog
+from app.db.models.session import get_db
 from app.utils.api_analyzer import get_analyzer_stats
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
-from app.web.frontend import templates
 
 analyzer_router = APIRouter(prefix="/analyzer", tags=["analyzer"])
 
@@ -28,7 +26,7 @@ def format_request(req, ist):
     try:
         request_data = json.loads(req.request_data) if isinstance(req.request_data, str) else req.request_data
         response_data = json.loads(req.response_data) if isinstance(req.response_data, str) else req.response_data
-        
+
         # Base request info
         formatted_request = {
             'timestamp': req.created_at.astimezone(ist).strftime('%Y-%m-%d %H:%M:%S'),
@@ -60,7 +58,7 @@ def format_request(req, ist):
             formatted_request.update({
                 'orderid': request_data.get('orderid', 'Unknown')
             })
-        
+
         return formatted_request
     except Exception as e:
         logger.error(f"Error formatting request {req.id}: {str(e)}")
@@ -72,12 +70,12 @@ def get_recent_requests(db: Session):
         ist = pytz.timezone('Asia/Kolkata')
         recent = db.query(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100).all()
         requests = []
-        
+
         for req in recent:
             formatted = format_request(req, ist)
             if formatted:
                 requests.append(formatted)
-                
+
         return requests
     except Exception as e:
         logger.error(f"Error getting recent requests: {str(e)}")
@@ -97,7 +95,7 @@ def get_filtered_requests(db: Session, start_date: str = None, end_date: str = N
             end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
             # To include the entire end_date, filter up to the end of the day
             query = query.filter(AnalyzerLog.created_at < (end_date_obj + timedelta(days=1)))
-        
+
         # If no dates provided, default to today
         if not start_date and not end_date:
             today_ist = datetime.now(ist).date()
@@ -107,12 +105,12 @@ def get_filtered_requests(db: Session, start_date: str = None, end_date: str = N
         # Get results ordered by created_at
         results = query.order_by(AnalyzerLog.created_at.desc()).all()
         requests = []
-        
+
         for req in results:
             formatted = format_request(req, ist)
             if formatted:
                 requests.append(formatted)
-                
+
         return requests
     except Exception as e:
         logger.error(f"Error getting filtered requests: {str(e)}\n{traceback.format_exc()}")
@@ -123,12 +121,12 @@ def generate_csv(requests):
     try:
         output = io.StringIO()
         writer = csv.writer(output)
-        
+
         # Write headers
-        headers = ['Timestamp', 'API Type', 'Source', 'Symbol', 'Exchange', 'Action', 
+        headers = ['Timestamp', 'API Type', 'Source', 'Symbol', 'Exchange', 'Action',
                   'Quantity', 'Price Type', 'Product Type', 'Status', 'Error Message']
         writer.writerow(headers)
-        
+
         # Write data
         for req in requests:
             row = [
@@ -145,7 +143,7 @@ def generate_csv(requests):
                 req['analysis'].get('error', '')
             ]
             writer.writerow(row)
-        
+
         return output.getvalue()
     except Exception as e:
         logger.error(f"Error generating CSV: {str(e)}\n{traceback.format_exc()}")
@@ -182,29 +180,15 @@ async def analyzer(
 
         # Get filtered requests
         requests = get_filtered_requests(db, start_date, end_date)
-        
-        return templates.TemplateResponse(
-            "analyzer.html",
-            {
-                "request": request,
-                "requests": requests,
-                "stats": stats,
-                "start_date": start_date,
-                "end_date": end_date,
-                "current_user": current_user, # Pass current_user to template
-            }
-        )
+
+        return JSONResponse(content={"requests": requests, "stats": stats, "start_date": start_date, "end_date": end_date, "current_user": current_user})
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
         logger.error(f"Error rendering analyzer: {str(e)}\n{traceback.format_exc()}")
         # FastAPI doesn't have flash messages like Flask.
         # You might want to add a dependency for flash messages or handle errors differently.
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "message": "Error loading analyzer dashboard"},
-            status_code=500
-        )
+        return JSONResponse(content={"message": "Error loading analyzer dashboard"}, status_code=500)
 
 @analyzer_router.get("/stats")
 async def get_stats(
@@ -282,10 +266,10 @@ async def export_requests(
     try:
         # Get filtered requests
         requests = get_filtered_requests(db, start_date, end_date)
-        
+
         # Generate CSV
         csv_data = generate_csv(requests)
-        
+
         # Create the response
         response = Response(content=csv_data, media_type='text/csv')
         response.headers["Content-Disposition"] = f"attachment; filename=analyzer_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

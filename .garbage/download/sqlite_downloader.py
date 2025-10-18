@@ -1,11 +1,12 @@
-import os
 import json
+import os
 import time
-import pandas as pd
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, MetaData
-from openalgo import api
+
+import pandas as pd
 from dotenv import load_dotenv
+from openalgo import api
+from sqlalchemy import MetaData, create_engine
 
 # Load environment variables
 load_dotenv()
@@ -78,7 +79,7 @@ def fetch_and_store(symbol):
 
     # Convert timestamps from UTC to IST (subtract 5:30 hours)
     ist_timestamps = df.index - timedelta(hours=5, minutes=30)
-    
+
     df['SYMBOL'] = symbol
     df['DATE'] = ist_timestamps.strftime('%Y-%m-%d %H:%M:%S')
     df = df[['SYMBOL', 'DATE', 'open', 'high', 'low', 'close', 'volume']]

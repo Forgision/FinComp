@@ -1,14 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.web.models.api_schemas import APIKeySchema, FundsResponse, OrderbookResponse, TradebookResponse, PositionbookResponse, HoldingsResponse, OpenPositionResponse, OpenPositionRequest
-from app.web.services.funds_service import get_funds
-from app.web.services.orderbook_service import get_orderbook
-from app.web.services.tradebook_service import get_tradebook
-from app.web.services.positionbook_service import get_positionbook
-from app.web.services.holdings_service import get_holdings
-from app.web.services.openposition_service import get_open_position, emit_analyzer_error
+
+from app.core.models.api_schemas import (
+    APIKeySchema,
+    FundsResponse,
+    HoldingsResponse,
+    OpenPositionRequest,
+    OpenPositionResponse,
+    OrderbookResponse,
+    PositionbookResponse,
+    TradebookResponse,
+)
+from app.core.services.funds_service import get_funds
+from app.core.services.holdings_service import get_holdings
+from app.core.services.openposition_service import (
+    emit_analyzer_error,
+    get_open_position,
+)
+from app.core.services.orderbook_service import get_orderbook
+from app.core.services.positionbook_service import get_positionbook
+from app.core.services.tradebook_service import get_tradebook
+from app.db.models.apilog_db import async_log_order
+from app.db.models.apilog_db import executor as log_executor
+from app.db.models.settings_db import get_analyze_mode
 from app.utils.logging import logger
-from app.db.apilog_db import async_log_order, executor as log_executor
-from app.db.settings_db import get_analyze_mode
 
 router = APIRouter()
 
@@ -112,7 +126,7 @@ async def openposition_endpoint(
     try:
         api_key = open_position_request.apikey
         position_data = open_position_request.dict(exclude_unset=True, exclude={"apikey"})
-        
+
         success, response_data, status_code = await get_open_position(
             position_data=position_data,
             api_key=api_key
@@ -123,20 +137,20 @@ async def openposition_endpoint(
                 # and returns a dict compatible with HTTPException detail
                 error_detail = emit_analyzer_error(open_position_request.dict(), response_data.get("message", "An error occurred"))
                 raise HTTPException(status_code=status_code, detail=error_detail)
-            
+
             log_executor.submit(async_log_order, 'openposition', open_position_request.dict(), response_data)
             raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-        
+
         return OpenPositionResponse(**response_data)
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("An unexpected error occurred in OpenPosition endpoint.")
         error_message = 'An unexpected error occurred'
         if get_analyze_mode():
             # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
             error_detail = emit_analyzer_error(open_position_request.dict(), error_message)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
-        
+
         log_executor.submit(async_log_order, 'openposition', open_position_request.dict(), {'status': 'error', 'message': error_message})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_message)

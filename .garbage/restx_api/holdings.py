@@ -1,13 +1,13 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
-import traceback
 
-from .account_schema import HoldingsSchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.holdings_service import get_holdings
 from utils.logging import get_logger
+
+from .account_schema import HoldingsSchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('holdings', description='Holdings API')
@@ -28,10 +28,10 @@ class Holdings(Resource):
             holdings_data = holdings_schema.load(request.json)
 
             api_key = holdings_data['apikey']
-            
+
             # Call the service function to get holdings data with API key
             success, response_data, status_code = get_holdings(api_key=api_key)
-            
+
             return make_response(jsonify(response_data), status_code)
 
         except ValidationError as err:

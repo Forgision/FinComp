@@ -1,10 +1,11 @@
 import json
-import threading
-import zmq
+import os
 import random
 import socket
-import os
+import threading
 from abc import ABC, abstractmethod
+
+import zmq
 from utils.logging import get_logger
 
 # Initialize logger
@@ -36,34 +37,34 @@ def find_free_zmq_port(start_port=5556, max_attempts=50):
     """
     # Create logger here instead of using self.logger because this is a standalone function
     logger = get_logger("zmq_port_finder")
-    
+
     # First check if any ports in the bound_ports set are actually free now
     # This handles cases where the process that had the port died without cleanup
     with BaseBrokerWebSocketAdapter._port_lock:
-        ports_to_remove = [port for port in BaseBrokerWebSocketAdapter._bound_ports 
+        ports_to_remove = [port for port in BaseBrokerWebSocketAdapter._bound_ports
                           if is_port_available(port)]
-        
+
         # Remove ports that are actually available now
         for port in ports_to_remove:
             BaseBrokerWebSocketAdapter._bound_ports.remove(port)
             logger.info(f"Port {port} removed from bound ports registry")
-    
+
     # Now find a new free port
     for _ in range(max_attempts):
         # Try a sequential port first, then random if that fails
-        if (start_port not in BaseBrokerWebSocketAdapter._bound_ports and 
+        if (start_port not in BaseBrokerWebSocketAdapter._bound_ports and
             is_port_available(start_port)):
             return start_port
-            
+
         # Try a random port between start_port and 65535
         random_port = random.randint(start_port, 65535)
-        if (random_port not in BaseBrokerWebSocketAdapter._bound_ports and 
+        if (random_port not in BaseBrokerWebSocketAdapter._bound_ports and
             is_port_available(random_port)):
             return random_port
-            
+
         start_port = min(start_port + 1, 65000)
-    
-    # If we get here, we couldn't find an available port 
+
+    # If we get here, we couldn't find an available port
     logger.error("Failed to find an available port after maximum attempts")
     return None
 
@@ -77,30 +78,30 @@ class BaseBrokerWebSocketAdapter(ABC):
     _port_lock = threading.Lock()
     _shared_context = None
     _context_lock = threading.Lock()
-    
+
     def __init__(self):
         self.logger = get_logger("broker_adapter")
         self.logger.info("BaseBrokerWebSocketAdapter initializing")
-        
+
         try:
             # Initialize shared ZeroMQ context
             self._initialize_shared_context()
-            
+
             # Create socket and bind to port
             self.socket = self._create_socket()
             self.zmq_port = self._bind_to_available_port()
             os.environ["ZMQ_PORT"] = str(self.zmq_port)
-            
+
             # Initialize instance variables
             self.subscriptions = {}
             self.connected = False
-            
+
             self.logger.info(f"BaseBrokerWebSocketAdapter initialized on port {self.zmq_port}")
-            
+
         except Exception as e:
             self.logger.error(f"Error in BaseBrokerWebSocketAdapter init: {e}")
             raise
-    
+
     def _initialize_shared_context(self):
         """
         Initialize shared ZeroMQ context if not already created
@@ -109,9 +110,9 @@ class BaseBrokerWebSocketAdapter(ABC):
             if not BaseBrokerWebSocketAdapter._shared_context:
                 self.logger.info("Creating shared ZMQ context")
                 BaseBrokerWebSocketAdapter._shared_context = zmq.Context()
-        
+
         self.context = BaseBrokerWebSocketAdapter._shared_context
-    
+
     def _create_socket(self):
         """
         Create and configure ZeroMQ socket
@@ -121,7 +122,7 @@ class BaseBrokerWebSocketAdapter(ABC):
             socket.setsockopt(zmq.LINGER, 1000)  # 1 second linger
             socket.setsockopt(zmq.SNDHWM, 1000)  # High water mark
             return socket
-        
+
     def _bind_to_available_port(self):
         """
         Find an available port and bind the socket to it
@@ -129,8 +130,8 @@ class BaseBrokerWebSocketAdapter(ABC):
         with self._port_lock:
             # Try default port from environment first
             default_port = int(os.getenv('ZMQ_PORT', '5555'))
-            
-            if (default_port not in self._bound_ports and 
+
+            if (default_port not in self._bound_ports and
                 is_port_available(default_port)):
                 try:
                     self.socket.bind(f"tcp://*:{default_port}")
@@ -139,15 +140,15 @@ class BaseBrokerWebSocketAdapter(ABC):
                     return default_port
                 except zmq.ZMQError as e:
                     self.logger.warning(f"Failed to bind to default port {default_port}: {e}")
-            
+
             # Find random available port
             for attempt in range(5):
                 port = find_free_zmq_port(start_port=5556 + random.randint(0, 1000))
-                
+
                 if not port:
                     self.logger.warning(f"Failed to find free port on attempt {attempt+1}")
                     continue
-                    
+
                 try:
                     self.socket.bind(f"tcp://*:{port}")
                     self._bound_ports.add(port)
@@ -156,9 +157,9 @@ class BaseBrokerWebSocketAdapter(ABC):
                 except zmq.ZMQError as e:
                     self.logger.warning(f"Failed to bind to port {port}: {e}")
                     continue
-            
+
             raise RuntimeError("Could not bind to any available ZMQ port after multiple attempts")
-        
+
     @abstractmethod
     def initialize(self, broker_name, user_id, auth_data=None):
         """
@@ -170,7 +171,7 @@ class BaseBrokerWebSocketAdapter(ABC):
             auth_data: Dict containing authentication data, if not provided will fetch from DB
         """
         pass
-        
+
     @abstractmethod
     def subscribe(self, symbol, exchange, mode=2, depth_level=5):
         """
@@ -186,7 +187,7 @@ class BaseBrokerWebSocketAdapter(ABC):
             dict: Response with status and capability information
         """
         pass
-        
+
     @abstractmethod
     def unsubscribe(self, symbol, exchange, mode=2):
         """
@@ -201,21 +202,21 @@ class BaseBrokerWebSocketAdapter(ABC):
             dict: Response with status
         """
         pass
-        
+
     @abstractmethod
     def connect(self):
         """
         Establish connection to the broker's WebSocket
         """
         pass
-        
+
     @abstractmethod
     def disconnect(self):
         """
         Disconnect from the broker's WebSocket
         """
         pass
-        
+
     def cleanup_zmq(self):
         """
         Properly clean up ZeroMQ resources and release bound ports
@@ -226,15 +227,15 @@ class BaseBrokerWebSocketAdapter(ABC):
                 with self._port_lock:
                     self._bound_ports.discard(self.zmq_port)
                     self.logger.info(f"Released port {self.zmq_port}")
-            
+
             # Close the socket
             if hasattr(self, 'socket') and self.socket:
                 self.socket.close(linger=0)  # Don't linger on close
                 self.logger.info("ZeroMQ socket closed")
-                
+
         except Exception as e:
             self.logger.exception(f"Error cleaning up ZeroMQ resources: {e}")
-            
+
     def __del__(self):
         """
         Destructor to ensure ZeroMQ resources are properly cleaned up
@@ -245,7 +246,7 @@ class BaseBrokerWebSocketAdapter(ABC):
             # Can't use self.logger here as it might be gone during destruction
             logger.exception(f"Error in __del__ cleaning up ZMQ resources: {e}")
             pass
-    
+
     def publish_market_data(self, topic, data):
         """
         Publish market data to ZeroMQ subscribers
@@ -261,7 +262,7 @@ class BaseBrokerWebSocketAdapter(ABC):
             ])
         except Exception as e:
             self.logger.exception(f"Error publishing market data: {e}")
-    
+
     def _create_success_response(self, message, **kwargs):
         """
         Create a standard success response
@@ -272,7 +273,7 @@ class BaseBrokerWebSocketAdapter(ABC):
         }
         response.update(kwargs)
         return response
-    
+
     def _create_error_response(self, code, message):
         """
         Create a standard error response

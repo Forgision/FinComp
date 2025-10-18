@@ -1,10 +1,11 @@
 import os
+from datetime import datetime
+
 import httpx
 import pandas as pd
-from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,12 +47,12 @@ class SymToken(Base):
 def init_db():
     """Initialize the database and create tables"""
     logger.info("Initializing Master Contract DB")
-    
+
     # Create database directory if it doesn't exist
     db_path = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
     if db_path and not os.path.exists(db_path):
         os.makedirs(db_path)
-    
+
     Base.metadata.create_all(bind=engine)
 
 def delete_symtoken_table():
@@ -97,12 +98,12 @@ def get_scrip_groups():
         response.raise_for_status()
         data = response.json()
         logger.info(f"Received scrip groups data: {data}")
-        
+
         # Extract symbolStore array from response
         if isinstance(data, dict) and 's' in data and data['s'] == 'ok':
             if 'd' in data and 'symbolStore' in data['d']:
                 return data['d']['symbolStore']
-        
+
         logger.info(f"Unexpected response format: {data}")
         return []
     except Exception as e:
@@ -117,22 +118,22 @@ def get_scrip_data(scrip_group):
         params = {'version': '0'}
         response = client.get(SCRIP_DATA_URL.format(group=scrip_group), params=params)
         response.raise_for_status()
-        
+
         # Split the response text into lines
         lines = response.text.strip().split('\n')
         if not lines:
             return []
-            
+
         # First line contains headers
         headers = lines[0].strip().split(',')
-        
+
         # Convert remaining lines into list of dicts
         data = []
         for line in lines[1:]:
             values = line.strip().split(',')
             if len(values) == len(headers):
                 data.append(dict(zip(headers, values)))
-        
+
         logger.info(f"Processed {len(data)} records for {scrip_group}")
         return data
     except Exception as e:
@@ -146,33 +147,33 @@ def format_symbol(row, id_format):
         if id_format == 'instrument_symbol_series_exchange':
             # For equity symbols
             return row.get('symbol', '')
-            
+
         elif id_format == 'instrument_symbol_exchange_expiry':
             # For futures
             symbol = row.get('symbol', '')
             expiry = row.get('expiry', '')
             return f"{symbol}{expiry}FUT" if expiry else symbol
-            
+
         elif id_format == 'instrument_symbol_exchange_expiry_strike_optType':
             # For options
             symbol = row.get('symbol', '')
             expiry = row.get('expiry', '')
             strike = row.get('strikePrice')
             opt_type = row.get('optionType', 'CE')
-            
+
             if all([symbol, expiry, strike, opt_type]):
                 strike_fmt = int(float(strike)) if float(strike).is_integer() else float(strike)
                 return f"{symbol}{expiry}{strike_fmt}{opt_type}"
             return symbol
-            
+
         elif id_format == 'instrument_excToken_exchange':
             # For indices
             return row.get('symbol', '').replace(' ', '')
-            
+
         else:
             # Default to trading symbol if format not recognized
             return row.get('tradingSymbol', row.get('symbol', ''))
-            
+
     except Exception as e:
         logger.error(f"Error formatting symbol with format {id_format}: {e}")
         return row.get('tradingSymbol', row.get('symbol', ''))
@@ -180,26 +181,26 @@ def format_symbol(row, id_format):
 def process_scrip_data(scrip_data, group_info):
     """Process scrip data into DataFrame format"""
     records = []
-    
+
     # Convert CSV string to list of dictionaries if needed
     if isinstance(scrip_data, str):
         lines = scrip_data.strip().split('\n')
         if not lines:
             return pd.DataFrame()
-            
+
         # First line contains headers
         headers = lines[0].strip().split(',')
-        
+
         # Convert remaining lines into list of dicts
         scrip_data = []
         for line in lines[1:]:
             values = line.strip().split(',')
             if len(values) == len(headers):
                 scrip_data.append(dict(zip(headers, values)))
-    
+
     # Get group name and format
     group_name = group_info.get('name', '')
-    
+
     # Common index symbol mappings
     COMMON_INDEX_MAP = {
         'NSE_INDEX': [
@@ -210,7 +211,7 @@ def process_scrip_data(scrip_data, group_info):
             'SENSEX', 'BANKEX', 'SENSEX50'
         ]
     }
-    
+
     # Handle index data separately
     if group_name == 'Index':
         # Process index records
@@ -220,23 +221,23 @@ def process_scrip_data(scrip_data, group_info):
                 parts = item['id'].split('_')
                 if len(parts) >= 3:
                     raw_exchange = parts[-1]  # Last part is exchange (NSE/BSE)
-                    
+
                     # Map exchange for OpenAlgo format
                     exchange_map = {
                         'NSE': 'NSE_INDEX',
                         'BSE': 'BSE_INDEX'
                     }
-                    
+
                     # Symbol mapping for special cases
                     symbol_map = {
                         'India VIX': 'INDIAVIX',
                         'SNXT50': 'SENSEX50'
                     }
-                    
+
                     # Apply symbol mapping if needed
                     if item['symbol'] in symbol_map:
                         item['symbol'] = symbol_map[item['symbol']]
-                    
+
                     record = {
                         'symbol': item['symbol'],  # Use symbol field directly
                         'brsymbol': item['dispName'],  # Use display name as broker symbol
@@ -261,18 +262,18 @@ def process_scrip_data(scrip_data, group_info):
                 # Skip spot records
                 if 'spot' in item['id'].lower():
                     continue
-                    
+
                 # Parse the id to get exchange and other details
                 parts = item['id'].split('_')
                 if len(parts) < 2:  # Need at least instrument type and symbol
                     continue
-                    
+
                 instr_type = parts[0]
-                
+
                 # Skip spot records early
                 if item.get('asset') == 'spot' or 'spot' in item['id'].lower():
                     continue
-                
+
                 # Handle different groups
                 if group_name == 'Securities':
                     # Format: instrument_symbol_series_exchange
@@ -292,19 +293,19 @@ def process_scrip_data(scrip_data, group_info):
                             'tick_size': float(item.get('tick', 0.05))
                         }
                         records.append(record)
-                        
+
                 elif group_name in ['FutureContracts', 'CurrencyFuture', 'CommodityFuture']:
                     # Format: instrument_symbol_exchange_expiry
                     if len(parts) >= 4:
                         base_symbol = parts[1]
                         exchange = parts[2]
                         expiry_date = parts[3]
-                        
+
                         try:
                             expiry_dt = datetime.strptime(expiry_date, '%Y-%m-%d')
                             expiry_formatted = expiry_dt.strftime('%d%b%y').upper()
                             openalgo_symbol = f"{base_symbol}{expiry_formatted}FUT"
-                            
+
                             record = {
                                 'symbol': openalgo_symbol,
                                 'brsymbol': item['id'],
@@ -321,7 +322,7 @@ def process_scrip_data(scrip_data, group_info):
                             records.append(record)
                         except Exception as e:
                             logger.info(f"Error processing future {item['id']}: {e}")
-                            
+
                 elif group_name in ['NSEOptions', 'BSEOptions', 'CurrencyOptions', 'CommodityOptions']:
                     # Format: instrument_symbol_exchange_expiry_strike_optType
                     if len(parts) >= 6:
@@ -330,13 +331,13 @@ def process_scrip_data(scrip_data, group_info):
                         expiry_date = parts[3]
                         strike_price = float(parts[4])
                         option_type = parts[5]
-                        
+
                         try:
                             expiry_dt = datetime.strptime(expiry_date, '%Y-%m-%d')
                             expiry_formatted = expiry_dt.strftime('%d%b%y').upper()
                             strike_str = str(int(strike_price)) if strike_price.is_integer() else str(strike_price)
                             openalgo_symbol = f"{base_symbol}{expiry_formatted}{strike_str}{option_type}"
-                            
+
                             record = {
                                 'symbol': openalgo_symbol,
                                 'brsymbol': item['id'],
@@ -353,20 +354,20 @@ def process_scrip_data(scrip_data, group_info):
                             records.append(record)
                         except Exception as e:
                             logger.info(f"Error processing option {item['id']}: {e}")
-                            
+
                 elif instr_type == 'IDX':
                     # Handle index symbols
                     raw_exchange = parts[-1]  # Last part is exchange (NSE/BSE)
-                    
+
                     # Map exchange for OpenAlgo format
                     exchange_map = {
                         'NSE': 'NSE_INDEX',
                         'BSE': 'BSE_INDEX'
                     }
-                    
+
                     # Get OpenAlgo exchange
                     openalgo_exchange = exchange_map.get(raw_exchange, raw_exchange)
-                    
+
                     # Check if this is a common index symbol
                     if openalgo_exchange == 'BSE_INDEX':
                         # Handle BSE indices
@@ -450,43 +451,43 @@ def process_scrip_data(scrip_data, group_info):
             except Exception as e:
                 logger.error(f"Error processing item {item}: {e}")
                 continue
-    
+
     return pd.DataFrame(records)
 
 def master_contract_download():
     """Download and process Tradejini scrip data"""
     logger.info("Starting Tradejini Master Contract Download")
-    
+
     try:
         # Delete existing data
         delete_symtoken_table()
-        
+
         # Get scrip groups
         scrip_groups = get_scrip_groups()
         if not scrip_groups:
             logger.info("No scrip groups found. Exiting.")
             return False
-            
+
         logger.info(f"Found {len(scrip_groups)} scrip groups")
-        
+
         # Process each scrip group
         for group in scrip_groups:
             try:
                 group_name = group.get('name')
                 if not group_name:
                     continue
-                    
+
                 logger.info(f"Processing group: {group_name} (format: {group.get('idFormat')})")
                 scrip_data = get_scrip_data(group_name)
-                
+
                 if scrip_data:
                     # Check if response is successful
                     if isinstance(scrip_data, dict) and scrip_data.get('s') == 'ok':
                         scrip_data = scrip_data.get('d', [])
-                    
+
                     # Process the data into DataFrame
                     df = process_scrip_data(scrip_data, group)
-                    
+
                     # Insert into database
                     if not df.empty:
                         copy_from_dataframe(df)
@@ -495,15 +496,15 @@ def master_contract_download():
                         logger.info(f"No valid records found for {group_name}")
                 else:
                     logger.info(f"No data received for {group_name}")
-                    
+
             except Exception as group_error:
                 logger.error(f"Error processing group {group_name}: {group_error}")
                 continue
-        
+
         if socketio:
             socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully downloaded all contracts'})
         return True
-    
+
     except Exception as e:
         error_msg = f"Error in master contract download: {e}"
         logger.error(f"{error_msg}")

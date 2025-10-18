@@ -1,23 +1,13 @@
 #database/master_contract_db.py
 
 import os
+
 import pandas as pd
-import numpy as np
 import requests
-import gzip
-import shutil
-import http.client
-import json
-import pandas as pd
-import gzip
-import io
-
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -39,7 +29,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -92,7 +82,7 @@ def download_csv_dhan_data(output_path):
     csv_urls = {
         "master": "https://images.dhan.co/api-data/api-scrip-master.csv"
     }
-    
+
     # Create a list to hold the paths of the downloaded files
     downloaded_files = []
 
@@ -110,14 +100,14 @@ def download_csv_dhan_data(output_path):
             downloaded_files.append(file_path)
         else:
             logger.error(f"Failed to download {key} from {url}. Status code: {response.status_code}")
-    
+
 
 def reformat_symbol(row):
     symbol = row['SEM_CUSTOM_SYMBOL']
     instrument_type = row['instrumenttype']
     equity = row['SEM_INSTRUMENT_NAME']
     expiry = row['expiry'].replace('-', '')
-    
+
 
     if equity == 'EQUITY':
         symbol = row['SEM_TRADING_SYMBOL']
@@ -138,7 +128,7 @@ def reformat_symbol(row):
             symbol = f"{parts[0]}{expiry}{parts[2]}{instrument_type}"
         if len(parts) == 5:  # Make sure the symbol has the correct format
             symbol = f"{parts[0]}{expiry}{parts[3]}{instrument_type}"
-    
+
     else:
         symbol = symbol  # No change for other instrument types
 
@@ -156,17 +146,17 @@ def assign_values(row):
         return 'BSE_INDEX', 'IDX_I', 'INDEX'
     elif row['SEM_EXM_EXCH_ID'] == 'MCX' and row['SEM_INSTRUMENT_NAME'] in ['FUTIDX','FUTCOM','OPTFUT']:
         return 'MCX', 'MCX_COMM', row['SEM_OPTION_TYPE'] if 'OPT' in row['SEM_INSTRUMENT_NAME'] else 'FUT'
-    
+
     elif row['SEM_EXM_EXCH_ID'] == 'NSE' and row['SEM_INSTRUMENT_NAME'] in ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK','OPTFUT']:
         return 'NFO', 'NSE_FNO', row['SEM_OPTION_TYPE'] if 'OPT' in row['SEM_INSTRUMENT_NAME'] else 'FUT'
     elif row['SEM_EXM_EXCH_ID'] == 'NSE' and row['SEM_INSTRUMENT_NAME'] in ['FUTCUR', 'OPTCUR']:
         return 'CDS', 'NSE_CURRENCY', row['SEM_OPTION_TYPE'] if 'OPT' in row['SEM_INSTRUMENT_NAME'] else 'FUT'
-    
+
     elif row['SEM_EXM_EXCH_ID'] == 'BSE' and row['SEM_INSTRUMENT_NAME'] in ['FUTIDX', 'FUTSTK','OPTIDX', 'OPTSTK']:
         return 'BFO', 'BSE_FNO', row['SEM_OPTION_TYPE'] if 'OPT' in row['SEM_INSTRUMENT_NAME'] else 'FUT'
     elif row['SEM_EXM_EXCH_ID'] == 'BSE' and row['SEM_INSTRUMENT_NAME'] in ['FUTCUR', 'OPTCUR']:
         return 'BCD', 'BSE_CURRENCY', row['SEM_OPTION_TYPE'] if 'OPT' in row['SEM_INSTRUMENT_NAME'] else 'FUT'
-  
+
     else:
         return 'Unknown', 'Unknown', 'Unknown'
 
@@ -193,7 +183,7 @@ def process_dhan_csv(path):
 
 
     # Assigning headers to the DataFrame
-    
+
     df['token'] = df['SEM_SMST_SECURITY_ID']
     df['name'] = df['SM_SYMBOL_NAME']
     df['expiry'] = df['SEM_EXPIRY_DATE'].str.upper()
@@ -204,11 +194,11 @@ def process_dhan_csv(path):
 
 
     # Apply the function
-    df[['exchange', 'brexchange', 'instrumenttype']] = df.apply(assign_values, 
+    df[['exchange', 'brexchange', 'instrumenttype']] = df.apply(assign_values,
                                                                 axis=1, result_type='expand')
 
-      
-        
+
+
     df['symbol'] = df.apply(reformat_symbol, axis=1)
     df['symbol'] = df['symbol'].replace('INDIA VIX', 'INDIAVIX')
 
@@ -225,11 +215,11 @@ def process_dhan_csv(path):
     token_df = df.drop(columns=columns_to_remove)
 
 
-    
+
     return token_df
 
 
-    
+
 
 def delete_dhan_temp_data(output_path):
     # Check each file in the directory
@@ -240,11 +230,11 @@ def delete_dhan_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
 
     output_path = 'tmp'
     try:
@@ -254,12 +244,12 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         delete_dhan_temp_data(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.exception(f"Error during master contract download: {e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

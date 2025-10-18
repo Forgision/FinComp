@@ -1,24 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
 from typing import Optional
 
+from fastapi import APIRouter, Depends, HTTPException
+
 # Import FastAPI schemas for request body validation
-from app.web.models.api_schemas import (
-    PlaceOrderSchema, PlaceSmartOrderSchema, ModifyOrderSchema, CancelOrderSchema,
-    ClosePositionSchema, CancelAllOrderSchema, BasketOrderSchema, SplitOrderSchema,
-    OrderStatusSchema
+from app.core.models.api_schemas import (
+    BasketOrderSchema,
+    CancelAllOrderSchema,
+    CancelOrderSchema,
+    ClosePositionSchema,
+    ModifyOrderSchema,
+    OrderStatusSchema,
+    PlaceOrderSchema,
+    PlaceSmartOrderSchema,
+    SplitOrderSchema,
 )
+from app.core.services.basket_order_service import place_basket_order
+from app.core.services.cancel_all_order_service import cancel_all_orders
+from app.core.services.cancel_order_service import cancel_order
+from app.core.services.close_position_service import close_position
+from app.core.services.modify_order_service import modify_order
+from app.core.services.orderstatus_service import get_order_status
 
 # Import service functions
-from services.place_order_service import place_order
-from services.place_smart_order_service import place_smart_order
-from services.modify_order_service import modify_order
-from services.cancel_order_service import cancel_order
-from services.close_position_service import close_position
-from services.cancel_all_order_service import cancel_all_orders
-from services.basket_order_service import place_basket_order
-from services.split_order_service import split_order
-from services.orderstatus_service import get_order_status
+from app.core.services.place_order_service import place_order
+from app.core.services.place_smart_order_service import place_smart_order
+from app.core.services.split_order_service import split_order
 
 # Import authentication dependency (assuming it exists)
 # from app.web.backend.dependencies import get_current_user # Placeholder for authentication
@@ -42,16 +48,16 @@ async def place_order_endpoint(
     # FastAPI handles validation and allows direct access.
     # If api_key is expected in the body, it should be part of PlaceOrderSchema.
     # For demonstration, assuming it can be passed as an optional query/header param for now.
-    
+
     # Call the service function to place the order
     success, response_data, status_code = await place_order(
         order_data=order_data.model_dump(), # Use .model_dump() to convert Pydantic model to dict
         api_key=api_key
     )
-    
+
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/placesmartorder", summary="Place a smart order")
@@ -67,7 +73,7 @@ async def place_smart_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/modifyorder", summary="Modify an existing order")
@@ -83,7 +89,7 @@ async def modify_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/cancelorder", summary="Cancel an existing order")
@@ -99,7 +105,7 @@ async def cancel_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/closeposition", summary="Close all open positions")
@@ -115,7 +121,7 @@ async def close_position_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/cancelallorder", summary="Cancel all open orders")
@@ -131,7 +137,7 @@ async def cancel_all_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/basketorder", summary="Place multiple orders in a basket")
@@ -147,7 +153,7 @@ async def basket_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/splitorder", summary="Split a large order into multiple orders of specified size")
@@ -163,7 +169,7 @@ async def split_order_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data
 
 @router.post("/orderstatus", summary="Get status of a specific order")
@@ -179,5 +185,5 @@ async def order_status_endpoint(
 
     if not success:
         raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
-    
+
     return response_data

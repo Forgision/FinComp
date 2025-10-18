@@ -1,26 +1,26 @@
-import os
-import re
-import json
-import jwt
 import base64
-import httpx # Import httpx
+import json
 
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
-from starlette.datastructures import UploadFile
-from starlette.responses import HTMLResponse, RedirectResponse, JSONResponse
-from starlette.templating import Jinja2Templates
+import httpx  # Import httpx
+import jwt
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from ....utils.web import limiter
-from ....utils.logging import logger # type: ignore
-from ....utils.auth_utils import handle_auth_success, handle_auth_failure # type: ignore
-from ....utils.plugin_loader import load_broker_auth_functions # type: ignore
-from ....utils.httpx_client import get_httpx_client # type: ignore
-from ....core.config import settings
-from ....db.session import get_db
+from app.core.config import settings
+
 # from app.utils.security import verify_password # type: ignore
-from ...services import user_service # type: ignore
-from ...frontend import templates
+from app.core.services import user_service  # type: ignore
+from app.db.models.session import get_db
+from app.utils.auth_utils import (  # type: ignore
+    handle_auth_failure,
+    handle_auth_success,
+)
+from app.utils.httpx_client import get_httpx_client  # type: ignore
+from app.utils.logging import logger  # type: ignore
+from app.utils.plugin_loader import load_broker_auth_functions  # type: ignore
+from app.utils.web.limiter import limiter
 
 # Suppress Pylance import errors for internal app modules
 # Pylance does not correctly resolve these imports without additional configuration
@@ -100,48 +100,47 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
     if not auth_function:
         return JSONResponse(content={"error": "Broker authentication function not found."}, status_code=status.HTTP_404_NOT_FOUND)
-    
+
     # Initialize feed_token and user_id to None by default
     feed_token = None
     user_id = None
     auth_token = None
     error_message = None
-    forward_url = 'broker.html' # Default forward URL for templates
 
     if broker == 'fivepaisa':
         if request.method == 'GET':
-            return templates.TemplateResponse('5paisa.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             clientcode = str(form.get('clientid'))
             broker_pin = str(form.get('pin'))
             totp_code = str(form.get('totp'))
-            
+
             # to store user_id in the DB
             user_id = clientcode
-            
+
             auth_token, feed_token, error_message = await auth_function(clientcode, broker_pin, totp_code)
 
     elif broker == 'angel':
         if request.method == 'GET':
-            return templates.TemplateResponse('angel.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             clientcode = str(form.get('clientid'))
             broker_pin = str(form.get('pin'))
             totp_code = str(form.get('totp'))
-            
+
             # to store user_id in the DB
             user_id = clientcode
-            
+
             auth_token, feed_token, error_message = await auth_function(clientcode, broker_pin, totp_code)
 
     elif broker == 'aliceblue':
         if request.method == 'GET':
-            return templates.TemplateResponse('aliceblue.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             logger.info('Aliceblue Login Flow initiated')
             form = await request.form()
@@ -149,7 +148,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
             # Use httpx_client within an async context
             async with get_httpx_client() as client:
-            
+
                 payload = {
                     "userId": userid
                 }
@@ -162,31 +161,31 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                     response.raise_for_status()
                     data_dict = response.json()
                     logger.debug(f'Aliceblue response data: {data_dict}')
-                    
+
                     if data_dict.get('stat') == 'Ok' and data_dict.get('encKey'):
                         enc_key = data_dict['encKey']
                         auth_token, error_message = await auth_function(userid, enc_key)
-                        
+
                         if auth_token:
                             return await handle_auth_success(request, db, auth_token, request.session['user'], broker)
                         else:
-                            return await handle_auth_failure(request, error_message, forward_url='aliceblue.html')
+                            return JSONResponse(content={'status': 'error', 'message': error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
                     else:
                         error_msg = data_dict.get('emsg', 'Failed to get encryption key')
-                        return await handle_auth_failure(request, f"Failed to get encryption key: {error_msg}", forward_url='aliceblue.html')
+                        return JSONResponse(content={'status': 'error', 'message': f"Failed to get encryption key: {error_msg}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 except Exception as e:
                     return JSONResponse(content={"error": f"Authentication error: {str(e)}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+
     elif broker=='fivepaisaxts':
         code = 'fivepaisaxts'
         logger.debug(f'FivePaisaXTS broker - code: {code}')
-               
+
         auth_token, feed_token, user_id, error_message = await auth_function(code)
 
     elif broker=='compositedge':
         if 'user' not in request.session:
             logger.warning("Session 'user' key missing in Compositedge callback, attempting to recover")
-            
+
         raw_data = None # Initialize raw_data here for the outer scope
         try:
             if request.method == 'POST':
@@ -208,7 +207,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                     raw_data = (await request.body()).decode('utf-8')
             else: # GET request
                 raw_data = request.query_params.get('session')
-                
+
             if not raw_data:
                 return JSONResponse(content={"error": "No session data received"}, status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -218,16 +217,16 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             # If it's a string after first json.loads, it might be double-encoded
             if isinstance(session_json, str):
                 session_json = json.loads(session_json)
-                
+
             if not isinstance(session_json, dict):
                 logger.error(f"Parsed session_json is not a dictionary: {type(session_json)}")
                 return JSONResponse(content={"error": "Invalid session data format after JSON parsing"}, status_code=status.HTTP_400_BAD_REQUEST)
 
             access_token = session_json.get('accessToken')
-            
+
             if not access_token:
                 return JSONResponse(content={"error": "Access token not found in session data"}, status_code=status.HTTP_400_BAD_REQUEST)
-                
+
             # auth_function is defined earlier in the outer scope, so it's accessible here.
             auth_token, feed_token, user_id, error_message = await auth_function(access_token)
 
@@ -248,21 +247,21 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
     elif broker=='tradejini':
         if request.method == 'GET':
-            return templates.TemplateResponse('tradejini.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             password = form.get('password')
             twofa = form.get('twofa')
             twofatype = form.get('twofatype')
-            
+
             auth_token, error_message = await auth_function(password=password, twofa=twofa, twofa_type=twofatype)
-            
+
             if auth_token:
                 return await handle_auth_success(request, db, auth_token, request.session['user'], broker)
             else:
-                return templates.TemplateResponse('tradejini.html', {"request": request, "error": error_message})
-        
+                return JSONResponse(content={'status': 'error', 'message': error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
+
     elif broker=='icici':
         code = request.query_params.get('apisession')
         logger.debug(f'ICICI broker - The code is {code}')
@@ -271,40 +270,42 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
     elif broker=='ibulls':
         code = 'ibulls'
         logger.debug(f'Indiabulls broker - code: {code}')
-            
+
         auth_token, feed_token, user_id, error_message = await auth_function(code)
 
     elif broker=='iifl':
         code = 'iifl'
         logger.debug(f'IIFL broker - The code is {code}')
-            
+
         auth_token, feed_token, user_id, error_message = await auth_function(code)
 
     elif broker=='dhan':
         code = 'dhan'
         logger.debug(f'Dhan broker - The code is {code}')
         auth_token, error_message = await auth_function(code)
-        
+
         if auth_token:
-            from ...broker.dhan.api.funds import test_auth_token # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
+            from ...broker.dhan.api.funds import (
+                test_auth_token,  # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
+            )
             is_valid, validation_error = await test_auth_token(auth_token)
-            
+
             if not is_valid:
                 logger.error(f"Dhan authentication validation failed: {validation_error}")
-                return await handle_auth_failure(request, f"Authentication validation failed: {validation_error}", forward_url='broker.html')
-            
+                return JSONResponse(content={'status': 'error', 'message': f"Authentication validation failed: {validation_error}"}, status_code=status.HTTP_401_UNAUTHORIZED)
+
             logger.info("Dhan authentication validation successful")
-        
+
     elif broker=='indmoney':
         code = 'indmoney'
         logger.debug(f'IndMoney broker - The code is {code}')
         auth_token, error_message = await auth_function(code)
-        
+
     elif broker=='dhan_sandbox':
         code = 'dhan_sandbox'
         logger.debug(f'Dhan Sandbox broker - The code is {code}')
         auth_token, error_message = await auth_function(code)
-        
+
     elif broker == 'groww':
         code = 'groww'
         logger.debug(f'Groww broker - The code is {code}')
@@ -317,8 +318,8 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
     elif broker == 'zebu':
         if request.method == 'GET':
-            return templates.TemplateResponse('zebu.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             userid = form.get('userid')
@@ -329,8 +330,8 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
     elif broker == 'shoonya':
         if request.method == 'GET':
-            return templates.TemplateResponse('shoonya.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             userid = form.get('userid')
@@ -341,8 +342,8 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
     elif broker == 'firstock':
         if request.method == 'GET':
-            return templates.TemplateResponse('firstock.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             userid = form.get('userid')
@@ -360,8 +361,8 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
     elif broker=='kotak':
         logger.debug(f"Kotak broker - The Broker is {broker}")
         if request.method == 'GET':
-            return templates.TemplateResponse('kotak.html', {"request": request})
-        
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         elif request.method == 'POST':
             form = await request.form()
             otp = form.get('otp')
@@ -370,7 +371,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             userid = form.get('userid')
             access_token = form.get('access_token')
             hsServerId = form.get('hsServerId')
-            
+
             auth_token, error_message = await auth_function(otp,token,sid,userid,access_token,hsServerId)
 
     elif broker == 'paytm':
@@ -383,98 +384,101 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
         state = request.query_params.get('state')
         error = request.query_params.get('error')
         error_description = request.query_params.get('error_description')
-        
+
         if error:
             error_msg = f"OAuth error: {error}. {error_description if error_description else ''}"
             logger.error(error_msg)
-            return await handle_auth_failure(request, error_msg, forward_url='broker.html')
-        
+            return JSONResponse(content={'status': 'error', 'message': error_msg}, status_code=status.HTTP_400_BAD_REQUEST)
+
         if not auth_code:
             error_msg = "Authorization code not provided"
             logger.error(error_msg)
-            return await handle_auth_failure(request, error_msg, forward_url='broker.html')
-            
+            return JSONResponse(content={'status': 'error', 'message': error_msg}, status_code=status.HTTP_400_BAD_REQUEST)
+
         logger.debug(f'Pocketful broker - Received authorization code: {auth_code}')
         auth_token, feed_token, user_id, error_message = await auth_function(auth_code, state)
-        
+
     elif broker == 'definedge':
         if request.method == 'GET':
             api_token = settings.BROKER_API_KEY
             api_secret = settings.BROKER_API_SECRET
-            
-            from ...broker.definedge.api.auth_api import login_step1 # Assuming this path will be valid in FastAPI context # type: ignore
-            
+
+            from ...broker.definedge.api.auth_api import (
+                login_step1,  # Assuming this path will be valid in FastAPI context # type: ignore
+            )
+
             try:
                 step1_response = await login_step1(api_token, api_secret)
                 if step1_response and 'otp_token' in step1_response:
                     request.session['definedge_otp_token'] = step1_response['otp_token']
                     otp_message = step1_response.get('message', 'OTP has been sent successfully')
                     logger.info(f"Definedge OTP triggered: {otp_message}")
-                    return templates.TemplateResponse('definedgeotp.html', {"request": request, "otp_message": otp_message, "otp_sent": True})
+                    return JSONResponse(content={'status': 'success', 'message': otp_message, 'otp_sent': True})
                 else:
                     error_msg = "Failed to send OTP. Please check your API credentials."
                     logger.error(f"Definedge OTP generation failed: {step1_response}")
-                    return templates.TemplateResponse('definedgeotp.html', {"request": request, "error_message": error_msg, "otp_sent": False})
+                    return JSONResponse(content={'status': 'error', 'message': error_msg, 'otp_sent': False}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except Exception as e:
                 error_msg = f"Error sending OTP: {str(e)}"
                 logger.error(f"Definedge OTP generation error: {e}")
-                return templates.TemplateResponse('definedgeotp.html', {"request": request, "error_message": error_msg, "otp_sent": False})
+                return JSONResponse(content={'status': 'error', 'message': error_msg, 'otp_sent': False}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         elif request.method == 'POST':
             form = await request.form()
             action = form.get('action')
-            
+
             if action == 'resend':
                 api_token = settings.BROKER_API_KEY
                 api_secret = settings.BROKER_API_SECRET
-                
-                from ...broker.definedge.api.auth_api import login_step1 # type: ignore # type: ignore
-                
+
+                from ...broker.definedge.api.auth_api import (
+                    login_step1,  # type: ignore # type: ignore
+                )
+
                 try:
                     step1_response = await login_step1(api_token, api_secret)
                     if step1_response and 'otp_token' in step1_response:
                         request.session['definedge_otp_token'] = step1_response['otp_token']
                         otp_message = "OTP has been resent successfully"
-                        logger.info(f"Definedge OTP resent successfully")
+                        logger.info("Definedge OTP resent successfully")
                         return JSONResponse(content={'status': 'success', 'message': otp_message})
                     else:
                         return JSONResponse(content={'status': 'error', 'message': 'Failed to resend OTP'}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 except Exception as e:
                     logger.error(f"Definedge OTP resend error: {e}")
                     return JSONResponse(content={'status': 'error', 'message': str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+
             else:
                 otp_code = form.get('otp')
                 otp_token = request.session.get('definedge_otp_token')
-                
+
                 if not otp_token:
-                    return templates.TemplateResponse('definedgeotp.html', {
-                                                "request": request,
-                                                "error_message":"Session expired. Please refresh the page to get a new OTP.",
-                                                "otp_sent": False})
-                
+                    return JSONResponse(content={'status': 'error', 'message': 'Session expired. Please refresh the page to get a new OTP.', 'otp_sent': False}, status_code=status.HTTP_400_BAD_REQUEST)
+
                 api_secret = settings.BROKER_API_SECRET
-                
-                from ...broker.definedge.api.auth_api import authenticate_broker # type: ignore # type: ignore
-                
+
+                from ...broker.definedge.api.auth_api import (
+                    authenticate_broker,  # type: ignore # type: ignore
+                )
+
                 try:
                     auth_token, feed_token, user_id, error_message = await authenticate_broker(otp_token, otp_code, api_secret)
-                    
+
                     if auth_token:
                         request.session.pop('definedge_otp_token', None)
-                        
+
                 except Exception as e:
                     logger.error(f"Definedge OTP verification error: {e}")
                     auth_token = None
                     feed_token = None
                     user_id = None
                     error_message = str(e)
-                
+
     else:
         code = request.query_params.get('code') or request.query_params.get('request_token')
         logger.debug(f'Generic broker - The code is {code}')
         auth_token, error_message = await auth_function(code)
-    
+
     if auth_token:
         request.session['broker'] = broker
         logger.info(f'Successfully connected broker: {broker}')
@@ -482,7 +486,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             auth_token = f'{settings.BROKER_API_KEY}:{auth_token}'
         if broker == 'dhan':
             auth_token = f'{auth_token}'
-        
+
         if broker =='angel' or broker == 'compositedge' or broker == 'pocketful' or broker == 'definedge':
             if broker == 'compositedge' and 'user' not in request.session:
                 admin_user = user_service.get_user_by_username(db, username="admin") # Corrected function call and added username parameter
@@ -493,12 +497,12 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                 else:
                     logger.error("No admin user found in database for Compositedge callback")
                     return await handle_auth_failure(request, "No user account found. Please login first.", forward_url='broker.html')
-            
+
             return await handle_auth_success(request, db, auth_token, request.session['user'], broker, feed_token=feed_token, user_id=user_id)
         else:
             return await handle_auth_success(request, db, auth_token, request.session['user'], broker, feed_token=feed_token)
     else:
-        return await handle_auth_failure(request, error_message, forward_url=forward_url)
+        return JSONResponse(content={'status': 'error', 'message': error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
 
 @broker_router.api_route("/{broker}/loginflow", methods=["POST", "GET"])
 @limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
@@ -518,13 +522,13 @@ async def broker_loginflow(broker: str, request: Request):
             mobile_number = mobile_number.replace('+91', '').strip()
             if not mobile_number.startswith('+91'):
                 mobile_number = f'+91{mobile_number}'
-            
+
             # Use httpx_client within an async context
             async with get_httpx_client() as client:
                 # First get the access token
                 api_secret = settings.BROKER_API_SECRET
                 auth_string = base64.b64encode(f"{settings.BROKER_API_KEY}:{api_secret}".encode()).decode('utf-8')
-                
+
                 payload = json.dumps({
                     'grant_type': 'client_credentials'
                 })
@@ -533,7 +537,7 @@ async def broker_loginflow(broker: str, request: Request):
                     'Content-Type': 'application/json',
                     'Authorization': f'Basic {auth_string}'
                 }
-                
+
                 try:
                     response = await client.post("https://napi.kotaksecurities.com/oauth2/token", content=payload, headers=headers)
                     response.raise_for_status()
@@ -570,18 +574,18 @@ async def broker_loginflow(broker: str, request: Request):
                                 "userid": userid
                             }
                             await getKotakOTP(userid, access_token)
-                            return templates.TemplateResponse('kotakotp.html', {"request": request, "para": para})
+                            return JSONResponse(content={'status': 'success', 'message': 'OTP Sent', 'details': para})
                         else:
                             error_message = data_dict.get('message', 'Unknown error occurred')
-                            return templates.TemplateResponse('kotak.html', {"request": request, "error_message": error_message})
+                            return JSONResponse(content={'status': 'error', 'message': error_message}, status_code=status.HTTP_400_BAD_REQUEST)
                     else:
                         error_message = data.get('message', 'Failed to get access token')
-                        return templates.TemplateResponse('kotak.html', {"request": request, "error_message": error_message})
+                        return JSONResponse(content={'status': 'error', 'message': error_message}, status_code=status.HTTP_400_BAD_REQUEST)
                 except Exception as e:
                     logger.error(f"Kotak loginflow error: {e}")
-                    return templates.TemplateResponse('kotak.html', {"request": request, "error_message": str(e)})
+                    return JSONResponse(content={'status': 'error', 'message': str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else: # GET request for kotak
-            return templates.TemplateResponse('kotak.html', {"request": request})
-    
+            return JSONResponse(content={"message": "GET not supported, please POST credentials."}, status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
+
     return HTMLResponse(content="Unsupported broker or method for loginflow", status_code=status.HTTP_400_BAD_REQUEST)
 

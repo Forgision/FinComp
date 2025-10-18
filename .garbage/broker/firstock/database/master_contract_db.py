@@ -1,12 +1,13 @@
 import os
-import pandas as pd
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+
+import pandas as pd
 from extensions import socketio
-from utils.logging import get_logger
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.httpx_client import get_httpx_client
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -80,26 +81,26 @@ def download_firstock_data(output_path):
              Instrument, OptionType, StrikePrice, TickSize, FreezeQty
     """
     logger.info("Downloading Firstock Data")
-    
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    
+
     downloaded_files = []
-    
+
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         for exchange, url in firstock_urls.items():
             try:
                 logger.info(f"Downloading {exchange} data from {url}")
-                
+
                 # Make request using shared httpx client
                 response = client.get(url, timeout=30)
-                
+
                 # Add status attribute for compatibility
                 response.status = response.status_code
-                
+
                 if response.status_code == 200:
                     file_path = f'{output_path}/{exchange}_symbols.csv'
                     with open(file_path, 'w') as f:
@@ -108,7 +109,7 @@ def download_firstock_data(output_path):
                     logger.info(f"Successfully downloaded {exchange} data")
                 else:
                     logger.error(f"Failed to download {exchange} data. Status code: {response.status_code}")
-                    
+
             except Exception as e:
                 if "timeout" in str(e).lower():
                     logger.error(f"Timeout while downloading {exchange} data - please try again")
@@ -116,10 +117,10 @@ def download_firstock_data(output_path):
                     logger.error(f"Connection error while downloading {exchange} data - please check your internet connection")
                 else:
                     logger.error(f"Error downloading {exchange} data: {str(e)}")
-                    
+
     except Exception as e:
         logger.error(f"Error initializing HTTP client: {str(e)}")
-    
+
     return downloaded_files
 
 def process_firstock_nse_data(output_path):
@@ -163,7 +164,7 @@ def process_firstock_nse_data(output_path):
 
     # Update the symbol column
     df['symbol'] = df['brsymbol'].apply(get_openalgo_symbol)
-    
+
     # Map index symbols to OpenAlgo standard format
     index_symbol_mapping = {
         'Nifty 50': 'NIFTY',
@@ -172,7 +173,7 @@ def process_firstock_nse_data(output_path):
         'NIFTY MID SELECT': 'MIDCPNIFTY',
         'INDIAVIX': 'INDIAVIX'
     }
-    
+
     # Apply index symbol mapping
     df['symbol'] = df['symbol'].replace(index_symbol_mapping)
 
@@ -436,44 +437,44 @@ def master_contract_download():
     """Downloads and processes Firstock contract data."""
     logger.info("Starting master contract download")
     output_path = 'tmp'
-    
+
     try:
         socketio.emit('download_progress', 'Starting download...')
-        
+
         # Initialize database
         init_db()
         delete_symtoken_table()
-        
+
         # Download data
         downloaded_files = download_firstock_data(output_path)
-        
+
         if downloaded_files:
             # Process each exchange
             if 'NSE_symbols.csv' in downloaded_files:
                 token_df = process_firstock_nse_data(output_path)
                 copy_from_dataframe(token_df)
-            
+
             if 'BSE_symbols.csv' in downloaded_files:
                 token_df = process_firstock_bse_data(output_path)
                 copy_from_dataframe(token_df)
-            
+
             if 'NFO_symbols.csv' in downloaded_files:
                 token_df = process_firstock_nfo_data(output_path)
                 copy_from_dataframe(token_df)
-            
+
             if 'BFO_symbols.csv' in downloaded_files:
                 token_df = process_firstock_bfo_data(output_path)
                 copy_from_dataframe(token_df)
-            
+
             # Clean up temporary files
             delete_firstock_temp_data(output_path)
-            
+
             logger.info("Master contract download completed successfully")
             socketio.emit('download_progress', 'Download completed')
         else:
             logger.info("No files were downloaded")
             socketio.emit('download_progress', 'Download failed')
-            
+
     except Exception as e:
         logger.error(f"Error in master contract download: {e}")
         socketio.emit('download_progress', f'Error: {str(e)}')

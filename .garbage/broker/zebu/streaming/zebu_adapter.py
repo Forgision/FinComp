@@ -2,25 +2,21 @@
 Zebu WebSocket Adapter for OpenAlgo
 Handles market data streaming from Zebu broker
 """
-import threading
 import json
 import logging
+import os
+import sys
+import threading
 import time
-from typing import Dict, Any, Optional, List
-from enum import IntEnum
+from typing import Any, Dict, List, Optional
 
 from database.auth_db import get_auth_token
-from database.token_db import get_token
-
-import sys
-import os
 
 # Add parent directory to path to allow imports FIRST
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 # CRITICAL: Import config to load .env file which sets ZMQ_PORT
 # This must happen before any WebSocket server initialization
-import utils.config  # This loads .env file at module level
 
 # Ensure ZMQ_PORT is set (fallback if not in .env)
 if not os.getenv('ZMQ_PORT'):
@@ -30,7 +26,8 @@ if not os.getenv('ZMQ_PORT'):
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
 from websocket_proxy.mapping import SymbolMapper
-from .zebu_mapping import ZebuExchangeMapper, ZebuCapabilityRegistry
+
+from .zebu_mapping import ZebuExchangeMapper
 from .zebu_websocket import ZebuWebSocket
 
 

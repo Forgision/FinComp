@@ -6,9 +6,10 @@ Adherence to this constitution is mandatory for all contributions.
 
 <!--
 Sync Impact Report:
-- Version: 1.3.1 → 1.3.2
+- Version: 1.3.2 → 1.4.0
 - Modified Principles:
   - V. Modular Architecture
+  - VI. Component Interface Definitions
 - Templates requiring updates:
   - [ ] .specify/templates/plan-template.md
   - [ ] .specify/templates/spec-template.md
@@ -30,10 +31,18 @@ All APIs MUST be RESTful. Endpoints should have clear, consistent, and predictab
 Code must be written with performance considerations in mind. Critical code paths and database queries should be benchmarked and optimized. Any feature that introduces a significant performance regression requires explicit justification and approval.
 
 ### V. Modular Architecture
-The project is undergoing a strategic restructuring to align with the modular architecture defined in `.specify/memory/structure.md`. The current codebase, located in the `app/` directory, is in a transitional state and will be refactored to match the target structure. The legacy Flask-based project, located in the `.garbage/` directory, serves as a reference for existing functionalities. All new development and refactoring efforts MUST adhere to the target structure to ensure a consistent and maintainable codebase.
+The project MUST adhere to the modular architecture defined in `.specify/memory/structure.md`. The core structure is organized as follows:
+*   `app/core/`: Contains shared components, including Pydantic models (`models/`) for data transfer and business logic (`services/`).
+*   `app/db/`: Manages database interactions, with SQLAlchemy schemas in `models/`.
+*   `app/web/`: Contains all web-facing components, including the main FastAPI application (`main.py`), API endpoints (`backend/`), frontend templates and routes (`frontend/`), WebSocket communication (`websocket/`), and third-party broker integrations (`broker/`).
+*   `app/algo/`: Houses all quantitative trading strategies and algorithms.
+*   `test/`: Contains all tests for the application.
+All new development and refactoring efforts MUST conform to this structure.
 
 ### VI. Component Interface Definitions
-All broker integrations in `app/web/broker/` and trading algorithms in `app/algo/` MUST adhere to their respective defined interfaces. This ensures consistency, modularity, and allows for dynamic loading and execution of components.
+All components MUST adhere to their defined interfaces to ensure consistency and modularity.
+*   **Broker Interface (`app/web/broker/`):** Integrations MUST implement a common interface for operations such as `connect()`, `place_order()`, `get_order_status()`, `get_positions()`, and `get_funds()`.
+*   **Algorithm Interface (`app/algo/`):** Trading algorithms MUST follow a standard interface with methods for `initialize()`, `handle_data()`, `before_trading_start()`, and `after_trading_end()`.
 
 ### VII. Dependency and Environment Management
 The project MUST use `uv` for managing the Python environment and requires Python version 3.12 or higher. New packages MUST be added using the `uv add` command. All Python scripts and modules MUST be executed using the `uv run` command to ensure they run within the project's managed environment.
@@ -54,4 +63,4 @@ All code contributions must be submitted via Pull Requests. A PR must be reviewe
 ### Amendment Process
 This constitution is the single source of truth for project standards. Any amendments require a formal proposal, review, and approval from the project leads. An approved amendment must include a migration plan for existing code if applicable. All changes will be reflected in the version number.
 
-**Version**: 1.3.2 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-17
+**Version**: 1.4.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-18

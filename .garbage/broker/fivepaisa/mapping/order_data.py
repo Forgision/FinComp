@@ -1,8 +1,8 @@
-import json
 import re
 from datetime import datetime, timedelta
-from database.token_db import get_symbol, get_oa_symbol 
+
 from broker.fivepaisa.mapping.transform_data import reverse_map_exchange
+from database.token_db import get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -58,25 +58,25 @@ def map_order_data(order_data):
             ExchType = order['ExchType']
 
             exchange = reverse_map_exchange(Exch, ExchType)
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['ScripName'] = symbol_from_db
                 order['Exch'] = exchange
                 if (order['Exch'] == 'NSE' or order['Exch'] == 'BSE') and order['DelvIntra'] == 'D':
                     order['DelvIntra'] = 'CNC'
-                               
+
                 elif order['DelvIntra'] == 'I':
                     order['DelvIntra'] = 'MIS'
-                
+
                 elif order['Exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['DelvIntra'] == 'D':
                     order['DelvIntra'] = 'NRML'
             else:
                 logger.info(f"Symbol not found for token {{symboltoken}} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -104,10 +104,10 @@ def calculate_order_statistics(order_data):
             elif order['BuySell'] == 'S':
                 total_sell_orders += 1
                 order['BuySell'] = 'SELL'
-            
+
             # Count orders based on their status
             status = order['OrderStatus'].strip() if order['OrderStatus'] else ''
-            
+
             # Normalize status to standardized values
             if status == 'Fully Executed':
                 total_completed_orders += 1
@@ -140,7 +140,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -215,7 +215,7 @@ def map_trade_data(trade_data):
         trade_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         trade_data = trade_data['body']['TradeBookDetail']
-        
+
 
 
     if trade_data:
@@ -226,22 +226,22 @@ def map_trade_data(trade_data):
             ExchType = order['ExchType']
 
             exchange = reverse_map_exchange(Exch,ExchType)
-            
-            
+
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['ScripName'] = symbol_from_db
                 order['Exch'] = exchange
                 if (order['Exch'] == 'NSE' or order['Exch'] == 'BSE') and order['DelvIntra'] == 'D':
                     order['DelvIntra'] = 'CNC'
-                               
+
                 elif order['DelvIntra'] == 'I':
                     order['DelvIntra'] = 'MIS'
-                
+
                 elif order['Exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['DelvIntra'] == 'D':
                     order['DelvIntra'] = 'NRML'
 
@@ -249,10 +249,10 @@ def map_trade_data(trade_data):
                     order['BuySell'] = 'BUY'
                 elif order['BuySell'] == 'S':
                     order['BuySell'] = 'SELL'
-                
+
             else:
                 logger.info(f"Symbol not found for token {{symboltoken}} and exchange {exchange}. Keeping original trading symbol.")
-          
+
     return trade_data
 
 
@@ -302,8 +302,8 @@ def map_position_data(position_data):
         logger.info("No data available.")
         position_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
-        position_data = position_data['body']['NetPositionDetail'] 
-        
+        position_data = position_data['body']['NetPositionDetail']
+
     logger.info(f"{position_data}")
 
     if position_data:
@@ -314,12 +314,12 @@ def map_position_data(position_data):
             ExchType = position['ExchType']
 
             exchange = reverse_map_exchange(Exch,ExchType)
-            
-            
+
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 position['ScripName'] = symbol_from_db
@@ -327,17 +327,17 @@ def map_position_data(position_data):
                 position['Exch'] = exchange
                 if (position['Exch'] == 'NSE' or position['Exch'] == 'BSE') and position['OrderFor'] == 'D':
                     position['OrderFor'] = 'CNC'
-                               
+
                 elif position['OrderFor'] == 'I':
                     position['OrderFor'] = 'MIS'
-                
+
                 elif position['Exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and position['OrderFor'] == 'D':
                     position['OrderFor'] = 'NRML'
-             
-                
+
+
             else:
                 logger.info(f"Symbol not found for token {{symboltoken}} and exchange {exchange}. Keeping original trading symbol.")
-          
+
     return position_data
 
 
@@ -389,14 +389,14 @@ def map_portfolio_data(portfolio_data):
     # Modify 'product' field for each holding if applicable
     if data.get('Data'):
         for portfolio in data['Data']:
-            
+
             if(portfolio['Exch']=='N'):
                 portfolio['Exch'] = 'NSE'
             if(portfolio['Exch']=='B'):
                 portfolio['Exch'] = 'BSE'
-            
 
-    
+
+
     # The function already works with 'data', which includes 'holdings' and 'totalholding',
     # so we can return 'data' directly without additional modifications.
     return data
@@ -418,7 +418,7 @@ def calculate_portfolio_statistics(holdings_data):
         total_holding_value += holding_value
 
     total_profit_and_loss = total_holding_value - total_inv_value
-    
+
     # To avoid division by zero in the case when total_inv_value is 0
     total_pnl_percentage = (total_profit_and_loss / total_inv_value * 100) if total_inv_value != 0 else 0
 

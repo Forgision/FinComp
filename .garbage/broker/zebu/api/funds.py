@@ -1,6 +1,6 @@
-import os
-import httpx
 import json
+import os
+
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 

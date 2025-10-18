@@ -1,15 +1,25 @@
-from flask import Blueprint, render_template, jsonify, request, session, flash, redirect, url_for, Response
-from database.analyzer_db import AnalyzerLog, db_session
-from utils.session import check_session_validity
-from sqlalchemy import func, desc
-from utils.api_analyzer import get_analyzer_stats
-import json
-from datetime import datetime, timedelta
-import pytz
-from utils.logging import get_logger
-import traceback
-import io
 import csv
+import io
+import json
+import traceback
+from datetime import datetime, timedelta
+
+import pytz
+from database.analyzer_db import AnalyzerLog, db_session
+from flask import (
+    Blueprint,
+    Response,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from sqlalchemy import func
+from utils.api_analyzer import get_analyzer_stats
+from utils.logging import get_logger
+from utils.session import check_session_validity
 
 logger = get_logger(__name__)
 
@@ -20,7 +30,7 @@ def format_request(req, ist):
     try:
         request_data = json.loads(req.request_data) if isinstance(req.request_data, str) else req.request_data
         response_data = json.loads(req.response_data) if isinstance(req.response_data, str) else req.response_data
-        
+
         # Base request info
         formatted_request = {
             'timestamp': req.created_at.astimezone(ist).strftime('%Y-%m-%d %H:%M:%S'),
@@ -52,7 +62,7 @@ def format_request(req, ist):
             formatted_request.update({
                 'orderid': request_data.get('orderid', 'Unknown')
             })
-        
+
         return formatted_request
     except Exception as e:
         logger.error(f"Error formatting request {req.id}: {str(e)}")
@@ -64,12 +74,12 @@ def get_recent_requests():
         ist = pytz.timezone('Asia/Kolkata')
         recent = AnalyzerLog.query.order_by(AnalyzerLog.created_at.desc()).limit(100).all()
         requests = []
-        
+
         for req in recent:
             formatted = format_request(req, ist)
             if formatted:
                 requests.append(formatted)
-                
+
         return requests
     except Exception as e:
         logger.error(f"Error getting recent requests: {str(e)}")
@@ -90,7 +100,7 @@ def get_filtered_requests(start_date=None, end_date=None):
             if isinstance(end_date, str):
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             query = query.filter(func.date(AnalyzerLog.created_at) <= end_date)
-        
+
         # If no dates provided, default to today
         if not start_date and not end_date:
             today_ist = datetime.now(ist).date()
@@ -99,12 +109,12 @@ def get_filtered_requests(start_date=None, end_date=None):
         # Get results ordered by created_at
         results = query.order_by(AnalyzerLog.created_at.desc()).all()
         requests = []
-        
+
         for req in results:
             formatted = format_request(req, ist)
             if formatted:
                 requests.append(formatted)
-                
+
         return requests
     except Exception as e:
         logger.error(f"Error getting filtered requests: {str(e)}\n{traceback.format_exc()}")
@@ -115,12 +125,12 @@ def generate_csv(requests):
     try:
         output = io.StringIO()
         writer = csv.writer(output)
-        
+
         # Write headers
-        headers = ['Timestamp', 'API Type', 'Source', 'Symbol', 'Exchange', 'Action', 
+        headers = ['Timestamp', 'API Type', 'Source', 'Symbol', 'Exchange', 'Action',
                   'Quantity', 'Price Type', 'Product Type', 'Status', 'Error Message']
         writer.writerow(headers)
-        
+
         # Write data
         for req in requests:
             row = [
@@ -137,7 +147,7 @@ def generate_csv(requests):
                 req['analysis'].get('error', '')
             ]
             writer.writerow(row)
-        
+
         return output.getvalue()
     except Exception as e:
         logger.error(f"Error generating CSV: {str(e)}\n{traceback.format_exc()}")
@@ -173,9 +183,9 @@ def analyzer():
 
         # Get filtered requests
         requests = get_filtered_requests(start_date, end_date)
-        
-        return render_template('analyzer.html', 
-                             requests=requests, 
+
+        return render_template('analyzer.html',
+                             requests=requests,
                              stats=stats,
                              start_date=start_date,
                              end_date=end_date)
@@ -233,7 +243,7 @@ def clear_logs():
     except Exception as e:
         logger.error(f"Error clearing analyzer logs: {str(e)}")
         flash('Error clearing analyzer logs', 'error')
-    
+
     return redirect(url_for('analyzer_bp.analyzer'))
 
 @analyzer_bp.route('/export', methods=['GET'])
@@ -243,13 +253,13 @@ def export_requests():
     try:
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         # Get filtered requests
         requests = get_filtered_requests(start_date, end_date)
-        
+
         # Generate CSV
         csv_data = generate_csv(requests)
-        
+
         # Create the response
         output = Response(csv_data, mimetype='text/csv')
         output.headers["Content-Disposition"] = f"attachment; filename=analyzer_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"

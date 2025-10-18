@@ -1,13 +1,13 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
-import traceback
 
-from .data_schemas import HistorySchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.history_service import get_history
 from utils.logging import get_logger
+
+from .data_schemas import HistorySchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('history', description='Historical Data API')
@@ -33,7 +33,7 @@ class History(Resource):
             interval = history_data['interval']
             start_date = history_data['start_date']
             end_date = history_data['end_date']
-            
+
             # Call the service function to get historical data with API key
             success, response_data, status_code = get_history(
                 symbol=symbol,
@@ -43,7 +43,7 @@ class History(Resource):
                 end_date=end_date,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
 
         except ValidationError as err:

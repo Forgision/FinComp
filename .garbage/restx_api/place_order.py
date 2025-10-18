@@ -1,8 +1,8 @@
-from flask_restx import Namespace, Resource, fields
-from flask import request, jsonify, make_response
-from limiter import limiter
 import os
 
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
 from services.place_order_service import place_order
 from utils.logging import get_logger
 
@@ -22,19 +22,19 @@ class PlaceOrder(Resource):
         try:
             # Get the request data
             data = request.json
-            
+
             # Extract API key without removing it from the original data
             api_key = data.get('apikey', None)
-            
+
             # Call the service function to place the order
             success, response_data, status_code = place_order(
                 order_data=data,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
-            
-        except Exception as e:
+
+        except Exception:
             logger.exception("An unexpected error occurred in PlaceOrder endpoint.")
             error_response = {
                 'status': 'error',

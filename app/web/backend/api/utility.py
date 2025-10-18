@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.web.models.api_schemas import AnalyzerSchema, AnalyzerToggleSchema, PingSchema
-from app.web.services.analyzer_service import get_analyzer_status, toggle_analyzer_mode
-from app.web.services.ping_service import get_ping
+from fastapi import APIRouter, HTTPException, status
+
+from app.core.models.api_schemas import AnalyzerSchema, AnalyzerToggleSchema, PingSchema
+from app.core.services.analyzer_service import get_analyzer_status, toggle_analyzer_mode
+from app.core.services.ping_service import get_ping
 from app.utils.logging import get_logger
 
 router = APIRouter(prefix="/utility", tags=["Utility"])
@@ -20,7 +21,7 @@ async def analyzer_status(analyzer_data: AnalyzerSchema):
         return response_data
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("An unexpected error occurred in Analyzer status endpoint.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
@@ -37,7 +38,7 @@ async def analyzer_toggle(analyzer_data: AnalyzerToggleSchema):
         return response_data
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("An unexpected error occurred in Analyzer toggle endpoint.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 

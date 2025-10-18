@@ -1,16 +1,17 @@
-from flask_restx import Namespace, Resource, fields
-from flask import request, jsonify, make_response, Response
-from marshmallow import ValidationError
-from database.auth_db import get_auth_token_broker
-from limiter import limiter
-import os
 import importlib
+import os
+from datetime import datetime, timedelta, timezone
+
 import pandas as pd
-from datetime import datetime, timezone, timedelta
 import pytz
+from database.auth_db import get_auth_token_broker
+from flask import Response, jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
+from utils.logging import get_logger
 
 from .data_schemas import TickerSchema
-from utils.logging import get_logger
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('ticker', description='Stock Ticker Data API')
@@ -35,7 +36,7 @@ class TextResponse(Response):
     @property
     def json(self):
         return getattr(self, '_json', None)
-    
+
     @json.setter
     def json(self, value):
         self._json = value
@@ -44,15 +45,15 @@ def convert_timestamp(timestamp, interval):
     """Convert timestamp to appropriate format based on interval"""
     # Convert timestamp to datetime in UTC
     dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    
+
     # Convert to IST
     ist = pytz.timezone('Asia/Kolkata')
     dt_ist = dt.astimezone(ist)
-    
+
     # For daily data: just return the date
     if interval.upper() == 'D':
         return dt_ist.strftime('%Y-%m-%d')
-    
+
     # For intraday: return date and time separately
     return dt_ist.strftime('%Y-%m-%d'), dt_ist.strftime('%H:%M:%S')
 
@@ -72,12 +73,12 @@ def validate_and_adjust_date_range(start_date, end_date, interval):
             start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         else:
             start_dt = start_date
-            
+
         if isinstance(end_date, str):
             end_dt = datetime.strptime(end_date, '%Y-%m-%d')
         else:
             end_dt = end_date
-        
+
         # Determine maximum allowed range based on interval
         interval_upper = interval.upper()
         if interval_upper in ['D', 'W', 'M']:
@@ -86,18 +87,18 @@ def validate_and_adjust_date_range(start_date, end_date, interval):
         else:
             # Intraday intervals: 30 days maximum
             max_days = 30
-        
+
         # Calculate the earliest allowed start date
         earliest_start = end_dt - timedelta(days=max_days)
-        
+
         # Check if adjustment is needed
         if start_dt < earliest_start:
             adjusted_start = earliest_start.strftime('%Y-%m-%d')
             logger.warning(f"Date range adjusted: {start_date} -> {adjusted_start} (interval: {interval}, max days: {max_days})")
             return adjusted_start, end_date, True
-        
+
         return start_date, end_date, False
-        
+
     except Exception as e:
         logger.error(f"Error in date range validation: {e}")
         # Return original dates if parsing fails
@@ -122,7 +123,7 @@ class Ticker(Resource):
             # Default to NSE:RELIANCE if no symbol is provided
             if not symbol:
                 symbol = "NSE:RELIANCE"
-            
+
             # Split exchange and symbol
             parts = symbol.split(':')
             if len(parts) == 2:
@@ -130,7 +131,7 @@ class Ticker(Resource):
             else:
                 exchange = "NSE"
                 symbol = "RELIANCE"
-            
+
             # Get parameters from query string
             ticker_data = {
                 'apikey': request.args.get('apikey'),
@@ -152,13 +153,13 @@ class Ticker(Resource):
             # Apply date range restrictions to prevent large queries
             if history_data.get('start_date') and history_data.get('end_date'):
                 adjusted_start, adjusted_end, was_adjusted = validate_and_adjust_date_range(
-                    history_data['start_date'], 
-                    history_data['end_date'], 
+                    history_data['start_date'],
+                    history_data['end_date'],
                     history_data['interval']
                 )
                 history_data['start_date'] = adjusted_start
                 history_data['end_date'] = adjusted_end
-                
+
                 if was_adjusted:
                     logger.info(f"Date range restricted for {history_data['symbol']} ({history_data['interval']}): {adjusted_start} to {adjusted_end}")
 
@@ -190,7 +191,7 @@ class Ticker(Resource):
             try:
                 # Initialize broker's data handler
                 data_handler = broker_module.BrokerData(AUTH_TOKEN)
-                
+
                 # Use chunked API call
                 df = data_handler.get_history(
                     history_data['symbol'],
@@ -199,7 +200,7 @@ class Ticker(Resource):
                     history_data['start_date'],
                     history_data['end_date']
                 )
-                
+
                 if not isinstance(df, pd.DataFrame):
                     raise ValueError("Invalid data format returned from broker")
 
@@ -209,7 +210,7 @@ class Ticker(Resource):
                     text_output = []
                     interval = history_data['interval']
                     symbol_with_exchange = f"{history_data['exchange']}:{history_data['symbol']}"
-                    
+
                     for _, row in df.iterrows():
                         # Convert timestamp based on interval
                         timestamp = convert_timestamp(row['timestamp'], interval)
@@ -222,7 +223,7 @@ class Ticker(Resource):
                             # Intraday format: Ticker,Date_YMD,Time,Open,High,Low,Close,Volume
                             date, time = timestamp
                             text_output.append(f"{symbol_with_exchange},{date},{time},{row['open']},{row['high']},{row['low']},{row['close']},{volume}")
-                    
+
                     # Create plain text response
                     response = TextResponse('\n'.join(text_output))
                     response.content_type = 'text/plain'

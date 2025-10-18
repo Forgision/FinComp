@@ -1,10 +1,10 @@
 # blueprints/settings.py
 
-from flask import Blueprint, jsonify, request
 from database.settings_db import get_analyze_mode, set_analyze_mode
-from utils.session import check_session_validity
-from utils.logging import get_logger
+from flask import Blueprint, jsonify
 from sandbox.execution_thread import start_execution_engine, stop_execution_engine
+from utils.logging import get_logger
+from utils.session import check_session_validity
 
 logger = get_logger(__name__)
 

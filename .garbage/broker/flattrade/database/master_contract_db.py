@@ -1,10 +1,11 @@
 import os
-import requests
-import pandas as pd
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
+
+import pandas as pd
+import requests
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,12 +46,12 @@ class SymToken(Base):
 def init_db():
     """Initialize the database and create tables"""
     logger.info("Initializing Master Contract DB")
-    
+
     # Create database directory if it doesn't exist
     db_path = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
     if db_path and not os.path.exists(db_path):
         os.makedirs(db_path)
-    
+
     Base.metadata.create_all(bind=engine)
 
 def delete_symtoken_table():
@@ -76,7 +77,7 @@ def copy_from_dataframe(df):
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
-            logger.info(f"No new records to insert.")
+            logger.info("No new records to insert.")
     except Exception as e:
         logger.error(f"Error during bulk insert: {e}")
         db_session.rollback()
@@ -137,11 +138,11 @@ def process_flattrade_nse_data(output_path):
     try:
         # Read the CSV file once
         df = pd.read_csv(file_path)
-        
+
         if df.empty:
             logger.warning("Warning: NSE CSV file is empty")
             return pd.DataFrame()  # Return empty DataFrame if file is empty
-            
+
         logger.info(f"Available columns in NSE CSV: {df.columns.tolist()}")
 
         # Validate required columns
@@ -161,17 +162,17 @@ def process_flattrade_nse_data(output_path):
             'Strike': 'strike',
             'Optiontype': 'optiontype'
         }
-        
+
         df = df.rename(columns=column_mapping)
 
         # Fill NaN values in required fields
         df['name'] = df['name'].fillna('')
         df['brsymbol'] = df['brsymbol'].fillna('')
         df['token'] = df['token'].fillna('').astype(str)
-        
+
         # Remove rows where brsymbol is empty (required field)
         df = df[df['brsymbol'] != '']
-        
+
         # Add missing columns
         df['symbol'] = df['brsymbol'].copy()  # Initialize 'symbol' with 'brsymbol'
         df['tick_size'] = 0.05  # Default tick size for NSE
@@ -214,11 +215,11 @@ def process_flattrade_nse_data(output_path):
 
         # Final validation - remove any rows with empty required fields
         df_filtered = df_filtered[
-            (df_filtered['symbol'].notna()) & 
-            (df_filtered['brsymbol'].notna()) & 
-            (df_filtered['token'].notna()) & 
-            (df_filtered['symbol'] != '') & 
-            (df_filtered['brsymbol'] != '') & 
+            (df_filtered['symbol'].notna()) &
+            (df_filtered['brsymbol'].notna()) &
+            (df_filtered['token'].notna()) &
+            (df_filtered['symbol'] != '') &
+            (df_filtered['brsymbol'] != '') &
             (df_filtered['token'] != '')
         ]
 
@@ -231,10 +232,10 @@ def process_flattrade_nse_data(output_path):
             'INDIAVIX': 'INDIAVIX'
         })
 
-      
+
         logger.info(f"Successfully processed {len(df_filtered)} NSE records")
         return df_filtered
-        
+
     except Exception as e:
         logger.error(f"Error processing NSE data: {e}")
         raise  # Re-raise the exception after logging
@@ -262,7 +263,7 @@ def process_flattrade_nfo_data(output_path):
         'Strike': 'strike',
         'Optiontype': 'optiontype'
     }
-    
+
     df = df.rename(columns=column_mapping)
 
     # Add missing columns
@@ -302,7 +303,7 @@ def process_flattrade_nfo_data(output_path):
         if expiry_str and len(expiry_str) == 7:  # Format: 28AUG25
             return f"{expiry_str[:2]}-{expiry_str[2:5]}-{expiry_str[5:]}"
         return expiry_str
-    
+
     df['expiry'] = df['expiry'].apply(add_hyphens_to_expiry)
 
     # Define Exchange
@@ -355,7 +356,7 @@ def process_flattrade_cds_data(output_path):
         'Strike': 'strike',
         'Optiontype': 'optiontype'
     }
-    
+
     df = df.rename(columns=column_mapping)
 
     # Add missing columns
@@ -395,7 +396,7 @@ def process_flattrade_cds_data(output_path):
         if expiry_str and len(expiry_str) == 7:  # Format: 28AUG25
             return f"{expiry_str[:2]}-{expiry_str[2:5]}-{expiry_str[5:]}"
         return expiry_str
-    
+
     df['expiry'] = df['expiry'].apply(add_hyphens_to_expiry)
 
     # Define Exchange
@@ -448,7 +449,7 @@ def process_flattrade_mcx_data(output_path):
         'Strike': 'strike',
         'Optiontype': 'optiontype'
     }
-    
+
     df = df.rename(columns=column_mapping)
 
     # Add missing columns
@@ -488,7 +489,7 @@ def process_flattrade_mcx_data(output_path):
         if expiry_str and len(expiry_str) == 7:  # Format: 28AUG25
             return f"{expiry_str[:2]}-{expiry_str[2:5]}-{expiry_str[5:]}"
         return expiry_str
-    
+
     df['expiry'] = df['expiry'].apply(add_hyphens_to_expiry)
 
     # Define Exchange
@@ -541,7 +542,7 @@ def process_flattrade_bse_data(output_path):
         'Strike': 'strike',
         'Optiontype': 'optiontype'
     }
-    
+
     df = df.rename(columns=column_mapping)
 
     # Add missing columns
@@ -575,11 +576,11 @@ def process_flattrade_bse_data(output_path):
 
     # Final validation - remove any rows with empty required fields
     df_filtered = df_filtered[
-        (df_filtered['symbol'].notna()) & 
-        (df_filtered['brsymbol'].notna()) & 
-        (df_filtered['token'].notna()) & 
-        (df_filtered['symbol'] != '') & 
-        (df_filtered['brsymbol'] != '') & 
+        (df_filtered['symbol'].notna()) &
+        (df_filtered['brsymbol'].notna()) &
+        (df_filtered['token'].notna()) &
+        (df_filtered['symbol'] != '') &
+        (df_filtered['brsymbol'] != '') &
         (df_filtered['token'] != '')
     ]
 
@@ -610,7 +611,7 @@ def process_flattrade_bfo_data(output_path):
         'Strike': 'strike',
         'Optiontype': 'optiontype'
     }
-    
+
     df = df.rename(columns=column_mapping)
 
     # Add missing columns
@@ -650,7 +651,7 @@ def process_flattrade_bfo_data(output_path):
         if expiry_str and len(expiry_str) == 7:  # Format: 28AUG25
             return f"{expiry_str[:2]}-{expiry_str[2:5]}-{expiry_str[5:]}"
         return expiry_str
-    
+
     df['expiry'] = df['expiry'].apply(add_hyphens_to_expiry)
 
     # Define Exchange
@@ -716,7 +717,7 @@ def master_contract_download():
     try:
         download_csv_data(output_path)
         delete_symtoken_table()
-        
+
         # Placeholders for processing different exchanges
         token_df = process_flattrade_nse_data(output_path)
         copy_from_dataframe(token_df)
@@ -730,9 +731,9 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         token_df = process_flattrade_bfo_data(output_path)
         copy_from_dataframe(token_df)
-        
+
         delete_flattrade_temp_data(output_path)
-        
+
         if socketio:
             return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
         else:

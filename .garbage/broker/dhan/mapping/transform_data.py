@@ -38,7 +38,7 @@ def transform_data(data,token):
         "triggerPrice": float(data.get("trigger_price", 0)),
         "afterMarketOrder": data.get("after_market_order", False)
     }
-    
+
     # Add correlationId - Dhan API seems to require this field even if optional in docs
     correlation_id = data.get("correlation_id")
     if correlation_id is not None and correlation_id != "":
@@ -47,7 +47,7 @@ def transform_data(data,token):
         # Use a default correlation ID if not provided
         import uuid
         transformed["correlationId"] = str(uuid.uuid4())[:8]  # Short UUID for tracking
-    
+
     # Handle amoTime - required for after market orders, default for regular orders
     if data.get("after_market_order", False):
         amo_time = data.get("amo_time")
@@ -58,12 +58,12 @@ def transform_data(data,token):
     else:
         # Even for regular orders, Dhan API seems to require amoTime field
         transformed["amoTime"] = "OPEN"
-    
+
     # Add bracket order fields only if they have valid values
     bo_profit = data.get("bo_profit_value")
     if bo_profit is not None and bo_profit != 0:
         transformed["boProfitValue"] = float(bo_profit)
-    
+
     bo_stop_loss = data.get("bo_stop_loss_value")
     if bo_stop_loss is not None and bo_stop_loss != 0:
         transformed["boStopLossValue"] = float(bo_stop_loss)
@@ -166,5 +166,5 @@ def reverse_map_product_type(product):
         "MARGIN": "NRML",
         "MIS": "INTRADAY"
     }
-    
+
     return product_mapping.get(product)  # Removed default; will return None if not found

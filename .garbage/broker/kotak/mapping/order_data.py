@@ -1,6 +1,5 @@
-import json
-from database.token_db import get_symbol, get_oa_symbol
-from broker.kotak.mapping.transform_data import map_exchange 
+from broker.kotak.mapping.transform_data import map_exchange
+from database.token_db import get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,13 +17,13 @@ def map_order_data(order_data):
     """
         # Check if 'data' is None
     #if order_data has key 'data' and its value is None
-    
-    
+
+
     if order_data['stat'] == 'Not_Ok':
         logger.info("No data available.")
         order_data = {}  # or set it to an empty list if it's supposed to be a list
         return order_data
-        
+
     if order_data['data'] is None:
         # Handle the case where there is no data
         # For example, you might want to display a message to the user
@@ -33,7 +32,7 @@ def map_order_data(order_data):
         order_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         order_data = order_data['data']
-        
+
 
 
     if order_data:
@@ -42,16 +41,16 @@ def map_order_data(order_data):
             symboltoken = order['tok']
             exchange = map_exchange(order['exSeg'])
             order['exSeg'] = exchange
-            
-            
+
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['trdSym'] = symbol_from_db
             else:
-                logger.info(f"Symbol not found for token {symboltoken} and exchange {exchange}. Keeping original trading symbol.")         
+                logger.info(f"Symbol not found for token {symboltoken} and exchange {exchange}. Keeping original trading symbol.")
     return order_data
 
 
@@ -81,7 +80,7 @@ def calculate_order_statistics(order_data):
             elif order['trnsTp'] == 'S':
                 order['trnsTp'] = 'SELL'
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['ordSt'] == 'complete':
                 total_completed_orders += 1
@@ -107,7 +106,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -121,7 +120,7 @@ def transform_order_data(orders):
             order['prcTp'] = 'SL'
         elif order.get('prcTp') == 'SL-M':
             order['prcTp'] = 'SL-M'
-        
+
         transformed_order = {
             "symbol": order.get("trdSym", ""),
             "exchange": order.get("exSeg", ""),
@@ -165,7 +164,7 @@ def map_trade_data(trade_data):
         trade_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         trade_data = trade_data['data']
-        
+
 
 
     if trade_data:
@@ -190,7 +189,7 @@ def map_trade_data(trade_data):
                 order['trnsTp'] = 'BUY'
             elif order['trnsTp'] == 'S':
                 order['trnsTp'] = 'SELL'
-    logger.info(f"{trade_data}")           
+    logger.info(f"{trade_data}")
     return trade_data
 
 
@@ -198,7 +197,7 @@ def map_trade_data(trade_data):
 
 def transform_tradebook_data(tradebook_data):
     transformed_data = []
-    
+
     for trade in tradebook_data:
         transformed_trade = {
             "symbol": trade.get('trdSym', ''),
@@ -250,9 +249,9 @@ def transform_holdings_data(holdings_data):
             "pnl": round((float(holding.get('mktValue', 0.0)) - float(holding.get('holdingCost', 0.0))), 2),
             "pnlpercent": round(
                 (
-                    (float(holding.get('mktValue', 0.0)) - float(holding.get('holdingCost', 0.0))) 
-                    / float(holding.get('holdingCost', 0.0)) 
-                    * 100 
+                    (float(holding.get('mktValue', 0.0)) - float(holding.get('holdingCost', 0.0)))
+                    / float(holding.get('holdingCost', 0.0))
+                    * 100
                 ) if float(holding.get('holdingCost', 0.0)) != 0 else 0, 2
             )
         }
@@ -284,14 +283,14 @@ def map_portfolio_data(portfolio_data):
     holdings = portfolio_data['data']
 
     # Modify 'product' field for each holding if applicable
-    
+
     for portfolio in holdings:
         token = portfolio['instrumentToken']
-        
+
         exchange = map_exchange(portfolio['exchangeSegment'])
         portfolio['exchangeSegment'] = exchange
         symbol_from_db = get_symbol(token, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
         if symbol_from_db:
             portfolio['symbol'] = symbol_from_db
@@ -299,25 +298,25 @@ def map_portfolio_data(portfolio_data):
             portfolio['instrumentType'] = 'CNC'  # Modify 'product' field
         else:
             logger.info("Kotak Portfolio - Product Value for Delivery Not Found or Changed.")
-    
+
     # The function already works with 'data', which includes 'holdings' and 'totalholding',
     # so we can return 'data' directly without additional modifications.
-    
+
     return holdings
 
 
 def calculate_portfolio_statistics(holdings_data):
-    
+
     totalholdingvalue = sum(item['mktValue'] for item in holdings_data)
     totalinvvalue = sum(item['holdingCost'] for item in holdings_data)
     totalprofitandloss = sum(item['mktValue'] - item['holdingCost'] for item in holdings_data)
-    
+
     totalpnlpercentage = (totalprofitandloss / totalinvvalue) * 100 if totalinvvalue != 0 else 0
-    
+
     # To avoid division by zero in the case when total_investment_value is 0
     totalpnlpercentage = round(totalpnlpercentage, 2)
-    
-    
+
+
 
     return {
         'totalholdingvalue': totalholdingvalue,

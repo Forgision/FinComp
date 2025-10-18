@@ -64,7 +64,7 @@ def transform_data(data, token):
     """
     # Get the symbol (may need to use broker format if the token mapping is used)
     trading_symbol = data.get("symbol", "")
-    
+
     # Basic mapping to Groww API format
     transformed = {
         "trading_symbol": trading_symbol,
@@ -76,18 +76,18 @@ def transform_data(data, token):
         "order_type": map_order_type(data["pricetype"]),
         "transaction_type": map_transaction_type(data["action"]),
     }
-    
+
     # Add price for LIMIT orders
     if data["pricetype"] == "LIMIT":
         transformed["price"] = float(data.get("price", 0))
-    
+
     # Add trigger price for SL and SL-M orders
     if data["pricetype"] in ["SL", "SL-M"]:
         trigger_price = float(data.get("trigger_price", 0))
         if trigger_price <= 0:
             raise ValueError("Trigger price is required for Stop Loss orders")
         transformed["trigger_price"] = trigger_price
-    
+
     # Add order reference id if provided
     if data.get("order_reference_id"):
         transformed["order_reference_id"] = data["order_reference_id"]
@@ -95,7 +95,7 @@ def transform_data(data, token):
         # Use strategy as reference ID if provided, truncating to 8 chars if needed
         reference_id = data["strategy"][:8].ljust(8, '0')
         transformed["order_reference_id"] = reference_id
-    
+
     return transformed
 
 
@@ -111,27 +111,27 @@ def transform_modify_order_data(data):
     """
     # Create modification payload
     transformed = {}
-    
+
     # Add fields that can be modified
     if "quantity" in data:
         transformed["quantity"] = int(data["quantity"])
-        
+
     if "pricetype" in data:
         transformed["order_type"] = map_order_type(data["pricetype"])
-        
+
     if "price" in data and data.get("pricetype", "").upper() == "LIMIT":
         transformed["price"] = float(data["price"])
-        
+
     if "trigger_price" in data and data.get("pricetype", "").upper() in ["SL", "SL-M"]:
         transformed["trigger_price"] = float(data["trigger_price"])
-        
+
     if "validity" in data:
         transformed["validity"] = map_validity(data["validity"])
-        
+
     # Order reference ID if present
     if "order_reference_id" in data:
         transformed["order_reference_id"] = data["order_reference_id"]
-    
+
     return transformed
 
 

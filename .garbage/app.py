@@ -1,64 +1,78 @@
 # Load and check environment variables before anything else
-from utils.env_check import load_and_check_env_variables  # Import the environment check function
+from utils.env_check import (
+    load_and_check_env_variables,  # Import the environment check function
+)
+
 load_and_check_env_variables()
 
+import os
+
+from blueprints.analyzer import analyzer_bp  # Import the analyzer blueprint
+from blueprints.apikey import api_key_bp
+from blueprints.auth import auth_bp
+from blueprints.brlogin import brlogin_bp
+from blueprints.chartink import chartink_bp  # Import the chartink blueprint
+from blueprints.core import core_bp
+from blueprints.dashboard import dashboard_bp
+from blueprints.latency import latency_bp  # Import the latency blueprint
+from blueprints.log import log_bp
+from blueprints.master_contract_status import (
+    master_contract_status_bp,  # Import the master contract status blueprint
+)
+from blueprints.orders import orders_bp
+from blueprints.pnltracker import pnltracker_bp  # Import the pnl tracker blueprint
+from blueprints.python_strategy import (
+    python_strategy_bp,  # Import the python strategy blueprint
+)
+from blueprints.sandbox import sandbox_bp  # Import the sandbox blueprint
+from blueprints.search import search_bp
+from blueprints.security import security_bp  # Import the security blueprint
+from blueprints.settings import settings_bp  # Import the settings blueprint
+from blueprints.strategy import strategy_bp  # Import the strategy blueprint
+from blueprints.telegram import telegram_bp  # Import the telegram blueprint
+from blueprints.traffic import traffic_bp  # Import the traffic blueprint
+from blueprints.tv_json import tv_json_bp
+from blueprints.websocket_example import (
+    websocket_bp,  # Import the websocket example blueprint
+)
+from cors import cors  # Import the CORS instance
+from csp import apply_csp_middleware  # Import the CSP middleware
+from database.analyzer_db import init_db as ensure_analyzer_tables_exists
+from database.apilog_db import init_db as ensure_api_log_tables_exists
+from database.auth_db import init_db as ensure_auth_tables_exists
+from database.chartink_db import init_db as ensure_chartink_tables_exists
+from database.latency_db import init_latency_db as ensure_latency_tables_exists
+from database.sandbox_db import init_db as ensure_sandbox_tables_exists
+from database.settings_db import init_db as ensure_settings_tables_exists
+from database.strategy_db import init_db as ensure_strategy_tables_exists
+from database.symbol import init_db as ensure_master_contract_tables_exists
+from database.telegram_db import get_bot_config
+from database.traffic_db import init_logs_db as ensure_traffic_logs_exists
+from database.user_db import init_db as ensure_user_tables_exists
+from extensions import socketio  # Import SocketIO
 from flask import Flask, render_template, session
 from flask_wtf.csrf import CSRFProtect  # Import CSRF protection
-from extensions import socketio  # Import SocketIO
 from limiter import limiter  # Import the Limiter instance
-from cors import cors        # Import the CORS instance
-from csp import apply_csp_middleware  # Import the CSP middleware
-from utils.version import get_version  # Import version management
+from restx_api import api_v1_bp
+from services.telegram_bot_service import telegram_bot_service
 from utils.latency_monitor import init_latency_monitoring  # Import latency monitoring
+from utils.logging import (  # Import centralized logging
+    get_logger,
+    highlight_url,
+    log_startup_banner,
+)
+from utils.plugin_loader import load_broker_auth_functions
+from utils.security_middleware import (
+    init_security_middleware,  # Import security middleware
+)
+from utils.socketio_error_handler import (
+    init_socketio_error_handling,  # Import Socket.IO error handler
+)
 from utils.traffic_logger import init_traffic_logging  # Import traffic logging
-from utils.security_middleware import init_security_middleware  # Import security middleware
-from utils.logging import get_logger, log_startup_banner, highlight_url  # Import centralized logging
-from utils.socketio_error_handler import init_socketio_error_handling  # Import Socket.IO error handler
+from utils.version import get_version  # Import version management
+
 # Import WebSocket proxy server - using relative import to avoid @ symbol issues
 from websocket_proxy.app_integration import start_websocket_proxy
-
-from blueprints.auth import auth_bp
-from blueprints.dashboard import dashboard_bp
-from blueprints.orders import orders_bp
-from blueprints.search import search_bp
-from blueprints.apikey import api_key_bp
-from blueprints.log import log_bp
-from blueprints.tv_json import tv_json_bp
-from blueprints.brlogin import brlogin_bp
-from blueprints.core import core_bp
-from blueprints.analyzer import analyzer_bp  # Import the analyzer blueprint
-from blueprints.settings import settings_bp  # Import the settings blueprint
-from blueprints.chartink import chartink_bp  # Import the chartink blueprint
-from blueprints.traffic import traffic_bp  # Import the traffic blueprint
-from blueprints.latency import latency_bp  # Import the latency blueprint
-from blueprints.strategy import strategy_bp  # Import the strategy blueprint
-from blueprints.master_contract_status import master_contract_status_bp  # Import the master contract status blueprint
-from blueprints.websocket_example import websocket_bp  # Import the websocket example blueprint
-from blueprints.pnltracker import pnltracker_bp  # Import the pnl tracker blueprint
-from blueprints.python_strategy import python_strategy_bp  # Import the python strategy blueprint
-from blueprints.telegram import telegram_bp  # Import the telegram blueprint
-from blueprints.security import security_bp  # Import the security blueprint
-from blueprints.sandbox import sandbox_bp  # Import the sandbox blueprint
-from services.telegram_bot_service import telegram_bot_service
-from database.telegram_db import get_bot_config
-
-from restx_api import api_v1_bp, api
-
-from database.auth_db import init_db as ensure_auth_tables_exists
-from database.user_db import init_db as ensure_user_tables_exists
-from database.symbol import init_db as ensure_master_contract_tables_exists
-from database.apilog_db import init_db as ensure_api_log_tables_exists
-from database.analyzer_db import init_db as ensure_analyzer_tables_exists
-from database.settings_db import init_db as ensure_settings_tables_exists
-from database.chartink_db import init_db as ensure_chartink_tables_exists
-from database.traffic_db import init_logs_db as ensure_traffic_logs_exists
-from database.latency_db import init_latency_db as ensure_latency_tables_exists
-from database.strategy_db import init_db as ensure_strategy_tables_exists
-from database.sandbox_db import init_db as ensure_sandbox_tables_exists
-
-from utils.plugin_loader import load_broker_auth_functions
-
-import os
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -72,7 +86,7 @@ def create_app():
 
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
-    
+
     # Store csrf instance in app config for use in other modules
     app.csrf = csrf
 
@@ -85,7 +99,7 @@ def create_app():
 
     # Apply Content Security Policy middleware
     apply_csp_middleware(app)
-    
+
     # Initialize Socket.IO error handling
     init_socketio_error_handling(socketio)
 
@@ -96,11 +110,11 @@ def create_app():
     # Environment variables
     app.secret_key = os.getenv('APP_KEY')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-    
+
     # Dynamic cookie security configuration based on HOST_SERVER
     HOST_SERVER = os.getenv('HOST_SERVER', 'http://127.0.0.1:5000')
     USE_HTTPS = HOST_SERVER.startswith('https://')
-    
+
     # Configure session cookie security
     session_cookie_name = os.getenv('SESSION_COOKIE_NAME', 'session')
     app.config.update(
@@ -110,15 +124,15 @@ def create_app():
         SESSION_COOKIE_NAME=session_cookie_name
         # PERMANENT_SESSION_LIFETIME is dynamically set at login to expire at 3:30 AM IST
     )
-    
+
     # Add cookie prefix for HTTPS environments
     if USE_HTTPS:
         app.config['SESSION_COOKIE_NAME'] = f'__Secure-{session_cookie_name}'
-    
+
     # CSRF configuration from environment variables
     csrf_enabled = os.getenv('CSRF_ENABLED', 'TRUE').upper() == 'TRUE'
     app.config['WTF_CSRF_ENABLED'] = csrf_enabled
-    
+
     # Configure CSRF cookie security to match session cookie
     csrf_cookie_name = os.getenv('CSRF_COOKIE_NAME', 'csrf_token')
     app.config.update(
@@ -127,11 +141,11 @@ def create_app():
         WTF_CSRF_COOKIE_SECURE=USE_HTTPS,
         WTF_CSRF_COOKIE_NAME=csrf_cookie_name
     )
-    
+
     # Add cookie prefix for CSRF token in HTTPS environments
     if USE_HTTPS:
         app.config['WTF_CSRF_COOKIE_NAME'] = f'__Secure-{csrf_cookie_name}'
-    
+
     # Parse CSRF time limit from environment
     csrf_time_limit = os.getenv('CSRF_TIME_LIMIT', '').strip()
     if csrf_time_limit:
@@ -144,7 +158,7 @@ def create_app():
 
     # Register RESTx API blueprint first
     app.register_blueprint(api_v1_bp)
-    
+
     # Exempt API endpoints from CSRF protection (they use API key authentication)
     csrf.exempt(api_v1_bp)
 
@@ -184,10 +198,10 @@ def create_app():
         # Exempt webhook endpoints from CSRF protection
         csrf.exempt(app.view_functions['chartink_bp.webhook'])
         csrf.exempt(app.view_functions['strategy_bp.webhook'])
-        
+
         # Exempt broker callback endpoints from CSRF protection (OAuth callbacks from external providers)
         csrf.exempt(app.view_functions['brlogin.broker_callback'])
-        
+
         # Initialize latency monitoring (after registering API blueprint)
         init_latency_monitoring(app)
 
@@ -248,26 +262,26 @@ def create_app():
         """Check session validity before each request"""
         from flask import request
         from utils.session import is_session_valid, revoke_user_tokens
-        
+
         # Skip session check for static files, API endpoints, and public routes
-        if (request.path.startswith('/static/') or 
-            request.path.startswith('/api/') or 
+        if (request.path.startswith('/static/') or
+            request.path.startswith('/api/') or
             request.path in ['/', '/auth/login', '/auth/reset-password', '/setup', '/download', '/faq'] or
             request.path.startswith('/auth/broker/') or  # OAuth callbacks
             request.path.startswith('/_reload-ws')):  # WebSocket reload endpoint
             return
-        
+
         # Check if user is logged in and session is expired
         if session.get('logged_in') and not is_session_valid():
             logger.info(f"Session expired for user: {session.get('user')} - revoking tokens")
             revoke_user_tokens()
             session.clear()
             # Don't redirect here, let individual routes handle it
-    
+
     @app.errorhandler(404)
     def not_found_error(error):
-        from flask import request
         from database.traffic_db import Error404Tracker
+        from flask import request
         from utils.ip_helper import get_real_ip
 
         # Track the 404 error
@@ -287,7 +301,7 @@ def create_app():
 
         # Provide a logout option
         return render_template("500.html"), 500
-        
+
     @app.context_processor
     def inject_version():
         return dict(version=get_version())
@@ -394,7 +408,7 @@ if __name__ == '__main__':
         # Show accessible URLs (excluding localhost) with blue highlighting
         logger.info("=" * 60)
         logger.info("OpenAlgo is running!")
-        logger.info(f"Access the application at:")
+        logger.info("Access the application at:")
         for url in urls:
             # Skip localhost URL
             if "localhost" not in url:

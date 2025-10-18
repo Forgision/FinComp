@@ -3,11 +3,11 @@ Enhanced Token DB with Full Memory Caching for 100,000+ symbols
 Optimized for zero-config deployment with configurable session reset time (SESSION_EXPIRY_TIME)
 """
 
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
 import time
-from dataclasses import dataclass, field
-from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import pytz
 from utils.logging import get_logger
 
@@ -24,12 +24,12 @@ class CacheStats:
     last_loaded: Optional[datetime] = None
     total_symbols: int = 0
     memory_usage_mb: float = 0.0
-    
+
     def get_hit_rate(self) -> float:
         """Calculate cache hit rate"""
         total = self.hits + self.misses
         return (self.hits / total * 100) if total > 0 else 0.0
-    
+
     def to_dict(self) -> dict:
         """Convert stats to dictionary for API response"""
         return {
@@ -64,30 +64,30 @@ class BrokerSymbolCache:
     High-performance in-memory cache for broker symbols
     Designed to handle 100,000+ symbols with minimal memory footprint
     """
-    
+
     def __init__(self):
         # Active broker context
         self.active_broker: Optional[str] = None
         self.cache_loaded: bool = False
-        
+
         # Primary storage - all symbols in memory
         self.symbols: Dict[str, SymbolData] = {}
-        
+
         # Multi-index maps for O(1) lookups
         self.by_symbol_exchange: Dict[Tuple[str, str], SymbolData] = {}
         self.by_token_exchange: Dict[Tuple[str, str], SymbolData] = {}
         self.by_brsymbol_exchange: Dict[Tuple[str, str], SymbolData] = {}
         self.by_token: Dict[str, SymbolData] = {}
-        
+
         # Cache statistics
         self.stats = CacheStats()
-        
+
         # Session management
         self.session_start: Optional[datetime] = None
         self.next_reset_time: Optional[datetime] = None
-        
+
         logger.info("BrokerSymbolCache initialized")
-    
+
     def load_all_symbols(self, broker: str) -> bool:
         """
         Load all symbols for the active broker into memory
@@ -95,20 +95,20 @@ class BrokerSymbolCache:
         """
         try:
             from database.symbol import SymToken
-            
+
             start_time = time.time()
             logger.info(f"Loading all symbols for broker: {broker}")
-            
+
             # Clear existing cache
             self.clear_cache()
-            
+
             # Query all symbols from database
             symbols = SymToken.query.all()
-            
+
             if not symbols:
                 logger.warning(f"No symbols found in database for broker: {broker}")
                 return False
-            
+
             # Build in-memory structures
             for sym in symbols:
                 # Create lightweight data object
@@ -125,50 +125,50 @@ class BrokerSymbolCache:
                     instrumenttype=sym.instrumenttype,
                     tick_size=sym.tick_size
                 )
-                
+
                 # Store in primary dict
                 self.symbols[sym.token] = symbol_data
-                
+
                 # Build indexes
                 self.by_symbol_exchange[(sym.symbol, sym.exchange)] = symbol_data
                 self.by_token_exchange[(sym.token, sym.exchange)] = symbol_data
                 self.by_brsymbol_exchange[(sym.brsymbol, sym.exchange)] = symbol_data
                 self.by_token[sym.token] = symbol_data
-            
+
             # Update cache metadata
             self.active_broker = broker
             self.cache_loaded = True
             self.stats.total_symbols = len(symbols)
             self.stats.cache_loads += 1
             self.stats.last_loaded = datetime.now(pytz.timezone('Asia/Kolkata'))
-            
+
             # Calculate memory usage (rough estimate)
             self.stats.memory_usage_mb = (
                 len(self.symbols) * 500  # ~500 bytes per symbol
             ) / (1024 * 1024)
-            
+
             load_time = time.time() - start_time
             logger.info(
                 f"Successfully loaded {self.stats.total_symbols} symbols "
                 f"in {load_time:.2f} seconds. "
                 f"Memory usage: {self.stats.memory_usage_mb:.2f} MB"
             )
-            
+
             # Set session timing
             self._set_session_timing()
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Error loading symbols into cache: {e}")
             return False
-    
+
     def _set_session_timing(self):
         """Set session start and next reset time from SESSION_EXPIRY_TIME env variable"""
         import os
         now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
         self.session_start = now_ist
-        
+
         # Get session expiry time from environment (default to 3:00 if not set)
         expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
         try:
@@ -176,88 +176,88 @@ class BrokerSymbolCache:
         except ValueError:
             logger.warning(f"Invalid SESSION_EXPIRY_TIME format: {expiry_time}. Using default 03:00")
             hour, minute = 3, 0
-        
+
         # Calculate next expiry time
         next_reset = now_ist.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if now_ist >= next_reset:
             next_reset += timedelta(days=1)
-        
+
         self.next_reset_time = next_reset
         logger.info(f"Cache valid until: {self.next_reset_time} (Session expiry: {expiry_time})")
-    
+
     def is_cache_valid(self) -> bool:
         """Check if cache is still valid (before session expiry reset)"""
         if not self.cache_loaded or not self.next_reset_time:
             return False
-        
+
         now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
         return now_ist < self.next_reset_time
-    
+
     def get_token(self, symbol: str, exchange: str) -> Optional[str]:
         """Get token for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
         if key in self.by_symbol_exchange:
             return self.by_symbol_exchange[key].token
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_symbol(self, token: str, exchange: str) -> Optional[str]:
         """Get symbol for token and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (token, exchange)
         if key in self.by_token_exchange:
             return self.by_token_exchange[key].symbol
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_br_symbol(self, symbol: str, exchange: str) -> Optional[str]:
         """Get broker symbol for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
         if key in self.by_symbol_exchange:
             return self.by_symbol_exchange[key].brsymbol
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_oa_symbol(self, brsymbol: str, exchange: str) -> Optional[str]:
         """Get OpenAlgo symbol for broker symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (brsymbol, exchange)
         if key in self.by_brsymbol_exchange:
             return self.by_brsymbol_exchange[key].symbol
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_brexchange(self, symbol: str, exchange: str) -> Optional[str]:
         """Get broker exchange for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
         if key in self.by_symbol_exchange:
             return self.by_symbol_exchange[key].brexchange
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_symbol_data(self, token: str) -> Optional[SymbolData]:
         """Get complete symbol data by token - O(1) lookup"""
         self.stats.hits += 1
         if token in self.by_token:
             return self.by_token[token]
-        
+
         self.stats.hits -= 1
         self.stats.misses += 1
         return None
-    
+
     def get_tokens_bulk(self, symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
         """
         Bulk retrieve tokens for multiple symbol-exchange pairs
@@ -265,7 +265,7 @@ class BrokerSymbolCache:
         """
         self.stats.bulk_queries += 1
         results = []
-        
+
         for symbol, exchange in symbol_exchange_pairs:
             key = (symbol, exchange)
             if key in self.by_symbol_exchange:
@@ -274,16 +274,16 @@ class BrokerSymbolCache:
             else:
                 results.append(None)
                 self.stats.misses += 1
-        
+
         return results
-    
+
     def get_symbols_bulk(self, token_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
         """
         Bulk retrieve symbols for multiple token-exchange pairs
         """
         self.stats.bulk_queries += 1
         results = []
-        
+
         for token, exchange in token_exchange_pairs:
             key = (token, exchange)
             if key in self.by_token_exchange:
@@ -292,9 +292,9 @@ class BrokerSymbolCache:
             else:
                 results.append(None)
                 self.stats.misses += 1
-        
+
         return results
-    
+
     def search_symbols(self, query: str, exchange: Optional[str] = None, limit: int = 50) -> List[SymbolData]:
         """
         Search symbols by partial match
@@ -302,23 +302,23 @@ class BrokerSymbolCache:
         """
         query = query.upper()
         matches = []
-        
+
         for symbol_data in self.symbols.values():
             # Skip if exchange filter doesn't match
             if exchange and symbol_data.exchange != exchange:
                 continue
-            
+
             # Check for match in symbol, brsymbol, or name
-            if (query in symbol_data.symbol.upper() or 
-                query in symbol_data.brsymbol.upper() or 
+            if (query in symbol_data.symbol.upper() or
+                query in symbol_data.brsymbol.upper() or
                 (symbol_data.name and query in symbol_data.name.upper())):
                 matches.append(symbol_data)
-                
+
                 if len(matches) >= limit:
                     break
-        
+
         return matches
-    
+
     def clear_cache(self):
         """Clear all cached data"""
         self.symbols.clear()
@@ -329,7 +329,7 @@ class BrokerSymbolCache:
         self.cache_loaded = False
         self.active_broker = None
         logger.info("Cache cleared")
-    
+
     def get_cache_info(self) -> dict:
         """Get cache information for monitoring"""
         return {
@@ -359,13 +359,13 @@ def get_token(symbol: str, exchange: str) -> Optional[str]:
     First checks cache, falls back to database if needed
     """
     cache = get_cache()
-    
+
     # Check if cache is loaded and valid
     if cache.cache_loaded and cache.is_cache_valid():
         result = cache.get_token(symbol, exchange)
         if result is not None:
             return result
-    
+
     # Fallback to database query
     cache.stats.db_queries += 1
     return get_token_dbquery(symbol, exchange)
@@ -375,12 +375,12 @@ def get_symbol(token: str, exchange: str) -> Optional[str]:
     Get symbol for a given token and exchange
     """
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         result = cache.get_symbol(token, exchange)
         if result is not None:
             return result
-    
+
     cache.stats.db_queries += 1
     return get_symbol_dbquery(token, exchange)
 
@@ -389,12 +389,12 @@ def get_br_symbol(symbol: str, exchange: str) -> Optional[str]:
     Get broker symbol for a given symbol and exchange
     """
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         result = cache.get_br_symbol(symbol, exchange)
         if result is not None:
             return result
-    
+
     cache.stats.db_queries += 1
     return get_br_symbol_dbquery(symbol, exchange)
 
@@ -403,12 +403,12 @@ def get_oa_symbol(brsymbol: str, exchange: str) -> Optional[str]:
     Get OpenAlgo symbol for a given broker symbol and exchange
     """
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         result = cache.get_oa_symbol(brsymbol, exchange)
         if result is not None:
             return result
-    
+
     cache.stats.db_queries += 1
     return get_oa_symbol_dbquery(brsymbol, exchange)
 
@@ -417,12 +417,12 @@ def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
     Get broker exchange for a given symbol and exchange
     """
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         result = cache.get_brexchange(symbol, exchange)
         if result is not None:
             return result
-    
+
     cache.stats.db_queries += 1
     return get_brexchange_dbquery(symbol, exchange)
 
@@ -525,10 +525,10 @@ def get_cache_stats() -> dict:
 def get_tokens_bulk(symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
     """Bulk retrieve tokens - optimized for performance"""
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         return cache.get_tokens_bulk(symbol_exchange_pairs)
-    
+
     # Fallback to individual queries
     results = []
     for symbol, exchange in symbol_exchange_pairs:
@@ -539,10 +539,10 @@ def get_tokens_bulk(symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Option
 def get_symbols_bulk(token_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
     """Bulk retrieve symbols - optimized for performance"""
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         return cache.get_symbols_bulk(token_exchange_pairs)
-    
+
     # Fallback to individual queries
     results = []
     for token, exchange in token_exchange_pairs:
@@ -557,7 +557,7 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
     Returns list of symbol dictionaries
     """
     cache = get_cache()
-    
+
     if cache.cache_loaded and cache.is_cache_valid():
         results = cache.search_symbols(query, exchange, limit)
         return [
@@ -571,14 +571,14 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
             }
             for s in results
         ]
-    
+
     # Fallback to database search
     try:
         from database.symbol import SymToken
         query_obj = SymToken.query.filter(SymToken.symbol.like(f'%{query}%'))
         if exchange:
             query_obj = query_obj.filter_by(exchange=exchange)
-        
+
         results = query_obj.limit(limit).all()
         return [
             {

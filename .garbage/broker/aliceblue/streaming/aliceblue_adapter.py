@@ -1,31 +1,36 @@
-import threading
+import hashlib
 import json
 import logging
-import time
-import websocket
-import hashlib
-import ssl
 import os
-from typing import Dict, Any, Optional, List
-from dotenv import load_dotenv
+import ssl
+import sys
+import threading
+import time
+from typing import Any, Dict, List, Optional
 
-from .aliceblue_client import Aliceblue, Instrument
+import websocket
 from database.auth_db import get_auth_token, get_feed_token
 from database.token_db import get_token
+from dotenv import load_dotenv
 
-import sys
-import os
+from .aliceblue_client import Aliceblue
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
-from .aliceblue_mapping import AliceBlueExchangeMapper, AliceBlueCapabilityRegistry, AliceBlueMessageMapper, AliceBlueFeedType
+
+from .aliceblue_mapping import (
+    AliceBlueCapabilityRegistry,
+    AliceBlueExchangeMapper,
+    AliceBlueFeedType,
+    AliceBlueMessageMapper,
+)
+
 
 class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """AliceBlue-specific implementation of the WebSocket adapter"""
-    
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger("aliceblue_websocket")
@@ -44,12 +49,12 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.subscriptions = {}
         self.symbol_state = {}  # Store last known state for each symbol
         self.market_snapshots = {}  # Store complete market snapshots with value retention
-        
+
         # Initialize mappers and registry
         self.exchange_mapper = AliceBlueExchangeMapper()
         self.capability_registry = AliceBlueCapabilityRegistry()
         self.message_mapper = AliceBlueMessageMapper()
-    
+
     def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize connection with AliceBlue WebSocket API
@@ -64,10 +69,10 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         self.user_id = user_id
         self.broker_name = broker_name
-        
+
         # Debug logging
         self.logger.info(f"Initializing AliceBlue adapter with auth_data: {auth_data}")
-        
+
         try:
             if auth_data:
                 api_key = auth_data.get('api_key')
@@ -85,18 +90,18 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 feed_token = get_feed_token(user_id)
                 self.logger.info(f"From database: auth_token=[REDACTED], feed_token={feed_token}")
                 self.logger.info(f"feed_token type: {type(feed_token)}, value: {repr(feed_token)}")
-                
+
                 if not auth_token:
                     self.logger.error(f"No authentication tokens found for user {user_id}")
                     raise ValueError(f"No authentication tokens found for user {user_id}")
-                
+
                 # Read BROKER_API_KEY from environment for client_id
                 load_dotenv()
                 broker_api_key = os.getenv('BROKER_API_KEY')
                 if not broker_api_key:
                     self.logger.error("BROKER_API_KEY not found in environment variables")
                     raise ValueError("BROKER_API_KEY not found in environment variables")
-                    
+
                 api_key = broker_api_key  # Use BROKER_API_KEY for api_key
                 # For AliceBlue, session_id is the auth_token (JWT)
                 session_id = auth_token
@@ -105,23 +110,23 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Store session_id (JWT) for WebSocket authentication
                 self.session_id = session_id
                 self.logger.info(f"Using BROKER_API_KEY as client_id: {self.client_id}")
-                self.logger.info(f"Using auth_token as session_id for auth")
-            
+                self.logger.info("Using auth_token as session_id for auth")
+
             self.logger.info(f"Final values: client_id={self.client_id}, session_id={self.session_id}")
-            
+
             # Initialize AliceBlue client - use client_id as user_id for the AliceBlue client
             self.aliceblue_client = Aliceblue(
                 user_id=self.client_id,  # Use client_id (BROKER_API_KEY) as user_id
                 api_key=api_key,
                 session_id=session_id
             )
-            
+
             self.logger.info(f"AliceBlue WebSocket adapter initialized for user {user_id}")
-            
+
         except Exception as e:
             self.logger.error(f"Failed to initialize AliceBlue adapter: {e}")
             raise
-    
+
     def connect(self):
         """
         Establish WebSocket connection
@@ -134,19 +139,19 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 if self.running:
                     self.logger.warning("WebSocket already running")
                     return None
-                
+
                 self.running = True
                 self.reconnect_attempts = 0
-            
+
             # AliceBlue WebSocket session flow:
             # Note: The WebSocket session creation is not required for authentication
             # The official client invalidates and creates session but doesn't use it for auth
             # We'll skip this step as it's not necessary for WebSocket authentication
             self.logger.info("Skipping WebSocket session creation - not required for authentication")
-            
+
             # Start WebSocket connection
             success = self._start_websocket()
-            
+
             if success:
                 self.logger.info("AliceBlue WebSocket connected successfully")
                 self.connected = True
@@ -156,28 +161,28 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 with self.lock:
                     self.running = False
                 return {'success': False, 'error': 'Failed to connect to AliceBlue WebSocket'}
-                
+
         except Exception as e:
             self.logger.error(f"Error connecting to AliceBlue WebSocket: {e}")
             with self.lock:
                 self.running = False
             return {'success': False, 'error': f'Error connecting to AliceBlue WebSocket: {e}'}
-    
+
     def _start_websocket(self) -> bool:
         """Start the WebSocket connection"""
         try:
             def on_message(ws, message):
                 self._handle_message(message)
-            
+
             def on_error(ws, error):
                 self._handle_error(error)
-            
+
             def on_close(ws, close_status_code, close_msg):
                 self._handle_disconnect()
-            
+
             def on_open(ws):
                 self._authenticate_websocket(ws)
-            
+
             # Create WebSocket connection - use wss instead of https
             websocket.enableTrace(False)  # Disable trace for production
             self.ws_client = websocket.WebSocketApp(
@@ -187,7 +192,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 on_error=on_error,
                 on_close=on_close
             )
-            
+
             # Start WebSocket in background thread
             self.ws_thread = threading.Thread(
                 target=self.ws_client.run_forever,
@@ -195,16 +200,16 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
             )
             self.ws_thread.daemon = True
             self.ws_thread.start()
-            
+
             # Wait a bit for connection to establish
             time.sleep(2)
-            
+
             return self.ws_client.sock and self.ws_client.sock.connected
-            
+
         except Exception as e:
             self.logger.error(f"Error starting WebSocket: {e}")
             return False
-    
+
     def _authenticate_websocket(self, ws):
         """Authenticate WebSocket connection"""
         try:
@@ -212,19 +217,19 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if not self.session_id:
                 self.logger.warning("No session_id (JWT) available, skipping authentication")
                 return
-                
+
             # Create authentication message - use JWT session_id for susertoken generation
             # This matches the official AliceBlue client implementation
             # First SHA256 hash of session_id
             sha256_encryption1 = hashlib.sha256(self.session_id.encode('utf-8')).hexdigest()
             # Second SHA256 hash of the first hash
             susertoken = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
-            
-            self.logger.info(f"Generating susertoken from session_id (JWT)")
+
+            self.logger.info("Generating susertoken from session_id (JWT)")
             self.logger.debug(f"Session ID length: {len(self.session_id)}")
             self.logger.debug(f"First SHA256: {sha256_encryption1}")
             self.logger.debug(f"Final susertoken: {susertoken}")
-            
+
             auth_msg = {
                 "susertoken": susertoken,
                 "t": "c",
@@ -232,34 +237,34 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 "uid": f"{self.client_id}_API",
                 "source": "API"
             }
-            
+
             self.logger.info(f"Sending authentication message: {auth_msg}")
             ws.send(json.dumps(auth_msg))
             self.logger.info("Authentication message sent to AliceBlue WebSocket")
-            
+
         except Exception as e:
             self.logger.error(f"Error authenticating WebSocket: {e}")
-    
+
     def disconnect(self) -> None:
         """Close WebSocket connection"""
         try:
             with self.lock:
                 if not self.running:
                     return
-                
+
                 self.running = False
-            
+
             if self.ws_client:
                 self.ws_client.close()
-            
+
             # Clean up ZeroMQ resources
             self.cleanup_zmq()
-            
+
             self.logger.info("AliceBlue WebSocket disconnected")
-            
+
         except Exception as e:
             self.logger.error(f"Error disconnecting from AliceBlue WebSocket: {e}")
-    
+
     def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5) -> Dict[str, Any]:
         """
         Subscribe to live data for a symbol
@@ -302,19 +307,19 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 original_token = token
                 token = str(token)[3:]  # Remove '999' prefix
                 self.logger.info(f"Adjusted index token from {original_token} to {token}")
-            
+
             # Determine feed type based on mode
             feed_type = AliceBlueFeedType.DEPTH if mode == 3 else AliceBlueFeedType.MARKET_DATA
-            
+
             # Create subscription message
             sub_msg = self.message_mapper.create_subscription_message(ab_exchange, token, feed_type)
-            
+
             if self.ws_client and self.ws_client.sock and self.ws_client.sock.connected:
                 self.ws_client.send(json.dumps(sub_msg))
-                
+
                 # Track subscription - use simple key for now
                 sub_key = f"{ab_exchange}|{str(token)}"
-                
+
                 with self.lock:
                     # If already subscribed with a lower mode, update to higher mode
                     # AliceBlue sends all data for highest subscribed mode
@@ -346,7 +351,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     else:
                         # Add this mode to the set of subscribed modes
                         self.subscriptions[sub_key]['all_modes'] = self.subscriptions[sub_key].get('all_modes', set()) | {mode}
-                
+
                 self.logger.info(f"Subscribed to {symbol} ({ab_exchange}|{token}) for mode {mode}")
                 self.logger.info(f"Stored subscription with key: {sub_key}")
                 self.logger.info(f"Stored symbol: {symbol}, exchange: {exchange}")
@@ -355,11 +360,11 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
             else:
                 self.logger.error("WebSocket not connected")
                 return self._create_error_response("NOT_CONNECTED", "WebSocket not connected")
-                
+
         except Exception as e:
             self.logger.error(f"Error subscribing to {symbol}: {e}")
             return self._create_error_response("SUBSCRIPTION_ERROR", str(e))
-    
+
     def _update_market_snapshot(self, symbol_key: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Update market snapshot for value retention.
@@ -368,12 +373,12 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         # Get existing snapshot or create empty one
         snapshot = self.market_snapshots.get(symbol_key, {})
-        
+
         # Fields to check and merge
         price_fields = ['ltp', 'open', 'high', 'low', 'close', 'average_price']
         volume_fields = ['volume', 'total_buy_quantity', 'total_sell_quantity']
         other_fields = ['total_oi', 'change_percent', 'timestamp', 'symbol', 'exchange', 'token']
-        
+
         # Update price fields - only if non-zero
         for field in price_fields:
             if field in data:
@@ -384,7 +389,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # If it's 0 and we don't have a previous value, set it to 0
                 elif field not in snapshot:
                     snapshot[field] = 0
-        
+
         # Update volume fields - can be 0 at market open
         for field in volume_fields:
             if field in data:
@@ -394,41 +399,41 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     snapshot[field] = value
                 elif field not in snapshot:
                     snapshot[field] = 0
-        
+
         # Update other fields - always update if present
         for field in other_fields:
             if field in data and data[field] is not None:
                 snapshot[field] = data[field]
-        
+
         # Handle depth data specially
         if 'bids' in data or 'asks' in data:
             # Update bids if present and non-empty
             if 'bids' in data and isinstance(data['bids'], list):
                 # Filter out entries with 0 price (invalid)
-                valid_bids = [bid for bid in data['bids'] 
+                valid_bids = [bid for bid in data['bids']
                              if bid.get('price', 0) != 0]
                 if valid_bids:
                     snapshot['bids'] = valid_bids
                 elif 'bids' not in snapshot:
                     snapshot['bids'] = []
-            
-            # Update asks if present and non-empty  
+
+            # Update asks if present and non-empty
             if 'asks' in data and isinstance(data['asks'], list):
                 # Filter out entries with 0 price (invalid)
-                valid_asks = [ask for ask in data['asks'] 
+                valid_asks = [ask for ask in data['asks']
                              if ask.get('price', 0) != 0]
                 if valid_asks:
                     snapshot['asks'] = valid_asks
                 elif 'asks' not in snapshot:
                     snapshot['asks'] = []
-        
+
         # Store updated snapshot
         self.market_snapshots[symbol_key] = snapshot
-        
+
         self.logger.debug(f"Updated snapshot for {symbol_key}: {snapshot}")
-        
+
         return snapshot
-    
+
     def unsubscribe(self, symbol: str, exchange: str, mode: int = 2) -> Dict[str, Any]:
         """
         Unsubscribe from live data for a symbol
@@ -450,23 +455,23 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Convert exchange to AliceBlue format for the unsubscription message
             ab_exchange = self.exchange_mapper.to_broker_exchange(exchange)
-            
+
             # Create unsubscription message
             unsub_msg = self.message_mapper.create_unsubsciption_message(ab_exchange, token)
-            
+
             if self.ws_client and self.ws_client.sock and self.ws_client.sock.connected:
                 self.ws_client.send(json.dumps(unsub_msg))
-                
+
                 # Remove from tracked subscriptions
                 sub_key = f"{ab_exchange}|{token}"
-                
+
                 with self.lock:
                     if sub_key in self.subscriptions:
                         # Remove this mode from the set of subscribed modes
                         all_modes = self.subscriptions[sub_key].get('all_modes', set())
                         if mode in all_modes:
                             all_modes.discard(mode)
-                        
+
                         if not all_modes:
                             # No modes left, remove the subscription entirely
                             del self.subscriptions[sub_key]
@@ -479,12 +484,12 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             # Update to the highest remaining mode
                             self.subscriptions[sub_key]['all_modes'] = all_modes
                             self.subscriptions[sub_key]['mode'] = max(all_modes)
-                    
+
                     # Check if no more subscriptions remain
                     remaining_subscriptions = len(self.subscriptions)
-                
+
                 self.logger.info(f"Unsubscribed from {symbol} ({ab_exchange}|{token})")
-                
+
                 # If no more subscriptions, disconnect to stop all background data (like Fyers)
                 if remaining_subscriptions == 0:
                     self.logger.info("No active subscriptions remaining - disconnecting from AliceBlue to stop all background data")
@@ -495,13 +500,13 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             # Don't set ws_client to None - keep it for potential reconnection
                         self.connected = False
                         self.running = False
-                        
+
                         # Clear all market data snapshots and states
                         self.symbol_state.clear()
                         self.market_snapshots.clear()
-                        
+
                         self.logger.info("Disconnected from AliceBlue WebSocket - all background data stopped")
-                        
+
                         return {
                             'status': 'success',
                             'message': f'Unsubscribed from {symbol} on {exchange} and disconnected (no active subscriptions)',
@@ -511,16 +516,16 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     except Exception as e:
                         self.logger.error(f"Error disconnecting from AliceBlue: {e}")
                         return self._create_success_response(f"Unsubscribed from {symbol} on {exchange}")
-                
+
                 return self._create_success_response(f"Unsubscribed from {symbol} on {exchange}")
             else:
                 self.logger.error("WebSocket not connected")
                 return self._create_error_response("NOT_CONNECTED", "WebSocket not connected")
-                
+
         except Exception as e:
             self.logger.error(f"Error unsubscribing from {symbol}: {e}")
             return self._create_error_response("UNSUBSCRIPTION_ERROR", str(e))
-    
+
     def _handle_message(self, message: str) -> None:
         """
         Handle incoming WebSocket message
@@ -531,13 +536,13 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
         try:
             # Log all incoming messages for debugging (use debug level to avoid flooding)
             self.logger.debug(f"Received WebSocket message: {message}")
-            
+
             # Parse JSON message
             data = json.loads(message)
-            
+
             # Handle different message types
             msg_type = data.get('t')
-            
+
             if msg_type == 'ck':
                 # Connection confirmation
                 status = data.get('s', '')
@@ -550,7 +555,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.error(f"WebSocket authentication failed: {data}")
                     self.connected = False
                 return
-            
+
             elif msg_type == 'cf':
                 # Connection confirmation (documented format)
                 if data.get('k') == 'OK':
@@ -560,7 +565,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.error(f"WebSocket authentication failed: {data}")
                     self.connected = False
                 return
-            
+
             elif msg_type == 'tk':
                 # Acknowledgment message - contains initial market data
                 self.logger.debug(f"Received acknowledgment with data: {data}")
@@ -571,7 +576,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 else:
                     self.logger.error(f"Error parsing acknowledgment data: {parsed_data['message']}")
                 # Don't return here - continue processing other message types
-            
+
             elif msg_type == 'tf':
                 # Tick data - continuous updates
                 parsed_data = self.message_mapper.parse_tick_data(data)
@@ -581,7 +586,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.debug(f"Processing tick feed for token: {data.get('e', 'unknown')}|{data.get('tk', 'unknown')}")
                 else:
                     self.logger.error(f"Error parsing tick data: {parsed_data['message']}")
-            
+
             elif msg_type == 'df':
                 # Depth data update - continuous updates
                 parsed_data = self.message_mapper.parse_depth_data(data)
@@ -593,7 +598,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.debug(f"Processing depth feed for token: {data.get('e', 'unknown')}|{data.get('tk', 'unknown')}")
                 else:
                     self.logger.error(f"Error parsing depth data: {parsed_data['message']}")
-            
+
             elif msg_type == 'dk':
                 # Depth data acknowledgment (full depth data)
                 parsed_data = self.message_mapper.parse_depth_data(data)
@@ -612,48 +617,48 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self._on_data_received(parsed_data)
                 else:
                     self.logger.error(f"Error parsing depth acknowledgment: {parsed_data['message']}")
-            
+
             else:
                 self.logger.info(f"Unknown message type: {msg_type}, data: {data}")
                 # Try to handle as generic market data if it looks like tick data
                 if msg_type and len(data) > 2:  # Non-empty message with some data
                     self._handle_generic_market_data(data)
-                
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Error parsing JSON message: {e}")
         except Exception as e:
             self.logger.error(f"Error handling message: {e}")
-    
+
     def _handle_error(self, error: Any) -> None:
         """Handle WebSocket error"""
         self.logger.error(f"AliceBlue WebSocket error: {error}")
-        
+
         # Trigger reconnection logic
         if self.running:
             self._schedule_reconnect()
-    
+
     def _handle_disconnect(self) -> None:
         """Handle WebSocket disconnection"""
         self.logger.warning("AliceBlue WebSocket disconnected")
-        
+
         with self.lock:
             was_running = self.running
             self.running = False
-        
+
         if was_running:
             self._schedule_reconnect()
-    
+
     def _schedule_reconnect(self) -> None:
         """Schedule a reconnection attempt"""
         if self.reconnect_attempts >= self.max_reconnect_attempts:
             self.logger.error("Maximum reconnection attempts reached")
             return
-        
+
         delay = min(self.reconnect_delay * (2 ** self.reconnect_attempts), self.max_reconnect_delay)
         self.reconnect_attempts += 1
-        
+
         self.logger.info(f"Scheduling reconnection attempt {self.reconnect_attempts} in {delay} seconds")
-        
+
         def reconnect():
             time.sleep(delay)
             if not self.running:  # Only reconnect if not already running
@@ -662,28 +667,28 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 if success:
                     # Resubscribe to all previous subscriptions
                     self._resubscribe_all()
-        
+
         reconnect_thread = threading.Thread(target=reconnect)
         reconnect_thread.daemon = True
         reconnect_thread.start()
-    
+
     def _resubscribe_all(self) -> None:
         """Resubscribe to all previously subscribed symbols"""
         with self.lock:
             subscriptions_to_restore = self.subscriptions.copy()
-        
+
         for sub_key, sub_info in subscriptions_to_restore.items():
             try:
                 self.logger.info(f"Resubscribing to {sub_info['symbol']} on {sub_info['exchange']}")
                 self.subscribe(
                     sub_info['symbol'],
-                    sub_info['exchange'], 
+                    sub_info['exchange'],
                     sub_info['mode'],
                     sub_info['depth_level']
                 )
             except Exception as e:
                 self.logger.error(f"Error resubscribing to {sub_key}: {e}")
-    
+
     def _resubscribe_after_auth(self) -> None:
         """Resubscribe after successful authentication"""
         # This is called after WebSocket authentication succeeds
@@ -696,27 +701,27 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         # Send subscription message
                         feed_type = AliceBlueFeedType.DEPTH if sub_info['mode'] == 3 else AliceBlueFeedType.MARKET_DATA
                         sub_msg = self.message_mapper.create_subscription_message(
-                            sub_info['ab_exchange'], 
-                            sub_info['token'], 
+                            sub_info['ab_exchange'],
+                            sub_info['token'],
                             feed_type
                         )
                         self.ws_client.send(json.dumps(sub_msg))
                         self.logger.info(f"Resubscribed to {sub_info['symbol']}")
                     except Exception as e:
                         self.logger.error(f"Error resubscribing to {sub_key}: {e}")
-    
+
     def is_connected(self) -> bool:
         """Check if WebSocket is connected"""
-        return (self.running and 
-                self.ws_client and 
-                self.ws_client.sock and 
+        return (self.running and
+                self.ws_client and
+                self.ws_client.sock and
                 self.ws_client.sock.connected)
-    
+
     def get_subscriptions(self) -> List[str]:
         """Get list of current subscriptions"""
         with self.lock:
             return list(self.subscriptions.keys())
-    
+
     def _on_data_received(self, parsed_data):
         """Handle received and parsed market data"""
         try:
@@ -727,17 +732,17 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Convert broker exchange back to standard exchange format (default mapping)
             exchange = self.exchange_mapper.from_broker_exchange(broker_exchange)
             msg_type = parsed_data.get('message_type', '')
-            
+
             # Create a unique key for this symbol
             symbol_key = f"{broker_exchange}|{str(token)}"
             self.logger.debug(f"Processing data - broker_exchange: {broker_exchange}, token: {token}")
             self.logger.debug(f"Token type in data: {type(token)}, value: {repr(token)}")
             self.logger.debug(f"Current subscriptions keys: {list(self.subscriptions.keys())}")
-            
+
             # Update market snapshot with value retention
             # This ensures we retain previous values when AliceBlue sends 0 for unchanged fields
             snapshot_data = self._update_market_snapshot(symbol_key, parsed_data)
-            
+
             # Handle different message types
             if msg_type == 'tk':
                 # Token acknowledgment - contains full data, store it
@@ -783,7 +788,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Other message types - use snapshot data
                 parsed_data = snapshot_data
                 symbol = snapshot_data.get('symbol', 'UNKNOWN')
-            
+
             # Find the original subscription to get the correct exchange and symbol
             # This is important because the client subscribes with NSE_INDEX for NIFTY
             # but the data comes with NSE exchange
@@ -792,7 +797,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.logger.debug(f"Looking for subscription with key: {sub_key}")
             original_exchange = exchange  # Default to mapped exchange
             original_symbol = symbol  # Default to parsed symbol
-            
+
             with self.lock:
                 self.logger.debug(f"Subscription lookup - checking if '{sub_key}' in subscriptions")
                 if sub_key in self.subscriptions:
@@ -802,30 +807,30 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.debug(f"FOUND subscription: exchange={original_exchange}, symbol={original_symbol}")
                 else:
                     self.logger.debug(f"Subscription not found for key: {sub_key}, using parsed values")
-            
+
             # Update parsed_data with the correct original symbol if we found it
             if original_symbol and original_symbol != parsed_data.get('symbol'):
                 parsed_data['symbol'] = original_symbol
-                
+
             # Use the original subscription exchange and symbol for topic generation
             exchange = original_exchange
             symbol = original_symbol
             self.logger.debug(f"Final values for topic: exchange={exchange}, symbol={symbol}")
-            
+
             # Get all subscribed modes for this symbol
             all_modes = set()
             with self.lock:
                 if sub_key in self.subscriptions:
                     all_modes = self.subscriptions[sub_key].get('all_modes', {1})  # Default to LTP if not found
-            
+
             # Determine what data we have
             has_depth = 'bids' in parsed_data or 'asks' in parsed_data or 'depth' in parsed_data
             has_quote = any(k in parsed_data for k in ['open', 'high', 'low', 'close', 'volume'])
             has_ltp = 'ltp' in parsed_data
-            
+
             # Publish to appropriate topics based on subscribed modes and available data
             topics_to_publish = []
-            
+
             # For depth messages (df, dk), publish to DEPTH topic if subscribed
             if msg_type in ['df', 'dk'] and 3 in all_modes:
                 topics_to_publish.append(('DEPTH', 3))
@@ -837,26 +842,26 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     topics_to_publish.append(('QUOTE', 2))
                 if has_depth and 3 in all_modes:
                     topics_to_publish.append(('DEPTH', 3))
-            
+
             # If no specific modes matched but we have data, publish to highest subscribed mode
             if not topics_to_publish and all_modes:
                 max_mode = max(all_modes)
                 mode_map = {1: 'LTP', 2: 'QUOTE', 3: 'DEPTH'}
                 topics_to_publish.append((mode_map[max_mode], max_mode))
-            
+
             # Publish to all applicable topics
             for mode_name, mode_num in topics_to_publish:
                 topic = f"{exchange}_{symbol}_{mode_name}"
                 self.logger.debug(f"Publishing {msg_type} to {topic}")
-            
+
             # Add timestamp if not present
             if 'timestamp' not in parsed_data:
                 parsed_data['timestamp'] = int(time.time() * 1000)
-            
+
             # Publish to all applicable topics
             for mode_name, mode_num in topics_to_publish:
                 topic = f"{exchange}_{symbol}_{mode_name}"
-                
+
                 # Prepare data based on mode
                 if mode_num == 1:  # LTP mode
                     # For LTP mode, only send minimal data
@@ -886,7 +891,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             'buy': [],
                             'sell': []
                         }
-                        
+
                         # Convert bids to buy array
                         for bid in parsed_data.get('bids', []):
                             depth_data['buy'].append({
@@ -894,7 +899,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                                 'quantity': bid.get('quantity', 0),
                                 'orders': 0  # AliceBlue doesn't provide order count
                             })
-                        
+
                         # Convert asks to sell array
                         for ask in parsed_data.get('asks', []):
                             depth_data['sell'].append({
@@ -902,7 +907,7 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                                 'quantity': ask.get('quantity', 0),
                                 'orders': 0  # AliceBlue doesn't provide order count
                             })
-                        
+
                         publish_data = {
                             'ltp': parsed_data.get('ltp', 0),
                             'timestamp': parsed_data.get('timestamp', ''),
@@ -910,33 +915,33 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         }
                     else:
                         # Fallback for other data types
-                        publish_data = {k: v for k, v in parsed_data.items() 
+                        publish_data = {k: v for k, v in parsed_data.items()
                                       if k not in ['message_type', 'type']}
-                
+
                 # Debug logging for data publishing
                 self.logger.debug(f"Publishing {msg_type} to topic {topic}")
-                
+
                 # Publish to ZMQ - this sends data to frontend
                 self.publish_market_data(topic, publish_data)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing received data: {e}")
-    
+
     def _handle_generic_market_data(self, data: Dict) -> None:
         """Handle unknown message format as potential market data"""
         try:
             # Log the raw data so we can understand the format
             self.logger.info(f"Trying to parse as generic market data: {data}")
-            
+
             # Try to create a basic market data object
             market_data = {
                 'symbol': 'UNKNOWN',
-                'exchange': 'UNKNOWN', 
+                'exchange': 'UNKNOWN',
                 'mode': 'UNKNOWN',
                 'raw_data': data,
                 'timestamp': int(time.time() * 1000)
             }
-            
+
             # Extract any numeric values that might be LTP
             for key, value in data.items():
                 if isinstance(value, (int, float)) and value > 0:
@@ -946,14 +951,14 @@ class AliceblueWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         market_data['token'] = str(value)
                     elif key in ['e', 'exchange']:
                         market_data['exchange'] = str(value)
-            
+
             # Publish raw data for debugging
-            topic = f"DEBUG_MARKET_DATA"
+            topic = "DEBUG_MARKET_DATA"
             self.publish_market_data(topic, market_data)
-            
+
         except Exception as e:
             self.logger.error(f"Error handling generic market data: {e}")
-    
+
     def get_capabilities(self) -> Dict[str, Any]:
         """Get adapter capabilities"""
         return {

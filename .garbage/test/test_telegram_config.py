@@ -1,12 +1,14 @@
 """
 Test script to verify Telegram bot configuration saving and loading
 """
-import sys
 import os
+import sys
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.telegram_db import get_bot_config, update_bot_config
+
 
 def test_config():
     """Test configuration save and load"""

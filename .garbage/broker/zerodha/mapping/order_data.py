@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol , get_oa_symbol
+from database.token_db import get_oa_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -24,7 +23,7 @@ def map_order_data(order_data):
         order_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         order_data = order_data['data']
-        
+
     #logger.info(f"{order_data}")
 
     if order_data:
@@ -32,14 +31,14 @@ def map_order_data(order_data):
             # Extract the instrument_token and exchange for the current order
             exchange = order['exchange']
             symbol = order['tradingsymbol']
-       
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol:
                 order['tradingsymbol'] = get_oa_symbol(brsymbol=symbol,exchange=exchange)
             else:
                 logger.info(f"{symbol} and exchange {exchange} not found. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -65,7 +64,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order['transaction_type'] == 'SELL':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['status'] == 'COMPLETE':
                 total_completed_orders += 1
@@ -91,7 +90,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -133,7 +132,7 @@ def map_trade_data(trade_data):
 def transform_tradebook_data(tradebook_data):
     transformed_data = []
     for trade in tradebook_data:
-     
+
         transformed_trade = {
             "symbol": trade.get('tradingsymbol'),
             "exchange": trade.get('exchange', ''),
@@ -167,7 +166,7 @@ def map_position_data(position_data):
         position_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         position_data = position_data['data']['net']
-        
+
     #logger.info(f"{order_data}")
 
     if position_data:
@@ -175,19 +174,19 @@ def map_position_data(position_data):
             # Extract the instrument_token and exchange for the current order
             exchange = position['exchange']
             symbol = position['tradingsymbol']
-       
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol:
                 position['tradingsymbol'] = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             else:
                 logger.info(f"{symbol} and exchange {exchange} not found. Keeping original trading symbol.")
-                
+
     return position_data
-    
+
 
 def transform_positions_data(positions_data):
-    transformed_data = [] 
+    transformed_data = []
 
     for position in positions_data:
         # Ensure average_price is treated as a float, then format to a string with 2 decimal places
@@ -207,7 +206,7 @@ def transform_positions_data(positions_data):
 
 def transform_holdings_data(holdings_data):
     transformed_data = []
-    for holdings in holdings_data:  
+    for holdings in holdings_data:
         # Handle zero average price case
         average_price = float(holdings.get('average_price') or 0.0)
         if average_price == 0:
@@ -215,7 +214,7 @@ def transform_holdings_data(holdings_data):
             pnlpercent = 0.0
         else:
             pnlpercent = round((holdings.get('last_price', 0) - average_price) / average_price * 100, 2)
-        
+
         transformed_position = {
             "symbol": holdings.get('tradingsymbol', ''),
             "exchange": holdings.get('exchange', ''),
@@ -224,12 +223,12 @@ def transform_holdings_data(holdings_data):
             "average_price": average_price,
             "pnl": round(holdings.get('pnl', 0.0), 2),  # Rounded to two decimals
             "pnlpercent": pnlpercent  # Rounded to two decimals
-        
+
         }
         transformed_data.append(transformed_position)
     return transformed_data
 
-    
+
 def map_portfolio_data(portfolio_data):
     """
     Processes and modifies a list of Portfolio dictionaries based on specific conditions.
@@ -249,7 +248,7 @@ def map_portfolio_data(portfolio_data):
         portfolio_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         portfolio_data = portfolio_data['data']
-        
+
 
 
     if portfolio_data:
@@ -259,7 +258,7 @@ def map_portfolio_data(portfolio_data):
 
             else:
                 logger.info("Zerodha Portfolio - Product Value for Delivery Not Found or Changed.")
-                
+
     return portfolio_data
 
 
@@ -267,7 +266,7 @@ def calculate_portfolio_statistics(holdings_data):
     totalholdingvalue = sum(item['last_price'] * item['quantity'] for item in holdings_data)
     totalinvvalue = sum(item['average_price'] * item['quantity'] for item in holdings_data)
     totalprofitandloss = sum(item['pnl'] for item in holdings_data)
-    
+
     # To avoid division by zero in the case when total_investment_value is 0
     totalpnlpercentage = (totalprofitandloss / totalinvvalue * 100) if totalinvvalue else 0
 

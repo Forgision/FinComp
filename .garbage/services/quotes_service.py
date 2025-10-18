@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -61,9 +62,9 @@ def get_quotes_with_auth(auth_token: str, feed_token: Optional[str], broker: str
         else:
             # Fallback to just auth token if we can't inspect
             data_handler = broker_module.BrokerData(auth_token)
-            
+
         quotes = data_handler.get_quotes(symbol, exchange)
-        
+
         if quotes is None:
             return False, {
                 'status': 'error',
@@ -83,11 +84,11 @@ def get_quotes_with_auth(auth_token: str, feed_token: Optional[str], broker: str
         }, 500
 
 def get_quotes(
-    symbol: str, 
-    exchange: str, 
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
-    feed_token: Optional[str] = None, 
+    symbol: str,
+    exchange: str,
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
+    feed_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -117,11 +118,11 @@ def get_quotes(
                 'message': 'Invalid openalgo apikey'
             }, 403
         return get_quotes_with_auth(AUTH_TOKEN, FEED_TOKEN, broker_name, symbol, exchange)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_quotes_with_auth(auth_token, feed_token, broker, symbol, exchange)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

@@ -3,11 +3,20 @@
 Test script to verify margin calculations in all scenarios
 """
 import sys
-import time
 from decimal import Decimal
-from database.sandbox_db import init_db, db_session, SandboxFunds, SandboxOrders, SandboxPositions, SandboxTrades
-from sandbox.order_manager import OrderManager
+
+from database.sandbox_db import (
+    SandboxFunds,
+    SandboxOrders,
+    SandboxPositions,
+    SandboxTrades,
+    db_session,
+    init_db,
+)
+
 from sandbox.execution_engine import ExecutionEngine
+from sandbox.order_manager import OrderManager
+
 
 def reset_user_data(user_id='rajandran'):
     """Reset all sandbox data for user"""

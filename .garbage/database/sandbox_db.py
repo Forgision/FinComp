@@ -1,15 +1,26 @@
 # database/sandbox_db.py
 
 import os
-from sqlalchemy import create_engine, UniqueConstraint, Index, CheckConstraint
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, DECIMAL, Date
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-from datetime import datetime
-from utils.logging import get_logger
+
 from dotenv import load_dotenv
+from sqlalchemy import (
+    DECIMAL,
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
+from utils.logging import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

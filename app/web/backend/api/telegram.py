@@ -1,20 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 import asyncio
-import os
+from typing import Any, Dict, Optional
 
-from app.web.services.telegram_bot_service import telegram_bot_service
-from app.db.telegram_db import (
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
+
+from app.core.services.telegram_bot_service import telegram_bot_service
+from app.db.models.auth_db import verify_api_key
+from app.db.models.telegram_db import (
     get_all_telegram_users,
-    get_telegram_user_by_username,
-    update_bot_config,
     get_bot_config,
     get_command_stats,
+    get_telegram_user_by_username,
+    get_user_preferences,
+    update_bot_config,
     update_user_preferences,
-    get_user_preferences
 )
-from app.db.auth_db import verify_api_key
 from app.utils.logging import get_logger
 
 router = APIRouter(prefix="/telegram", tags=["Telegram"])
@@ -71,7 +71,7 @@ async def get_bot_configuration(api_key: str = Depends(get_api_key)):
         if config.get('bot_token'):
             config['bot_token'] = config['bot_token'][:10] + '...' if len(config['bot_token']) > 10 else config['bot_token']
         return {"status": "success", "data": config}
-    except Exception as e:
+    except Exception:
         logger.exception("Error getting bot config")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get bot configuration")
 
@@ -87,7 +87,7 @@ async def update_bot_configuration(config_data: BotConfig, api_key: str = Depend
             return {"status": "success", "message": "Bot configuration updated"}
         else:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update bot configuration")
-    except Exception as e:
+    except Exception:
         logger.exception("Error updating bot config")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update bot configuration")
 
@@ -134,7 +134,7 @@ async def handle_webhook(request: Request):
         update_data = await request.json()
         if not update_data:
             return status.HTTP_200_OK # Always return 200 to Telegram
-        
+
         # Process update asynchronously (assuming a method in telegram_bot_service)
         # For now, just log and return 200
         logger.info(f"Webhook update received: {update_data}")
@@ -154,7 +154,7 @@ async def get_telegram_users(api_key: str = Depends(get_api_key), broker: Option
 
         users = await asyncio.to_thread(get_all_telegram_users, filters)
         return {"status": "success", "data": users, "count": len(users)}
-    except Exception as e:
+    except Exception:
         logger.exception("Error getting telegram users")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get users")
 
@@ -170,7 +170,7 @@ async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(ge
 
         # Assuming telegram_bot_service has a broadcast method
         success_count, fail_count = await telegram_bot_service.broadcast_message(broadcast_data.message, broadcast_data.filters)
-        
+
         return {
             "status": "success",
             "message": f"Broadcast sent to {success_count} users, failed for {fail_count} users",
@@ -179,7 +179,7 @@ async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(ge
         }
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("Error broadcasting message")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to broadcast message")
 
@@ -206,7 +206,7 @@ async def send_notification(notification_data: Notification, api_key: str = Depe
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send notification")
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("Error sending notification")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send notification")
 
@@ -215,7 +215,7 @@ async def get_telegram_stats(api_key: str = Depends(get_api_key), days: int = 7)
     try:
         stats = await asyncio.to_thread(get_command_stats, days)
         return {"status": "success", "data": stats}
-    except Exception as e:
+    except Exception:
         logger.exception("Error getting stats")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get statistics")
 
@@ -224,7 +224,7 @@ async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), tel
     try:
         preferences = await asyncio.to_thread(get_user_preferences, telegram_id)
         return {"status": "success", "data": preferences}
-    except Exception as e:
+    except Exception:
         logger.exception("Error getting preferences")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get preferences")
 
@@ -244,6 +244,6 @@ async def update_user_telegram_preferences(preferences_data: UserPreferences, ap
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update preferences")
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logger.exception("Error updating preferences")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update preferences")

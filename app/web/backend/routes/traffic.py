@@ -1,22 +1,19 @@
-import logging
-from datetime import datetime
-import pytz
 import csv
 import io
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from datetime import datetime
+
+import pytz
+from app.core.limiter import limiter
+from app.core.security import check_session_validity_fastapi
+from app.frontend import templates
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from sqlalchemy import func
-from app.db.traffic_db import TrafficLog, logs_session
-from .security import get_logs_db
-from app.utils.session import check_session_validity_fastapi
+from sqlalchemy.orm import Session
+
+from app.db.models.traffic_db import TrafficLog
 from app.utils.logging import logger
-from app.utils.web import limiter
-from app.web.frontend import templates
+from app.web.backend.routes.security import get_logs_db
 
 traffic_router = APIRouter(prefix="/traffic", tags=["Traffic Monitoring"])
 
@@ -39,10 +36,10 @@ def generate_csv(logs):
     """Generate CSV file from traffic logs"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write header
     writer.writerow(['Timestamp', 'Client IP', 'Method', 'Path', 'Status Code', 'Duration (ms)', 'Host', 'Error'])
-    
+
     # Write data
     for log in logs:
         writer.writerow([
@@ -55,7 +52,7 @@ def generate_csv(logs):
             log.host,
             log.error
         ])
-    
+
     return output.getvalue()
 
 @traffic_router.get("/", response_class=HTMLResponse)
@@ -116,7 +113,7 @@ async def get_stats(request: Request, db: Session = Depends(get_logs_db), sessio
             'error_requests': all_logs.filter(TrafficLog.status_code >= 400).count(),
             'avg_duration': round(float(all_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
         }
-        
+
         # Get API-specific stats
         api_logs = db.query(TrafficLog).filter(TrafficLog.path.like('/api/v1/%'))
         api_stats = {
@@ -124,7 +121,7 @@ async def get_stats(request: Request, db: Session = Depends(get_logs_db), sessio
             'error_requests': api_logs.filter(TrafficLog.status_code >= 400).count(),
             'avg_duration': round(float(api_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
         }
-        
+
         # Get endpoint usage stats
         endpoint_stats = {}
         for endpoint in [
@@ -140,7 +137,7 @@ async def get_stats(request: Request, db: Session = Depends(get_logs_db), sessio
                 'errors': endpoint_logs.filter(TrafficLog.status_code >= 400).count(),
                 'avg_duration': round(float(endpoint_logs.with_entities(func.avg(TrafficLog.duration_ms)).scalar() or 0), 2)
             }
-        
+
         return JSONResponse(content={
             'overall': overall_stats,
             'api': api_stats,
@@ -157,17 +154,17 @@ async def export_logs(request: Request, db: Session = Depends(get_logs_db), sess
     try:
         # Get all logs for the current day
         logs = TrafficLog.get_recent_logs(limit=None)  # None to get all logs
-        
+
         # Generate CSV
         csv_data = generate_csv(logs)
-        
+
         # Create the response
         return Response(
             content=csv_data,
             media_type='text/csv',
             headers={'Content-Disposition': 'attachment; filename=traffic_logs.csv'}
         )
-        
+
     except Exception as e:
         logger.error(f"Error exporting traffic logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))

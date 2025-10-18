@@ -1,14 +1,11 @@
 import json
 import os
 from datetime import datetime, timedelta
+
 import pandas as pd
-from database.token_db import get_br_symbol, get_oa_symbol, get_token
-from broker.dhan.mapping.transform_data import map_exchange_type
-import urllib.parse
-import jwt
-import httpx
-from utils.httpx_client import get_httpx_client
 from broker.dhan.api.baseurl import get_url
+from database.token_db import get_br_symbol, get_token
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,46 +14,46 @@ logger = get_logger(__name__)
 def get_api_response(endpoint, auth, method="POST", payload=''):
     AUTH_TOKEN = auth
     client_id = os.getenv('BROKER_API_KEY')
-    
+
     if not client_id:
         raise Exception("Could not extract client ID from auth token")
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
         'access-token': AUTH_TOKEN,
         'client-id': client_id,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     }
-    
+
     url = get_url(endpoint)
-    
+
     #logger.info(f"Making request to {url}")
     #logger.info(f"Headers: {headers}")
     #logger.info(f"Payload: {payload}")
-    
+
     if method == "GET":
         res = client.get(url, headers=headers)
     elif method == "POST":
         res = client.post(url, headers=headers, content=payload)
     else:
         res = client.request(method, url, headers=headers, content=payload)
-    
+
     # Add status attribute for compatibility with existing codebase
     res.status = res.status_code
     response = json.loads(res.text)
-    
+
     logger.debug(f"Response status: {res.status}")
     logger.debug(f"Response: {json.dumps(response, indent=2)}")
-    
+
     # Handle Dhan API error codes
     if response.get('status') == 'failed':
-        error_data = response.get('data', {})  
+        error_data = response.get('data', {})
         error_code = list(error_data.keys())[0] if error_data else 'unknown'
         error_message = error_data.get(error_code, 'Unknown error')
-        
+
         error_mapping = {
             '806': "Data APIs not subscribed. Please subscribe to Dhan's market data service.",
             '810': "Authentication failed: Invalid client ID",
@@ -64,11 +61,11 @@ def get_api_response(endpoint, auth, method="POST", payload=''):
             '820': "Market data subscription required",
             '821': "Market data subscription required"
         }
-        
+
         error_msg = error_mapping.get(error_code, f"Dhan API Error {error_code}: {error_message}")
         logger.error(f"API Error: {error_msg}")
         raise Exception(error_msg)
-    
+
     return response
 
 class BrokerData:
@@ -104,7 +101,7 @@ class BrokerData:
             exchange_segment = "IDX_I"
         else:
             raise ValueError(f"Unsupported exchange: {exchange}")
-            
+
         return security_id, exchange_segment
 
     def _convert_date_to_utc(self, date_str: str) -> str:
@@ -140,13 +137,13 @@ class BrokerData:
             start = datetime.strptime(start_date, "%Y-%m-%d")
         else:
             start = datetime.combine(start_date, datetime.min.time())
-        
+
         if isinstance(end_date, str):
             end = datetime.strptime(end_date, "%Y-%m-%d")
         else:
             end = datetime.combine(end_date, datetime.min.time())
         chunks = []
-        
+
         while start < end:
             chunk_end = min(start + timedelta(days=5), end)
             chunks.append((
@@ -154,7 +151,7 @@ class BrokerData:
                 chunk_end.strftime("%Y-%m-%d")
             ))
             start = chunk_end
-            
+
         return chunks
 
     def _get_exchange_segment(self, exchange: str) -> str:
@@ -177,19 +174,19 @@ class BrokerData:
         # For cash market (NSE, BSE)
         if exchange in ['NSE', 'BSE']:
             return 'EQUITY'
-        
+
         elif exchange in ['NSE_INDEX', 'BSE_INDEX']:
             return 'INDEX'
 
 
-            
+
         # For F&O market (NFO, BFO)
         elif exchange in ['NFO', 'BFO']:
             # First check for options (CE/PE at the end)
             if symbol.endswith('CE') or symbol.endswith('PE'):
                 # For index options like NIFTY23JAN20200CE
                 if any(index in symbol for index in [
-                    'NIFTY', 'NIFTYNXT50', 'FINNIFTY', 'BANKNIFTY', 
+                    'NIFTY', 'NIFTYNXT50', 'FINNIFTY', 'BANKNIFTY',
                     'MIDCPNIFTY', 'INDIAVIX', 'SENSEX', 'BANKEX', 'SENSEX50']):
                     return 'OPTIDX'
                 # For stock options
@@ -198,12 +195,12 @@ class BrokerData:
             else:
                 # For index futures like NIFTY23JAN
                 if any(index in symbol for index in [
-                    'NIFTY', 'NIFTYNXT50', 'FINNIFTY', 'BANKNIFTY', 
+                    'NIFTY', 'NIFTYNXT50', 'FINNIFTY', 'BANKNIFTY',
                     'MIDCPNIFTY', 'INDIAVIX', 'SENSEX', 'BANKEX', 'SENSEX50']):
                     return 'FUTIDX'
                 # For stock futures
                 return 'FUTSTK'
-        
+
         # For commodity market (MCX)
         elif exchange == 'MCX':
             # For commodity options on futures
@@ -211,7 +208,7 @@ class BrokerData:
                 return 'OPTFUT'
             # For commodity futures
             return 'FUTCOM'
-        
+
         # For currency market (CDS, BCD)
         elif exchange in ['CDS', 'BCD']:
             # For currency options
@@ -219,7 +216,7 @@ class BrokerData:
                 return 'OPTCUR'
             # For currency futures
             return 'FUTCUR'
-        
+
         raise Exception(f"Unsupported exchange: {exchange}")
 
     def _is_trading_day(self, date_str) -> bool:
@@ -238,20 +235,20 @@ class BrokerData:
             start = datetime.strptime(start_date, "%Y-%m-%d")
         else:
             start = datetime.combine(start_date, datetime.min.time())
-        
+
         if isinstance(end_date, str):
             end = datetime.strptime(end_date, "%Y-%m-%d")
         else:
             end = datetime.combine(end_date, datetime.min.time())
-        
+
         # If start date is weekend, move to next Monday
         while start.weekday() >= 5:
             start += timedelta(days=1)
-            
+
         # If end date is weekend, move to previous Friday
         while end.weekday() >= 5:
             end -= timedelta(days=1)
-            
+
         return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
     def _get_intraday_time_range(self, date_str: str) -> tuple:
@@ -292,10 +289,10 @@ class BrokerData:
                 start_date = start_date.strftime("%Y-%m-%d")
             if not isinstance(end_date, str):
                 end_date = end_date.strftime("%Y-%m-%d")
-                
+
             # Adjust dates for trading days
             start_date, end_date = self._adjust_dates(start_date, end_date)
-            
+
             # If both dates are weekends, return empty DataFrame
             if not self._is_trading_day(start_date) and not self._is_trading_day(end_date):
                 logger.info("Both start and end dates are non-trading days")
@@ -321,14 +318,14 @@ class BrokerData:
                 raise Exception(f"Unsupported exchange: {exchange}")
             #logger.info(f"exchange segment: {exchange_segment}")
             instrument_type = self._get_instrument_type(exchange, symbol)
-            
+
             all_candles = []
 
             # Choose endpoint and prepare request data
             if interval == 'D':
                 # For daily data, use historical endpoint
                 endpoint = "/v2/charts/historical"
-                
+
                 # Convert dates to UTC for API request
                 utc_start_date = self._convert_date_to_utc(start_date)
                 # For end date, add one day to include the end date in results
@@ -337,7 +334,7 @@ class BrokerData:
                 else:
                     end_dt = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1)
                 utc_end_date = self._convert_date_to_utc(end_dt.strftime("%Y-%m-%d"))
-                
+
                 request_data = {
                     "securityId": str(security_id),
                     "exchangeSegment": exchange_segment,
@@ -346,16 +343,16 @@ class BrokerData:
                     "toDate": utc_end_date,
                     "oi": True
                 }
-                
+
                 # Add expiryCode only for EQUITY
                 if instrument_type == 'EQUITY':
                     request_data["expiryCode"] = 0
-                
+
                 logger.debug(f"Making daily history request to {endpoint}")
                 logger.debug(f"Request data: {json.dumps(request_data, indent=2)}")
-                
+
                 response = get_api_response(endpoint, self.auth_token, "POST", json.dumps(request_data))
-                
+
                 # Process response
                 timestamps = response.get('timestamp', [])
                 opens = response.get('open', [])
@@ -380,18 +377,18 @@ class BrokerData:
             else:
                 # For intraday data
                 endpoint = "/v2/charts/intraday"
-                
+
                 # Handle both string and datetime.date objects
                 if isinstance(end_date, str):
                     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
                 else:
                     end_dt = datetime.combine(end_date, datetime.min.time())
-                    
+
                 if start_date == (end_dt - timedelta(days=1)).strftime("%Y-%m-%d"):
                     # For same day intraday data, use exact time range in IST
                     from_time = start_date
                     to_time = end_date  # This will be the next day as adjusted above
-                    
+
                     request_data = {
                         "securityId": str(security_id),
                         "exchangeSegment": exchange_segment,
@@ -401,13 +398,13 @@ class BrokerData:
                         "toDate": to_time,
                         "oi": True
                     }
-                    
+
                     logger.debug(f"Making intraday history request to {endpoint}")
                     logger.debug(f"Request data: {json.dumps(request_data, indent=2)}")
-                    
+
                     try:
                         response = get_api_response(endpoint, self.auth_token, "POST", json.dumps(request_data))
-                        
+
                         # Process response
                         timestamps = response.get('timestamp', [])
                         opens = response.get('open', [])
@@ -434,7 +431,7 @@ class BrokerData:
                 else:
                     # For multiple days, split into chunks
                     date_chunks = self._get_intraday_chunks(start_date, end_date)
-                    
+
                     for chunk_start, chunk_end in date_chunks:
                         # Skip if both dates are non-trading days
                         if not self._is_trading_day(chunk_start) and not self._is_trading_day(chunk_end):
@@ -453,13 +450,13 @@ class BrokerData:
                             "toDate": to_time,
                             "oi": True
                         }
-                        
+
                         logger.debug(f"Making intraday history request to {endpoint}")
                         logger.debug(f"Request data: {json.dumps(request_data, indent=2)}")
-                        
+
                         try:
                             response = get_api_response(endpoint, self.auth_token, "POST", json.dumps(request_data))
-                            
+
                             # Process response
                             timestamps = response.get('timestamp', [])
                             opens = response.get('open', [])
@@ -536,19 +533,19 @@ class BrokerData:
         try:
             security_id = get_token(symbol, exchange)
             exchange_type = self._get_exchange_segment(exchange)  # Use the correct method for exchange type
-            
+
             #logger.info(f"Getting quotes for symbol: {symbol}, exchange: {exchange}")
             #logger.info(f"Mapped security_id: {security_id}, exchange_type: {exchange_type}")
-            
+
             payload = {
                 exchange_type: [int(security_id)]  # Use the proper exchange type for indices
             }
-            
+
             try:
                 response = get_api_response("/v2/marketfeed/quote", self.auth_token, "POST", json.dumps(payload))
                 logger.debug(f"Quotes_Response: {response}")
                 quote_data = response.get('data', {}).get(exchange_type, {}).get(str(security_id), {})
-                
+
                 if not quote_data:
                     return {
                         'ltp': 0,
@@ -560,7 +557,7 @@ class BrokerData:
                         'ask': 0,
                         'prev_close': 0
                     }
-                
+
                 # Transform to expected format
                 result = {
                     'ltp': float(quote_data.get('last_price', 0)),
@@ -573,20 +570,20 @@ class BrokerData:
                     'ask': 0,  # Will be updated from depth
                     'prev_close': float(quote_data.get('ohlc', {}).get('close', 0))
                 }
-                
+
                 # Update bid/ask from depth if available
                 depth = quote_data.get('depth', {})
                 if depth:
                     buy_orders = depth.get('buy', [])
                     sell_orders = depth.get('sell', [])
-                    
+
                     if buy_orders:
                         result['bid'] = float(buy_orders[0].get('price', 0))
                     if sell_orders:
                         result['ask'] = float(sell_orders[0].get('price', 0))
-                
+
                 return result
-                
+
             except Exception as e:
                 if "not subscribed" in str(e).lower():
                     logger.error("Market data subscription error", exc_info=True)
@@ -602,7 +599,7 @@ class BrokerData:
                         'error': str(e)
                     }
                 raise
-            
+
         except Exception as e:
             logger.error(f"Error in get_quotes: {str(e)}", exc_info=True)
             raise Exception(f"Error fetching quotes: {str(e)}")
@@ -619,18 +616,18 @@ class BrokerData:
         try:
             security_id = get_token(symbol, exchange)
             exchange_type = self._get_exchange_segment(exchange)  # Use the correct method for exchange type
-            
+
             #logger.info(f"Getting depth for symbol: {symbol}, exchange: {exchange}")
             #logger.info(f"Mapped security_id: {security_id}, exchange_type: {exchange_type}")
-            
+
             payload = {
                 exchange_type: [int(security_id)]  # Use the proper exchange type for indices
             }
-            
+
             try:
                 response = get_api_response("/v2/marketfeed/quote", self.auth_token, "POST", json.dumps(payload))
                 quote_data = response.get('data', {}).get(exchange_type, {}).get(str(security_id), {})
-                
+
                 if not quote_data:
                     return {
                         'bids': [{'price': 0, 'quantity': 0} for _ in range(5)],
@@ -646,14 +643,14 @@ class BrokerData:
                         'totalbuyqty': 0,
                         'totalsellqty': 0
                     }
-                
+
                 depth = quote_data.get('depth', {})
                 ohlc = quote_data.get('ohlc', {})
-                
+
                 # Prepare bids and asks arrays
                 bids = []
                 asks = []
-                
+
                 # Process buy orders
                 buy_orders = depth.get('buy', [])
                 for i in range(5):
@@ -664,7 +661,7 @@ class BrokerData:
                         })
                     else:
                         bids.append({'price': 0, 'quantity': 0})
-                
+
                 # Process sell orders
                 sell_orders = depth.get('sell', [])
                 for i in range(5):
@@ -675,7 +672,7 @@ class BrokerData:
                         })
                     else:
                         asks.append({'price': 0, 'quantity': 0})
-                
+
                 result = {
                     'bids': bids,
                     'asks': asks,
@@ -690,9 +687,9 @@ class BrokerData:
                     'totalbuyqty': sum(bid['quantity'] for bid in bids),
                     'totalsellqty': sum(ask['quantity'] for ask in asks)
                 }
-                
+
                 return result
-                
+
             except Exception as api_error:
                 if "not subscribed" in str(api_error).lower():
                     logger.error("Market data subscription error", exc_info=True)
@@ -712,7 +709,7 @@ class BrokerData:
                         'error': str(api_error)
                     }
                 raise
-                
+
         except Exception as e:
             logger.error(f"Error in get_depth: {str(e)}", exc_info=True)
             raise Exception(f"Error fetching market depth: {str(e)}")

@@ -1,15 +1,15 @@
 #database/master_contract_db.py
 
-import os
-import pandas as pd
-import requests
 import gzip
+import os
 import shutil
 
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+import pandas as pd
+import requests
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -29,7 +29,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -90,7 +90,7 @@ def download_and_unzip_upstox_data(url, input_path, output_path):
 def reformat_symbol(row):
     symbol = row['symbol']
     instrument_type = row['instrumenttype']
-    
+
     if instrument_type == 'FUT':
         # For FUT, remove the spaces and append 'FUT' at the end
         parts = symbol.split(' ')
@@ -139,8 +139,8 @@ def process_upstox_json(path):
     df['expiry'] = pd.to_datetime(df['expiry'], unit='ms').dt.strftime('%d-%b-%y').str.upper()
 
 
-    df = df[['instrument_key', 'trading_symbol', 'name', 'expiry', 
-                       'strike_price', 'lot_size', 'instrument_type', 'segment', 
+    df = df[['instrument_key', 'trading_symbol', 'name', 'expiry',
+                       'strike_price', 'lot_size', 'instrument_type', 'segment',
                        'tick_size']].rename(columns={
     'instrument_key': 'token',
     'trading_symbol': 'symbol',
@@ -156,14 +156,14 @@ def process_upstox_json(path):
     df['brsymbol'] =  df['symbol']
     df['symbol'] = df.apply(reformat_symbol, axis=1)
     df['brexchange'] = segment_copy
-    
+
     df['symbol'] = df['symbol'].replace({'INDIA VIX': 'INDIAVIX'})
 
-    
+
     return df
 
 
-    
+
 
 def delete_upstox_temp_data(input_path, output_path):
     try:
@@ -177,7 +177,7 @@ def delete_upstox_temp_data(input_path, output_path):
             logger.info(f"The temporary file {input_path} and {output_path} does not exist.")
     except Exception as e:
         logger.error(f"An error occurred while deleting the file: {e}")
-    
+
 
 
 
@@ -191,15 +191,15 @@ def master_contract_download():
         token_df = process_upstox_json(output_path)
         delete_upstox_temp_data(input_path, output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
 
         delete_symtoken_table()  # Consider the implications of this action
         copy_from_dataframe(token_df)
-                
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{str(e)}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

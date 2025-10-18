@@ -1,10 +1,15 @@
-from flask import Blueprint, jsonify, render_template, request, flash, redirect, url_for
-from database.traffic_db import IPBan, Error404Tracker, InvalidAPIKeyTracker, logs_session
-from database.settings_db import get_security_settings, set_security_settings
-from utils.session import check_session_validity
-from limiter import limiter
 import logging
-from datetime import datetime
+
+from database.settings_db import get_security_settings, set_security_settings
+from database.traffic_db import (
+    Error404Tracker,
+    InvalidAPIKeyTracker,
+    IPBan,
+    logs_session,
+)
+from flask import Blueprint, jsonify, render_template, request
+from limiter import limiter
+from utils.session import check_session_validity
 
 logger = logging.getLogger(__name__)
 

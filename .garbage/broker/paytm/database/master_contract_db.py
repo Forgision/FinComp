@@ -1,14 +1,13 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import numpy as np
-from utils.httpx_client import get_httpx_client
 
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+import pandas as pd
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,7 +29,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -67,7 +66,7 @@ def copy_from_dataframe(df):
             # Pre-validate records before insertion
             invalid_records = []
             valid_records = []
-            
+
             for record in filtered_data_dict:
                 # Allow indices ("I") even if symbol is missing
                 if record.get('instrumenttype') == 'I':
@@ -81,12 +80,12 @@ def copy_from_dataframe(df):
                         logger.debug("Symbol is missing, empty, or null")
                     else:
                         valid_records.append(record)
-            
+
             if valid_records:
                 db_session.bulk_insert_mappings(SymToken, valid_records)
                 db_session.commit()
                 logger.info(f"Bulk insert completed successfully with {len(valid_records)} new records.")
-                
+
             if invalid_records:
                 logger.warning(f"{len(invalid_records)} records failed schema validation and were skipped.")
         else:
@@ -112,7 +111,7 @@ def download_csv_paytm_data(output_path):
     csv_urls = {
         "master": "https://developer.paytmmoney.com/data/v1/scrips/security_master.csv"
     }
-    
+
     # Create a list to hold the paths of the downloaded files
     downloaded_files = []
 
@@ -132,14 +131,14 @@ def download_csv_paytm_data(output_path):
             logger.info(f"Successfully downloaded {key} from {url}")
         except Exception as e:
             logger.exception(f"Failed to download {key} from {url}. Error: {e}")
-    
+
 
 def reformat_symbol(row):
     # Use trading symbol as base instead of name
     symbol = row['symbol']
     instrument_type = row['instrument_type']
     expiry = row['expiry_date'].replace('-', '').upper()
-    
+
     # For equity instruments, use the symbol as is
     if instrument_type in ['ES']:
         return symbol
@@ -149,27 +148,27 @@ def reformat_symbol(row):
         symbol = "".join(row['name'].split())
         row['symbol'] = symbol  # Set the symbol in the row
         return symbol
-    
+
     # For futures
     elif instrument_type in ['FUTSTK', 'FUTIDX']:
         # Remove any spaces and standardize format
         parts = row['name'].split(' ')
         base_symbol = parts[0].strip()
         return f"{base_symbol}{expiry}FUT"
-    
+
     # For options
     elif instrument_type in ['OPTIDX', 'OPTSTK']:
         parts = row['name'].split(' ')
         base_symbol = parts[0].strip()
-        
+
         # Get strike price from the row directly instead of parsing from symbol
         strike = str(int(float(row['strike_price'])))
-        
+
         # Determine option type (CE/PE)
         option_type = 'CE' if 'CALL' in row['name'].upper() else 'PE' if 'PUT' in row['name'].upper() else parts[-1]
-        
+
         return f"{base_symbol}{expiry}{strike}{option_type}"
-    
+
     # For any other instrument type, return symbol as is
     else:
         return symbol
@@ -182,25 +181,25 @@ def assign_values(row):
         return 'NSE', 'NSE', 'EQ'
     elif row['exchange'] == 'BSE' and (row['instrument_type'] == 'ETF' or row['instrument_type'] == 'ES'):
         return 'BSE', 'BSE', 'EQ'
-    
+
     # Handle indices
     elif row['exchange'] == 'NSE' and row['instrument_type'] == 'I':
         return 'NSE_INDEX', 'NSE', 'INDEX'
     elif row['exchange'] == 'BSE' and row['instrument_type'] == 'I':
         return 'BSE_INDEX', 'BSE', 'INDEX'
-    
+
     # Handle futures
     elif row['exchange'] == 'NSE' and row['instrument_type'] in ['FUTIDX', 'FUTSTK']:
         return 'NFO', 'NSE', 'FUT'
     elif row['exchange'] == 'BSE' and row['instrument_type'] in ['FUTIDX', 'FUTSTK']:
         return 'BFO', 'BSE', 'FUT'
-    
+
     # Handle options
     elif row['exchange'] == 'NSE' and row['instrument_type'] in ['OPTIDX', 'OPTSTK']:
         return 'NFO', 'NSE', 'OPT'
     elif row['exchange'] == 'BSE' and row['instrument_type'] in ['OPTIDX', 'OPTSTK']:
         return 'BFO', 'BSE', 'OPT'
-    
+
     # Handle unknown cases
     else:
         return 'Unknown', 'Unknown', 'Unknown'
@@ -230,7 +229,7 @@ def process_paytm_csv(path):
     df['lotsize'] = df['lot_size']
     df['tick_size'] = df['tick_size']
     df['brsymbol'] = df['symbol']
-    
+
     # For indices, set brsymbol to be the same as the formatted symbol
     indices_mask = df['instrument_type'] == 'I'
     df.loc[indices_mask, 'brsymbol'] = df.loc[indices_mask, 'name'].apply(lambda x: "".join(x.split()))
@@ -248,7 +247,7 @@ def process_paytm_csv(path):
     # List of columns to remove
     columns_to_remove = [
         "security_id", "series", "lot_size",
-        "segment", "upper_limit", "lower_limit", 
+        "segment", "upper_limit", "lower_limit",
         "expiry_date", "strike_price", "freeze_quantity"
     ]
 
@@ -264,7 +263,7 @@ def process_paytm_csv(path):
     })
 
     return token_df
-    
+
 def delete_paytm_temp_data(output_path):
     # Check each file in the directory
     for filename in os.listdir(output_path):
@@ -274,11 +273,11 @@ def delete_paytm_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
 
     output_path = 'tmp'
     try:
@@ -288,12 +287,12 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         delete_paytm_temp_data(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.exception(f"An error occurred during master contract download: {e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

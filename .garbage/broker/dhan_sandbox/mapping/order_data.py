@@ -1,6 +1,5 @@
-import json
-from database.token_db import get_symbol 
 from broker.dhan.mapping.transform_data import map_exchange
+from database.token_db import get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,7 +24,7 @@ def map_order_data(order_data):
         order_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         order_data = order_data
-        
+
 
 
     if order_data:
@@ -34,24 +33,24 @@ def map_order_data(order_data):
             instrument_token = order['securityId']
             exchange = map_exchange(order['exchangeSegment'])
             order['exchangeSegment'] = exchange
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(instrument_token, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tradingSymbol'] = symbol_from_db
                 if (order['exchangeSegment'] == 'NSE' or order['exchangeSegment'] == 'BSE') and order['productType'] == 'CNC':
                     order['productType'] = 'CNC'
-                               
+
                 elif order['productType'] == 'INTRADAY':
                     order['productType'] = 'MIS'
-                
+
                 elif order['exchangeSegment'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['productType'] == 'MARGIN':
                     order['productType'] = 'NRML'
             else:
                 logger.warning(f"Symbol not found for token {instrument_token} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -77,7 +76,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order['transactionType'] == 'SELL':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['orderStatus'] == 'TRADED':
                 total_completed_orders += 1
@@ -108,7 +107,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -194,7 +193,7 @@ def transform_holdings_data(holdings_data):
         transformed_data.append(transformed_position)
     return transformed_data
 
-    
+
 def map_portfolio_data(portfolio_data):
     """
     Processes and modifies a list of Portfolio dictionaries based on specific conditions.
@@ -221,7 +220,7 @@ def calculate_portfolio_statistics(holdings_data):
     totalholdingvalue = sum(item['avgCostPrice'] * item['totalQty'] for item in holdings_data)
     totalinvvalue = sum(item['avgCostPrice'] * item['totalQty'] for item in holdings_data)
     totalprofitandloss = 0
-    
+
     # To avoid division by zero in the case when total_investment_value is 0
     totalpnlpercentage = (totalprofitandloss / totalinvvalue * 100) if totalinvvalue else 0
 

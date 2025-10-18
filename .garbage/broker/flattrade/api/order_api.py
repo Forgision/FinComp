@@ -1,9 +1,13 @@
-import httpx
 import json
 import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.flattrade.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+
+from broker.flattrade.mapping.transform_data import (
+    map_product_type,
+    reverse_map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_symbol, get_token
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -27,7 +31,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
 
     # Get the shared httpx client
     client = get_httpx_client()
-    
+
     if endpoint == "/PiConnectTP/Holdings":
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     else:
@@ -36,7 +40,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
     url = f"https://piconnect.flattrade.in{endpoint}"
     response = client.request(method, url, content=payload, headers=headers)
     data = response.text
-    
+
     return json.loads(data)
 
 def get_order_book(auth):
@@ -80,7 +84,7 @@ def place_order_api(data,auth):
     BROKER_API_KEY = full_api_key.split(':::')[0]
     data['apikey'] = BROKER_API_KEY
     token = get_token(data['symbol'], data['exchange'])
-    newdata = transform_data(data, token)  
+    newdata = transform_data(data, token)
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
     payload = "jData=" + json.dumps(newdata) + "&jKey=" + AUTH_TOKEN
@@ -88,14 +92,14 @@ def place_order_api(data,auth):
     logger.info(f"{payload}")
     # Get the shared httpx client
     client = get_httpx_client()
-    
+
     url = "https://piconnect.flattrade.in/PiConnectTP/PlaceOrder"
     res = client.post(url, content=payload, headers=headers)
     response_data = res.json()
-    
+
     # Add status attribute for backward compatibility
     res.status = res.status_code
-    
+
     if response_data['stat'] == "Ok":
         orderid = response_data['norenordno']
     else:
@@ -115,15 +119,15 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-    
+
 
     # Get current open position for the symbol
     current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
 
-    logger.info(f"position_size : {position_size}") 
-    logger.info(f"Open Position : {current_position}") 
-    
+    logger.info(f"position_size : {position_size}")
+    logger.info(f"Open Position : {current_position}")
+
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -138,9 +142,9 @@ def place_smartorder_api(data,auth):
         res, response, orderid = place_order_api(data,AUTH_TOKEN)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
-        
+
         return res , response, orderid
-        
+
     elif position_size == current_position:
         if int(data['quantity'])==0:
             response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
@@ -148,8 +152,8 @@ def place_smartorder_api(data,auth):
             response = {"status": "success", "message": "No action needed. Position size matches current position"}
         orderid = None
         return res, response, orderid  # res remains None as no API call was made
-   
-   
+
+
 
     if position_size == 0 and current_position>0 :
         action = "SELL"
@@ -185,9 +189,9 @@ def place_smartorder_api(data,auth):
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
-        
+
         return res , response, orderid
-    
+
 
 
 
@@ -239,7 +243,7 @@ def close_all_positions(current_api_key,auth):
             # logger.info(f"{orderid}")
 
 
-            
+
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
@@ -251,23 +255,23 @@ def cancel_order(orderid,auth):
     full_api_key = os.getenv('BROKER_API_KEY')
     api_key = full_api_key.split(':::')[0]
     data = {"uid": api_key, "norenordno": orderid}
-    
+
 
     payload = "jData=" + json.dumps(data) + "&jKey=" + AUTH_TOKEN
     # Set up the request headers
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
-    
 
-    
+
+
     # Get the shared httpx client and send the request
     client = get_httpx_client()
-    
+
     url = "https://piconnect.flattrade.in/PiConnectTP/CancelOrder"
     res = client.post(url, content=payload, headers=headers)
     data = res.json()
     logger.info(f"{data}")
-    
+
     # Check if the request was successful
     if data.get("stat")=='Ok':
         # Return a success response
@@ -317,7 +321,7 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     #logger.info(f"{order_book_response}")
@@ -339,6 +343,6 @@ def cancel_all_orders_api(data,auth):
             canceled_orders.append(orderid)
         else:
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations
 

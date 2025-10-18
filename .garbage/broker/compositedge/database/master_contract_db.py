@@ -1,23 +1,16 @@
 # database/master_contract_db.py
 
-import os
-import pandas as pd
-import numpy as np
-import gzip
-import shutil
-import json
-import gzip
-import io
 import csv
-from datetime import datetime
+import json
+import os
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
-from extensions import socketio  # Import SocketIO
-from utils.httpx_client import get_httpx_client
+import pandas as pd
 from broker.compositedge.baseurl import MARKET_DATA_URL
+from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -286,7 +279,7 @@ def process_compositedge_cds_csv(path):
 
     df["StrikePrice"] = pd.to_numeric(df["StrikePrice"], errors='coerce').fillna(1.0)
 
-    
+
     df["symbol"] = df.apply(
         lambda row: f"{row['Name']}"
                 f"{row['ContractExpiration'].strftime('%d%b%y').upper()}"
@@ -296,14 +289,14 @@ def process_compositedge_cds_csv(path):
         )
 
     # Generate symbols based on instrument type
-    # df['symbol'] = df.apply(lambda x: 
-    #    f"{x['Name']}{x['ContractExpiration'].strftime('%d%b%y').upper()}{'FUT' if x['OptionType']=='1' else str(int(float(x['StrikePrice'])))+('CE' if x['OptionType']=='3' else 'PE')}", 
+    # df['symbol'] = df.apply(lambda x:
+    #    f"{x['Name']}{x['ContractExpiration'].strftime('%d%b%y').upper()}{'FUT' if x['OptionType']=='1' else str(int(float(x['StrikePrice'])))+('CE' if x['OptionType']=='3' else 'PE')}",
     #    axis=1
     # )
     # Remove any rows where symbol generation failed
     # df = df[df['symbol'].notna()]
 
-    
+
     # Create token_df with the relevant columns
     token_df = df[['symbol']].copy()
     token_df['symbol'] = df['symbol'].values
@@ -354,7 +347,7 @@ def process_compositedge_bfo_csv(path):
         axis=1
         )
 
-        
+
     token_df = df[['symbol']].copy()
     token_df['symbol'] = df['symbol'].values
     token_df['brsymbol'] = df['Description'].values
@@ -392,7 +385,7 @@ def process_compositedge_mcx_csv(path):
 
     df['ContractExpiration'] = pd.to_datetime(df['ContractExpiration'])
     df["StrikePrice"] = pd.to_numeric(df["StrikePrice"], errors='coerce').fillna(1.0)
-    
+
     df["symbol"] = df.apply(
         lambda row: f"{row['Name']}"
                 f"{row['ContractExpiration'].strftime('%d%b%y').upper()}"
@@ -401,7 +394,7 @@ def process_compositedge_mcx_csv(path):
         axis=1
         )
 
-    
+
     # Create token_df with the relevant columns
     token_df = df[['symbol']].copy()
     token_df['symbol'] = df['symbol'].values
@@ -448,7 +441,7 @@ def process_index_data(index_data):
     df['strike'] = 1.0
     df['lotsize'] = 1  # Default index lot size
     df['instrumenttype'] = 'INDEX'
-    df['tick_size'] = 0.05 
+    df['tick_size'] = 0.05
     # logger.info(f"{df}")
 
     return df
@@ -462,11 +455,11 @@ def delete_compositedge_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
 
     output_path = 'tmp'
     try:
@@ -490,12 +483,12 @@ def master_contract_download():
         if index_data:
             index_df = process_index_data(index_data)
             copy_from_dataframe(index_df)
-        
+
         delete_compositedge_temp_data(output_path)
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

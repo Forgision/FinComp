@@ -1,13 +1,14 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
 import traceback
 
-from .data_schemas import DepthSchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.depth_service import get_depth
 from utils.logging import get_logger
+
+from .data_schemas import DepthSchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('depth', description='Market Depth API')
@@ -30,14 +31,14 @@ class Depth(Resource):
             api_key = depth_data['apikey']
             symbol = depth_data['symbol']
             exchange = depth_data['exchange']
-            
+
             # Call the service function to get depth data with API key
             success, response_data, status_code = get_depth(
                 symbol=symbol,
                 exchange=exchange,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
 
         except ValidationError as err:

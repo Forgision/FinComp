@@ -1,21 +1,21 @@
-from flask_restx import Namespace, Resource, fields
-from flask import request, jsonify, make_response
-from limiter import limiter
-import os
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 
-from services.telegram_bot_service import telegram_bot_service
+from database.auth_db import verify_api_key
 from database.telegram_db import (
     get_all_telegram_users,
-    get_telegram_user_by_username,
-    update_bot_config,
     get_bot_config,
     get_command_stats,
+    get_telegram_user_by_username,
+    get_user_preferences,
+    update_bot_config,
     update_user_preferences,
-    get_user_preferences
 )
-from database.auth_db import verify_api_key
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource, fields
+from limiter import limiter
+from services.telegram_bot_service import telegram_bot_service
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -105,7 +105,7 @@ class TelegramBotConfig(Resource):
                 'data': config
             }), 200)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error getting bot config")
             return make_response(jsonify({
                 'status': 'error',
@@ -153,7 +153,7 @@ class TelegramBotConfig(Resource):
                     'message': 'Failed to update bot configuration'
                 }), 500)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error updating bot config")
             return make_response(jsonify({
                 'status': 'error',
@@ -318,7 +318,7 @@ class TelegramUsers(Resource):
                 'count': len(users)
             }), 200)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error getting telegram users")
             return make_response(jsonify({
                 'status': 'error',
@@ -372,7 +372,7 @@ class BroadcastMessage(Resource):
                 'fail_count': fail_count
             }), 200)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error broadcasting message")
             return make_response(jsonify({
                 'status': 'error',
@@ -432,7 +432,7 @@ class SendNotification(Resource):
                     'message': 'Failed to send notification'
                 }), 500)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error sending notification")
             return make_response(jsonify({
                 'status': 'error',
@@ -465,7 +465,7 @@ class TelegramStats(Resource):
                 'data': stats
             }), 200)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error getting stats")
             return make_response(jsonify({
                 'status': 'error',
@@ -502,7 +502,7 @@ class UserPreferences(Resource):
                 'data': preferences
             }), 200)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error getting preferences")
             return make_response(jsonify({
                 'status': 'error',
@@ -552,7 +552,7 @@ class UserPreferences(Resource):
                     'message': 'Failed to update preferences'
                 }), 500)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error updating preferences")
             return make_response(jsonify({
                 'status': 'error',

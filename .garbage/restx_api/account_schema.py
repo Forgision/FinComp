@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, validate
 
+
 class FundsSchema(Schema):
     apikey = fields.Str(required=True)
 

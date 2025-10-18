@@ -2,25 +2,23 @@
 Shoonya WebSocket Adapter for OpenAlgo
 Handles market data streaming from Shoonya broker
 """
-import threading
 import json
 import logging
+import os
+import sys
+import threading
 import time
-from typing import Dict, Any, Optional, List
-from enum import IntEnum
+from typing import Any, Dict, List, Optional
 
 from database.auth_db import get_auth_token
-from database.token_db import get_token
-
-import sys
-import os
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
 from websocket_proxy.mapping import SymbolMapper
-from .shoonya_mapping import ShoonyaExchangeMapper, ShoonyaCapabilityRegistry
+
+from .shoonya_mapping import ShoonyaExchangeMapper
 from .shoonya_websocket import ShoonyaWebSocket
 
 
@@ -31,12 +29,12 @@ class Config:
     MAX_RECONNECT_DELAY = 60
     CACHE_COMPLETENESS_THRESHOLD = 0.3
     WEBSOCKET_TIMEOUT = 30
-    
+
     # Market data modes
     MODE_LTP = 1
     MODE_QUOTE = 2
     MODE_DEPTH = 3
-    
+
     # Message types
     MSG_AUTH = 'ck'
     MSG_TOUCHLINE_FULL = 'tf'
@@ -47,31 +45,31 @@ class Config:
 
 class MarketDataCache:
     """Manages market data caching with thread safety"""
-    
+
     def __init__(self):
         self._cache = {}
         self._initialized_tokens = set()
         self._lock = threading.Lock()
         self.logger = logging.getLogger("market_cache")
-    
+
     def get(self, token: str) -> Dict[str, Any]:
         """Get cached data for a token"""
         with self._lock:
             return self._cache.get(token, {}).copy()
-    
+
     def update(self, token: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update cache with new data and return merged result"""
         with self._lock:
             cached_data = self._cache.get(token, {})
             merged_data = self._merge_data(cached_data, data, token)
             self._cache[token] = merged_data
-            
+
             if token not in self._initialized_tokens:
                 self._initialized_tokens.add(token)
                 self._log_cache_initialization(token, data)
-            
+
             return merged_data.copy()
-    
+
     def clear(self, token: str = None) -> None:
         """Clear cache for specific token or all tokens"""
         with self._lock:
@@ -84,7 +82,7 @@ class MarketDataCache:
                 self._cache.clear()
                 self._initialized_tokens.clear()
                 self.logger.info(f"Cleared all cached market data ({cache_size} tokens)")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
@@ -93,26 +91,26 @@ class MarketDataCache:
                 'initialized_tokens': len(self._initialized_tokens),
                 'tokens': list(self._cache.keys())
             }
-    
+
     def _merge_data(self, cached: Dict, new: Dict, token: str) -> Dict:
         """Smart merge logic for market data"""
         merged = cached.copy()
-        
+
         # Define field categories
         basic_fields = ['lp', 'o', 'h', 'l', 'c', 'v', 'ap', 'pc', 'ltq', 'ltt', 'tbq', 'tsq']
         depth_prices = ['bp1', 'bp2', 'bp3', 'bp4', 'bp5', 'sp1', 'sp2', 'sp3', 'sp4', 'sp5']
         depth_quantities = ['bq1', 'bq2', 'bq3', 'bq4', 'bq5', 'sq1', 'sq2', 'sq3', 'sq4', 'sq5']
         depth_orders = ['bo1', 'bo2', 'bo3', 'bo4', 'bo5', 'so1', 'so2', 'so3', 'so4', 'so5']
-        
+
         for key, value in new.items():
             if self._should_preserve_cached_value(key, value, cached):
                 continue
             merged[key] = value
-        
+
         # Preserve cached values for missing fields
         self._preserve_missing_fields(merged, new, cached)
         return merged
-    
+
     def _should_preserve_cached_value(self, key: str, new_value: Any, cached: Dict) -> bool:
         """Determine if cached value should be preserved over new value"""
         # Preserve non-zero OHLC values when new value is zero
@@ -120,30 +118,30 @@ class MarketDataCache:
             cached_value = cached.get(key)
             return cached_value is not None and not self._is_zero_value(cached_value)
         return False
-    
+
     def _preserve_missing_fields(self, merged: Dict, new: Dict, cached: Dict) -> None:
         """Preserve cached values for fields missing in new data"""
         for key, value in cached.items():
             if key not in new:
                 merged[key] = value
-    
+
     def _is_zero_value(self, value: Any) -> bool:
         """Check if value represents zero"""
         return value in [None, '', '0', 0, '0.0', 0.0]
-    
+
     def _log_cache_initialization(self, token: str, data: Dict) -> None:
         """Log cache initialization details"""
         basic_fields = ['lp', 'o', 'h', 'l', 'c', 'v', 'ap', 'pc', 'ltq', 'ltt', 'tbq', 'tsq']
         present_fields = sum(1 for field in basic_fields if field in data)
         completeness = present_fields / len(basic_fields)
-        
+
         self.logger.info(f"Initializing cache for token {token} - "
                         f"{present_fields}/{len(basic_fields)} fields present ({completeness:.1%})")
 
 
 class LTPNormalizer:
     """Handles LTP mode data normalization"""
-    
+
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         return {
@@ -155,7 +153,7 @@ class LTPNormalizer:
 
 class QuoteNormalizer:
     """Handles Quote mode data normalization"""
-    
+
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         return {
@@ -176,7 +174,7 @@ class QuoteNormalizer:
 
 class DepthNormalizer:
     """Handles Depth mode data normalization"""
-    
+
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         result = {
@@ -195,7 +193,7 @@ class DepthNormalizer:
             'total_sell_quantity': safe_int(data.get('tsq')),
             'shoonya_timestamp': safe_int(data.get('ltt'))
         }
-        
+
         # Add depth data
         if msg_type in (Config.MSG_DEPTH_FULL, Config.MSG_DEPTH_PARTIAL):
             result['depth'] = {
@@ -215,7 +213,7 @@ class DepthNormalizer:
                 ]
             }
             result['depth_level'] = 5
-            
+
             # Add circuit limits and additional data
             result.update({
                 'upper_circuit': safe_float(data.get('uc')),
@@ -224,13 +222,13 @@ class DepthNormalizer:
                 '52_week_low': safe_float(data.get('52l')),
                 'total_traded_value': safe_int(data.get('toi'))
             })
-        
+
         return result
 
 
 class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     """Shoonya WebSocket adapter with improved structure and error handling"""
-    
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger("shoonya_websocket")
@@ -238,27 +236,27 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self._setup_market_cache()
         self._setup_connection_management()
         self._setup_normalizers()
-    
+
     def _setup_adapter(self):
         """Initialize adapter-specific settings"""
         self.user_id = None
         self.broker_name = "shoonya"
         self.ws_client = None
-        
+
     def _setup_market_cache(self):
         """Initialize market data caching system"""
         self.market_cache = MarketDataCache()
         self.subscriptions = {}
         self.token_to_symbol = {}
         self.ws_subscription_refs = {}  # Reference counting for WebSocket subscriptions
-    
+
     def _setup_connection_management(self):
         """Initialize connection management"""
         self.running = False
         self.connected = False
         self.lock = threading.Lock()
         self.reconnect_attempts = 0
-    
+
     def _setup_normalizers(self):
         """Initialize data normalizers"""
         self.normalizers = {
@@ -271,23 +269,23 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Initialize connection with Shoonya WebSocket API"""
         self.user_id = user_id
         self.broker_name = broker_name
-        
+
         # Get Shoonya credentials
         api_key = os.getenv('BROKER_API_KEY', '')
         if api_key:
             self.actid = api_key[:-2] if len(api_key) > 2 else api_key
         else:
             self.actid = user_id
-        
+
         # Get auth token from database
         self.susertoken = get_auth_token(user_id)
-        
+
         if not self.actid or not self.susertoken:
             self.logger.error(f"Missing Shoonya credentials for user {user_id}")
             raise ValueError(f"Missing Shoonya credentials for user {user_id}")
-        
+
         self.logger.info(f"Using Shoonya credentials - User ID: {self.actid}")
-        
+
         # Initialize WebSocket client
         self.ws_client = ShoonyaWebSocket(
             user_id=self.actid,
@@ -298,7 +296,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             on_close=self._on_close,
             on_open=self._on_open
         )
-        
+
         self.running = True
 
     def connect(self) -> None:
@@ -306,10 +304,10 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         if not self.ws_client:
             self.logger.error("WebSocket client not initialized. Call initialize() first.")
             return
-        
+
         self.logger.info("Connecting to Shoonya WebSocket...")
         connected = self.ws_client.connect()
-        
+
         if connected:
             self.connected = True
             self.reconnect_attempts = 0
@@ -320,24 +318,24 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def disconnect(self) -> None:
         """Disconnect from Shoonya WebSocket endpoint"""
         self.running = False
-        
+
         # Clear all subscriptions and reference counts before disconnecting
         with self.lock:
             self.subscriptions.clear()
             self.token_to_symbol.clear()
             self.ws_subscription_refs.clear()
             self.logger.info("Cleared all subscriptions and mappings")
-        
+
         if self.ws_client:
             self.ws_client.stop()
             self.ws_client = None  # Clear the reference
-        
+
         # Clean up market data cache
         self.market_cache.clear()
-        
+
         # Clean up ZeroMQ resources
         self.cleanup_zmq()
-        
+
         self.connected = False
         self.logger.info("Disconnected from Shoonya WebSocket and cleaned up all resources")
 
@@ -447,7 +445,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
     def _validate_subscription_params(self, symbol: str, exchange: str, mode: int) -> bool:
         """Validate subscription parameters"""
-        return (symbol and exchange and 
+        return (symbol and exchange and
                 mode in [Config.MODE_LTP, Config.MODE_QUOTE, Config.MODE_DEPTH])
 
     def _get_token_info(self, symbol: str, exchange: str) -> Optional[Dict]:
@@ -464,7 +462,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         brexchange = token_info['brexchange']
         shoonya_exchange = ShoonyaExchangeMapper.to_shoonya_exchange(brexchange)
         scrip = f"{shoonya_exchange}|{token}"
-        
+
         return {
             'symbol': symbol,
             'exchange': exchange,
@@ -512,10 +510,10 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Handle WebSocket unsubscription with reference counting"""
         scrip = subscription['scrip']
         mode = subscription['mode']
-        
+
         if scrip not in self.ws_subscription_refs:
             return
-        
+
         if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
             self.ws_subscription_refs[scrip]['touchline_count'] -= 1
             if self.ws_subscription_refs[scrip]['touchline_count'] <= 0:
@@ -533,18 +531,18 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Remove subscription and clean up mappings"""
         token = subscription['token']
         scrip = subscription['scrip']
-        
+
         # Remove subscription
         if correlation_id in self.subscriptions:
             del self.subscriptions[correlation_id]
-        
+
         # Clean up reference count if both counts are 0
         if scrip in self.ws_subscription_refs:
-            if (self.ws_subscription_refs[scrip]['touchline_count'] <= 0 and 
+            if (self.ws_subscription_refs[scrip]['touchline_count'] <= 0 and
                 self.ws_subscription_refs[scrip]['depth_count'] <= 0):
                 del self.ws_subscription_refs[scrip]
                 self.logger.debug(f"Removed reference counts for {scrip}")
-        
+
         # Remove token mapping if no other subscriptions use it
         if not any(sub.get('token') == token for sub in self.subscriptions.values()):
             if token in self.token_to_symbol:
@@ -557,24 +555,24 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.logger.info("Connected to Shoonya WebSocket")
         self.connected = True
         self._resubscribe_all()
-    
+
     def _on_error(self, ws, error):
         """Handle WebSocket connection error"""
         self.logger.error(f"Shoonya WebSocket error: {error}")
         self._handle_websocket_error(error)
-    
+
     def _on_close(self, ws, close_status_code, close_msg):
         """Handle WebSocket connection close"""
         self.logger.info(f"Shoonya WebSocket connection closed: {close_status_code} - {close_msg}")
         self.connected = False
-        
+
         if self.running:
             self._schedule_reconnection()
 
     def _handle_websocket_error(self, error: Exception) -> None:
         """Centralized error handling for WebSocket operations"""
         self.logger.error(f"WebSocket error: {error}")
-        
+
         if self.running:
             self._schedule_reconnection()
 
@@ -584,19 +582,19 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.logger.error("Maximum reconnection attempts reached")
             self.running = False
             return
-        
+
         delay = min(
             Config.BASE_RECONNECT_DELAY * (2 ** self.reconnect_attempts),
             Config.MAX_RECONNECT_DELAY
         )
-        
+
         self.logger.info(f"Reconnecting in {delay}s (attempt {self.reconnect_attempts + 1})")
         threading.Timer(delay, self._attempt_reconnection).start()
 
     def _attempt_reconnection(self) -> None:
         """Attempt to reconnect to WebSocket"""
         self.reconnect_attempts += 1
-        
+
         try:
             # Recreate WebSocket client
             self.ws_client = ShoonyaWebSocket(
@@ -608,14 +606,14 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 on_close=self._on_close,
                 on_open=self._on_open
             )
-            
+
             if self.ws_client.connect():
                 self.connected = True
                 self.reconnect_attempts = 0
                 self.logger.info("Reconnected successfully")
             else:
                 self.logger.error("Reconnection failed")
-                
+
         except Exception as e:
             self.logger.error(f"Reconnection error: {e}")
 
@@ -660,23 +658,23 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def _on_message(self, ws, message):
         """Handle incoming market data messages"""
         self.logger.debug(f"[RAW_MESSAGE] {message}")
-        
+
         try:
             data = json.loads(message)
             msg_type = data.get('t')
-            
+
             # Handle authentication acknowledgment
             if msg_type == Config.MSG_AUTH:
                 self.logger.info(f"Authentication response: {data}")
                 return
-            
+
             # Process market data messages
-            if msg_type in (Config.MSG_TOUCHLINE_FULL, Config.MSG_TOUCHLINE_PARTIAL, 
+            if msg_type in (Config.MSG_TOUCHLINE_FULL, Config.MSG_TOUCHLINE_PARTIAL,
                            Config.MSG_DEPTH_FULL, Config.MSG_DEPTH_PARTIAL):
                 self._process_market_message(data)
             else:
                 self.logger.debug(f"Unknown message type {msg_type}: {data}")
-                
+
         except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error: {e}, message: {message}")
         except Exception as e:
@@ -687,20 +685,20 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         try:
             msg_type = data.get('t')
             token = data.get('tk')
-            
+
             if not self._is_valid_market_message(msg_type, token):
                 return
-            
+
             symbol, exchange = self._get_symbol_info(token)
             if not symbol:
                 return
-            
+
             matching_subscriptions = self._find_matching_subscriptions(token)
-            
+
             for subscription in matching_subscriptions:
                 if self._should_process_message(msg_type, subscription['mode']):
                     self._process_subscription_message(data, subscription, symbol, exchange)
-                    
+
         except Exception as e:
             self.logger.error(f"Message processing error: {e}")
 
@@ -721,19 +719,19 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Determine if message should be processed for given mode"""
         touchline_messages = {Config.MSG_TOUCHLINE_FULL, Config.MSG_TOUCHLINE_PARTIAL}
         depth_messages = {Config.MSG_DEPTH_FULL, Config.MSG_DEPTH_PARTIAL}
-        
+
         if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
             return msg_type in touchline_messages
         elif mode == Config.MODE_DEPTH:
             return msg_type in depth_messages
-        
+
         return False
 
     def _process_subscription_message(self, data: Dict, subscription: Dict, symbol: str, exchange: str) -> None:
         """Process message for a specific subscription"""
         mode = subscription['mode']
         msg_type = data.get('t')
-        
+
         # Normalize data
         normalized_data = self._normalize_market_data(data, msg_type, mode)
         normalized_data.update({
@@ -741,11 +739,11 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             'exchange': exchange,
             'timestamp': int(time.time() * 1000)
         })
-        
+
         # Create topic and publish
         mode_str = {Config.MODE_LTP: 'LTP', Config.MODE_QUOTE: 'QUOTE', Config.MODE_DEPTH: 'DEPTH'}[mode]
         topic = f"{exchange}_{symbol}_{mode_str}"
-        
+
         self.logger.debug(f"[{mode_str}] Publishing data for {symbol}")
         self.publish_market_data(topic, normalized_data)
 
@@ -755,13 +753,13 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         if token:
             # Use cache to handle partial updates
             data = self.market_cache.update(token, data)
-        
+
         # Get mode-specific normalizer
         normalizer = self.normalizers.get(mode)
         if not normalizer:
             self.logger.error(f"No normalizer found for mode {mode}")
             return {}
-        
+
         return normalizer.normalize(data, msg_type)
 
     def get_market_data_cache_stats(self) -> Dict[str, Any]:

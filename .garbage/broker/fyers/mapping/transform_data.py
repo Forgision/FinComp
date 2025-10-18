@@ -46,19 +46,19 @@ def transform_modify_order_data(data):
     except (ValueError, TypeError) as e:
         logger.warning(f"Could not parse quantity for order modification {order_id}. Defaulting to 0. Error: {e}")
         quantity = 0
-    
+
     try:
         price = float(data.get("price", 0)) if data.get("price") else 0.0
     except (ValueError, TypeError) as e:
         logger.warning(f"Could not parse price for order modification {order_id}. Defaulting to 0.0. Error: {e}")
         price = 0.0
-    
+
     try:
         trigger_price = float(data.get("trigger_price", 0)) if data.get("trigger_price") else 0.0
     except (ValueError, TypeError) as e:
         logger.warning(f"Could not parse trigger_price for order modification {order_id}. Defaulting to 0.0. Error: {e}")
         trigger_price = 0.0
-    
+
     return {
         "id": data["orderid"],
         "qty": quantity,
@@ -128,4 +128,3 @@ def reverse_map_product_type(product):
     if oa_product is None:
         logger.warning(f"Unknown Fyers product type '{product}' received. Cannot map to OpenAlgo product type.")
     return oa_product
-    

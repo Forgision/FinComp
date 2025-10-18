@@ -1,17 +1,18 @@
-from typing import Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from app.db.models.master_contract_cache_hook import (
+    get_cache_health,
+    load_symbols_to_cache,
+)
+from app.db.models.master_contract_status_db import check_if_ready, get_status
+from app.db.models.session import get_db
+from app.db.models.token_db_enhanced import clear_cache, get_cache_stats
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
-from app.db.session import get_db
-
-# Assuming these database functions are now in app.db
-from app.db.master_contract_status_db import get_status, check_if_ready
-from app.db.token_db_enhanced import get_cache_stats, clear_cache
-from app.db.master_contract_cache_hook import get_cache_health, load_symbols_to_cache
-
 
 master_contract_status_router = APIRouter(
     prefix="/api/master-contract",
@@ -59,13 +60,13 @@ async def check_master_contract_ready(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No broker session found"
             )
-            
+
         is_ready = await check_if_ready(db, broker) # Assuming check_if_ready is now async and takes db
         return JSONResponse(content={
             'ready': is_ready,
             'message': 'Master contracts are ready' if is_ready else 'Master contracts not ready'
         }, status_code=status.HTTP_200_OK)
-        
+
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
@@ -84,7 +85,7 @@ async def get_cache_status(
     try:
         cache_info = await get_cache_stats(db) # Assuming get_cache_stats is now async and takes db
         return JSONResponse(content=cache_info, status_code=status.HTTP_200_OK)
-        
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_200_OK,
@@ -109,7 +110,7 @@ async def get_cache_health_fastapi(
     try:
         health_info = await get_cache_health(db) # Assuming get_cache_health is now async and takes db
         return JSONResponse(content=health_info, status_code=status.HTTP_200_OK)
-        
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_200_OK,
@@ -140,9 +141,9 @@ async def reload_cache_fastapi(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No broker session found"
             )
-        
+
         success = await load_symbols_to_cache(db, broker) # Assuming load_symbols_to_cache is now async and takes db
-        
+
         if success:
             return JSONResponse(content={
                 'status': 'success',
@@ -153,7 +154,7 @@ async def reload_cache_fastapi(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail='Failed to reload cache'
             )
-            
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -176,12 +177,12 @@ async def clear_cache_fastapi(
     """Manually clear the cache"""
     try:
         await clear_cache(db) # Assuming clear_cache is now async and takes db
-        
+
         return JSONResponse(content={
             'status': 'success',
             'message': 'Cache cleared successfully'
         }, status_code=status.HTTP_200_OK)
-        
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

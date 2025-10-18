@@ -1,5 +1,7 @@
+from typing import List, Optional, Tuple, Union
+
 from starlette.requests import Request
-from typing import List, Tuple, Union, Optional
+
 
 def flash(request: Request, message: str, category: str = "primary") -> None:
     if "_messages" not in request.session:

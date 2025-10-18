@@ -1,9 +1,9 @@
-from openalgo import api
-import pandas as pd
-import numpy as np
 import time
-import threading
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from openalgo import api
 
 # Get API key from openalgo portal
 api_key = 'your-openalgo-api-key'
@@ -31,8 +31,8 @@ def Supertrend(df, atr_period, multiplier):
     close = df['close']
 
     # Calculate ATR using ewm like original code
-    price_diffs = [high - low, 
-                   high - close.shift(), 
+    price_diffs = [high - low,
+                   high - close.shift(),
                    close.shift() - low]
     true_range = pd.concat(price_diffs, axis=1)
     true_range = true_range.abs().max(axis=1)

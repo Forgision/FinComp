@@ -1,10 +1,19 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Time
-from sqlalchemy.orm import scoped_session, sessionmaker, relationship
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-import os
 import logging
+import os
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +43,7 @@ Base.query = db_session.query_property()
 class Strategy(Base):
     """Model for trading strategies"""
     __tablename__ = 'strategies'
-    
+
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     webhook_id = Column(String(36), unique=True, nullable=False)  # UUID
@@ -48,14 +57,14 @@ class Strategy(Base):
     squareoff_time = Column(String(5))  # HH:MM format
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     symbol_mappings = relationship("StrategySymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
 
 class StrategySymbolMapping(Base):
     """Model for symbol mappings in strategies"""
     __tablename__ = 'strategy_symbol_mappings'
-    
+
     id = Column(Integer, primary_key=True)
     strategy_id = Column(Integer, ForeignKey('strategies.id'), nullable=False)
     symbol = Column(String(50), nullable=False)
@@ -64,7 +73,7 @@ class StrategySymbolMapping(Base):
     product_type = Column(String(10), nullable=False)  # MIS/CNC
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     strategy = relationship("Strategy", back_populates="symbol_mappings")
 
@@ -136,7 +145,7 @@ def delete_strategy(strategy_id):
         strategy = get_strategy(strategy_id)
         if not strategy:
             return False
-        
+
         db_session.delete(strategy)
         db_session.commit()
         return True
@@ -151,7 +160,7 @@ def toggle_strategy(strategy_id):
         strategy = get_strategy(strategy_id)
         if not strategy:
             return None
-        
+
         strategy.is_active = not strategy.is_active
         db_session.commit()
         return strategy

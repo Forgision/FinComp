@@ -1,24 +1,23 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import numpy as np
-import requests
-import gzip
-import shutil
-import http.client
-import json
-import pandas as pd
-import gzip
-import io
 import time
 
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index, text
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
+import pandas as pd
+import requests
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import (
+    Column,
+    Float,
+    Index,
+    Integer,
+    Sequence,
+    String,
+    create_engine,
+    text,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -60,7 +59,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -94,31 +93,31 @@ def copy_from_dataframe(df):
     # Insert in smaller chunks to minimize database lock time
     chunk_size = 500  # Reduced chunk size for shorter lock duration
     total_inserted = 0
-    
+
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
             logger.info(f"Starting bulk insert of {len(filtered_data_dict)} records in chunks of {chunk_size}")
-            
+
             # Process data in chunks
             for i in range(0, len(filtered_data_dict), chunk_size):
                 chunk = filtered_data_dict[i:i + chunk_size]
-                
+
                 # Use a separate transaction for each chunk with retry logic
                 try:
                     # Insert chunk
                     db_session.bulk_insert_mappings(SymToken, chunk)
                     db_session.commit()  # Commit each chunk immediately
-                    
+
                     total_inserted += len(chunk)
-                    
+
                     # Log progress every 20 chunks (10,000 records)
                     if (i // chunk_size + 1) % 20 == 0:
                         logger.info(f"Processed {total_inserted} records so far...")
-                    
+
                 except Exception as chunk_error:
                     logger.warning(f"Error inserting chunk {i//chunk_size + 1}, retrying: {chunk_error}")
                     db_session.rollback()
-                    
+
                     # Retry once for this chunk
                     try:
                         time.sleep(0.1)  # Brief pause before retry
@@ -130,10 +129,10 @@ def copy_from_dataframe(df):
                         db_session.rollback()
                         # Continue with next chunk instead of failing completely
                         continue
-                
+
                 # Small delay to allow other operations
                 time.sleep(0.005)  # 5ms delay between chunks (reduced from 10ms)
-            
+
             logger.info(f"Bulk insert completed successfully with {total_inserted} new records.")
         else:
             logger.info("No new records to insert.")
@@ -143,11 +142,11 @@ def copy_from_dataframe(df):
 
 def download_csv_indmoney_data(output_path):
     logger.info("Downloading Master Contract CSV Files from Indmoney")
-    
+
     # Get the access token for Indmoney broker from the database
     # Since Indmoney might have multiple users, we need to get the first valid one
     try:
-        from database.auth_db import Auth, db_session
+        from database.auth_db import Auth
         auth_obj = Auth.query.filter_by(broker='indmoney', is_revoked=False).first()
         if auth_obj:
             from database.auth_db import decrypt_token
@@ -157,26 +156,26 @@ def download_csv_indmoney_data(output_path):
     except Exception as e:
         logger.error(f"Error getting auth token from database: {e}")
         auth_token = None
-    
+
     if not auth_token:
         logger.error("No authentication token available for Indmoney broker")
         return
-    
+
     # Indmoney API endpoints for different segments
     segments = ['equity', 'fno', 'index']
-    
+
     headers = {
         'Authorization': auth_token
     }
-    
+
     # Download CSV files for each segment
     for segment in segments:
         url = f"https://api.indstocks.com/market/instruments?source={segment}"
-        
+
         try:
             # Send GET request with authorization header
             response = requests.get(url, headers=headers, timeout=30)
-            
+
             # Check if the request was successful
             if response.status_code == 200:
                 # Construct the full output path for the file
@@ -200,13 +199,13 @@ def reformat_symbol(row, file_segment=None):
     trading_symbol = row.get('TRADING_SYMBOL', '')
     expiry_date = row.get('EXPIRY_DATE', '')
     strike_price = row.get('STRIKE_PRICE', 0)
-    
+
     # Format expiry date for OpenAlgo format (DDMMMYY)
     if expiry_date and expiry_date != '-1':
         expiry_formatted = expiry_date.replace('-', '').upper()
     else:
         expiry_formatted = ''
-    
+
     # Format symbol based on instrument type
     if instrument_name == 'EQUITY':
         return trading_symbol
@@ -216,7 +215,7 @@ def reformat_symbol(row, file_segment=None):
             segment_value = row.get('SEGMENT', '')
             if segment_value:
                 return segment_value
-        
+
         # Fallback to available fields
         if symbol_name:
             return symbol_name
@@ -235,7 +234,7 @@ def reformat_symbol(row, file_segment=None):
         # Examples: NIFTY28MAR2420800CE, VEDL25APR24292.5CE, USDINR19APR2482CE
         # Extract base symbol from trading_symbol (everything before first hyphen)
         base_symbol = trading_symbol.split('-')[0] if '-' in trading_symbol else trading_symbol
-        
+
         # Format strike price properly - preserve decimals if needed
         if pd.notna(strike_price) and strike_price > 0:
             # If strike price is a whole number, format as integer
@@ -246,7 +245,7 @@ def reformat_symbol(row, file_segment=None):
                 strike = f"{strike_price:g}"
         else:
             strike = ''
-            
+
         opt_type = option_type if option_type else ''
         return f"{base_symbol}{expiry_formatted}{strike}{opt_type}"
     else:
@@ -261,43 +260,43 @@ def assign_values(row, file_segment=None):
     segment = row['SEGMENT']
     instrument_name = row['INSTRUMENT_NAME']
     option_type = row.get('OPTION_TYPE', '')
-    
+
     # If instrument name starts with 'FUT', set option type to 'FUT'
     if instrument_name.startswith('FUT'):
         option_type = 'FUT'
-    
+
     # Handle Indices first (prioritize over segment-based identification)
     # Check for INDEX instrument name or if processing index.csv file
     if exch == 'NSE' and (instrument_name == 'INDEX' or file_segment == 'index'):
         return 'NSE_INDEX', 'NSE', 'INDEX'
-    
+
     elif exch == 'BSE' and (instrument_name == 'INDEX' or file_segment == 'index'):
         return 'BSE_INDEX', 'BSE', 'INDEX'
-    
+
     # Handle NSE Equity
     elif exch == 'NSE' and segment == 'E':
         return 'NSE', 'NSE', 'EQ'
-    
+
     # Handle BSE Equity
     elif exch == 'BSE' and segment == 'E':
         return 'BSE', 'BSE', 'EQ'
-    
+
     # Handle NSE D segment (Derivatives)
     elif exch == 'NSE' and segment == 'D':
         return 'NFO', 'NSE', option_type if option_type else 'FUT'
-    
+
     # Handle BSE D segment (Derivatives)
     elif exch == 'BSE' and segment == 'D':
         return 'BFO', 'BSE', option_type if option_type else 'FUT'
-    
+
     # Handle NSE F&O segment
     elif exch == 'NSE' and segment == 'FNO':
         return 'NFO', 'NSE', option_type if option_type else 'FUT'
-    
+
     # Handle BSE F&O segment
     elif exch == 'BSE' and segment == 'FNO':
         return 'BFO', 'BSE', option_type if option_type else 'FUT'
-    
+
     # Default case
     else:
         return 'Unknown', 'Unknown', 'Unknown'
@@ -308,27 +307,27 @@ def process_indmoney_csv(path):
     Based on the official Indmoney API documentation CSV structure.
     """
     logger.info("Processing Indmoney Instrument Master CSV Data")
-    
+
     # List to hold all dataframes
     all_dfs = []
-    
+
     # Process each segment CSV file
     for segment in ['equity', 'fno', 'index']:
         file_path = f'{path}/{segment}.csv'
-        
+
         if not os.path.exists(file_path):
             logger.warning(f"File {file_path} not found, skipping...")
             continue
-            
+
         df = pd.read_csv(file_path, low_memory=False)
         df.columns = df.columns.str.strip()
-        
+
         # Handle missing columns with defaults
-        required_columns = ['EXCH', 'SEGMENT', 'SECURITY_ID', 'INSTRUMENT_NAME', 'EXPIRY_CODE', 
-                           'TRADING_SYMBOL', 'LOT_UNITS', 'CUSTOM_SYMBOL', 'EXPIRY_DATE', 
-                           'STRIKE_PRICE', 'OPTION_TYPE', 'TICK_SIZE', 'EXPIRY_FLAG', 
+        required_columns = ['EXCH', 'SEGMENT', 'SECURITY_ID', 'INSTRUMENT_NAME', 'EXPIRY_CODE',
+                           'TRADING_SYMBOL', 'LOT_UNITS', 'CUSTOM_SYMBOL', 'EXPIRY_DATE',
+                           'STRIKE_PRICE', 'OPTION_TYPE', 'TICK_SIZE', 'EXPIRY_FLAG',
                            'SEM_EXCH_INSTRUMENT_TYPE', 'SERIES', 'SYMBOL_NAME']
-        
+
         # Add missing columns with default values
         for col in required_columns:
             if col not in df.columns:
@@ -340,7 +339,7 @@ def process_indmoney_csv(path):
                     df[col] = 1
                 else:
                     df[col] = ''
-        
+
         # Convert expiry date to standard format
         if 'EXPIRY_DATE' in df.columns:
             df['EXPIRY_DATE'] = pd.to_datetime(df['EXPIRY_DATE'], errors='coerce')
@@ -348,7 +347,7 @@ def process_indmoney_csv(path):
             df['EXPIRY_DATE'] = df['EXPIRY_DATE'].fillna('-1')
         else:
             df['EXPIRY_DATE'] = '-1'
-        
+
         # Map Indmoney columns to our database schema
         df['token'] = df['SECURITY_ID'].astype(str)
         df['name'] = df['SYMBOL_NAME'].fillna(df['TRADING_SYMBOL'])
@@ -361,14 +360,14 @@ def process_indmoney_csv(path):
             df['brsymbol'] = df['SEGMENT']
         else:
             df['brsymbol'] = df['TRADING_SYMBOL']
-        
+
         # Apply exchange and instrument type mapping
-        df[['exchange', 'brexchange', 'instrumenttype']] = df.apply(lambda row: assign_values(row, segment), 
+        df[['exchange', 'brexchange', 'instrumenttype']] = df.apply(lambda row: assign_values(row, segment),
                                                                     axis=1, result_type='expand')
-        
+
         # Generate OpenAlgo formatted symbol
         df['symbol'] = df.apply(lambda row: reformat_symbol(row, segment), axis=1)
-        
+
         # Handle special cases
         df['symbol'] = df['symbol'].replace({
         'NIFTY 50': 'NIFTY',
@@ -381,18 +380,18 @@ def process_indmoney_csv(path):
         })
 
         # Keep only required columns for the database
-        db_columns = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange', 
+        db_columns = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange',
                      'token', 'expiry', 'strike', 'lotsize', 'instrumenttype', 'tick_size']
-        
+
         # Filter to keep only required columns that exist
         existing_columns = [col for col in db_columns if col in df.columns]
         token_df = df[existing_columns]
-        
+
         # Remove rows with empty or invalid tokens
         token_df = token_df[token_df['token'].notna() & (token_df['token'] != '')]
-        
+
         all_dfs.append(token_df)
-    
+
     # Combine all dataframes
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
@@ -421,25 +420,25 @@ def master_contract_download():
     Main function to download and process Indmoney master contract data
     """
     logger.info("Downloading Master Contract from Indmoney")
-    
+
     output_path = 'tmp'
-    
+
     # Create output directory if it doesn't exist
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-        
+
     try:
         download_csv_indmoney_data(output_path)
         delete_symtoken_table()
         token_df = process_indmoney_csv(output_path)
-        
+
         if not token_df.empty:
             copy_from_dataframe(token_df)
             delete_indmoney_temp_data(output_path)
             return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded Indmoney Instruments'})
         else:
             return socketio.emit('master_contract_download', {'status': 'error', 'message': 'No data downloaded from Indmoney'})
-    
+
     except Exception as e:
         logger.exception(f"Error during master contract download: {e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

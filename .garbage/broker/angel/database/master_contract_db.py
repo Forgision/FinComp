@@ -1,16 +1,14 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import requests
-import gzip
-import shutil
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+import pandas as pd
+import requests
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,7 +28,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -90,7 +88,7 @@ def download_json_angel_data(url, output_path):
 def reformat_symbol(row):
     symbol = row['symbol']
     instrument_type = row['instrumenttype']
-    
+
     if instrument_type == 'FUT':
         # For FUT, remove the spaces and append 'FUT' at the end
         parts = symbol.split(' ')
@@ -126,7 +124,7 @@ def process_angel_json(path):
     """
     # Read JSON data into a DataFrame
     df = pd.read_json(path)
-    
+
     # Rename the columns based on the database schema
     # Assuming that the JSON structure matches the sample response provided
     df = df.rename(columns={
@@ -139,11 +137,11 @@ def process_angel_json(path):
         'name': 'name',
         'tick_size': 'tick_size'
     })
-    
+
     # Reformat 'symbol' column if needed (based on the given reformat_symbol function)
     #df['symbol'] = df.apply(lambda row: reformat_symbol(row), axis=1)
-    
-    
+
+
     # Assuming 'brsymbol' and 'brexchange' are not present in the JSON and are the same as 'symbol' and 'exchange'
     df['brsymbol'] = df['symbol']
     df['brexchange'] = df['exchange']
@@ -152,30 +150,30 @@ def process_angel_json(path):
     df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'NSE'), 'exchange'] = 'NSE_INDEX'
     df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'BSE'), 'exchange'] = 'BSE_INDEX'
     df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'MCX'), 'exchange'] = 'MCX_INDEX'
-    
+
     # Reformat 'symbol' based on 'brsymbol'
     df['symbol'] = df['symbol'].str.replace('-EQ|-BE|-MF|-SG', '', regex=True)
-    
-    
+
+
     # Assuming the 'expiry' field in the JSON is in the format '19MAR2024'
     df['expiry'] = df['expiry'].apply(lambda x: convert_date(x) if pd.notnull(x) else x)
     df['expiry'] = df['expiry'].str.upper()
 
-    
+
 
 
     # Convert 'strike' to float, 'lotsize' to int, and 'tick_size' to float as per the database schema
     df['strike'] = df['strike'].astype(float) / 100
     df.loc[(df['instrumenttype'] == 'OPTCUR') & (df['exchange'] == 'CDS'), 'strike'] = df['strike'].astype(float) / 100000
     df.loc[(df['instrumenttype'] == 'OPTIRC') & (df['exchange'] == 'CDS'), 'strike'] = df['strike'].astype(float) / 100000
-    
+
 
     df['lotsize'] = df['lotsize'].astype(int)
     df['tick_size'] = df['tick_size'].astype(float) / 100  # Divide tick_size by 100
 
     # Futures Symbol Update in CDS and MCX Exchanges
     df.loc[(df['instrumenttype'] == 'FUTCUR') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
-    df.loc[(df['instrumenttype'] == 'FUTIRC') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT' 
+    df.loc[(df['instrumenttype'] == 'FUTIRC') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
     df.loc[(df['instrumenttype'] == 'FUTCOM') & (df['exchange'] == 'MCX'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
     # Options Symbol Update in CDS and MCX Exchanges
     df.loc[(df['instrumenttype'] == 'OPTCUR') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + df['symbol'].str[-2:]
@@ -216,7 +214,7 @@ def process_angel_json(path):
     'SNSX50': 'SENSEX50'
     })
 
- 
+
     # Return the processed DataFrame
     return df
 
@@ -242,15 +240,15 @@ def master_contract_download():
         token_df = process_angel_json(output_path)
         delete_angel_temp_data(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
 
         delete_symtoken_table()  # Consider the implications of this action
         copy_from_dataframe(token_df)
-                
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{str(e)}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

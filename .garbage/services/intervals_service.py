@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -49,7 +50,7 @@ def get_intervals_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[st
     try:
         # Initialize broker's data handler
         data_handler = broker_module.BrokerData(auth_token)
-        
+
         # Get supported intervals from the timeframe map with proper numerical sorting
         def sort_intervals(interval_list):
             """Sort intervals numerically instead of alphabetically"""
@@ -58,9 +59,9 @@ def get_intervals_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[st
                 import re
                 match = re.match(r'(\d+)', interval)
                 return int(match.group(1)) if match else 0
-            
+
             return sorted(interval_list, key=extract_number)
-        
+
         intervals = {
             'seconds': sort_intervals([k for k in data_handler.timeframe_map.keys() if k.endswith('s')]),
             'minutes': sort_intervals([k for k in data_handler.timeframe_map.keys() if k.endswith('m')]),
@@ -69,7 +70,7 @@ def get_intervals_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[st
             'weeks': sorted([k for k in data_handler.timeframe_map.keys() if k == 'W']),
             'months': sorted([k for k in data_handler.timeframe_map.keys() if k == 'M'])
         }
-        
+
         return True, {
             'status': 'success',
             'data': intervals
@@ -83,8 +84,8 @@ def get_intervals_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[st
         }, 500
 
 def get_intervals(
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -111,11 +112,11 @@ def get_intervals(
                 'message': 'Invalid openalgo apikey'
             }, 403
         return get_intervals_with_auth(AUTH_TOKEN, broker_name)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_intervals_with_auth(auth_token, broker)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

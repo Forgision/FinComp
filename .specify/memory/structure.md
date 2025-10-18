@@ -16,7 +16,9 @@ This document provides an overview of the directory structure for the current Op
 │   │   ├── main.py       # The main FastAPI application instance and entry point.
 │   │   ├── backend/      # API endpoints (routes) that the frontend consumes. Handles HTTP requests and responses.
 │   │   ├── broker/       # Contains integrations with third-party broker APIs.
+│   │   │   ├── routes/   # All routes related to backend api.
 │   │   ├── frontend/     # All frontend-related code: HTML templates, CSS, JavaScript, and static assets. Also includes routes that serve web pages.
+│   │   │   ├── routes/   # All routes related to frontend interface like serving html files, etc.
 │   │   └── websocket/    # Real-time communication layer using WebSockets.
 │   └── algo/             # Houses quantitative trading strategies and algorithms.
 ├── test/                 # Contains all tests for the application (unit, integration, etc.).

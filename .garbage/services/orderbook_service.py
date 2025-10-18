@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -24,12 +25,12 @@ def format_order_data(order_data):
                     formatted_item[key] = format_decimal(value)
                 else:
                     formatted_item[key] = value
-            
+
             # Set price to 0 for market orders, keep actual price for limit orders
             pricetype = formatted_item.get('pricetype', '').upper()
             if pricetype == 'MARKET':
                 formatted_item['price'] = 0.0
-            
+
             formatted_orders.append(formatted_item)
         return formatted_orders
     return order_data
@@ -116,7 +117,7 @@ def get_orderbook_with_auth(auth_token: str, broker: str, original_data: Dict[st
     try:
         # Get orderbook data using broker's implementation
         order_data = broker_funcs['get_order_book'](auth_token)
-        
+
         if 'status' in order_data and order_data['status'] == 'error':
             return False, {
                 'status': 'error',
@@ -127,11 +128,11 @@ def get_orderbook_with_auth(auth_token: str, broker: str, original_data: Dict[st
         order_data = broker_funcs['map_order_data'](order_data=order_data)
         order_stats = broker_funcs['calculate_order_statistics'](order_data)
         order_data = broker_funcs['transform_order_data'](order_data)
-        
+
         # Format numeric values to 2 decimal places
         formatted_orders = format_order_data(order_data)
         formatted_stats = format_statistics(order_stats)
-        
+
         return True, {
             'status': 'success',
             'data': {
@@ -148,8 +149,8 @@ def get_orderbook_with_auth(auth_token: str, broker: str, original_data: Dict[st
         }, 500
 
 def get_orderbook(
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -181,7 +182,7 @@ def get_orderbook(
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_orderbook_with_auth(auth_token, broker, None)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

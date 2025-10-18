@@ -5,10 +5,12 @@ without dealing with authentication or connection management.
 """
 
 import os
-from typing import Dict, List, Any, Optional, Tuple
-from database.auth_db import verify_api_key, get_auth_token, get_broker_name
+from typing import Any, Dict, List, Optional, Tuple
+
+from database.auth_db import get_broker_name
 from utils.logging import get_logger
-from .websocket_client import get_websocket_client, WebSocketClient
+
+from .websocket_client import WebSocketClient, get_websocket_client
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -53,15 +55,15 @@ def get_websocket_connection(username: str) -> Tuple[bool, Optional[WebSocketCli
         api_key = get_user_api_key(username)
         if not api_key:
             return False, None, "No API key found. Please generate an API key from the API Key page (/apikey) to use WebSocket features."
-        
+
         # Get or create WebSocket client
         client = get_websocket_client(api_key, WS_HOST, WS_PORT)
-        
+
         if not client.connected or not client.authenticated:
             return False, None, "WebSocket client not connected or authenticated"
-            
+
         return True, client, None
-        
+
     except ConnectionError as e:
         logger.error(f"Connection error for user {username}: {e}")
         return False, None, str(e)
@@ -82,7 +84,7 @@ def get_websocket_status(username: str, broker: Optional[str] = None) -> Tuple[b
     """
     try:
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
@@ -90,16 +92,16 @@ def get_websocket_status(username: str, broker: Optional[str] = None) -> Tuple[b
                 'connected': False,
                 'authenticated': False
             }, 200  # Return 200 even for disconnected state
-        
+
         # Get broker info if not provided
         if not broker:
             api_key = get_user_api_key(username)
             if api_key:
                 broker = get_broker_name(api_key)
-        
+
         # Get subscription info
         subscriptions = client.get_subscriptions()
-        
+
         return True, {
             'status': 'success',
             'connected': client.connected,
@@ -109,7 +111,7 @@ def get_websocket_status(username: str, broker: Optional[str] = None) -> Tuple[b
             'active_subscriptions': subscriptions.get('count', 0),
             'subscriptions': subscriptions.get('subscriptions', [])
         }, 200
-        
+
     except Exception as e:
         logger.exception(f"Error getting WebSocket status: {e}")
         return False, {
@@ -131,24 +133,24 @@ def get_websocket_subscriptions(username: str, broker: Optional[str] = None) -> 
     """
     try:
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
                 'message': error,
                 'subscriptions': []
             }, 200
-        
+
         # Get subscriptions
         result = client.get_subscriptions()
-        
+
         return True, {
             'status': result.get('status', 'success'),
             'subscriptions': result.get('subscriptions', []),
             'count': result.get('count', 0),
             'broker': broker
         }, 200
-        
+
     except Exception as e:
         logger.exception(f"Error getting subscriptions: {e}")
         return False, {
@@ -176,7 +178,7 @@ def subscribe_to_symbols(username: str, broker: str, symbols: List[Dict[str, str
                 'status': 'error',
                 'message': 'No symbols provided'
             }, 400
-        
+
         # Validate mode
         valid_modes = ["LTP", "Quote", "Depth"]
         if mode not in valid_modes:
@@ -184,19 +186,19 @@ def subscribe_to_symbols(username: str, broker: str, symbols: List[Dict[str, str
                 'status': 'error',
                 'message': f'Invalid mode. Must be one of: {", ".join(valid_modes)}'
             }, 400
-        
+
         # Get WebSocket connection
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
                 'message': error
             }, 503  # Service Unavailable
-        
+
         # Subscribe to symbols
         result = client.subscribe(symbols, mode)
-        
+
         if result.get('status') == 'success':
             return True, {
                 'status': 'success',
@@ -213,7 +215,7 @@ def subscribe_to_symbols(username: str, broker: str, symbols: List[Dict[str, str
                 'status': 'error',
                 'message': result.get('message', 'Subscription failed')
             }, 400
-            
+
     except Exception as e:
         logger.exception(f"Error subscribing to symbols: {e}")
         return False, {
@@ -241,19 +243,19 @@ def unsubscribe_from_symbols(username: str, broker: str, symbols: List[Dict[str,
                 'status': 'error',
                 'message': 'No symbols provided'
             }, 400
-        
+
         # Get WebSocket connection
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
                 'message': error
             }, 503  # Service Unavailable
-        
+
         # Unsubscribe from symbols
         result = client.unsubscribe(symbols, mode)
-        
+
         if result.get('status') == 'success':
             return True, {
                 'status': 'success',
@@ -270,7 +272,7 @@ def unsubscribe_from_symbols(username: str, broker: str, symbols: List[Dict[str,
                 'status': 'error',
                 'message': result.get('message', 'Unsubscription failed')
             }, 400
-            
+
     except Exception as e:
         logger.exception(f"Error unsubscribing from symbols: {e}")
         return False, {
@@ -292,16 +294,16 @@ def unsubscribe_all(username: str, broker: str) -> Tuple[bool, Dict[str, Any], i
     try:
         # Get WebSocket connection
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
                 'message': error
             }, 503  # Service Unavailable
-        
+
         # Unsubscribe from all
         result = client.unsubscribe_all()
-        
+
         if result.get('status') == 'success':
             return True, {
                 'status': 'success',
@@ -313,7 +315,7 @@ def unsubscribe_all(username: str, broker: str) -> Tuple[bool, Dict[str, Any], i
                 'status': 'error',
                 'message': result.get('message', 'Unsubscription failed')
             }, 400
-            
+
     except Exception as e:
         logger.exception(f"Error unsubscribing from all: {e}")
         return False, {
@@ -332,24 +334,24 @@ def get_supported_brokers_list() -> Tuple[bool, Dict[str, Any], int]:
         # Get supported brokers from environment
         valid_brokers = os.getenv('VALID_BROKERS', '').split(',')
         supported_brokers = [broker.strip() for broker in valid_brokers if broker.strip()]
-        
+
         # Define brokers with WebSocket support
         websocket_enabled_brokers = [
-            'zerodha', 'angel', 'fivepaisaxts', 'aliceblue', 'dhan', 
-            'flattrade', 'shoonya', 'upstox', 'compositedge', 'iifl', 
+            'zerodha', 'angel', 'fivepaisaxts', 'aliceblue', 'dhan',
+            'flattrade', 'shoonya', 'upstox', 'compositedge', 'iifl',
             'ibulls', 'wisdom'
         ]
-        
+
         # Filter only WebSocket enabled brokers
         ws_brokers = [broker for broker in supported_brokers if broker in websocket_enabled_brokers]
-        
+
         return True, {
             'status': 'success',
             'brokers': ws_brokers,
             'count': len(ws_brokers),
             'message': 'List of brokers supporting WebSocket streaming'
         }, 200
-        
+
     except Exception as e:
         logger.exception(f"Error getting supported brokers: {e}")
         return False, {
@@ -372,23 +374,23 @@ def get_market_data(username: str, symbol: Optional[str] = None, exchange: Optio
     try:
         # Get WebSocket connection
         success, client, error = get_websocket_connection(username)
-        
+
         if not success:
             return False, {
                 'status': 'error',
                 'message': error,
                 'data': {}
             }, 200
-        
+
         # Get market data
         market_data = client.get_market_data(symbol, exchange)
-        
+
         return True, {
             'status': 'success',
             'data': market_data,
             'timestamp': int(time.time())
         }, 200
-        
+
     except Exception as e:
         logger.exception(f"Error getting market data: {e}")
         return False, {
@@ -410,14 +412,14 @@ def register_market_data_callback(username: str, callback) -> bool:
     """
     try:
         success, client, error = get_websocket_connection(username)
-        
+
         if success:
             client.register_callback('market_data', callback)
             return True
         else:
             logger.error(f"Failed to register callback: {error}")
             return False
-            
+
     except Exception as e:
         logger.exception(f"Error registering callback: {e}")
         return False

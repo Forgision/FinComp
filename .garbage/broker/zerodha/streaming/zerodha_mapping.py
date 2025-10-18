@@ -8,12 +8,13 @@ Zerodha WebSocket data mapping utilities.
 This module provides utilities for mapping between Zerodha's WebSocket data format
 and OpenAlgo's standard format.
 """
-from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timezone
+from typing import Dict
+
 
 class ZerodhaExchangeMapper:
     """Maps exchange codes between Zerodha and OpenAlgo formats"""
-    
+
     # Map OpenAlgo exchange codes to Zerodha exchange codes
     _OA_TO_ZERODHA = {
         'NSE': 'NSE',
@@ -25,10 +26,10 @@ class ZerodhaExchangeMapper:
         'NSE_INDEX': 'NSE_INDEX',
         'BSE_INDEX': 'BSE_INDEX',
     }
-    
+
     # Map Zerodha exchange codes to OpenAlgo exchange codes
     _ZERODHA_TO_OA = {v: k for k, v in _OA_TO_ZERODHA.items()}
-    
+
     @classmethod
     def to_zerodha_exchange(cls, oa_exchange: str) -> str:
         """
@@ -41,7 +42,7 @@ class ZerodhaExchangeMapper:
             Zerodha exchange code
         """
         return cls._OA_TO_ZERODHA.get(oa_exchange.upper(), oa_exchange.upper())
-    
+
     @classmethod
     def to_oa_exchange(cls, zerodha_exchange: str) -> str:
         """
@@ -58,17 +59,17 @@ class ZerodhaExchangeMapper:
 
 class ZerodhaCapabilityRegistry:
     """Registry for Zerodha WebSocket capabilities"""
-    
+
     # Map OpenAlgo capability flags to Zerodha subscription modes
     CAPABILITY_MAP = {
         'LTP': 'ltp',
         'QUOTE': 'quote',
         'DEPTH': 'full',
     }
-    
+
     # Supported capabilities for Zerodha
     SUPPORTED_CAPABILITIES = set(CAPABILITY_MAP.keys())
-    
+
     @classmethod
     def get_zerodha_mode(cls, capability: str) -> str:
         """
@@ -81,7 +82,7 @@ class ZerodhaCapabilityRegistry:
             Zerodha subscription mode
         """
         return cls.CAPABILITY_MAP.get(capability.upper(), 'quote')
-    
+
     @classmethod
     def is_supported(cls, capability: str) -> bool:
         """
@@ -98,10 +99,10 @@ class ZerodhaCapabilityRegistry:
 
 class ZerodhaDataTransformer:
     """Transforms data between Zerodha and OpenAlgo formats"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
-    
+
     def transform_tick(self, tick_data: Dict, symbol: str, exchange: str) -> Dict:
         """
         Transform Zerodha tick data to OpenAlgo format.
@@ -117,10 +118,10 @@ class ZerodhaDataTransformer:
         try:
             if not tick_data:
                 return {}
-                
+
             # Get the mode to determine what data is available
             mode = tick_data.get('mode', 'quote')
-            
+
             # Base tick data
             transformed = {
                 'symbol': symbol,
@@ -134,7 +135,7 @@ class ZerodhaDataTransformer:
                 'mode': mode,
                 'timestamp': tick_data.get('timestamp', int(datetime.now(timezone.utc).timestamp() * 1000))
             }
-            
+
             # Add OHLC data if available
             ohlc = tick_data.get('ohlc', {})
             if ohlc:
@@ -144,12 +145,12 @@ class ZerodhaDataTransformer:
                     'low': ohlc.get('low', 0),
                     'close': ohlc.get('close', 0),
                 })
-            
+
             # Add depth data if available and in full mode
             if mode == 'full' and 'depth' in tick_data:
                 depth = tick_data['depth']
                 transformed_depth = {'buy': [], 'sell': []}
-                
+
                 # Process buy side
                 for i, level in enumerate(depth.get('buy', [])):
                     transformed_depth['buy'].append({
@@ -158,7 +159,7 @@ class ZerodhaDataTransformer:
                         'orders': level.get('orders', 0),
                         'position': i + 1
                     })
-                
+
                 # Process sell side
                 for i, level in enumerate(depth.get('sell', [])):
                     transformed_depth['sell'].append({
@@ -167,9 +168,9 @@ class ZerodhaDataTransformer:
                         'orders': level.get('orders', 0),
                         'position': i + 1
                     })
-                
+
                 transformed['depth'] = transformed_depth
-            
+
             # Add additional fields for full mode
             if mode == 'full':
                 transformed.update({
@@ -179,13 +180,13 @@ class ZerodhaDataTransformer:
                     'oi_day_low': tick_data.get('oi_day_low'),
                     'exchange_timestamp': tick_data.get('exchange_timestamp')
                 })
-            
+
             return transformed
-            
+
         except Exception as e:
             self.logger.error(f"Error transforming tick data: {e}")
             return {}
-    
+
     def transform_order_update(self, order_data: Dict) -> Dict:
         """
         Transform Zerodha order update to OpenAlgo format.
@@ -199,9 +200,9 @@ class ZerodhaDataTransformer:
         try:
             if not order_data or 'data' not in order_data:
                 return {}
-                
+
             data = order_data['data']
-            
+
             # Map Zerodha status to OpenAlgo status
             status_map = {
                 'OPEN': 'open',
@@ -211,7 +212,7 @@ class ZerodhaDataTransformer:
                 'TRIGGER PENDING': 'trigger_pending',
                 'MODIFIED': 'modified'
             }
-            
+
             transformed = {
                 'order_id': data.get('order_id', ''),
                 'exchange_order_id': data.get('exchange_order_id', ''),
@@ -231,13 +232,13 @@ class ZerodhaDataTransformer:
                 'exchange_timestamp': data.get('exchange_timestamp', ''),
                 'status_message': data.get('status_message', '')
             }
-            
+
             return transformed
-            
+
         except Exception as e:
             self.logger.error(f"Error transforming order update: {e}")
             return {}
-    
+
     def transform_position(self, position_data: Dict) -> Dict:
         """
         Transform Zerodha position data to OpenAlgo format.
@@ -251,7 +252,7 @@ class ZerodhaDataTransformer:
         try:
             if not position_data:
                 return {}
-                
+
             transformed = {
                 'tradingsymbol': position_data.get('tradingsymbol', ''),
                 'exchange': ZerodhaExchangeMapper.to_oa_exchange(position_data.get('exchange', '')),
@@ -275,9 +276,9 @@ class ZerodhaDataTransformer:
                 'day_buy_value': float(position_data.get('day_buy_value', 0)),
                 'day_sell_value': float(position_data.get('day_sell_value', 0))
             }
-            
+
             return transformed
-            
+
         except Exception as e:
             self.logger.error(f"Error transforming position data: {e}")
             return {}

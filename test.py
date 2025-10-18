@@ -1,7 +1,6 @@
-import logging
 import inspect
+import logging
 import os
-import sys
 import site
 from pathlib import Path
 
@@ -57,7 +56,7 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
             return filter_frames[0]
         else:
             return None
-    
+
     def _build_called_path(self, frame_info):
         # Convert file path to a module-style path for location.
         file_path = frame_info.filename
@@ -65,7 +64,7 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         try:
 
             path_obj = Path(file_path)
-            
+
             # Determine the root for module path calculation.
             # We assume 'app' is a root for application code.
             parts = list(path_obj.parts)
@@ -81,11 +80,11 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
                 module_parts[-1] = Path(module_parts[-1]).stem
 
             module_path = ".".join(module_parts)
-            
+
             # For __init__.py files, the location is the package name.
             if module_path.endswith(".__init__"):
                 module_path = module_path.rsplit(".__init__", 1)[0]
-                
+
         except Exception:
             # Fallback to Python's __name__ if path parsing fails.
             module_path = frame.f_globals.get("__name__", "unknown")
@@ -109,11 +108,11 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         location_parts = [module_path]
         if class_name:
             location_parts.append(class_name)
-        
+
         # Add function name, but ignore for top-level module code.
         if function_name != "<module>":
             location_parts.append(function_name)
-        
+
         location = ".".join(part for part in location_parts if part)
 
         return location
@@ -121,15 +120,11 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         # Inspect the stack to find the caller (skip logging internals)
         frame = inspect.currentframe()
-        
+
         if frame is None:
             return msg, kwargs
-        
-        frame_1 = frame.f_back
-        
+
         outer_frames = inspect.getouterframes(frame)
-        c_frame = self._find_caller_frame()
-        filter_frames = [f for f in outer_frames if not f.filename.endswith("logging/__init__.py") and 'site-packages' not in f.filename and __file__ != f.filename]
         caller_frame_info = None
         for f in outer_frames:
             f_index = outer_frames.index(f)
@@ -139,11 +134,6 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
                 not f.filename.endswith("logging/__init__.py")):
                 caller_frame_info = f
                 break
-
-        module_name = "<unknown_module>"
-        class_name = None
-        func_name = "<unknown_func>"
-        caller_frame = caller_frame_info.frame if caller_frame_info else None
 
         # Inject `caller` into the log record's extra fields
         extra = kwargs.get("extra", {})

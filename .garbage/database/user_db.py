@@ -1,15 +1,16 @@
 # database/user_db.py
 
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.pool import NullPool
-from cachetools import TTLCache
+
+import pyotp
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-import pyotp
+from cachetools import TTLCache
+from sqlalchemy import Boolean, Column, Integer, String, create_engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -73,14 +74,14 @@ class User(Base):
             return True
         except VerifyMismatchError:
             return False
-    
+
     def get_totp_uri(self):
         """Get the TOTP URI for QR code generation"""
         return pyotp.totp.TOTP(self.totp_secret).provisioning_uri(
             name=self.email,
             issuer_name="OpenAlgo"
         )
-    
+
     def verify_totp(self, token):
         """Verify TOTP token"""
         totp = pyotp.TOTP(self.totp_secret)
@@ -95,8 +96,8 @@ def add_user(username, email, password, is_admin=False):
         # Generate TOTP secret for the user
         totp_secret = pyotp.random_base32()
         user = User(
-            username=username, 
-            email=email, 
+            username=username,
+            email=email,
             totp_secret=totp_secret,
             is_admin=is_admin
         )

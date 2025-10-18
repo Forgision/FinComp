@@ -1,9 +1,13 @@
 import json
 import os
-import httpx
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.angel.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+
+from broker.angel.mapping.transform_data import (
+    map_product_type,
+    reverse_map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_symbol, get_token
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -16,7 +20,7 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
       'Authorization': f'Bearer {AUTH_TOKEN}',
       'Content-Type': 'application/json',
@@ -28,23 +32,23 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
       'X-MACAddress': 'MAC_ADDRESS',
       'X-PrivateKey': api_key
     }
-    
+
     url = f"https://apiconnect.angelbroking.com{endpoint}"
-    
+
     if method == "GET":
         response = client.get(url, headers=headers)
     elif method == "POST":
         response = client.post(url, headers=headers, content=payload)
     else:
         response = client.request(method, url, headers=headers, content=payload)
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    
+
     # Handle empty response
     if not response.text:
         return {}
-    
+
     try:
         return json.loads(response.text)
     except json.JSONDecodeError:
@@ -85,14 +89,14 @@ def place_order_api(data,auth):
     BROKER_API_KEY = os.getenv('BROKER_API_KEY')
     data['apikey'] = BROKER_API_KEY
     token = get_token(data['symbol'], data['exchange'])
-    newdata = transform_data(data, token)  
+    newdata = transform_data(data, token)
     headers = {
         'Authorization': f'Bearer {AUTH_TOKEN}',
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-UserType': 'USER',
         'X-SourceID': 'WEB',
-        'X-ClientLocalIP': 'CLIENT_LOCAL_IP', 
+        'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
         'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
         'X-MACAddress': 'MAC_ADDRESS',
         'X-PrivateKey': newdata['apikey']
@@ -114,24 +118,24 @@ def place_order_api(data,auth):
     })
 
     logger.debug(f"{payload}")
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     # Make the request using the shared client
     response = client.post(
         "https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder",
         headers=headers,
         content=payload
     )
-    
+
     # Add status attribute to make response compatible with http.client response
     # as the rest of the codebase expects .status instead of .status_code
     response.status = response.status_code
-    
+
     # Parse the JSON response
     response_data = response.json()
-    
+
     if response_data['status'] == True:
         orderid = response_data['data']['orderid']
     else:
@@ -151,15 +155,15 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-    
+
 
     # Get current open position for the symbol
     current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
 
-    logger.info(f"position_size : {position_size}") 
-    logger.info(f"Open Position : {current_position}") 
-    
+    logger.info(f"position_size : {position_size}")
+    logger.info(f"Open Position : {current_position}")
+
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -174,9 +178,9 @@ def place_smartorder_api(data,auth):
         res, response, orderid = place_order_api(data,AUTH_TOKEN)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
-        
+
         return res , response, orderid
-        
+
     elif position_size == current_position:
         if int(data['quantity'])==0:
             response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
@@ -184,7 +188,7 @@ def place_smartorder_api(data,auth):
             response = {"status": "success", "message": "No action needed. Position size matches current position"}
         orderid = None
         return res, response, orderid  # res remains None as no API call was mad
-   
+
 
     if position_size == 0 and current_position>0 :
         action = "SELL"
@@ -220,9 +224,9 @@ def place_smartorder_api(data,auth):
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
-        
+
         return res , response, orderid
-    
+
 
 
 
@@ -274,7 +278,7 @@ def close_all_positions(current_api_key,auth):
             # logger.info(f"{orderid}")
 
 
-            
+
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
@@ -284,10 +288,10 @@ def cancel_order(orderid,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
     api_key = os.getenv('BROKER_API_KEY')
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     # Set up the request headers
     headers = {
         'Authorization': f'Bearer {AUTH_TOKEN}',
@@ -295,30 +299,30 @@ def cancel_order(orderid,auth):
         'Accept': 'application/json',
         'X-UserType': 'USER',
         'X-SourceID': 'WEB',
-        'X-ClientLocalIP': 'CLIENT_LOCAL_IP', 
+        'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
         'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
         'X-MACAddress': 'MAC_ADDRESS',
         'X-PrivateKey': api_key
     }
-    
+
     # Prepare the payload
     payload = json.dumps({
         "variety": "NORMAL",
         "orderid": orderid,
     })
-    
+
     # Make the request using the shared client
     response = client.post(
         "https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/cancelOrder",
         headers=headers,
         content=payload
     )
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    
+
     data = json.loads(response.text)
-    
+
     # Check if the request was successful
     if data.get("status"):
         # Return a success response
@@ -333,7 +337,7 @@ def modify_order(data,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
     api_key = os.getenv('BROKER_API_KEY')
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
 
@@ -348,7 +352,7 @@ def modify_order(data,auth):
         'Accept': 'application/json',
         'X-UserType': 'USER',
         'X-SourceID': 'WEB',
-        'X-ClientLocalIP': 'CLIENT_LOCAL_IP', 
+        'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
         'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
         'X-MACAddress': 'MAC_ADDRESS',
         'X-PrivateKey': api_key
@@ -361,10 +365,10 @@ def modify_order(data,auth):
         headers=headers,
         content=payload
     )
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    
+
     data = json.loads(response.text)
 
     if data.get("status") == "true" or data.get("message") == "SUCCESS":
@@ -377,7 +381,7 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     #logger.info(f"{order_book_response}")
@@ -399,5 +403,5 @@ def cancel_all_orders_api(data,auth):
             canceled_orders.append(orderid)
         else:
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations

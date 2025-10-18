@@ -1,15 +1,12 @@
 import json
-import os
-import urllib.parse
-from database.token_db import get_br_symbol, get_oa_symbol, get_brexchange
-from broker.compositedge.database.master_contract_db import SymToken, db_session
-from flask import session  
-import pandas as pd
 from datetime import datetime, timedelta
-from utils.httpx_client import get_httpx_client
-from database.auth_db import get_feed_token
+
+import pandas as pd
 from broker.compositedge.baseurl import MARKET_DATA_URL
-import pytz
+from broker.compositedge.database.master_contract_db import SymToken, db_session
+from database.token_db import get_br_symbol
+from flask import session
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,20 +19,20 @@ def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, 
     if feed_token:
         FEED_TOKEN = feed_token
     logger.info(f"Feed Token: {FEED_TOKEN}")
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
         'authorization': FEED_TOKEN if feed_token else AUTH_TOKEN,
         'Content-Type': 'application/json'
     }
 
-    
+
     base_url = MARKET_DATA_URL  # Default to market data URL
 
     url = f"{base_url}{endpoint}"
-    
+
     try:
         # Log request details
         logger.info("=== API Request Details ===")
@@ -81,14 +78,14 @@ class BrokerData:
         self.auth_token = auth_token
         self.feed_token = feed_token
         self.user_id = user_id
-        
+
         # Map common timeframe format to CompositEdge intervals
         self.timeframe_map = {
             "1s": "1", "1m": "60", "2m": "120", "3m": "180", "5m": "300",
                 "10m": "600", "15m": "900", "30m": "1800", "60m": "3600",
                 "D": "D"
         }
-        
+
 
     def _get_instrument_token(self, symbol: str, exchange: str) -> tuple:
         """
@@ -110,24 +107,24 @@ class BrokerData:
             "BFO": 12,
             "MCX": 51
         }
-        
+
         # Convert symbol to broker format
         br_symbol = get_br_symbol(symbol, exchange)
-        
+
         brexchange = exchange_segment_map.get(exchange)
         if brexchange is None:
             raise Exception(f"Unknown exchange segment: {exchange}")
-            
+
         # Get exchange_token from database
         with db_session() as session:
             symbol_info = session.query(SymToken).filter(
                 SymToken.exchange == exchange,
                 SymToken.brsymbol == br_symbol
             ).first()
-            
+
             if not symbol_info:
                 raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
-            
+
             return symbol_info, brexchange
 
     def _fetch_market_data(self, token: dict, message_code: int) -> dict:
@@ -145,7 +142,7 @@ class BrokerData:
                 "xtsMessageCode": message_code,
                 "publishFormat": "JSON"
             }
-            
+
             response = get_api_response(
                 "/instruments/quotes",
                 self.auth_token,
@@ -153,25 +150,25 @@ class BrokerData:
                 payload=payload,
                 feed_token=self.feed_token
             )
-            
+
             if not response or response.get('type') != 'success':
                 error_msg = response.get('description', 'Unknown error') if response else 'No response'
                 logger.warning(f"Error fetching market data (code {message_code}): {error_msg}")
                 return None
-                
+
             # Handle empty listQuotes array
             list_quotes = response.get('result', {}).get('listQuotes', [])
             if not list_quotes:
                 logger.warning(f"Empty listQuotes in response (code {message_code})")
                 return None
-                
+
             raw_data = list_quotes[0]
             if not raw_data:
                 logger.warning(f"No data in response (code {message_code})")
                 return None
-                
+
             return json.loads(raw_data) if isinstance(raw_data, str) else raw_data
-            
+
         except Exception as e:
             logger.error(f"Error in _fetch_market_data (code {message_code}): {str(e)}", exc_info=True)
             return None
@@ -188,25 +185,25 @@ class BrokerData:
         try:
             # Get instrument token and exchange segment
             symbol_info, brexchange = self._get_instrument_token(symbol, exchange)
-            
+
             # Prepare token for API requests
             token = {
                 "exchangeSegment": brexchange,
                 "exchangeInstrumentID": symbol_info.token
             }
-            
+
             # Fetch market data (xtsMessageCode 1502)
             market_data = self._fetch_market_data(token, 1502)
             if not market_data:
                 raise Exception("Failed to fetch market data")
-                
+
             # Fetch Open Interest data (xtsMessageCode 1510) - non-blocking
             oi_data = None
             try:
                 oi_data = self._fetch_market_data(token, 1510)
             except Exception as e:
                 logger.warning(f"Failed to fetch OI data: {str(e)}")
-            
+
             # Process market data
             touchline = market_data.get('Touchline', {})
             quote_data = {
@@ -220,14 +217,14 @@ class BrokerData:
                 'volume': touchline.get('TotalTradedQuantity', 0),
                 'oi': 0  # Default value if OI data is not available
             }
-            
+
             # Add OI data if available
             if oi_data and 'OpenInterest' in oi_data:
                 quote_data['oi'] = oi_data['OpenInterest']
                 logger.debug(f"Added OI data: {quote_data['oi']}")
-            
+
             return quote_data
-            
+
         except Exception as e:
             logger.error(f"Error fetching quotes: {str(e)}")
             raise Exception(f"Error fetching quotes: {str(e)}")
@@ -235,7 +232,7 @@ class BrokerData:
     def get_history(self, symbol, exchange, timeframe, from_date, to_date):
         """Get historical data for a symbol"""
         try:
-            
+
             # Map timeframe to compression value
             compression_map = {
                 "1s": "1", "1m": "60", "2m": "120", "3m": "180", "5m": "300",
@@ -246,7 +243,7 @@ class BrokerData:
             if not compression_value:
                 raise Exception(f"Unsupported timeframe: {timeframe}")
 
-            
+
             # Convert symbol to broker format and get token
             br_symbol = get_br_symbol(symbol, exchange)
             #token = get_token(symbol, exchange)
@@ -273,21 +270,21 @@ class BrokerData:
                     SymToken.exchange == exchange,
                     SymToken.brsymbol == br_symbol
                 ).first()
-                
+
                 if not symbol_info:
                     raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
-                
+
                 # Get the token for quotes
                 token = symbol_info.token  # token = instrument ID
 
-    
+
             # Convert dates to datetime objects with IST timezone
             start_date = pd.to_datetime(from_date).tz_localize('Asia/Kolkata')
             end_date = pd.to_datetime(to_date).tz_localize('Asia/Kolkata')
-            
+
             # Set start time to market open (9:15 AM IST)
             from_date = start_date.replace(hour=9, minute=15, second=0, microsecond=0)
-            
+
             # Set end time to market close (3:30 PM IST)
             to_date = end_date.replace(hour=15, minute=30, second=0, microsecond=0)
 
@@ -313,7 +310,7 @@ class BrokerData:
                     "endTime": to_str,
                     "compressionValue": compression_value
                 }
-                
+
                 logger.info(f"API Parameters: {json.dumps(params, indent=2)}")
 
                 response = get_api_response("/instruments/ohlc", self.auth_token, method="GET", feed_token=self.feed_token, params=params)
@@ -353,7 +350,7 @@ class BrokerData:
                     dfs.append(df)
 
                 current_start = current_end + timedelta(days=1)
-            
+
             if not dfs:
                 if compression_value == 'D' and to_date.date() == datetime.now().date():
                     # Get segment ID from exchange - use numeric values
@@ -381,22 +378,22 @@ class BrokerData:
                         "xtsMessageCode": 1502,
                         "publishFormat": "JSON"
                     }
-                    
+
                     response = get_api_response("/instruments/quotes", self.auth_token, method="POST", payload=payload, feed_token=self.feed_token)
-                    
+
                     if not response or response.get('type') != 'success':
                         raise Exception(f"Error from CompositEdge API: {response.get('description', 'Unknown error')}")
-            
+
                     # Parse quote data from response
                     raw_quotes = response.get('result', {}).get('listQuotes', [])
                     if not raw_quotes:
                         raise Exception("No quote data found in listQuotes")
-            
+
                     # Parse the JSON string in listQuotes
                     quote = json.loads(raw_quotes[0])
                     touchline = quote.get('Touchline', {})
                     logger.info(f"Parsed Quote Data: {touchline}")
-                    
+
                     if touchline:
                         # For daily data, set timestamp to midnight IST
                         today = datetime.now()
@@ -404,7 +401,7 @@ class BrokerData:
                         today = today.replace(hour=0, minute=0, second=0, microsecond=0)
                         # Add 5:30 hours to compensate for IST conversion that happens later
                         today = today + timedelta(hours=5, minutes=30)
-                        
+
                         today_candle = {
                             "timestamp": int(today.timestamp()),
                             "open": touchline.get('Open'),
@@ -413,7 +410,7 @@ class BrokerData:
                             "close": touchline.get('LastTradedPrice'),  # Use LTP as current close
                             "volume": touchline.get('TotalTradedQuantity', 0)
                         }
-                        
+
                         return pd.DataFrame([today_candle], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
                     else:
                         raise Exception("No Touchline data in quote")
@@ -421,10 +418,10 @@ class BrokerData:
 
             # Sort by timestamp and remove duplicates
             final_df = final_df.sort_values('timestamp').drop_duplicates('timestamp').reset_index(drop=True)
-            
+
             # Convert timestamps to datetime for manipulation
             final_df['timestamp'] = pd.to_datetime(final_df['timestamp'], unit='s')
-            
+
             if compression_value == 'D':
                 # For daily data, set to midnight (00:00:00)
                 final_df['timestamp'] = final_df['timestamp'].apply(
@@ -434,24 +431,24 @@ class BrokerData:
                 # For intraday data
                 # First subtract 5:30 hours to get to IST
                 final_df['timestamp'] = final_df['timestamp'] - pd.Timedelta(hours=5, minutes=30)
-                
+
                 # Round to the proper interval based on market open (9:15 AM)
                 interval_minutes = int(compression_value) // 60 if compression_value != 'D' else 0
                 if interval_minutes > 0:
                     # Shift by 15 minutes to align with market open, round, then shift back
                     final_df['timestamp'] = (final_df['timestamp'] - pd.Timedelta(minutes=15)).dt.ceil(f'{interval_minutes}min') + pd.Timedelta(minutes=15)
-            
+
             # Convert back to Unix timestamp
             final_df['timestamp'] = final_df['timestamp'].astype('int64') // 10**9
-            
+
             # Ensure numeric columns are properly typed
             numeric_columns = ['open', 'high', 'low', 'close', 'volume']
             final_df[numeric_columns] = final_df[numeric_columns].apply(pd.to_numeric)
-            
+
             # Log sample timestamps for verification
             sample_time = pd.to_datetime(final_df['timestamp'].iloc[0], unit='s')
             logger.info(f"First candle: {sample_time.strftime('%Y-%m-%d') if compression_value == 'D' else sample_time}")
-            
+
             return final_df
 
 
@@ -477,42 +474,42 @@ class BrokerData:
             dict: Market depth data
         """
         try:
-            logger.info(f"=== Starting Market Depth Request ===")
+            logger.info("=== Starting Market Depth Request ===")
             logger.info(f"Symbol: {symbol}, Exchange: {exchange}")
-            
+
             # Get feed token and user ID for request
             user_id = None
             feed_token = None
-            
+
             # First check if we have user ID in the instance
             if hasattr(self, 'user_id') and self.user_id:
                 user_id = self.user_id
                 logger.debug(f"Using instance user_id: {user_id}")
-            
+
             # Try to get from session if not found in instance
             if not user_id and hasattr(session, 'marketdata_userid') and session.get('marketdata_userid'):
                 user_id = session.get('marketdata_userid')
                 logger.debug(f"Using session user_id: {user_id}")
-            
+
             # If no user ID is available, use the one from feed token authentication
             if not user_id and self.user_id:
                 user_id = self.user_id
                 logger.debug(f"Using feed token auth user_id: {user_id}")
-            
+
             if not user_id:
                 logger.error("No user ID available for market depth request")
                 return None
-            
+
             # Get feed token from instance
             if hasattr(self, 'feed_token') and self.feed_token:
                 feed_token = self.feed_token
                 logger.debug("Using instance feed_token")
-            
+
             # Try to get from session if not found in instance
             if not feed_token and hasattr(session, 'marketdata_token') and session.get('marketdata_token'):
                 feed_token = session.get('marketdata_token')
                 logger.debug("Using session feed_token")
-            
+
             # If still no feed token, try to get a new one
             if not feed_token:
                 logger.info("No feed token available, attempting to get one")
@@ -524,11 +521,11 @@ class BrokerData:
                 if not user_id and new_user_id:
                     user_id = new_user_id
                     logger.info(f"Got new user_id from feed token: {user_id}")
-            
+
             # Log the user ID and feed token we're using
             logger.info(f"Using user ID: {user_id}")
             logger.info(f"Using feed token: {feed_token[:20]}..." if feed_token else "No feed token available")
-            
+
             # Exchange segment mapping
             exchange_segment_map = {
                 "NSE": 1,
@@ -538,18 +535,18 @@ class BrokerData:
                 "BFO": 12,
                 "MCX": 51
             }
-            
+
             # Convert symbol to broker format
             br_symbol = get_br_symbol(symbol, exchange)
             logger.info(f"Converted symbol {symbol} to broker format: {br_symbol}")
-            
+
             brexchange = exchange_segment_map.get(exchange)
             logger.info(f"Mapped exchange {exchange} to segment: {brexchange}")
-            
+
             if brexchange is None:
                 logger.error(f"Unknown exchange segment: {exchange}")
                 raise Exception(f"Unknown exchange segment: {exchange}")
-                
+
             # Get exchange_token from database
             logger.info("Querying database for symbol token...")
             with db_session() as session:
@@ -557,7 +554,7 @@ class BrokerData:
                     SymToken.exchange == exchange,
                     SymToken.brsymbol == br_symbol
                 ).first()
-                
+
                 if not symbol_info:
                     logger.error(f"Could not find exchange token for {exchange}:{br_symbol}")
                     raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
@@ -565,19 +562,19 @@ class BrokerData:
 
             # Get market depth via REST API
             logger.info("Getting market depth via REST API...")
-            
+
             # Prepare token for API requests
             token = {
                 'exchangeSegment': brexchange,
                 'exchangeInstrumentID': symbol_info.token
             }
-            
+
             # Fetch market data (xtsMessageCode 1502)
             market_data = self._fetch_market_data(token, 1502)
             if not market_data:
                 logger.error("Failed to fetch market data for depth")
                 raise Exception("Failed to fetch market data")
-            
+
             # Fetch Open Interest data (xtsMessageCode 1510) - non-blocking
             oi = 0
             try:
@@ -587,10 +584,10 @@ class BrokerData:
                     logger.debug(f"Fetched OI for depth: {oi}")
             except Exception as e:
                 logger.warning(f"Failed to fetch OI for depth: {str(e)}")
-            
+
             # Process market data
             touchline = market_data.get("Touchline", {})
-            
+
             # Extracting top 5 bids and asks
             bids = [
                 {"price": b.get("Price", 0), "quantity": b.get("Size", 0)}
@@ -616,7 +613,7 @@ class BrokerData:
                 'totalbuyqty': touchline.get('TotalBuyQuantity', 0),
                 'totalsellqty': touchline.get('TotalSellQuantity', 0)
             }
-            
+
         except Exception as e:
             logger.error(f"Error in get_market_depth: {str(e)}", exc_info=True)
             # Return empty structure on error
@@ -636,7 +633,7 @@ class BrokerData:
             }
             logger.info("Returning empty market depth structure")
             return empty_depth
-            
+
         except Exception as e:
             logger.error(f"Error in get_market_depth: {str(e)}", exc_info=True)
             # Return empty structure on error

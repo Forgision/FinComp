@@ -1,22 +1,13 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import numpy as np
-import gzip
-import shutil
-import json
-import pandas as pd
-import gzip
-import io
-from utils.httpx_client import get_httpx_client
 
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
+import pandas as pd
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -53,9 +44,9 @@ data_types = {
     "Strike price": float,
     "Option type": str,
     "Underlying FyToken": str,
-    "Reserved column1": str,  
-    "Reserved column2": str, 
-    "Reserved column3": str, 
+    "Reserved column1": str,
+    "Reserved column2": str,
+    "Reserved column3": str,
 }
 
 DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
@@ -72,7 +63,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -133,10 +124,10 @@ def download_csv_aliceblue_data(output_path):
         "MCX": "https://v2api.aliceblueonline.com/restpy/static/contract_master/MCX.csv",
         "INDICES": "https://v2api.aliceblueonline.com/restpy/static/contract_master/INDICES.csv"
     }
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     # Create a list to hold the paths of the downloaded files
     downloaded_files = []
 
@@ -146,21 +137,21 @@ def download_csv_aliceblue_data(output_path):
             # Send GET request using the shared httpx client
             response = client.get(url, timeout=10)
             response.raise_for_status()  # Raise exception for error status codes
-            
+
             # Construct the full output path for the file
             file_path = f"{output_path}/{key}.csv"
-            
+
             # Write the content to the file with a larger chunk size for better performance
             with open(file_path, 'wb') as file:
                 file.write(response.content)
-                
+
             downloaded_files.append(file_path)
             logger.info(f"Successfully downloaded {key} master contract")
-            
+
         except Exception as e:
             logger.error(f"Failed to download {key} from {url}. Error: {e}")
 
-    
+
 def reformat_symbol_detail(s):
     parts = s.split()  # Split the string into parts
     # Reorder and format the parts to match the desired output
@@ -191,10 +182,10 @@ def process_aliceblue_nse_csv(path):
     token_df['lotsize'] = filter_df['Lot Size']
     token_df['instrumenttype'] = 'EQ'
     token_df['tick_size'] = filter_df['Tick Size']
-    
+
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -222,10 +213,10 @@ def process_aliceblue_bse_csv(path):
     token_df['lotsize'] = filtered_df['Lot Size']
     token_df['instrumenttype'] = 'EQ'
     token_df['tick_size'] = filtered_df['Tick Size']
-    
+
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -247,13 +238,13 @@ def process_aliceblue_nfo_csv(path):
             Strike_price = int(row['Strike Price'])
         else:
             Strike_price = float(row['Strike Price'])
-        
+
         # Check if the date is NaT (Not a Time) before formatting
         if pd.notna(row['Expiry Date']):
             date_str = row['Expiry Date'].strftime('%d%b%y').upper()
         else:
             date_str = 'NOEXP'  # Use a placeholder for missing dates
-            
+
         return f"{row['Symbol']}{date_str}{Strike_price}"
 
     # Apply the function to rows where 'Option Type' is 'XX'
@@ -287,7 +278,7 @@ def process_aliceblue_nfo_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -309,13 +300,13 @@ def process_aliceblue_cds_csv(path):
             Strike_price = int(row['Strike Price'])
         else:
             Strike_price = float(row['Strike Price'])
-        
+
         # Check if the date is NaT (Not a Time) before formatting
         if pd.notna(row['Expiry Date']):
             date_str = row['Expiry Date'].strftime('%d%b%y').upper()
         else:
             date_str = 'NOEXP'  # Use a placeholder for missing dates
-            
+
         return f"{row['Symbol']}{date_str}{Strike_price}"
 
     # Apply the function to rows where 'Option Type' is 'XX'
@@ -349,7 +340,7 @@ def process_aliceblue_cds_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -364,7 +355,7 @@ def process_aliceblue_bfo_csv(path):
 
         # Convert 'Expiry Date' column to datetime format
     df['Expiry Date'] = pd.to_datetime(df['Expiry Date'])
-    
+
     df.loc[df['Instrument Type'] == 'SF', 'Option Type'] = 'XX'
     df.loc[df['Instrument Type'] == 'IF', 'Option Type'] = 'XX'
 
@@ -402,7 +393,7 @@ def process_aliceblue_bfo_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df_cleaned
 
 
@@ -426,13 +417,13 @@ def process_aliceblue_mcx_csv(path):
             Strike_price = int(row['Strike Price'])
         else:
             Strike_price = float(row['Strike Price'])
-        
+
         # Check if the date is NaT (Not a Time) before formatting
         if pd.notna(row['Expiry Date']):
             date_str = row['Expiry Date'].strftime('%d%b%y').upper()
         else:
             date_str = 'NOEXP'  # Use a placeholder for missing dates
-            
+
         return f"{row['Symbol']}{date_str}{Strike_price}"
 
     df.loc[df['Instrument Type'] == 'FUTCOM', 'Option Type'] = 'XX'
@@ -472,7 +463,7 @@ def process_aliceblue_mcx_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 def process_aliceblue_bcd_csv(path):
@@ -493,13 +484,13 @@ def process_aliceblue_bcd_csv(path):
             Strike_price = int(row['Strike Price'])
         else:
             Strike_price = float(row['Strike Price'])
-        
+
         # Check if the date is NaT (Not a Time) before formatting
         if pd.notna(row['Expiry Date']):
             date_str = row['Expiry Date'].strftime('%d%b%y').upper()
         else:
             date_str = 'NOEXP'  # Use a placeholder for missing dates
-            
+
         return f"{row['Symbol']}{date_str}{Strike_price}"
 
     df.loc[df['Instrument Type'] == 'FUTCUR', 'Option Type'] = 'XX'
@@ -539,7 +530,7 @@ def process_aliceblue_bcd_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -588,7 +579,7 @@ def process_aliceblue_indices_csv(path):
 
     # Filter out rows with NaN symbol values (which would violate DB NOT NULL constraints)
     token_df = token_df.dropna(subset=['symbol'])
-    
+
     return token_df
 
 
@@ -601,11 +592,11 @@ def delete_aliceblue_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
 
     output_path = 'tmp'
     try:
@@ -623,15 +614,15 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         token_df = process_aliceblue_bfo_csv(output_path)
         copy_from_dataframe(token_df)
-        token_df = process_aliceblue_bcd_csv(output_path) 
+        token_df = process_aliceblue_bcd_csv(output_path)
         copy_from_dataframe(token_df)
         token_df = process_aliceblue_indices_csv(output_path)
         copy_from_dataframe(token_df)
         delete_aliceblue_temp_data(output_path)
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

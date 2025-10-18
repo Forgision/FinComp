@@ -3,7 +3,15 @@
 Test that rejected CNC SELL orders appear in the orderbook
 """
 from decimal import Decimal
-from database.sandbox_db import init_db, db_session, SandboxOrders, SandboxPositions, SandboxFunds
+
+from database.sandbox_db import (
+    SandboxFunds,
+    SandboxOrders,
+    SandboxPositions,
+    db_session,
+    init_db,
+)
+
 from sandbox.order_manager import OrderManager
 
 # Initialize database

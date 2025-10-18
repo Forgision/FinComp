@@ -1,10 +1,15 @@
 import json
 import os
+
 import httpx
+from broker.upstox.mapping.transform_data import (
+    map_product_type,
+    reverse_map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_symbol, get_token
 from utils.httpx_client import get_httpx_client
-from database.auth_db import get_auth_token
-from database.token_db import get_token, get_br_symbol, get_symbol
-from broker.upstox.mapping.transform_data import transform_data, map_product_type, reverse_map_product_type, transform_modify_order_data
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -105,7 +110,7 @@ def get_open_position(tradingsymbol, exchange, product, auth):
             logger.error(f"Failed to get positions: {positions_data.get('message')}")
 
         return net_qty
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error getting open position for {tradingsymbol}")
         return '0'
 
@@ -147,7 +152,7 @@ def place_order_api(data, auth):
         headers = {'Authorization': f'Bearer {auth}', 'Content-Type': 'application/json', 'Accept': 'application/json'}
         response = client.post("https://api.upstox.com/v2/order/place", headers=headers, content=payload)
         response.raise_for_status()
-        
+
         # Add status attribute to make response compatible with place_order_service.py
         # as the rest of the codebase expects .status instead of .status_code
         response.status = response.status_code
@@ -256,7 +261,7 @@ def close_all_positions(current_api_key, auth):
         logger.info("Successfully initiated closing of all open positions.")
         return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
 
-    except Exception as e:
+    except Exception:
         logger.exception("An error occurred while closing all positions.")
         return {"status": "error", "message": "Failed to close all positions"}, 500
 
@@ -339,11 +344,11 @@ def cancel_all_orders_api(data, auth):
                 canceled_orders.append(orderid)
             else:
                 failed_cancellations.append(orderid)
-        
+
         logger.info(f"Canceled {len(canceled_orders)} orders. Failed to cancel {len(failed_cancellations)} orders.")
         return canceled_orders, failed_cancellations
 
-    except Exception as e:
+    except Exception:
         logger.exception("An error occurred while canceling all orders.")
         return [], []
 

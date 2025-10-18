@@ -6,20 +6,21 @@ This script tests that the TradingView endpoint properly requires CSRF token
 for POST requests.
 """
 
-import requests
 import sys
-import json
+
+import requests
+
 
 def test_tradingview_csrf(base_url="http://127.0.0.1:5000"):
     """Test TradingView CSRF protection"""
     print(f"\n{'='*60}")
-    print(f"Testing TradingView CSRF Protection")
+    print("Testing TradingView CSRF Protection")
     print(f"Server: {base_url}")
     print(f"{'='*60}\n")
-    
+
     session = requests.Session()
     results = []
-    
+
     # Test 1: GET request to TradingView page should work
     print("Test 1: GET request to TradingView page")
     try:
@@ -39,7 +40,7 @@ def test_tradingview_csrf(base_url="http://127.0.0.1:5000"):
     except Exception as e:
         print(f"✗ FAIL: Error loading page: {e}")
         results.append(False)
-    
+
     # Test 2: POST without CSRF token should fail
     print("\nTest 2: POST request without CSRF token")
     try:
@@ -62,7 +63,7 @@ def test_tradingview_csrf(base_url="http://127.0.0.1:5000"):
     except Exception as e:
         print(f"✗ FAIL: Error making POST request: {e}")
         results.append(False)
-    
+
     # Test 3: Check JavaScript includes CSRF token
     print("\nTest 3: Check if JavaScript properly sends CSRF token")
     try:
@@ -77,31 +78,31 @@ def test_tradingview_csrf(base_url="http://127.0.0.1:5000"):
                 print("✗ FAIL: JavaScript missing CSRF token implementation")
                 results.append(False)
         else:
-            print(f"✗ FAIL: Could not load JavaScript file")
+            print("✗ FAIL: Could not load JavaScript file")
             results.append(False)
     except Exception as e:
         print(f"✗ FAIL: Error checking JavaScript: {e}")
         results.append(False)
-    
+
     # Summary
     print(f"\n{'='*60}")
     passed = sum(results)
     total = len(results)
     print(f"Test Summary: {passed}/{total} tests passed")
-    
+
     if passed == total:
         print("✅ All tests passed! TradingView is protected with CSRF.")
     else:
         print("❌ Some tests failed. Please review the implementation.")
-    
+
     print(f"{'='*60}\n")
-    
+
     return passed == total
 
 if __name__ == "__main__":
     base_url = "http://127.0.0.1:5000"
     if len(sys.argv) > 1:
         base_url = sys.argv[1]
-    
+
     success = test_tradingview_csrf(base_url)
     sys.exit(0 if success else 1)

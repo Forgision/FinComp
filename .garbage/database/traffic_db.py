@@ -1,13 +1,23 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-import os
-import logging
-from datetime import datetime, timedelta
 import json
+import logging
+import os
+from datetime import datetime, timedelta
+
 from database.settings_db import get_security_settings
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Integer,
+    String,
+    Text,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +48,7 @@ LogBase.query = logs_session.query_property()
 class TrafficLog(LogBase):
     """Model for traffic logging"""
     __tablename__ = 'traffic_logs'
-    
+
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     client_ip = Column(String(50), nullable=False)
@@ -86,11 +96,11 @@ class TrafficLog(LogBase):
         """Get basic traffic statistics"""
         try:
             from sqlalchemy import func
-            
+
             total_requests = TrafficLog.query.count()
             error_requests = TrafficLog.query.filter(TrafficLog.status_code >= 400).count()
             avg_duration = logs_session.query(func.avg(TrafficLog.duration_ms)).scalar() or 0
-            
+
             return {
                 'total_requests': total_requests,
                 'error_requests': error_requests,

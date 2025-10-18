@@ -1,23 +1,17 @@
 #database/master_contract_db.py
 
-import os
-import pandas as pd
-import numpy as np
-import gzip
-import shutil
-import json
-import gzip
 import io
+import os
 import zipfile
+
 # Use httpx client for connection pooling
 import httpx
-from utils.httpx_client import get_httpx_client
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
+import pandas as pd
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,9 +48,9 @@ data_types = {
     "Strike price": float,
     "Option type": str,
     "Underlying FyToken": str,
-    "Reserved column1": str,  
-    "Reserved column2": str, 
-    "Reserved column3": str, 
+    "Reserved column1": str,
+    "Reserved column2": str,
+    "Reserved column3": str,
 }
 
 DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
@@ -73,7 +67,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -126,16 +120,16 @@ def download_csv_pocketful_data(output_path):
     """
     # Get the shared httpx client
     client = get_httpx_client()
-    
+
     # API endpoint for contract download
     zip_url = "https://trade.pocketful.in/api/v1/contract/Compact?info=download&exchanges=NSE,NFO,BSE,BFO,MCX"
     downloaded_files = []
 
-    try: 
+    try:
         # Use the httpx client to make the request
         response = client.get(zip_url)
         response.raise_for_status()
-        
+
         # Extract the ZIP file contents
         with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
             zip_file.extractall(output_path)
@@ -150,7 +144,7 @@ def download_csv_pocketful_data(output_path):
         logger.error(f"Unexpected error during contract download: {e}")
 
     return downloaded_files
-    
+
 def reformat_symbol_detail(s):
     parts = s.split()  # Split the string into parts
     # Reorder and format the parts to match the desired output
@@ -190,7 +184,7 @@ def process_pocketful_nse_csv(path):
     token_df['lotsize'] = filter_df['lot_size']
     token_df['instrumenttype'] = 'EQ'
     token_df['tick_size'] = filter_df['tick_size']
-    
+
     return token_df
 
 
@@ -221,7 +215,7 @@ def process_pocketful_bse_csv(path):
     token_df['lotsize'] = df['lot_size']
     token_df['instrumenttype'] = df['instrument_name']
     token_df['tick_size'] = df['tick_size']
-    
+
     token_df['exchange'] = df['segment'].map({
         'IDX': 'BSE_INDEX'
     }).fillna(df['exchange'])
@@ -479,7 +473,7 @@ def process_pocketful_indices_csv(path):
 
     return token_df
 
-    
+
 
 
 def delete_pocketful_temp_data(output_path):
@@ -491,11 +485,11 @@ def delete_pocketful_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
 
     output_path = 'tmp'
     try:
@@ -507,19 +501,19 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         token_df = process_pocketful_nfo_csv(output_path)
         copy_from_dataframe(token_df)
-        
+
         token_df = process_pocketful_mcx_csv(output_path)
         copy_from_dataframe(token_df)
         token_df = process_pocketful_bfo_csv(output_path)
         copy_from_dataframe(token_df)
-        
+
         token_df = process_pocketful_indices_csv(output_path)
         copy_from_dataframe(token_df)
         delete_pocketful_temp_data(output_path)
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

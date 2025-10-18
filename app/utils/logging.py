@@ -1,17 +1,22 @@
-import os
-import logging
-import sys
-import site
-import re
 import inspect
+import logging
+import os
+import re
+import site
+import sys
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Optional
+
 from ..core.config import settings
 
 try:
-    from colorama import Fore as ColoramaFore, Back as ColoramaBack, Style as ColoramaStyle, init as colorama_init  # type: ignore #(Library stubs not installed for "colorama")
+    from colorama import Back as ColoramaBack
+    from colorama import (  # type: ignore #(Library stubs not installed for "colorama")
+        Fore as ColoramaFore,
+    )
+    from colorama import Style as ColoramaStyle
+    from colorama import init as colorama_init
     colorama_init(autoreset=True)
     Fore = ColoramaFore
     Back = ColoramaBack
@@ -24,7 +29,7 @@ try:
         'ERROR': Fore.RED,
         'CRITICAL': Fore.RED + Style.BRIGHT,
     }
-    
+
     # Additional colors for components
     COMPONENT_COLORS = {
         'timestamp': Fore.BLUE,
@@ -52,13 +57,13 @@ SENSITIVE_PATTERNS = [
 
 class SensitiveDataFilter(logging.Filter):
     """Filter to redact sensitive information from log messages."""
-    
+
     def filter(self, record):
         try:
             # Filter the main message
             for pattern, replacement in SENSITIVE_PATTERNS:
                 record.msg = re.sub(pattern, replacement, str(record.msg), flags=re.IGNORECASE)
-            
+
             # Filter args if present
             if hasattr(record, 'args') and record.args:
                 filtered_args = []
@@ -71,7 +76,7 @@ class SensitiveDataFilter(logging.Filter):
         except Exception:
             # If filtering fails, don't block the log message
             pass
-            
+
         return True
 
 
@@ -146,7 +151,7 @@ class LocationBuilder:
         try:
 
             path_obj = Path(file_path)
-            
+
             # Determine the root for module path calculation.
             # We assume 'app' is a root for application code.
             parts = list(path_obj.parts)
@@ -162,11 +167,11 @@ class LocationBuilder:
                 module_parts[-1] = Path(module_parts[-1]).stem
 
             module_path = ".".join(module_parts)
-            
+
             # For __init__.py files, the location is the package name.
             if module_path.endswith(".__init__"):
                 module_path = module_path.rsplit(".__init__", 1)[0]
-                
+
         except Exception:
             # Fallback to Python's __name__ if path parsing fails.
             module_path = frame.f_globals.get("__name__", "unknown")
@@ -190,15 +195,15 @@ class LocationBuilder:
         location_parts = [module_path]
         if class_name:
             location_parts.append(class_name)
-        
+
         # Add function name, but ignore for top-level module code.
         if function_name != "<module>":
             location_parts.append(function_name)
-        
+
         location = ".".join(part for part in location_parts if part)
 
         return location
-    
+
 
 class LocationInfoFilter(logging.Filter):
     """
@@ -213,11 +218,11 @@ class LocationInfoFilter(logging.Filter):
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter that adds colors to log levels and components for console output."""
-    
+
     def __init__(self, fmt=None, datefmt=None, enable_colors=True):
         super().__init__(fmt, datefmt)
         self.enable_colors = settings.LOGS_COLORS_ENABLE and COLORAMA_AVAILABLE and self._supports_color()
-    
+
     def _supports_color(self):
         """Check if the terminal supports color output."""
         # Check if we're in a terminal that supports colors
@@ -226,32 +231,32 @@ class ColoredFormatter(logging.Formatter):
             term = settings.TERM
             if 'color' in term.lower() or term in ['xterm', 'xterm-256color', 'screen', 'screen-256color']:
                 return True
-                
+
             # Check for common CI environments that support colors
             ci_envs = ['GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL', 'BUILDKITE']
             if any(env in os.environ for env in ci_envs):
                 return True
-        
+
         # For Windows Command Prompt or PowerShell, check if ANSI support is available
         if os.name == 'nt':
             try:
                 # Try to enable ANSI escape sequences on Windows
                 import subprocess
-                result = subprocess.run(['reg', 'query', 'HKCU\\Console', '/v', 'VirtualTerminalLevel'], 
+                result = subprocess.run(['reg', 'query', 'HKCU\\Console', '/v', 'VirtualTerminalLevel'],
                                       capture_output=True, text=True)
                 if result.returncode == 0 and 'VirtualTerminalLevel' in result.stdout:
                     return True
-            except:
+            except Exception:
                 pass
-            
+
             # Check if running in Windows Terminal, VS Code, or similar
             wt_session = settings.WT_SESSION
             vscode_term = settings.VSCODE_INJECTION
             if wt_session or vscode_term:
                 return True
-                
+
         return False
-    
+
     def format(self, record):
         # The filter adds custom_lineno. We use it for the output.
         record.lineno = getattr(record, 'custom_lineno', record.lineno)
@@ -269,13 +274,13 @@ class ColoredFormatter(logging.Formatter):
                 original_format = super().format(record)
             except Exception:
                 return f"[{record.levelname}] {record.msg}"
-        
+
         # Apply colors
         level_color = LOG_COLORS.get(record.levelname, '')
         reset = COMPONENT_COLORS.get('reset', '')
         timestamp_color = COMPONENT_COLORS.get('timestamp', '')
         location_color = COMPONENT_COLORS.get('location', '')
-        
+
         # Color timestamp (first bracketed group)
         original_format = re.sub(
             r'(\[.*?\])',
@@ -283,19 +288,19 @@ class ColoredFormatter(logging.Formatter):
             original_format,
             count=1
         )
-        
+
         # Color log level
         original_format = original_format.replace(
             record.levelname,
             f'{level_color}{record.levelname}{reset}'
         )
-        
+
         # Color location
         if hasattr(record, 'location'):
             location_str = f"[{record.location}:{record.lineno}]"
             colored_location = f"[{location_color}{record.location}{reset}:{record.lineno}]"
             original_format = original_format.replace(location_str, colored_location)
-            
+
         return original_format
 
 
@@ -369,7 +374,7 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         try:
 
             path_obj = Path(file_path)
-            
+
             # Determine the root for module path calculation.
             # We assume 'app' is a root for application code.
             parts = list(path_obj.parts)
@@ -385,11 +390,11 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
                 module_parts[-1] = Path(module_parts[-1]).stem
 
             module_path = ".".join(module_parts)
-            
+
             # For __init__.py files, the location is the package name.
             if module_path.endswith(".__init__"):
                 module_path = module_path.rsplit(".__init__", 1)[0]
-                
+
         except Exception:
             # Fallback to Python's __name__ if path parsing fails.
             module_path = frame.f_globals.get("__name__", "unknown")
@@ -413,15 +418,15 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         location_parts = [module_path]
         if class_name:
             location_parts.append(class_name)
-        
+
         # Add function name, but ignore for top-level module code.
         if function_name != "<module>":
             location_parts.append(function_name)
-        
+
         location = ".".join(part for part in location_parts if part)
 
         return location
-    
+
     def process(self, msg, kwargs):
         c_frame = LocationBuilder.find_caller_frame()
         if c_frame is not None:
@@ -436,9 +441,9 @@ def cleanup_old_logs(log_dir: Path, retention_days: int):
     """Remove log files older than retention_days."""
     if not log_dir.exists():
         return
-        
+
     cutoff_date = datetime.now() - timedelta(days=retention_days)
-    
+
     for log_file in log_dir.glob("*.log*"):
         try:
             # Get file modification time
@@ -452,17 +457,19 @@ def cleanup_old_logs(log_dir: Path, retention_days: int):
 
 def setup_logging():
     """Initialize the logging configuration from environment variables."""
-    from app.core.config import settings # Import settings here to avoid circular dependency
+    from app.core.config import (
+        settings,  # Import settings here to avoid circular dependency
+    )
 
     # Get configuration from environment
     log_format = '[%(asctime)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
     log_retention = int(settings.LOG_RETENTION)
     log_colors = settings.LOGS_COLORS_ENABLE
-    
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(settings.LOG_LEVEL or logging.INFO)
-    
+
     # Remove existing handlers
     root_logger.handlers = []
 
@@ -473,22 +480,22 @@ def setup_logging():
     # Create formatters
     console_formatter = ColoredFormatter(log_format, enable_colors=log_colors)
     file_formatter = logging.Formatter(log_format)
-    
+
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(console_formatter)
     console_handler.addFilter(sensitive_filter)
     console_handler.addFilter(location_filter)
     root_logger.addHandler(console_handler)
-    
+
     # File handler (if enabled)
     if settings.LOG_TO_FILE:
         log_path = Path(settings.LOG_DIR)
         log_path.mkdir(exist_ok=True)
-        
+
         # Clean up old logs
         cleanup_old_logs(log_path, log_retention)
-        
+
         # Create file handler with daily rotation
         log_file = log_path / f"fincomp_{datetime.now().strftime('%Y-%m-%d')}.log"
         file_handler = TimedRotatingFileHandler(
@@ -502,7 +509,7 @@ def setup_logging():
         file_handler.addFilter(sensitive_filter)
         file_handler.addFilter(location_filter)
         root_logger.addHandler(file_handler)
-    
+
     # Suppress noisy third-party loggers
     logging.getLogger('werkzeug').setLevel(logging.WARNING) # Flask specific, might be removed
     logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -517,22 +524,22 @@ def setup_logging():
 def highlight_url(url: str, text: str = '') -> str:
     """
     Create a highlighted URL string with bright colors and styling.
-    
+
     Args:
         url: The URL to highlight
         text: Optional text to display instead of the URL
-        
+
     Returns:
         Formatted string with colors (if available) or plain text
     """
     if not COLORAMA_AVAILABLE or not settings.LOGS_COLORS_ENABLE:
         return text or url
-    
+
     # Create bright, attention-grabbing formatting
     bright_cyan = Fore.CYAN + Style.BRIGHT
     bright_white = Fore.WHITE + Style.BRIGHT
     reset = Style.RESET_ALL
-        
+
     # Format: [bright_white]text[reset] -> [bright_cyan]url[reset]
     if text and text != url:
         return f"{bright_white}{text}{reset} -> {bright_cyan}{url}{reset}"
@@ -543,7 +550,7 @@ def highlight_url(url: str, text: str = '') -> str:
 def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", width: int = 60):
     """
     Log a highlighted startup banner with URL.
-    
+
     Args:
         title: Main title text
         url: URL to highlight
@@ -557,11 +564,11 @@ def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", 
         logger.log_info(f"Access the application at: {url}")
         logger.log_info(separator_char * width)
         return
-    
+
     # Check if colors are enabled
     log_colors = settings.LOG_COLORS_ENABLE
     force_color = settings.FORCE_COLOR
-    
+
     if not log_colors and not force_color:
         # Fallback without colors
         logger.info(separator_char * width)
@@ -569,18 +576,18 @@ def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", 
         logger.info(f"Access the application at: {url}")
         logger.info(separator_char * width)
         return
-    
+
     # Create colorful banner
     bright_green = Fore.GREEN + Style.BRIGHT
     bright_yellow = Fore.YELLOW + Style.BRIGHT
     bright_cyan = Fore.CYAN + Style.BRIGHT
     reset = Style.RESET_ALL
-    
+
     # Log colored banner
     separator_line = f"{bright_yellow}{separator_char * width}{reset}"
     title_line = f"{bright_green}{title}{reset}"
     url_line = f"Access the application at: {bright_cyan}{url}{reset}"
-    
+
     logger.info(separator_line)
     logger.info(title_line)
     logger.info(url_line)
@@ -590,10 +597,10 @@ def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", 
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance for a module.
-    
+
     Args:
         name: Module name (typically __name__)
-        
+
     Returns:
         Logger instance configured with the module name and color support
     """

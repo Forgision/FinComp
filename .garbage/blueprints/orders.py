@@ -1,19 +1,28 @@
-from flask import Blueprint, jsonify, request, render_template, session, redirect, url_for, Response
-from importlib import import_module
-from database.auth_db import get_auth_token, get_api_key_for_tradingview
-from database.settings_db import get_analyze_mode
-from utils.session import check_session_validity
-from services.place_smart_order_service import place_smart_order
-from services.close_position_service import close_position
-from services.orderbook_service import get_orderbook
-from services.tradebook_service import get_tradebook
-from services.positionbook_service import get_positionbook
-from services.holdings_service import get_holdings
-from utils.logging import get_logger
-from limiter import limiter
 import csv
 import io
 import os
+from importlib import import_module
+
+from database.auth_db import get_api_key_for_tradingview, get_auth_token
+from database.settings_db import get_analyze_mode
+from flask import (
+    Blueprint,
+    Response,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from limiter import limiter
+from services.close_position_service import close_position
+from services.holdings_service import get_holdings
+from services.orderbook_service import get_orderbook
+from services.positionbook_service import get_positionbook
+from services.tradebook_service import get_tradebook
+from utils.logging import get_logger
+from utils.session import check_session_validity
 
 logger = get_logger(__name__)
 
@@ -47,12 +56,12 @@ def generate_orderbook_csv(order_data):
     """Generate CSV file from orderbook data"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write headers matching the terminal display
-    headers = ['Trading Symbol', 'Exchange', 'Transaction Type', 'Quantity', 'Price', 
+    headers = ['Trading Symbol', 'Exchange', 'Transaction Type', 'Quantity', 'Price',
               'Trigger Price', 'Order Type', 'Product Type', 'Order ID', 'Status', 'Time']
     writer.writerow(headers)
-    
+
     # Write data in the same order as the headers
     for order in order_data:
         row = [
@@ -69,19 +78,19 @@ def generate_orderbook_csv(order_data):
             order.get('timestamp', '')
         ]
         writer.writerow(row)
-    
+
     return output.getvalue()
 
 def generate_tradebook_csv(trade_data):
     """Generate CSV file from tradebook data"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write headers
-    headers = ['Trading Symbol', 'Exchange', 'Product Type', 'Transaction Type', 'Fill Size', 
+    headers = ['Trading Symbol', 'Exchange', 'Product Type', 'Transaction Type', 'Fill Size',
               'Fill Price', 'Trade Value', 'Order ID', 'Fill Time']
     writer.writerow(headers)
-    
+
     # Write data
     for trade in trade_data:
         row = [
@@ -96,18 +105,18 @@ def generate_tradebook_csv(trade_data):
             trade.get('timestamp', '')
         ]
         writer.writerow(row)
-    
+
     return output.getvalue()
 
 def generate_positions_csv(positions_data):
     """Generate CSV file from positions data"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write headers - updated to match terminal output exactly
     headers = ['Symbol', 'Exchange', 'Product Type', 'Net Qty', 'Avg Price', 'LTP', 'P&L']
     writer.writerow(headers)
-    
+
     # Write data
     for position in positions_data:
         row = [
@@ -120,7 +129,7 @@ def generate_positions_csv(positions_data):
             position.get('pnl', '')
         ]
         writer.writerow(row)
-    
+
     return output.getvalue()
 
 @orders_bp.route('/orderbook')
@@ -507,7 +516,7 @@ def close_position():
 
         # Call the broker API directly
         res, response, orderid = place_smartorder_api(order_data, auth_token)
-        
+
         # Format the response based on presence of orderid and broker's response
         if orderid:
             response_data = {
@@ -526,9 +535,9 @@ def close_position():
                 status_code = res.status  # Use broker's HTTP error code if available
             else:
                 status_code = 400 # Default to Bad Request
-        
+
         return jsonify(response_data), status_code
-        
+
     except Exception as e:
         logger.error(f"Error in close_position endpoint: {str(e)}")
         return jsonify({
@@ -554,9 +563,9 @@ def close_all_positions():
             }), 401
 
         # Import necessary functions
-        from services.close_position_service import close_position
         from database.auth_db import get_api_key_for_tradingview
         from database.settings_db import get_analyze_mode
+        from services.close_position_service import close_position
 
         # Get API key for analyze mode
         api_key = None
@@ -579,7 +588,7 @@ def close_all_positions():
             }), 200
         else:
             return jsonify(response_data), status_code
-        
+
     except Exception as e:
         logger.error(f"Error in close_all_positions endpoint: {str(e)}")
         return jsonify({
@@ -605,9 +614,9 @@ def cancel_all_orders_ui():
             }), 401
 
         # Import necessary functions
-        from services.cancel_all_order_service import cancel_all_orders
         from database.auth_db import get_api_key_for_tradingview
         from database.settings_db import get_analyze_mode
+        from services.cancel_all_order_service import cancel_all_orders
 
         # Get API key for analyze mode
         api_key = None
@@ -621,12 +630,12 @@ def cancel_all_orders_ui():
             auth_token=auth_token,
             broker=broker_name
         )
-        
+
         # Format the response for UI
         if success and status_code == 200:
             canceled_count = len(response_data.get('canceled_orders', []))
             failed_count = len(response_data.get('failed_cancellations', []))
-            
+
             if canceled_count > 0 or failed_count == 0:
                 message = f'Successfully canceled {canceled_count} orders'
                 if failed_count > 0:
@@ -644,7 +653,7 @@ def cancel_all_orders_ui():
                 }), 200
         else:
             return jsonify(response_data), status_code
-        
+
     except Exception as e:
         logger.error(f"Error in cancel_all_orders_ui endpoint: {str(e)}")
         return jsonify({

@@ -1,29 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from typing import Optional, Dict, Any
-
-from importlib import import_module
 import csv
 import io
-import os
+from importlib import import_module
+from typing import Any, Dict, Optional
 
-from app.db.auth_db import get_auth_token, get_api_key_for_tradingview
-from app.db.settings_db import get_analyze_mode
-from app.db.session import get_db
-from app.utils.session import check_session_validity_fastapi
-from app.web.services.place_smart_order_service import place_smart_order
-from app.web.services.close_position_service import close_position
-from app.web.services.orderbook_service import get_orderbook
-from app.web.services.tradebook_service import get_tradebook
-from app.web.services.positionbook_service import get_positionbook
-from app.web.services.holdings_service import get_holdings
-from app.web.services.cancel_all_order_service import cancel_all_orders
-from app.utils.web import limiter
-from app.utils.logging import logger
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
-from app.web.frontend import templates
+from app.core.services.cancel_all_order_service import cancel_all_orders
+from app.core.services.close_position_service import close_position
+from app.core.services.holdings_service import get_holdings
+from app.core.services.orderbook_service import get_orderbook
+from app.core.services.place_smart_order_service import place_smart_order
+from app.core.services.positionbook_service import get_positionbook
+from app.core.services.tradebook_service import get_tradebook
+from app.db.models.auth_db import get_api_key_for_tradingview, get_auth_token
+from app.db.models.session import get_db
+from app.db.models.settings_db import get_analyze_mode
+from app.utils.logging import logger
+from app.utils.session import check_session_validity_fastapi
+from app.utils.web.limiter import limiter
 
 # Use existing rate limits from .env
 API_RATE_LIMIT = settings.API_RATE_LIMIT
@@ -39,7 +36,7 @@ def dynamic_import(broker: str, module_name: str, function_names: list[str]) -> 
     module_functions = {}
     try:
         # Import the module based on the broker name
-        module = import_module(f'app.web.broker.{broker}.{module_name}')
+        module = import_module(f'app.broker.{broker}.{module_name}')
         for name in function_names:
             module_functions[name] = getattr(module, name)
         return module_functions
@@ -51,7 +48,7 @@ def generate_orderbook_csv(order_data: list[dict]) -> str:
     """Generate CSV file from orderbook data"""
     output = io.StringIO()
     writer = csv.writer(output)
-    headers = ['Trading Symbol', 'Exchange', 'Transaction Type', 'Quantity', 'Price', 
+    headers = ['Trading Symbol', 'Exchange', 'Transaction Type', 'Quantity', 'Price',
                'Trigger Price', 'Order Type', 'Product Type', 'Order ID', 'Status', 'Time']
     writer.writerow(headers)
     for order in order_data:
@@ -68,7 +65,7 @@ def generate_tradebook_csv(trade_data: list[dict]) -> str:
     """Generate CSV file from tradebook data"""
     output = io.StringIO()
     writer = csv.writer(output)
-    headers = ['Trading Symbol', 'Exchange', 'Product Type', 'Transaction Type', 'Fill Size', 
+    headers = ['Trading Symbol', 'Exchange', 'Product Type', 'Transaction Type', 'Fill Size',
                'Fill Price', 'Trade Value', 'Order ID', 'Fill Time']
     writer.writerow(headers)
     for trade in trade_data:
@@ -129,7 +126,7 @@ async def orderbook(request: Request, db: Session = Depends(get_db)):
     order_data = data.get('orders', [])
     order_stats = data.get('statistics', {})
 
-    return templates.TemplateResponse("orderbook.html", {"request": request, "order_data": order_data, "order_stats": order_stats})
+    return JSONResponse(content={"order_data": order_data, "order_stats": order_stats})
 
 @orders_router.get("/tradebook")
 async def tradebook(request: Request, db: Session = Depends(get_db)):
@@ -163,7 +160,7 @@ async def tradebook(request: Request, db: Session = Depends(get_db)):
 
     tradebook_data = response.get('data', [])
 
-    return templates.TemplateResponse("tradebook.html", {"request": request, "tradebook_data": tradebook_data})
+    return JSONResponse(content={"tradebook_data": tradebook_data})
 
 @orders_router.get("/positions")
 async def positions(request: Request, db: Session = Depends(get_db)):
@@ -197,7 +194,7 @@ async def positions(request: Request, db: Session = Depends(get_db)):
 
     positions_data = response.get('data', [])
 
-    return templates.TemplateResponse("positions.html", {"request": request, "positions_data": positions_data})
+    return JSONResponse(content={"positions_data": positions_data})
 
 @orders_router.get("/holdings", name="orders.holdings")
 async def holdings(request: Request, db: Session = Depends(get_db)):
@@ -233,7 +230,7 @@ async def holdings(request: Request, db: Session = Depends(get_db)):
     holdings_data = data.get('holdings', [])
     portfolio_stats = data.get('statistics', {})
 
-    return templates.TemplateResponse("holdings.html", {"request": request, "holdings_data": holdings_data, "portfolio_stats": portfolio_stats})
+    return JSONResponse(content={"holdings_data": holdings_data, "portfolio_stats": portfolio_stats})
 
 @orders_router.get("/orderbook/export")
 async def export_orderbook(request: Request, db: Session = Depends(get_db)):
@@ -437,7 +434,7 @@ async def close_position_route(request: Request, db: Session = Depends(get_db)):
         }
 
         res, response, orderid = await place_smartorder_api(order_data, auth_token)
-        
+
         if orderid:
             response_data = {
                 'status': 'success',
@@ -454,9 +451,9 @@ async def close_position_route(request: Request, db: Session = Depends(get_db)):
                 status_code_response = res.status
             else:
                 status_code_response = status.HTTP_400_BAD_REQUEST
-        
+
         return JSONResponse(content=response_data, status_code=status_code_response)
-        
+
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
@@ -498,7 +495,7 @@ async def close_all_positions_route(request: Request, db: Session = Depends(get_
             }, status_code=status.HTTP_200_OK)
         else:
             return JSONResponse(content=response_data, status_code=status_code_service)
-        
+
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
@@ -532,11 +529,11 @@ async def cancel_all_orders_ui(request: Request, db: Session = Depends(get_db)):
             auth_token=auth_token,
             broker=broker_name
         )
-        
+
         if success and status_code_service == 200:
             canceled_count = len(response_data.get('canceled_orders', []))
             failed_count = len(response_data.get('failed_cancellations', []))
-            
+
             if canceled_count > 0 or failed_count == 0:
                 message = f'Successfully canceled {canceled_count} orders'
                 if failed_count > 0:
@@ -554,7 +551,7 @@ async def cancel_all_orders_ui(request: Request, db: Session = Depends(get_db)):
                 }, status_code=status.HTTP_200_OK)
         else:
             return JSONResponse(content=response_data, status_code=status_code_service)
-        
+
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:

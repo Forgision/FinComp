@@ -1,24 +1,23 @@
 # app/web/backend/routes/log.py
 
-from fastapi import APIRouter, Depends, Request, Query, HTTPException, status
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-import pytz
-from datetime import datetime, date
-import json
 import csv
 import io
+import json
 import traceback
+from datetime import date, datetime
+
+import pytz
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.db.models.apilog_db import OrderLog
 
 # Assuming these imports will be available or need to be created/imported from other modules
-from app.db.session import get_db
-from app.utils.session import check_session_validity_fastapi # This will be a FastAPI dependency
-from app.db.apilog_db import OrderLog # Adjusted import path
-from app.core.config import settings # For template directory
+from app.db.models.session import get_db
 from app.utils.logging import logger
-from app.web.frontend import templates
+from app.utils.session import check_session_validity_fastapi
 
 log_router = APIRouter(prefix="/logs", tags=["logs"])
 
@@ -55,10 +54,10 @@ def format_log_entry(log, ist):
         except Exception as e:
             logger.error(f"Error processing response data for log {log.id}: {str(e)}")
             response_data = {}
-        
+
         # Extract strategy from request data
         strategy = request_data.get('strategy', 'Unknown') if isinstance(request_data, dict) else 'Unknown'
-        
+
         return {
             'id': log.id,
             'api_type': log.api_type,
@@ -90,7 +89,7 @@ def get_filtered_logs(db: Session, start_date: date = None, end_date: date = Non
             query = query.filter(func.date(OrderLog.created_at) >= start_date)
         if end_date:
             query = query.filter(func.date(OrderLog.created_at) <= end_date)
-        
+
         # If no dates provided, default to today
         if not start_date and not end_date:
             today_ist = datetime.now(ist).date()
@@ -135,12 +134,12 @@ def generate_csv(logs):
     try:
         si = io.StringIO()
         writer = csv.writer(si)
-        
+
         # Write headers - include all possible fields from all request types
         headers = [
-            'ID', 
-            'Timestamp', 
-            'API Type', 
+            'ID',
+            'Timestamp',
+            'API Type',
             'Strategy',
             'Exchange',
             'Symbol',
@@ -156,21 +155,21 @@ def generate_csv(logs):
             'Response'
         ]
         writer.writerow(headers)
-        
+
         # Write data
         for log in logs:
             try:
                 request_data = log['request_data']
                 if not isinstance(request_data, dict):
                     request_data = {}
-                
+
                 # Format response data for CSV
                 response_data = log['response_data']
                 if isinstance(response_data, dict):
                     response_str = json.dumps(response_data)
                 else:
                     response_str = str(response_data)
-                
+
                 # Build row with all possible fields
                 row = [
                     log['id'],
@@ -195,7 +194,7 @@ def generate_csv(logs):
             except Exception as e:
                 logger.error(f"Error writing row for log {log.get('id')}: {str(e)}")
                 continue
-        
+
         return si.getvalue()
 
     except Exception as e:
@@ -238,34 +237,26 @@ async def view_logs(
             })
 
         logger.info(f"Found {len(logs)} log entries")
-        return templates.TemplateResponse(
-            "logs.html",
-            {
-                "request": request,
-                "logs": logs,
-                "total_pages": total_pages,
-                "current_page": page,
-                "search_query": search,
-                "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
-                "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
-            },
-        )
-        
+        return JSONResponse(content={
+            "logs": logs,
+            "total_pages": total_pages,
+            "current_page": page,
+            "search_query": search,
+            "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
+            "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
+        })
+
     except Exception as e:
         logger.error(f"Error in view_logs: {str(e)}\n{traceback.format_exc()}")
-        return templates.TemplateResponse(
-            "logs.html",
-            {
-                "request": request,
-                "logs": [],
-                "total_pages": 1,
-                "current_page": 1,
-                "search_query": "",
-                "start_date": None,
-                "end_date": None,
-            },
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return JSONResponse(content={
+            "logs": [],
+            "total_pages": 1,
+            "current_page": 1,
+            "search_query": "",
+            "start_date": None,
+            "end_date": None,
+            "error": str(e)
+        }, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @log_router.get("/export")
 async def export_logs(
@@ -278,7 +269,7 @@ async def export_logs(
 ):
     try:
         logger.info("Starting log export")
-        
+
         # Get parameters
         # FastAPI handles query parameters directly, no need for request.args.get
         logger.info(f"Export parameters - start_date: {start_date}, end_date: {end_date}, search: {search}")
@@ -297,7 +288,7 @@ async def export_logs(
 
         # Generate CSV content
         csv_output = generate_csv(logs)
-        
+
         # Generate filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'openalgo_logs_{timestamp}.csv'

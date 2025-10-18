@@ -1,21 +1,19 @@
-from flask import Blueprint, jsonify, request, render_template, session, redirect, url_for, Response
-from database.auth_db import get_auth_token
-from utils.session import check_session_validity
-from limiter import limiter
+import asyncio
+import os
+
 from database.telegram_db import (
-    get_bot_config,
-    update_bot_config,
+    delete_telegram_user,
     get_all_telegram_users,
-    get_telegram_user_by_username,
+    get_bot_config,
     get_command_stats,
-    delete_telegram_user
+    get_telegram_user_by_username,
+    update_bot_config,
 )
+from flask import Blueprint, jsonify, render_template, request, session
+from limiter import limiter
 from services.telegram_bot_service import telegram_bot_service
 from utils.logging import get_logger
-import asyncio
-import concurrent.futures
-import json
-import os
+from utils.session import check_session_validity
 
 logger = get_logger(__name__)
 

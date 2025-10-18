@@ -1,12 +1,14 @@
 import json
 import os
-from tokenize import Token
-import httpx
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.ibulls.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.httpx_client import get_httpx_client
+
 from broker.ibulls.baseurl import INTERACTIVE_URL
+from broker.ibulls.mapping.transform_data import (
+    map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_token
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,25 +20,25 @@ def get_api_response(endpoint, auth, method="GET",  payload=''):
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
       'authorization': AUTH_TOKEN,
       'Content-Type': 'application/json',
     }
-    
+
     url = f"{INTERACTIVE_URL}{endpoint}"
 
     logger.info(f"Request URL: {url}")
     logger.info(f"Headers: {headers}")
     logger.info(f'Payload: {json.dumps(payload, indent=2) if payload else "None"}')
-    
+
     if method == "GET":
         response = client.get(url, headers=headers)
     elif method == "POST":
         response = client.post(url, headers=headers, json=payload)
     else:
         response = client.request(method, url, headers=headers, json=payload)
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
     logger.info(f"Response Status Code: {response.status_code}")
@@ -67,22 +69,22 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
     net_qty = '0'
 
     logger.info(f"Searching position for: symbol={tradingsymbol}, exchange={exchange}, product={producttype}")
-    
+
     if positions_data and positions_data.get('type') == 'success' and positions_data.get('result'):
         position_list = positions_data['result'].get('positionList', [])
         logger.info(f"Found {len(position_list)} positions in position book")
-        
+
         for position in position_list:
             # Log position details for debugging
             logger.info(f"Position: {position}")
-            
+
             # Try different possible field names for NetQty
             possible_qty_fields = ['NetQty', 'Quantity', 'netQty', 'NetQuantity', 'net_qty']
-            
-            # Match by symbol and product type 
+
+            # Match by symbol and product type
             pos_symbol = position.get('TradingSymbol', position.get('tradingsymbol', ''))
             pos_product = position.get('ProductType', position.get('producttype', ''))
-            
+
             if pos_symbol == tradingsymbol and pos_product == producttype:
                 # Find the correct NetQty field
                 for field in possible_qty_fields:
@@ -94,12 +96,12 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
                     # If no standard field found, log all available fields
                     logger.warning(f"NetQty field not found. Available fields: {list(position.keys())}")
                 break
-        
+
     logger.info(f"Returning net_qty: {net_qty}")
     return net_qty
 
 def place_order_api(data,auth):
-    AUTH_TOKEN = auth   
+    AUTH_TOKEN = auth
     logger.info(f"Data: {data}")
 
     # Check if this is a direct instrument ID payload or needs transformation
@@ -115,20 +117,20 @@ def place_order_api(data,auth):
         'authorization': AUTH_TOKEN,
         'Content-Type': 'application/json',
     }
-   
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     # Make the request using the shared client
     response = client.post(
         f"{INTERACTIVE_URL}/orders",
         headers=headers,
         json=newdata
     )
-    
+
     # Add status attribute for compatibility
     response.status = response.status_code
-    
+
     # Parse the JSON response
     try:
         response_data = response.json()
@@ -136,10 +138,10 @@ def place_order_api(data,auth):
         response_data = {"error": "Invalid JSON response from server", "raw_response": response.text}
 
     orderid = response_data.get("result", {}).get("AppOrderID") if response_data.get("type") == "success" else None
-    
+
     logger.info(f"Response Data: {response_data}")
     logger.info(f"Order ID: {orderid}")
-    
+
     return response, response_data, orderid
 
 
@@ -165,27 +167,27 @@ def place_smartorder_api(data: dict, auth: str) -> tuple:
     """
     AUTH_TOKEN = auth
     res = None
-    
+
     try:
         # Log incoming request
         logger.debug(f"PlaceSmartOrder request: {data}")
-        
+
         # Extract and validate required parameters
         symbol = data.get("symbol")
         exchange = data.get("exchange")
         product = data.get("product")
         action = data.get("action", "").upper()
-        
+
         if not all([symbol, exchange, product, action]):
             error_msg = "Missing required parameters (symbol, exchange, product, action)"
             logger.error(error_msg)
             return None, {"status": "error", "message": error_msg}, None
-            
+
         if action not in ["BUY", "SELL"]:
             error_msg = f"Invalid action: {action}. Must be BUY or SELL"
             logger.error(error_msg)
             return None, {"status": "error", "message": error_msg}, None
-            
+
         try:
             quantity = int(data.get("quantity", "0"))
             position_size = int(data.get("position_size", "0"))
@@ -199,15 +201,15 @@ def place_smartorder_api(data: dict, auth: str) -> tuple:
             mapped_product = map_product_type(product)
             current_net_qty_str = get_open_position(symbol, exchange, mapped_product, AUTH_TOKEN)
             current_position = int(current_net_qty_str or 0)
-            
-            logger.info(f"=== SMART ORDER ANALYSIS ===")
+
+            logger.info("=== SMART ORDER ANALYSIS ===")
             logger.info(f"Symbol: {symbol}, Exchange: {exchange}, Product: {product}")
             logger.info(f"Mapped Product: {mapped_product}")
             logger.info(f"Current NetQty from position book: {current_net_qty_str}")
             logger.info(f"Current Position (parsed): {current_position}")
             logger.info(f"Target Position Size: {position_size}")
-            logger.info(f"=== END ANALYSIS ===")
-            
+            logger.info("=== END ANALYSIS ===")
+
         except Exception as e:
             error_msg = f"Failed to fetch current position for {symbol}"
             logger.error(f"{error_msg}. Error: {str(e)}")
@@ -215,17 +217,17 @@ def place_smartorder_api(data: dict, auth: str) -> tuple:
 
         # Smart order logic: Calculate required action based purely on position_size vs current_position
         # The action and quantity parameters are ignored - only position_size matters
-        
+
         logger.info(f"Smart Order Analysis: Current={current_position}, Target={position_size}")
-        
+
         # Calculate the position delta (difference between target and current)
         position_delta = position_size - current_position
-        
+
         # Determine order action and quantity based purely on position delta
         order_action = None
         order_quantity = 0
         response_msg = ""
-        
+
         if position_delta == 0:
             # Target position already achieved
             return None, {"status": "success", "message": f"Position already matches target size of {position_size}"}, None
@@ -260,24 +262,24 @@ def place_smartorder_api(data: dict, auth: str) -> tuple:
                 "action": order_action,
                 "quantity": str(order_quantity)
             })
-            
+
             logger.info(f"Placing {order_action} order for {order_quantity} shares of {symbol}")
             res, response, orderid = place_order_api(order_data, AUTH_TOKEN)
-            
+
             if orderid:
                 logger.info(f"Order placed successfully. Order ID: {orderid}")
                 response_msg = f"{response_msg}. Order ID: {orderid}"
-            
+
             return res, {"status": "success", "message": response_msg}, orderid
-        
+
         # If we get here, no order was placed
         return None, {"status": "success", "message": response_msg or "No action needed"}, None
-        
+
     except Exception as e:
         error_msg = f"Error in place_smartorder_api: {str(e)}"
         logger.exception(error_msg)
         return None, {"status": "error", "message": error_msg}, None
-    
+
 
 
 
@@ -304,7 +306,7 @@ def close_all_positions(current_api_key,auth):
 
         exchange_segment = position['ExchangeSegment']
         instrument_id = position['ExchangeInstrumentId']
-        
+
         logger.info(f"Exchange Segment: {exchange_segment}")
         logger.info(f"Exchange Instrument ID: {instrument_id}")
 
@@ -331,7 +333,7 @@ def close_all_positions(current_api_key,auth):
         # logger.info(f"{orderid}")
 
 
-            
+
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
@@ -340,8 +342,8 @@ def close_all_positions(current_api_key,auth):
 def cancel_order(orderid,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    
-    
+
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
     #logger.info(f"{orderid}")
@@ -350,13 +352,13 @@ def cancel_order(orderid,auth):
         'authorization': AUTH_TOKEN,
         'Content-Type': 'application/json',
     }
-    
+
     # Prepare the payload
     payload = json.dumps({
         "appOrderID": orderid,
         "orderUniqueIdentifier": "openalgo"
     })
-    
+
     # Make the request using the shared client
     response = client.delete(
     f"{INTERACTIVE_URL}/orders?appOrderID={orderid}",
@@ -364,9 +366,9 @@ def cancel_order(orderid,auth):
 )
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    
+
     data = json.loads(response.text)
-    
+
     # Check if the request was successful
     if data.get("status"):
         # Return a success response
@@ -380,8 +382,8 @@ def modify_order(data,auth):
 
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    
-    
+
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
 
@@ -401,7 +403,7 @@ def modify_order(data,auth):
         headers=headers,
         content=payload
     )
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
     logger.info(f"Response of modify order :{response.status}")
@@ -417,19 +419,19 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     logger.info(f"Order book response: {order_book_response}")
     if order_book_response.get("type") != "success":
         return [], []  # Return empty lists indicating failure to retrieve the order book
-    
+
     orders = order_book_response.get("result", [])
 
      # Filter orders that are in 'open' or 'trigger_pending' state
     #logger.info(f"Orders: {orders}")
     orders_to_cancel = [
-        order for order in orders 
+        order for order in orders
         if order["OrderStatus"] in ["New", "Trigger Pending"]
     ]
     logger.info(f"Orders to cancel: {orders_to_cancel}")
@@ -446,5 +448,5 @@ def cancel_all_orders_api(data,auth):
         else:
             logger.error(f"Failed to cancel order {orderid}")
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations

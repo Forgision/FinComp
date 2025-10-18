@@ -1,11 +1,12 @@
+from app.core.security import check_session_validity_fastapi
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.db.settings_db import get_analyze_mode, set_analyze_mode
-from app.utils.session import check_session_validity_fastapi
+
+from app.db.models.session import get_db
+from app.db.models.settings_db import get_analyze_mode, set_analyze_mode
+from app.sandbox.execution_thread import start_execution_engine, stop_execution_engine
 from app.utils.logging import logger
-from app.web.sandbox.execution_thread import start_execution_engine, stop_execution_engine # Assuming this path
 
 settings_router = APIRouter(
     prefix="/settings",

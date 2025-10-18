@@ -1,36 +1,36 @@
-from flask_restx import Api
 from flask import Blueprint
+from flask_restx import Api
 
 api_v1_bp = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 api = Api(api_v1_bp, version='1.0', title='OpenAlgo API', description='API for OpenAlgo Trading Platform')
 
 # Import namespaces
-from .place_order import api as place_order_ns
-from .place_smart_order import api as place_smart_order_ns
-from .modify_order import api as modify_order_ns
+from .analyzer import api as analyzer_ns
+from .basket_order import api as basket_order_ns
+from .cancel_all_order import api as cancel_all_order_ns
 from .cancel_order import api as cancel_order_ns
 from .close_position import api as close_position_ns
-from .cancel_all_order import api as cancel_all_order_ns
-from .quotes import api as quotes_ns
-from .history import api as history_ns
 from .depth import api as depth_ns
-from .intervals import api as intervals_ns
-from .funds import api as funds_ns
-from .orderbook import api as orderbook_ns
-from .tradebook import api as tradebook_ns
-from .positionbook import api as positionbook_ns
-from .holdings import api as holdings_ns
-from .basket_order import api as basket_order_ns
-from .split_order import api as split_order_ns
-from .orderstatus import api as orderstatus_ns
-from .openposition import api as openposition_ns
-from .ticker import api as ticker_ns
-from .symbol import api as symbol_ns
-from .search import api as search_ns
 from .expiry import api as expiry_ns
-from .analyzer import api as analyzer_ns
+from .funds import api as funds_ns
+from .history import api as history_ns
+from .holdings import api as holdings_ns
+from .intervals import api as intervals_ns
+from .modify_order import api as modify_order_ns
+from .openposition import api as openposition_ns
+from .orderbook import api as orderbook_ns
+from .orderstatus import api as orderstatus_ns
 from .ping import api as ping_ns
+from .place_order import api as place_order_ns
+from .place_smart_order import api as place_smart_order_ns
+from .positionbook import api as positionbook_ns
+from .quotes import api as quotes_ns
+from .search import api as search_ns
+from .split_order import api as split_order_ns
+from .symbol import api as symbol_ns
 from .telegram_bot import api as telegram_ns
+from .ticker import api as ticker_ns
+from .tradebook import api as tradebook_ns
 
 # Add namespaces
 api.add_namespace(place_order_ns, path='/placeorder')

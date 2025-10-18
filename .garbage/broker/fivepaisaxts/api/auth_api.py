@@ -1,9 +1,7 @@
-import httpx
 import os
-import requests
-import hashlib
-from utils.httpx_client import get_httpx_client
+
 from broker.fivepaisaxts.baseurl import INTERACTIVE_URL, MARKET_DATA_URL
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,14 +15,14 @@ def authenticate_broker(request_token):
         BROKER_API_KEY = os.getenv('BROKER_API_KEY')
         BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
 
-        
+
         # Make POST request to get the final token
         payload = {
             "appKey": BROKER_API_KEY,
             "secretKey": BROKER_API_SECRET,
             "source": "WebAPI"
         }
-        
+
         headers = {
             'Content-Type': 'application/json'
         }
@@ -32,7 +30,7 @@ def authenticate_broker(request_token):
         session_url = f"{INTERACTIVE_URL}/user/session"
         response = client.post(session_url, json=payload, headers=headers)
 
-  
+
         if response.status_code == 200:
             result = response.json()
             if result.get('type') == 'success':
@@ -54,7 +52,7 @@ def authenticate_broker(request_token):
             error_detail = response.json()
             error_message = error_detail.get('message', 'Authentication failed. Please try again.')
             return None, None, None, f"API error: {error_message}"
-        
+
     except Exception as e:
         return None, None, None, f"Error during authentication: {str(e)}"
 
@@ -95,7 +93,7 @@ def get_feed_token():
             feed_error_detail = feed_response.json()
             feed_error_message = feed_error_detail.get('description', 'Feed token request failed. Please try again.')
             return None, None, f"API Error (Feed): {feed_error_message}"
-        
+
         return feed_token, user_id, None
     except Exception as e:
         return None, None, f"An exception occurred: {str(e)}"

@@ -1,26 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from fastapi.responses import JSONResponse, PlainTextResponse
-from typing import Optional
 import importlib
-import pandas as pd
-from datetime import datetime, timezone, timedelta
-import pytz
-import os
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
-from app.web.models.api_schemas import (
-    QuotesSchema, HistorySchema, DepthSchema, IntervalsSchema,
-    SymbolSchema, SearchSchema, ExpirySchema
+import pandas as pd
+import pytz
+from app.web.backend.dependencies.users import (
+    get_current_user,  # Assuming this dependency exists
 )
-from app.web.services.quotes_service import get_quotes
-from app.web.services.history_service import get_history
-from app.web.services.depth_service import get_depth
-from app.web.services.intervals_service import get_intervals
-from app.web.services.symbol_service import get_symbol_info
-from app.web.services.search_service import search_symbols
-from app.web.services.expiry_service import get_expiry_dates
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse, PlainTextResponse
+
+from app.core.models.api_schemas import (
+    DepthSchema,
+    ExpirySchema,
+    HistorySchema,
+    IntervalsSchema,
+    QuotesSchema,
+    SearchSchema,
+    SymbolSchema,
+)
+from app.core.services.depth_service import get_depth
+from app.core.services.expiry_service import get_expiry_dates
+from app.core.services.history_service import get_history
+from app.core.services.intervals_service import get_intervals
+from app.core.services.quotes_service import get_quotes
+from app.core.services.search_service import search_symbols
+from app.core.services.symbol_service import get_symbol_info
+from app.db.models.auth_db import get_auth_token_broker
 from app.utils.logging import get_logger
-from app.db.auth_db import get_auth_token_broker
-from app.web.backend.dependencies.users import get_current_user # Assuming this dependency exists
 
 router = APIRouter(
     prefix="/market_data",
@@ -46,10 +53,10 @@ def convert_timestamp(timestamp: int, interval: str):
     dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
     ist = pytz.timezone('Asia/Kolkata')
     dt_ist = dt.astimezone(ist)
-    
+
     if interval.upper() == 'D':
         return dt_ist.strftime('%Y-%m-%d')
-    
+
     return dt_ist.strftime('%Y-%m-%d'), dt_ist.strftime('%H:%M:%S')
 
 def validate_and_adjust_date_range(start_date: str, end_date: str, interval: str):
@@ -59,22 +66,22 @@ def validate_and_adjust_date_range(start_date: str, end_date: str, interval: str
     try:
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-        
+
         interval_upper = interval.upper()
         if interval_upper in ['D', 'W', 'M']:
             max_days = 10 * 365
         else:
             max_days = 30
-        
+
         earliest_start = end_dt - timedelta(days=max_days)
-        
+
         if start_dt < earliest_start:
             adjusted_start = earliest_start.strftime('%Y-%m-%d')
             logger.warning(f"Date range adjusted: {start_date} -> {adjusted_start} (interval: {interval}, max days: {max_days})")
             return adjusted_start, end_date, True
-        
+
         return start_date, end_date, False
-        
+
     except Exception as e:
         logger.error(f"Error in date range validation: {e}")
         return start_date, end_date, False
@@ -223,7 +230,7 @@ async def get_ticker_endpoint(
             )
             history_schema.start_date = adjusted_start
             history_schema.end_date = adjusted_end
-            
+
             if was_adjusted:
                 logger.info(f"Date range restricted for {history_schema.symbol} ({history_schema.interval}): {adjusted_start} to {adjusted_end}")
 
@@ -241,7 +248,7 @@ async def get_ticker_endpoint(
 
         try:
             data_handler = broker_module.BrokerData(AUTH_TOKEN)
-            
+
             df = await data_handler.get_history( # Assuming get_history is async
                 history_schema.symbol,
                 history_schema.exchange,
@@ -249,14 +256,14 @@ async def get_ticker_endpoint(
                 history_schema.start_date,
                 history_schema.end_date
             )
-            
+
             if not isinstance(df, pd.DataFrame):
                 raise ValueError("Invalid data format returned from broker")
 
             if response_format == 'txt':
                 text_output = []
                 symbol_for_output = f"{history_schema.exchange}:{history_schema.symbol}"
-                
+
                 for _, row in df.iterrows():
                     timestamp = convert_timestamp(row['timestamp'], history_schema.interval)
                     volume = int(row['volume'])
@@ -265,7 +272,7 @@ async def get_ticker_endpoint(
                     else:
                         date, time = timestamp
                         text_output.append(f"{symbol_for_output},{date},{time},{row['open']},{row['high']},{row['low']},{row['close']},{volume}")
-                
+
                 return PlainTextResponse('\n'.join(text_output), media_type="text/plain")
             else:
                 return JSONResponse(content={

@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -90,7 +91,7 @@ def get_positionbook_with_auth(auth_token: str, broker: str, original_data: Dict
     try:
         # Get positions data using broker's implementation
         positions_data = broker_funcs['get_positions'](auth_token)
-        
+
         if 'status' in positions_data and positions_data['status'] == 'error':
             return False, {
                 'status': 'error',
@@ -100,10 +101,10 @@ def get_positionbook_with_auth(auth_token: str, broker: str, original_data: Dict
         # Transform data using mapping functions
         positions_data = broker_funcs['map_position_data'](positions_data)
         positions_data = broker_funcs['transform_positions_data'](positions_data)
-        
+
         # Format numeric values to 2 decimal places
         formatted_positions = format_position_data(positions_data)
-        
+
         return True, {
             'status': 'success',
             'data': formatted_positions
@@ -117,8 +118,8 @@ def get_positionbook_with_auth(auth_token: str, broker: str, original_data: Dict
         }, 500
 
 def get_positionbook(
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -150,7 +151,7 @@ def get_positionbook(
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_positionbook_with_auth(auth_token, broker, None)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

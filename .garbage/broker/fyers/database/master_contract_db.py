@@ -1,26 +1,15 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import numpy as np
+from typing import List, Optional, Tuple
+
 import httpx
-from typing import List, Tuple, Optional, Dict, Any
-from utils.httpx_client import get_httpx_client
-import requests
-import gzip
-import shutil
-import http.client
-import json
 import pandas as pd
-import gzip
-import io
-
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from database.auth_db import get_auth_token
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,9 +45,9 @@ data_types = {
     "Strike price": float,
     "Option type": str,
     "Underlying FyToken": str,
-    "Reserved column1": str,  
-    "Reserved column2": str, 
-    "Reserved column3": str, 
+    "Reserved column1": str,
+    "Reserved column2": str,
+    "Reserved column3": str,
 }
 
 DATABASE_URL = os.getenv('DATABASE_URL')  # Replace with your database path
@@ -75,7 +64,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -134,9 +123,8 @@ def download_csv_fyers_data(output_path: str) -> Tuple[bool, List[str], Optional
             - List[str]: List of paths to downloaded files
             - Optional[str]: Error message if any error occurred, None otherwise
     """
-    from utils.httpx_client import get_httpx_client
     logger.info("Downloading Master Contract CSV Files")
-    
+
     # URLs of the CSV files to be downloaded
     csv_urls = {
         "NSE_CD": "https://public.fyers.in/sym_details/NSE_CD.csv",
@@ -146,25 +134,25 @@ def download_csv_fyers_data(output_path: str) -> Tuple[bool, List[str], Optional
         "BSE_FO": "https://public.fyers.in/sym_details/BSE_FO.csv",
         "MCX_COM": "https://public.fyers.in/sym_details/MCX_COM.csv"
     }
-    
+
     downloaded_files = []
     errors = []
-    
+
     # Get the shared HTTPX client with connection pooling
     client = get_httpx_client()
-    
+
     try:
         for key, url in csv_urls.items():
             try:
                 response = client.get(url, timeout=30.0)
                 response.raise_for_status()  # Raises an exception for 4XX/5XX responses
-                
+
                 file_path = os.path.join(output_path, f"{key}.csv")
                 with open(file_path, 'wb') as file:
                     file.write(response.content)
                 downloaded_files.append(file_path)
                 logger.info(f"Successfully downloaded {key} to {file_path}")
-                
+
             except httpx.HTTPStatusError as e:
                 error_msg = f"HTTP error occurred while downloading {key} from {url}: {e.response.status_code} {e.response.reason_phrase}"
                 logger.error(error_msg)
@@ -180,13 +168,13 @@ def download_csv_fyers_data(output_path: str) -> Tuple[bool, List[str], Optional
     finally:
         # Don't close the client as it's shared
         pass
-    
+
     # Determine success/failure based on whether we got all files
     success = len(downloaded_files) == len(csv_urls)
     error_msg = "; ".join(errors) if errors else None
-    
+
     return success, downloaded_files, error_msg
-    
+
 def reformat_symbol_detail(s):
     parts = s.split()  # Split the string into parts
     # Reorder and format the parts to match the desired output
@@ -226,7 +214,7 @@ def process_fyers_nse_csv(path):
 
     df_filtered.loc[:, 'symbol'] = df_filtered['Underlying symbol']
     df_filtered['brexchange'] = 'NSE'
-    
+
     # List of columns to remove
     columns_to_remove = [
         "Fytoken", "Symbol Details", "Exchange Instrument type", "Minimum lot size",
@@ -240,7 +228,7 @@ def process_fyers_nse_csv(path):
     token_df = df_filtered.drop(columns=columns_to_remove)
 
 
-    
+
     return token_df
 
 
@@ -289,7 +277,7 @@ def process_fyers_bse_csv(path):
 
     # Removing the specified columns
     token_df = df_filtered.drop(columns=columns_to_remove)
-    
+
     return token_df
 
 def process_fyers_nfo_csv(path):
@@ -336,7 +324,7 @@ def process_fyers_nfo_csv(path):
 
     # Removing the specified columns
     token_df = df.drop(columns=columns_to_remove)
-    
+
     return token_df
 
 
@@ -384,7 +372,7 @@ def process_fyers_cds_csv(path):
 
     # Removing the specified columns
     token_df = df.drop(columns=columns_to_remove)
-    
+
     return token_df
 
 
@@ -484,10 +472,10 @@ def process_fyers_mcx_csv(path):
 
 
 
-    
+
     return token_df
 
-    
+
 
 def delete_fyers_temp_data(output_path):
     # Check each file in the directory
@@ -504,8 +492,8 @@ def delete_fyers_temp_data(output_path):
 
 
 def master_contract_download():
-    logger.info(f"Downloading Master Contract")
-    
+    logger.info("Downloading Master Contract")
+
 
     output_path = 'tmp'
     try:
@@ -525,12 +513,12 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         delete_fyers_temp_data(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.exception(f"{e}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': f"{e}"})

@@ -1,10 +1,19 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Time
-from sqlalchemy.orm import scoped_session, sessionmaker, relationship
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-import os
 import logging
+import os
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +43,7 @@ Base.query = db_session.query_property()
 class ChartinkStrategy(Base):
     """Model for Chartink strategies"""
     __tablename__ = 'chartink_strategies'
-    
+
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     webhook_id = Column(String(36), unique=True, nullable=False)  # UUID
@@ -46,14 +55,14 @@ class ChartinkStrategy(Base):
     squareoff_time = Column(String(5))  # HH:MM format
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     symbol_mappings = relationship("ChartinkSymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
 
 class ChartinkSymbolMapping(Base):
     """Model for symbol mappings in Chartink strategies"""
     __tablename__ = 'chartink_symbol_mappings'
-    
+
     id = Column(Integer, primary_key=True)
     strategy_id = Column(Integer, ForeignKey('chartink_strategies.id'), nullable=False)
     chartink_symbol = Column(String(50), nullable=False)
@@ -62,7 +71,7 @@ class ChartinkSymbolMapping(Base):
     product_type = Column(String(10), nullable=False)  # MIS/CNC
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     strategy = relationship("ChartinkStrategy", back_populates="symbol_mappings")
 

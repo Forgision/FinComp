@@ -5,9 +5,10 @@ Based on NATS nkeys specification using cryptography library for Ed25519
 
 import base64
 import os
-from typing import Tuple, Optional
-from cryptography.hazmat.primitives.asymmetric import ed25519
+from typing import Tuple
+
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 # NATS nkeys prefix bytes
 PREFIX_BYTE_SEED = 18 << 3  # Base32-encodes to 'S...'
@@ -78,17 +79,17 @@ def encode_seed(src: bytes, prefix: int) -> bytes:
     """
     if len(src) != 32:
         raise ValueError("Seed must be 32 bytes")
-    
+
     # First byte: PREFIX_BYTE_SEED with first 3 bits of prefix
     first_byte = PREFIX_BYTE_SEED | (prefix >> 5)
-    
+
     # Second byte: Last 5 bits of prefix in first 5 bits
     second_byte = (31 & prefix) << 3
-    
+
     header = bytes([first_byte, second_byte])
     checksum = crc16_checksum(header + src)
     final_bytes = header + src + checksum
-    
+
     return base64.b32encode(final_bytes).rstrip(b'=')
 
 
@@ -105,26 +106,26 @@ def decode_seed(seed: bytes) -> Tuple[int, bytes]:
     # Add padding if needed
     padding = b'=' * ((-len(seed)) % 8)
     base32_decoded = base64.b32decode(seed + padding)
-    
+
     # Remove checksum (last 2 bytes)
     raw = base32_decoded[:-2]
-    
+
     if len(raw) < 34:  # 2 header bytes + 32 seed bytes
         raise ValueError("Invalid seed length")
-    
+
     # Extract prefix from header
     b1 = raw[0] & 248  # First 5 bits
     b2 = ((raw[0] & 7) << 5) | ((raw[1] & 248) >> 3)  # Last 3 + first 5
-    
+
     if b1 != PREFIX_BYTE_SEED:
         raise ValueError("Invalid seed prefix")
-    
+
     return b2, raw[2:]
 
 
 class Ed25519SigningKey:
     """Ed25519 signing key implementation using cryptography library"""
-    
+
     def __init__(self, seed: bytes):
         """Initialize with 32-byte seed"""
         if len(seed) != 32:
@@ -133,12 +134,12 @@ class Ed25519SigningKey:
         # Create Ed25519 private key from seed
         self._private_key = ed25519.Ed25519PrivateKey.from_private_bytes(seed)
         self._public_key = self._private_key.public_key()
-        
+
     def sign(self, message: bytes) -> 'SignedMessage':
         """Sign a message using Ed25519"""
         signature = self._private_key.sign(message)
         return SignedMessage(signature)
-    
+
     @property
     def verify_key(self) -> 'Ed25519VerifyKey':
         """Get the verify key (public key)"""
@@ -148,7 +149,7 @@ class Ed25519SigningKey:
             format=serialization.PublicFormat.Raw
         )
         return Ed25519VerifyKey(public_bytes)
-    
+
     @property
     def private_bytes(self) -> bytes:
         """Get the raw private key bytes"""
@@ -161,26 +162,26 @@ class Ed25519SigningKey:
 
 class SignedMessage:
     """Container for signed message"""
-    
+
     def __init__(self, signature: bytes):
         self.signature = signature
 
 
 class Ed25519VerifyKey:
     """Ed25519 verify key (public key) implementation"""
-    
+
     def __init__(self, key_bytes: bytes):
         if len(key_bytes) != 32:
             raise ValueError("Public key must be 32 bytes")
         self.key_bytes = key_bytes
-    
+
     def __bytes__(self):
         return self.key_bytes
 
 
 class GrowwKeyPair:
     """Minimal KeyPair implementation for NATS nkeys"""
-    
+
     def __init__(self, seed: bytes = None):
         """
         Initialize a keypair
@@ -192,18 +193,18 @@ class GrowwKeyPair:
             seed = os.urandom(32)
         elif len(seed) != 32:
             raise ValueError("Seed must be 32 bytes")
-        
+
         self._raw_seed = seed
         self._signing_key = Ed25519SigningKey(seed)
         self._encoded_seed = encode_seed(seed, PREFIX_BYTE_USER)
         self._public_key = None
         self._private_key = None
-    
+
     @property
     def seed(self) -> bytes:
         """Get the encoded seed"""
         return self._encoded_seed
-    
+
     @property
     def public_key(self) -> bytes:
         """Get the encoded public key"""
@@ -211,43 +212,43 @@ class GrowwKeyPair:
             # Get public key bytes
             verify_key = self._signing_key.verify_key
             src = bytearray(bytes(verify_key))
-            
+
             # Add prefix
             src.insert(0, PREFIX_BYTE_USER)
-            
+
             # Add checksum
             checksum = crc16_checksum(bytes(src))
             src.extend(checksum)
-            
+
             # Encode to base32
             self._public_key = base64.b32encode(bytes(src)).rstrip(b'=')
-        
+
         return self._public_key
-    
+
     @property
     def private_key(self) -> bytes:
         """Get the encoded private key"""
         if self._private_key is None:
             # Get private key bytes (64 bytes for Ed25519)
             src = bytearray(self._signing_key.private_bytes)
-            
+
             # Add prefix
             src.insert(0, PREFIX_BYTE_PRIVATE)
-            
+
             # Add checksum
             checksum = crc16_checksum(bytes(src))
             src.extend(checksum)
-            
+
             # Encode to base32
             self._private_key = base64.b32encode(bytes(src)).rstrip(b'=')
-        
+
         return self._private_key
-    
+
     def sign(self, message: bytes) -> bytes:
         """Sign a message"""
         signed = self._signing_key.sign(message)
         return signed.signature
-    
+
     @property
     def signing_key(self):
         """Access to the underlying signing key"""

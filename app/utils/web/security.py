@@ -1,11 +1,13 @@
+import base64
+import hmac
+import secrets
+from datetime import datetime
+from typing import Dict, Optional
+
+import argon2  # Import argon2-cffi
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
-from datetime import datetime, timedelta
-import hmac
-import secrets
-import base64
-from typing import Optional, Dict
 
 from app.core.config import settings
 from app.utils.logging import logger
@@ -154,10 +156,10 @@ def generate_csrf_token(session_id: str) -> str:
     salt = secrets.token_bytes(16)
     timestamp = str(int(datetime.utcnow().timestamp())).encode('utf-8')
     secret_key = settings.APP_KEY.encode('utf-8')
-    
+
     # Use HMAC to create a secure token
     h = hmac.new(secret_key, salt + timestamp + session_id.encode('utf-8'), 'sha256')
-    
+
     # Encode salt, timestamp, and digest together
     token_parts = b"%s.%s.%s" % (base64.urlsafe_b64encode(salt), timestamp, base64.urlsafe_b64encode(h.digest()))
     return token_parts.decode('utf-8')
@@ -187,7 +189,7 @@ def validate_csrf_token(token: str, session_id: str) -> bool:
 
         secret_key = settings.APP_KEY.encode('utf-8')
         h = hmac.new(secret_key, salt + timestamp_str + session_id.encode('utf-8'), 'sha256')
-        
+
         # Use compare_digest to prevent timing attacks
         if hmac.compare_digest(h.digest(), expected_digest):
             return True
@@ -198,7 +200,6 @@ def validate_csrf_token(token: str, session_id: str) -> bool:
         logger.error(f"Error validating CSRF token: {e}")
         return False
 
-import argon2 # Import argon2-cffi
 
 # Password Hashing
 def password_to_hash(password: str) -> str:
@@ -217,7 +218,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     except Exception as e:
         logger.error(f"Error verifying password: {e}")
         return False
-    
+
 
 class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp):
@@ -247,7 +248,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         else:
             # For unsafe methods, validate the CSRF token
             csrf_token_from_header = request.headers.get("X-CSRF-Token")
-            
+
             # Read form data once, checking content type first
             content_type = request.headers.get("Content-Type", "")
             csrf_token_from_form = None
@@ -282,7 +283,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 secure=settings.USE_HTTPS,
                 max_age=3600 * 24 # 1 day, adjust as needed
             )
-        
+
         return response
 
     def _set_csrf_cookie(self, response: Response, csrf_token: str):

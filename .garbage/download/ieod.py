@@ -1,10 +1,11 @@
-import pandas as pd
+import gc
 import logging
 import os
 import time
-import gc
-from openalgo import api
 from datetime import datetime, timedelta
+
+import pandas as pd
+from openalgo import api
 
 # Initialize the API client
 client = api(api_key='your_api_key_here', host='http://127.0.0.1:5000')
@@ -73,7 +74,7 @@ print("8) Download Last 10 Years Data")
 try:
     user_choice = int(input("Enter your choice (1-8): "))
     start_date, end_date = get_date_range(user_choice)
-except ValueError as e:
+except ValueError:
     print("Invalid input. Please restart the script and select a valid option.")
     exit()
 

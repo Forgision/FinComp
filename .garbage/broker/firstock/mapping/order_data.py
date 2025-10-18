@@ -1,8 +1,9 @@
 import json
-from database.token_db import get_symbol, get_oa_symbol
+
+from database.token_db import get_symbol
 from utils.logging import get_logger
 
-logger = get_logger(__name__) 
+logger = get_logger(__name__)
 
 def map_order_data(order_data):
     """
@@ -42,13 +43,13 @@ def map_order_data(order_data):
 
         # Map transaction type (will be converted to BUY/SELL in calculate_order_statistics)
         mapped_order['trantype'] = order.get('transactionType', '')
-        
+
         # Map product type (will be converted in calculate_order_statistics)
         mapped_order['prd'] = order.get('product', '')
-        
+
         # Map price type (will be converted in calculate_order_statistics)
         mapped_order['prctyp'] = order.get('priceType', '')
-        
+
         # Map other fields
         mapped_order['norenordno'] = order.get('orderNumber', '')
         mapped_order['qty'] = order.get('quantity', '0')
@@ -57,9 +58,9 @@ def map_order_data(order_data):
         mapped_order['status'] = order.get('status', '').upper()
         mapped_order['trgprc'] = order.get('triggerPrice', '0.00')
         mapped_order['norentm'] = order.get('orderTime', '')
-        
+
         mapped_orders.append(mapped_order)
-        
+
     return mapped_orders
 
 def calculate_order_statistics(order_data):
@@ -86,7 +87,7 @@ def calculate_order_statistics(order_data):
             elif order['trantype'] == 'S':
                 order['trantype'] = 'SELL'
                 total_sell_orders += 1
-            
+
             # Map product type
             if (order['exch'] == 'NSE' or order['exch'] == 'BSE') and order['prd'] == 'C':
                 order['prd'] = 'CNC'
@@ -104,7 +105,7 @@ def calculate_order_statistics(order_data):
                 order['prctyp'] = "SL-M"
             elif order['prctyp'] == "SL-LMT":
                 order['prctyp'] = "SL"
-            
+
             # Count orders based on their status
             if order['status'] == 'COMPLETE':
                 total_completed_orders += 1
@@ -136,7 +137,7 @@ def transform_order_data(orders):
     mapped_orders = map_order_data(orders)
 
     logger.info(f"Mapped orders: {mapped_orders}")
-    
+
     # Calculate statistics and transform order fields
     calculate_order_statistics(mapped_orders)
 
@@ -203,19 +204,19 @@ def map_trade_data(trade_data):
 
         # Map transaction type (will be converted to BUY/SELL)
         mapped_trade['trantype'] = trade.get('transactionType', '')
-        
+
         # Map product type (will be converted to CNC/MIS/NRML)
         mapped_trade['prd'] = trade.get('product', '')
-        
+
         # Map other fields
         mapped_trade['exch'] = trade.get('exchange', '')
         mapped_trade['qty'] = trade.get('fillQuantity', '0')
         mapped_trade['avgprc'] = trade.get('fillPrice', '0.00')
         mapped_trade['norenordno'] = trade.get('orderNumber', '')
         mapped_trade['norentm'] = trade.get('fillTime', '')
-        
+
         mapped_trades.append(mapped_trade)
-        
+
     return mapped_trades
 
 def transform_tradebook_data(trades):
@@ -235,7 +236,7 @@ def transform_tradebook_data(trades):
     # First map the Firstock response to intermediate format
     mapped_trades = map_trade_data(trades)
     logger.info(f"Mapped trades: {mapped_trades}")
-    
+
     # Transform to final format
     transformed_trades = []
     for trade in mapped_trades:
@@ -244,7 +245,7 @@ def transform_tradebook_data(trades):
             trade['trantype'] = 'BUY'
         elif trade['trantype'] == 'S':
             trade['trantype'] = 'SELL'
-            
+
         # Convert product type
         if (trade['exch'] == 'NSE' or trade['exch'] == 'BSE') and trade['prd'] == 'C':
             trade['prd'] = 'CNC'
@@ -252,7 +253,7 @@ def transform_tradebook_data(trades):
             trade['prd'] = 'MIS'
         elif trade['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and trade['prd'] == 'M':
             trade['prd'] = 'NRML'
-            
+
         # Calculate trade value
         quantity = float(trade.get('qty', '0'))
         price = float(trade.get('avgprc', '0.00'))
@@ -345,7 +346,7 @@ def map_portfolio_data(portfolio_data):
 
             # Add the holding
             mapped_holdings.append(mapped_holding)
-        
+
     return mapped_holdings
 
 def calculate_portfolio_statistics(holdings_data):
@@ -380,7 +381,7 @@ def calculate_portfolio_statistics(holdings_data):
             # Calculate values
             inv_value = total_qty * upld_price
             cur_value = total_qty * cur_price if cur_price > 0 else total_qty * upld_price
-            
+
             # Update totals
             totalinvvalue += inv_value
             totalholdingvalue += cur_value
@@ -501,7 +502,7 @@ def map_position_data(position_data):
         # Map product type (will be converted to CNC/MIS/NRML)
         mapped_position['prd'] = position.get('product', '')
         logger.info(f"DEBUG: Product type: {mapped_position['prd']}")
-        
+
         # Map other fields
         mapped_position['exch'] = position.get('exchange', '')
         mapped_position['netqty'] = position.get('netQuantity', '0')
@@ -513,7 +514,7 @@ def map_position_data(position_data):
         mapped_position['daysellamt'] = position.get('daySellAveragePrice', '0.00') # Using sell avg price as amount
         mapped_position['unrealizedmtom'] = position.get('unrealizedMTOM', '0.00')
         mapped_position['realizedpnl'] = position.get('RealizedPNL', '0.00')
-        
+
         logger.debug(f"Mapped position data: {json.dumps(mapped_position, indent=2)}")
         mapped_positions.append(mapped_position)
 
@@ -537,7 +538,7 @@ def transform_positions_data(positions):
     # First map the Firstock response to intermediate format
     mapped_positions = map_position_data(positions)
     logger.info(f"Mapped positions: {mapped_positions}")
-    
+
     # Transform to final format
     transformed_positions = []
     for position in mapped_positions:

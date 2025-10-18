@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol, get_oa_symbol 
+from database.token_db import get_oa_symbol, get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,7 +24,7 @@ def map_order_data(order_data):
     else:
         order_data = order_data['data']
         logger.info(f"{order_data}")
-        
+
 
 
     if order_data:
@@ -33,24 +32,24 @@ def map_order_data(order_data):
             # Extract the instrument_token and exchange for the current order
             symboltoken = order['symboltoken']
             exchange = order['exchange']
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tradingsymbol'] = symbol_from_db
                 if (order['exchange'] == 'NSE' or order['exchange'] == 'BSE') and order['producttype'] == 'DELIVERY':
                     order['producttype'] = 'CNC'
-                               
+
                 elif order['producttype'] == 'INTRADAY':
                     order['producttype'] = 'MIS'
-                
+
                 elif order['exchange'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['producttype'] == 'CARRYFORWARD':
                     order['producttype'] = 'NRML'
             else:
                 logger.info(f"Symbol not found for token {symboltoken} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -76,7 +75,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order['transactiontype'] == 'SELL':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['status'] == 'complete':
                 total_completed_orders += 1
@@ -102,7 +101,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -154,7 +153,7 @@ def map_trade_data(trade_data):
         trade_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         trade_data = trade_data['data']
-        
+
 
 
     if trade_data:
@@ -162,24 +161,24 @@ def map_trade_data(trade_data):
             # Extract the instrument_token and exchange for the current order
             symbol = order['tradingsymbol']
             exchange = order['exchange']
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_oa_symbol(symbol, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tradingsymbol'] = symbol_from_db
                 if (order['exchange'] == 'NSE' or order['exchange'] == 'BSE') and order['producttype'] == 'DELIVERY':
                     order['producttype'] = 'CNC'
-                               
+
                 elif order['producttype'] == 'INTRADAY':
                     order['producttype'] = 'MIS'
-                
+
                 elif order['exchange'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['producttype'] == 'CARRYFORWARD':
                     order['producttype'] = 'NRML'
             else:
                 logger.info(f"Unable to find the symbol {symbol} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return trade_data
 
 
@@ -216,8 +215,8 @@ def transform_positions_data(positions_data):
             "product": position.get('producttype', ''),
             "quantity": position.get('netqty', 0),
             "average_price": position.get('avgnetprice', 0.0),
-            "ltp": position.get('ltp', 0.0),  
-            "pnl": position.get('pnl', 0.0),  
+            "ltp": position.get('ltp', 0.0),
+            "pnl": position.get('pnl', 0.0),
         }
         transformed_data.append(transformed_position)
     return transformed_data
@@ -263,7 +262,7 @@ def map_portfolio_data(portfolio_data):
             symbol = portfolio['tradingsymbol']
             exchange = portfolio['exchange']
             symbol_from_db = get_oa_symbol(symbol, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 portfolio['tradingsymbol'] = symbol_from_db
@@ -271,7 +270,7 @@ def map_portfolio_data(portfolio_data):
                 portfolio['product'] = 'CNC'  # Modify 'product' field
             else:
                 logger.info("AngelOne Portfolio - Product Value for Delivery Not Found or Changed.")
-    
+
     # The function already works with 'data', which includes 'holdings' and 'totalholding',
     # so we can return 'data' directly without additional modifications.
     return data
@@ -289,7 +288,7 @@ def calculate_portfolio_statistics(holdings_data):
         totalholdingvalue = holdings_data['totalholding']['totalholdingvalue']
         totalinvvalue = holdings_data['totalholding']['totalinvvalue']
         totalprofitandloss = holdings_data['totalholding']['totalprofitandloss']
-        
+
         # To avoid division by zero in the case when total_investment_value is 0
         totalpnlpercentage = holdings_data['totalholding']['totalpnlpercentage']
 

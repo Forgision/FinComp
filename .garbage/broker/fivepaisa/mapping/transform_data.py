@@ -3,6 +3,7 @@
 
 from database.token_db import get_br_symbol
 
+
 def transform_data(data,token):
     """
     Transforms the new API request structure to the current expected structure.
@@ -16,18 +17,18 @@ def transform_data(data,token):
         "ScripCode": token,
         #"ScriData": symbol,
         #"iOrderValidity": "0",
-        "Price": float(data.get("price", "0")), 
+        "Price": float(data.get("price", "0")),
         "Qty": int(data["quantity"]),
-        "StopLossPrice": float(data.get("trigger_price", "0")), 
+        "StopLossPrice": float(data.get("trigger_price", "0")),
         "DisQty": int(data.get("disclosed_quantity", "0")),
         "IsIntraday": True if data.get("product") == "MIS" else False,
         "AHPlaced": "N",  # AMO Order by default NO
-        "RemoteOrderID": "OpenAlgo" 
+        "RemoteOrderID": "OpenAlgo"
         #"AppSource": "7044"
     }
 
 
-    
+
     return transformed
 
 
@@ -35,11 +36,11 @@ def transform_modify_order_data(data):
     # Handle empty trigger_price by providing a default of "0" and checking if it's empty
     trigger_price = data.get("trigger_price", "0")
     trigger_price = "0" if trigger_price == "" else trigger_price
-    
+
     # Handle empty price
     price = data.get("price", "0")
     price = "0" if price == "" else price
-    
+
     # FivePaisa requires a minimal set of fields for order modification per their documentation
     # Only include fields that are explicitly needed
     transformed = {
@@ -49,7 +50,7 @@ def transform_modify_order_data(data):
         "StopLossPrice": trigger_price,
         "DisQty": data.get("disclosed_quantity", "0")
     }
-    
+
     # Remove empty fields to keep the payload clean
     return {k: v for k, v in transformed.items() if v is not None and v != ""}
 
@@ -76,7 +77,7 @@ def map_exchange(exchange):
         "BCD": "B",
         "MCX": "M"
     }
-    return exchange_mapping.get(exchange) 
+    return exchange_mapping.get(exchange)
 
 
 def map_exchange_type(exchange):
@@ -92,7 +93,7 @@ def map_exchange_type(exchange):
         "BCD": "U",
         "MCX": "D"
     }
-    return exchange_mapping_type.get(exchange) 
+    return exchange_mapping_type.get(exchange)
 
 def map_order_type(pricetype):
     """
@@ -135,7 +136,7 @@ def map_variety(pricetype):
 
 # Function to map Exch and ExchType to exchange names with additional conditions
 def reverse_map_exchange(Exch, ExchType):
-    
+
     exchange_mapping = {
         ('N', 'C'): 'NSE',
         ('B', 'C'): 'BSE',
@@ -164,6 +165,6 @@ def reverse_map_product_type(product, exchange):
             "D": "NRML",
             "I": "MIS",
         }
-    
-    return reverse_product_type_mapping.get(product) 
+
+    return reverse_product_type_mapping.get(product)
 

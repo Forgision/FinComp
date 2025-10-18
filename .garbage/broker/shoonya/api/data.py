@@ -1,10 +1,9 @@
-import httpx
 import json
 import os
+from datetime import datetime
+
 import pandas as pd
-from datetime import datetime, timedelta
-import urllib.parse
-from database.token_db import get_token, get_br_symbol, get_oa_symbol
+from database.token_db import get_br_symbol, get_token
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -32,16 +31,16 @@ def get_api_response(endpoint, auth, method="POST", payload=None):
 
     # Get the shared httpx client
     client = get_httpx_client()
-    
+
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     url = f"https://api.shoonya.com{endpoint}"
 
     response = client.request(method, url, content=payload_str, headers=headers)
     data = response.text
-    
+
     # Print raw response for debugging
     logger.debug(f"Raw Response: {data}")
-    
+
     try:
         return json.loads(data)
     except json.JSONDecodeError as e:
@@ -84,22 +83,22 @@ class BrokerData:
             # Convert symbol to broker format and get token
             br_symbol = get_br_symbol(symbol, exchange)
             token = get_token(symbol, exchange)
-            
+
             if(exchange=="NSE_INDEX"):
-                exchange="NSE"  
+                exchange="NSE"
             elif(exchange=="BSE_INDEX"):
                 exchange="BSE"
-            
+
             payload = {
                 "exch": exchange,
                 "token": token
             }
-            
+
             response = get_api_response("/NorenWClientTP/GetQuotes", self.auth_token, payload=payload)
-            
+
             if response.get('stat') != 'Ok':
                 raise Exception(f"Error from Shoonya API: {response.get('emsg', 'Unknown error')}")
-            
+
             # Return simplified quote data
             return {
                 'bid': float(response.get('bp1', 0)),
@@ -112,7 +111,7 @@ class BrokerData:
                 'volume': int(response.get('v', 0)),
                 'oi': int(response.get('oi', 0))
             }
-            
+
         except Exception as e:
             raise Exception(f"Error fetching quotes: {str(e)}")
 
@@ -131,25 +130,25 @@ class BrokerData:
             token = get_token(symbol, exchange)
 
             if(exchange=="NSE_INDEX"):
-                exchange="NSE"  
+                exchange="NSE"
             elif(exchange=="BSE_INDEX"):
                 exchange="BSE"
 
-            
+
             payload = {
                 "exch": exchange,
                 "token": token
             }
-            
+
             response = get_api_response("/NorenWClientTP/GetQuotes", self.auth_token, payload=payload)
-            
+
             if response.get('stat') != 'Ok':
                 raise Exception(f"Error from Shoonya API: {response.get('emsg', 'Unknown error')}")
-            
+
             # Format bids and asks data
             bids = []
             asks = []
-            
+
             # Process top 5 bids and asks
             for i in range(1, 6):
                 bids.append({
@@ -160,7 +159,7 @@ class BrokerData:
                     'price': float(response.get(f'sp{i}', 0)),
                     'quantity': int(response.get(f'sq{i}', 0))
                 })
-            
+
             # Return depth data
             return {
                 'bids': bids,
@@ -176,7 +175,7 @@ class BrokerData:
                 'volume': int(response.get('v', 0)),
                 'oi': 0  # Shoonya doesn't provide OI in quotes response
             }
-            
+
         except Exception as e:
             raise Exception(f"Error fetching market depth: {str(e)}")
 
@@ -206,10 +205,10 @@ class BrokerData:
             token = get_token(symbol, exchange)
 
             if(exchange=="NSE_INDEX"):
-                exchange="NSE"  
+                exchange="NSE"
             elif(exchange=="BSE_INDEX"):
                 exchange="BSE"
-            
+
             # Convert dates to epoch timestamps
             # Handle both string and datetime.date inputs
             if isinstance(start_date, datetime):
@@ -233,13 +232,13 @@ class BrokerData:
             if interval == 'D':
                 # Format symbol for EOD data
                 sym = f"{exchange}:{br_symbol}"
-                
+
                 payload = {
                     "sym": sym,
                     "from": str(start_ts),
                     "to": str(end_ts)
                 }
-                
+
                 logger.debug(f"EOD Payload: {payload}")  # Debug print
                 try:
                     response = get_api_response("/NorenWClientTP/EODChartData", self.auth_token, payload=payload)
@@ -257,7 +256,7 @@ class BrokerData:
                     "et": str(end_ts),
                     "intrv": self.timeframe_map[interval]
                 }
-                
+
                 logger.debug(f"Intraday Payload: {payload}")  # Debug print
                 response = get_api_response("/NorenWClientTP/TPSeries", self.auth_token, payload=payload)
                 logger.debug(f"Intraday Response: {response}")  # Debug print
@@ -267,7 +266,7 @@ class BrokerData:
             for candle in response:
                 if isinstance(candle, str):
                     candle = json.loads(candle)
-                
+
                 try:
                     if interval == 'D':
                         # EOD data format
@@ -283,9 +282,9 @@ class BrokerData:
                         })
                     else:
                         # Skip candles with all zero values
-                        if (float(candle.get('into', 0)) == 0 and 
-                            float(candle.get('inth', 0)) == 0 and 
-                            float(candle.get('intl', 0)) == 0 and 
+                        if (float(candle.get('into', 0)) == 0 and
+                            float(candle.get('inth', 0)) == 0 and
+                            float(candle.get('intl', 0)) == 0 and
                             float(candle.get('intc', 0)) == 0):
                             continue
 
@@ -300,7 +299,7 @@ class BrokerData:
                             'volume': float(candle.get('intv', 0)),
                             'oi': float(candle.get('oi', 0))
                         })
-                except (KeyError, ValueError) as e:
+                except (KeyError, ValueError):
                     logger.error(f"Error parsing candle data: {{e}}, Candle: {candle}")
                     continue
 
@@ -311,7 +310,7 @@ class BrokerData:
             # For daily data, append today's data from quotes if it's missing
             if interval == 'D':
                 today_ts = int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
-                
+
                 # Only get today's data if it's within the requested range
                 if today_ts >= start_ts and today_ts <= end_ts:
                     if df.empty or df['timestamp'].max() < today_ts:
@@ -323,7 +322,7 @@ class BrokerData:
                             }
                             quotes_response = get_api_response("/NorenWClientTP/GetQuotes", self.auth_token, payload=payload)
                             logger.debug(f"Quotes Response: {quotes_response}")  # Debug print
-                            
+
                             if quotes_response and quotes_response.get('stat') == 'Ok':
                                 today_data = {
                                     'timestamp': today_ts,
@@ -346,7 +345,7 @@ class BrokerData:
             # Sort by timestamp
             df = df.sort_values('timestamp')
             return df
-            
+
         except Exception as e:
             logger.error(f"Error in get_history: {e}")  # Add debug logging
             raise Exception(f"Error fetching historical data: {str(e)}")

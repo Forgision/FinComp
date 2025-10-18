@@ -1,13 +1,14 @@
 # database/settings_db.py
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, MetaData, Text
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import NullPool
-import os
-from utils.logging import get_logger
-from cryptography.fernet import Fernet
 import base64
+import os
+
+from cryptography.fernet import Fernet
+from sqlalchemy import Boolean, Column, Integer, String, Text, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -58,10 +59,10 @@ class Settings(Base):
 def init_db():
     """Initialize the settings database"""
     logger.info("Initializing Settings DB")
-    
+
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
-    
+
     # Create default settings only if no settings exist
     if not Settings.query.first():
         logger.info("Creating default settings (Live Mode)")
@@ -119,7 +120,7 @@ def get_smtp_settings():
     settings = Settings.query.first()
     if not settings:
         return None
-    
+
     return {
         'smtp_server': settings.smtp_server,
         'smtp_port': settings.smtp_port,
@@ -130,14 +131,14 @@ def get_smtp_settings():
         'smtp_helo_hostname': settings.smtp_helo_hostname
     }
 
-def set_smtp_settings(smtp_server=None, smtp_port=None, smtp_username=None, 
+def set_smtp_settings(smtp_server=None, smtp_port=None, smtp_username=None,
                      smtp_password=None, smtp_use_tls=True, smtp_from_email=None, smtp_helo_hostname=None):
     """Set SMTP configuration"""
     settings = Settings.query.first()
     if not settings:
         settings = Settings(analyze_mode=False)
         db_session.add(settings)
-    
+
     if smtp_server is not None:
         settings.smtp_server = smtp_server
     if smtp_port is not None:
@@ -152,7 +153,7 @@ def set_smtp_settings(smtp_server=None, smtp_port=None, smtp_username=None,
         settings.smtp_from_email = smtp_from_email
     if smtp_helo_hostname is not None:
         settings.smtp_helo_hostname = smtp_helo_hostname
-    
+
     db_session.commit()
     logger.info("SMTP settings updated successfully")
 

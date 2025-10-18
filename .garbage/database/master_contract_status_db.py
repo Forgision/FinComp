@@ -1,10 +1,11 @@
+import logging
 import os
-from sqlalchemy import create_engine, Column, String, DateTime, Boolean, text
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-from datetime import datetime
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ Base = declarative_base()
 
 class MasterContractStatus(Base):
     __tablename__ = 'master_contract_status'
-    
+
     broker = Column(String, primary_key=True)
     status = Column(String, default='pending')  # pending, downloading, success, error
     message = Column(String)
@@ -56,7 +57,7 @@ def init_broker_status(broker):
     try:
         # Check if status already exists
         existing = session.query(MasterContractStatus).filter_by(broker=broker).first()
-        
+
         if existing:
             # Update existing status
             existing.status = 'pending'
@@ -73,10 +74,10 @@ def init_broker_status(broker):
                 is_ready=False
             )
             session.add(status)
-        
+
         session.commit()
         logger.info(f"Initialized master contract status for {broker}")
-        
+
     except Exception as e:
         logger.error(f"Error initializing status for {broker}: {str(e)}")
         session.rollback()
@@ -88,13 +89,13 @@ def update_status(broker, status, message, total_symbols=None):
     session = SessionLocal()
     try:
         broker_status = session.query(MasterContractStatus).filter_by(broker=broker).first()
-        
+
         if broker_status:
             broker_status.status = status
             broker_status.message = message
             broker_status.last_updated = datetime.now()
             broker_status.is_ready = (status == 'success')
-            
+
             if total_symbols is not None:
                 broker_status.total_symbols = str(total_symbols)
         else:
@@ -108,10 +109,10 @@ def update_status(broker, status, message, total_symbols=None):
                 total_symbols=str(total_symbols) if total_symbols else '0'
             )
             session.add(broker_status)
-        
+
         session.commit()
         logger.info(f"Updated master contract status for {broker}: {status}")
-        
+
     except Exception as e:
         logger.error(f"Error updating status for {broker}: {str(e)}")
         session.rollback()
@@ -123,7 +124,7 @@ def get_status(broker):
     session = SessionLocal()
     try:
         status = session.query(MasterContractStatus).filter_by(broker=broker).first()
-        
+
         if status:
             return {
                 'broker': status.broker,

@@ -13,22 +13,24 @@ Features:
 
 import os
 import sys
-from decimal import Decimal
-from datetime import datetime
-import pytz
 import time
 import uuid
+from datetime import datetime
+from decimal import Decimal
+
+import pytz
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.sandbox_db import (
-    SandboxOrders, SandboxTrades, SandboxPositions,
-    db_session
+    SandboxOrders,
+    SandboxPositions,
+    SandboxTrades,
+    db_session,
 )
 from sandbox.fund_manager import FundManager
 from services.quotes_service import get_quotes
-from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)

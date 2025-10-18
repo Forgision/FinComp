@@ -1,6 +1,6 @@
 # Original token_db.py - Backup copy
-from database.symbol import SymToken  # Import here to avoid circular imports
 from cachetools import TTLCache
+from database.symbol import SymToken  # Import here to avoid circular imports
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -28,7 +28,7 @@ def get_token_dbquery(symbol, exchange):
     """
     Queries the database for a token by symbol and exchange.
     """
-    
+
     try:
         sym_token = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
         if sym_token:
@@ -38,7 +38,7 @@ def get_token_dbquery(symbol, exchange):
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
-    
+
 
 
 def get_symbol(token, exchange):

@@ -1,9 +1,9 @@
-from flask import Blueprint, jsonify, render_template, request, session, redirect, url_for
-import os
-from utils.logging import get_logger
 import secrets
+
 from argon2 import PasswordHasher
-from database.auth_db import upsert_api_key, get_api_key, verify_api_key, get_api_key_for_tradingview
+from database.auth_db import get_api_key_for_tradingview, upsert_api_key
+from flask import Blueprint, jsonify, render_template, request, session
+from utils.logging import get_logger
 from utils.session import check_session_validity
 
 logger = get_logger(__name__)
@@ -27,8 +27,8 @@ def manage_api_key():
         api_key = get_api_key_for_tradingview(login_username)
         has_api_key = api_key is not None
         logger.info(f"Checking API key status for user: {login_username}")
-        return render_template('apikey.html', 
-                             login_username=login_username, 
+        return render_template('apikey.html',
+                             login_username=login_username,
                              has_api_key=has_api_key,
                              api_key=api_key)
     else:
@@ -36,13 +36,13 @@ def manage_api_key():
         if not user_id:
             logger.error("API key update attempted without user ID")
             return jsonify({'error': 'User ID is required'}), 400
-        
+
         # Generate new API key
         api_key = generate_api_key()
-        
+
         # Store the API key (auth_db will handle both hashing and encryption)
         key_id = upsert_api_key(user_id, api_key)
-        
+
         if key_id is not None:
             logger.info(f"API key updated successfully for user: {user_id}")
             return jsonify({

@@ -1,19 +1,19 @@
 # database/auth_db.py
 
-import os
 import base64
-from sqlalchemy import create_engine, UniqueConstraint
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-from cachetools import TTLCache
+import os
+
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from cachetools import TTLCache
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 from utils.logging import get_logger
 
 # Initialize logger
@@ -44,35 +44,36 @@ fernet = get_encryption_key()
 def get_session_based_cache_ttl():
     """Calculate cache TTL based on daily session expiry time in .env"""
     try:
-        import pytz
         from datetime import datetime
-        
+
+        import pytz
+
         # Get session expiry time from environment (default 3 AM)
         expiry_time = os.getenv('SESSION_EXPIRY_TIME', '03:00')
         hour, minute = map(int, expiry_time.split(':'))
-        
+
         # Calculate time until next session expiry
         now_utc = datetime.now(pytz.timezone('UTC'))
         now_ist = now_utc.astimezone(pytz.timezone('Asia/Kolkata'))
-        
+
         # Today's expiry time
         today_expiry = now_ist.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        
+
         # If we've passed today's expiry, use tomorrow's expiry
         if now_ist >= today_expiry:
             from datetime import timedelta
             today_expiry += timedelta(days=1)
-        
+
         # Calculate seconds until expiry
         time_until_expiry = (today_expiry - now_ist).total_seconds()
-        
+
         # Use time until session expiry, with reasonable bounds
         # Minimum 5 minutes, maximum 24 hours
         ttl_seconds = max(300, min(time_until_expiry, 24 * 3600))
-        
+
         logger.debug(f"Auth cache TTL set to {ttl_seconds} seconds until session expiry at {today_expiry.strftime('%H:%M IST')}")
         return int(ttl_seconds)
-        
+
     except Exception as e:
         logger.warning(f"Could not calculate session-based cache TTL, using 5-minute default: {e}")
         return 300  # Fallback to 5 minutes
@@ -148,7 +149,7 @@ def upsert_auth(name, auth_token, broker, feed_token=None, user_id=None, revoke=
     """Store encrypted auth token and feed token if provided"""
     encrypted_token = encrypt_token(auth_token)
     encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
-    
+
     auth_obj = Auth.query.filter_by(name=name).first()
     if auth_obj:
         auth_obj.auth = encrypted_token
@@ -156,7 +157,7 @@ def upsert_auth(name, auth_token, broker, feed_token=None, user_id=None, revoke=
         auth_obj.broker = broker
         auth_obj.user_id = user_id
         auth_obj.is_revoked = revoke
-        
+
         # Clear cache entries when revoking
         if revoke:
             cache_key_auth = f"auth-{name}"
@@ -178,7 +179,7 @@ def get_auth_token(name):
     if not name:
         logger.debug("get_auth_token called with empty/None name, returning None")
         return None
-        
+
     cache_key = f"auth-{name}"
     if cache_key in auth_cache:
         auth_obj = auth_cache[cache_key]
@@ -200,7 +201,7 @@ def get_auth_token_dbquery(name):
         if not name:
             logger.debug("get_auth_token_dbquery called with empty/None name")
             return None
-            
+
         auth_obj = Auth.query.filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj
@@ -219,7 +220,7 @@ def get_feed_token(name):
     if not name:
         logger.debug("get_feed_token called with empty/None name, returning None")
         return None
-        
+
     cache_key = f"feed-{name}"
     if cache_key in feed_token_cache:
         auth_obj = feed_token_cache[cache_key]
@@ -237,11 +238,11 @@ def get_feed_token(name):
 
 def get_feed_token_dbquery(name):
     try:
-        # Handle None or empty name gracefully  
+        # Handle None or empty name gracefully
         if not name:
             logger.debug("get_feed_token_dbquery called with empty/None name")
             return None
-            
+
         auth_obj = Auth.query.filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj
@@ -260,7 +261,7 @@ def get_user_id(name):
         if not name:
             logger.debug("get_user_id called with empty/None name")
             return None
-            
+
         auth_obj = Auth.query.filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj.user_id  # This should return "1272808" for DefinEdge
@@ -277,10 +278,10 @@ def upsert_api_key(user_id, api_key):
     # Hash with Argon2 for verification
     peppered_key = api_key + PEPPER
     hashed_key = ph.hash(peppered_key)
-    
+
     # Encrypt for retrieval
     encrypted_key = encrypt_token(api_key)
-    
+
     api_key_obj = ApiKeys.query.filter_by(user_id=user_id).first()
     if api_key_obj:
         api_key_obj.api_key_hash = hashed_key
@@ -317,10 +318,11 @@ def get_api_key_for_tradingview(user_id):
 
 def verify_api_key(provided_api_key):
     """Verify an API key using Argon2"""
-    from flask import request, has_request_context
-    from utils.ip_helper import get_real_ip
-    from database.traffic_db import InvalidAPIKeyTracker
     import hashlib
+
+    from database.traffic_db import InvalidAPIKeyTracker
+    from flask import has_request_context
+    from utils.ip_helper import get_real_ip
 
     peppered_key = provided_api_key + PEPPER
     try:
@@ -367,10 +369,10 @@ def get_broker_name(provided_api_key):
     # Check if broker name is in cache
     if provided_api_key in broker_cache:
         return broker_cache[provided_api_key]
-    
+
     # Not in cache, need to look it up
     user_id = verify_api_key(provided_api_key)
-    
+
     if user_id:
         try:
             auth_obj = Auth.query.filter_by(name=user_id).first()
@@ -389,7 +391,7 @@ def get_broker_name(provided_api_key):
 def get_auth_token_broker(provided_api_key, include_feed_token=False):
     """Get auth token, feed token (optional) and broker for a valid API key"""
     user_id = verify_api_key(provided_api_key)
-    
+
     if user_id:
         try:
             auth_obj = Auth.query.filter_by(name=user_id).first()

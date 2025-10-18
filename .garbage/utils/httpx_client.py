@@ -3,7 +3,6 @@ Shared httpx client module with connection pooling support for all broker APIs
 with automatic protocol negotiation (HTTP/2 when available, HTTP/1.1 fallback)
 """
 import httpx
-from typing import Optional
 from utils.logging import get_logger
 
 # Set up logging
@@ -22,7 +21,7 @@ def get_httpx_client() -> httpx.Client:
         httpx.Client: A configured HTTP client with protocol auto-negotiation
     """
     global _httpx_client
-    
+
     if _httpx_client is None:
         _httpx_client = _create_http_client()
         logger.info("Created HTTP client with automatic protocol negotiation (HTTP/2 preferred, HTTP/1.1 fallback)")
@@ -49,11 +48,11 @@ def request(
     """
     client = get_httpx_client()
     response = client.request(method, url, **kwargs)
-    
+
     # Log the actual HTTP version used (info level for visibility)
     if response.http_version:
         logger.info(f"Request used {response.http_version} - URL: {url[:50]}...")
-    
+
     return response
 
 # Shortcut methods for common HTTP methods
@@ -79,7 +78,7 @@ def _create_http_client() -> httpx.Client:
         httpx.Client: A configured HTTP client with protocol auto-negotiation
     """
     import os
-    
+
     try:
         # Detect if running in standalone mode (Docker/production) vs integrated mode (local dev)
         # In standalone mode, disable HTTP/2 to avoid protocol negotiation issues
@@ -88,7 +87,7 @@ def _create_http_client() -> httpx.Client:
 
         # Disable HTTP/2 in standalone/Docker environments to avoid protocol negotiation issues
         http2_enabled = not is_standalone
-        
+
         client = httpx.Client(
             http2=http2_enabled,  # Disable HTTP/2 in standalone mode, enable in integrated mode
             http1=True,  # Always enable HTTP/1.1 for compatibility
@@ -101,14 +100,14 @@ def _create_http_client() -> httpx.Client:
             # Add verify parameter to handle SSL/TLS issues in standalone mode
             verify=True  # Can be set to False for debugging SSL issues (not recommended for production)
         )
-        
+
         if is_standalone:
             logger.info("Running in standalone mode - HTTP/2 disabled for compatibility")
         else:
             logger.info("Running in integrated mode - HTTP/2 enabled for optimal performance")
-            
+
         return client
-        
+
     except Exception as e:
         logger.error(f"Failed to create HTTP client: {e}")
         raise
@@ -120,7 +119,7 @@ def cleanup_httpx_client():
     Should be called when the application is shutting down.
     """
     global _httpx_client
-    
+
     if _httpx_client is not None:
         _httpx_client.close()
         _httpx_client = None

@@ -1,26 +1,25 @@
-from datetime import datetime, timedelta
-import pytz
-from database.analyzer_db import AnalyzerLog, db_session
-from database.symbol import SymToken
-from sqlalchemy import func
 import json
-from extensions import socketio
+from datetime import datetime, timedelta
+
+import pytz
+from database.analyzer_db import AnalyzerLog
+from database.symbol import SymToken
 from utils.constants import (
-    VALID_EXCHANGES,
-    VALID_ACTIONS,
-    VALID_PRICE_TYPES,
-    VALID_PRODUCT_TYPES,
-    REQUIRED_ORDER_FIELDS,
-    REQUIRED_SMART_ORDER_FIELDS,
-    REQUIRED_CANCEL_ORDER_FIELDS,
+    DEFAULT_DISCLOSED_QUANTITY,
+    DEFAULT_PRICE,
+    DEFAULT_PRICE_TYPE,
+    DEFAULT_PRODUCT_TYPE,
+    DEFAULT_TRIGGER_PRICE,
     REQUIRED_CANCEL_ALL_ORDER_FIELDS,
+    REQUIRED_CANCEL_ORDER_FIELDS,
     REQUIRED_CLOSE_POSITION_FIELDS,
     REQUIRED_MODIFY_ORDER_FIELDS,
-    DEFAULT_PRODUCT_TYPE,
-    DEFAULT_PRICE_TYPE,
-    DEFAULT_PRICE,
-    DEFAULT_TRIGGER_PRICE,
-    DEFAULT_DISCLOSED_QUANTITY
+    REQUIRED_ORDER_FIELDS,
+    REQUIRED_SMART_ORDER_FIELDS,
+    VALID_ACTIONS,
+    VALID_EXCHANGES,
+    VALID_PRICE_TYPES,
+    VALID_PRODUCT_TYPES,
 )
 from utils.logging import get_logger
 
@@ -34,13 +33,13 @@ def generate_order_id():
     global _order_sequence
     now = datetime.now()
     date_prefix = now.strftime("%y%m%d")
-    
+
     # Get the last order from analyzer logs to ensure sequence continuity
     try:
         last_order = AnalyzerLog.query.filter(
             AnalyzerLog.response_data.like('%"orderid": "%"')
         ).order_by(AnalyzerLog.created_at.desc()).first()
-        
+
         if last_order:
             try:
                 last_response = json.loads(last_order.response_data)
@@ -51,14 +50,14 @@ def generate_order_id():
                 pass
     except Exception as e:
         logger.error(f"Error getting last order sequence: {e}")
-    
+
     # Increment sequence
     _order_sequence += 1
-    
+
     # Reset sequence if it exceeds 99999
     if _order_sequence > 99999:
         _order_sequence = 1
-    
+
     # Format: YYMMDDXXXXX (where XXXXX is the sequence padded to 5 digits)
     return f"{date_prefix}{_order_sequence:05d}"
 
@@ -504,7 +503,7 @@ def analyze_request(request_data, api_type='placeorder', should_log=False):
             analysis = analyze_modify_order_request(request_data)
         else:
             analysis = analyze_api_request(request_data)
-        
+
         # Return analysis results without logging
         return True, analysis
 
@@ -521,7 +520,7 @@ def get_analyzer_stats():
     """Get analyzer statistics"""
     try:
         cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
-        
+
         # Get recent requests
         recent_requests = AnalyzerLog.query.filter(
             AnalyzerLog.created_at >= cutoff
@@ -549,20 +548,20 @@ def get_analyzer_stats():
             try:
                 request_data = json.loads(req.request_data)
                 response_data = json.loads(req.response_data)
-                
+
                 # Update sources
                 source = request_data.get('strategy', 'Unknown')
                 stats['sources'][source] = stats['sources'].get(source, 0) + 1
-                
+
                 # Update symbols
                 if 'symbol' in request_data:
                     stats['symbols'].add(request_data['symbol'])
-                
+
                 # Update issues
                 if response_data.get('status') == 'error':
                     stats['issues']['total'] += 1
                     error_msg = response_data.get('message', '').lower()
-                    
+
                     if 'rate limit' in error_msg:
                         stats['issues']['by_type']['rate_limit'] += 1
                     elif 'invalid symbol' in error_msg:

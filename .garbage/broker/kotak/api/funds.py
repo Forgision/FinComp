@@ -1,7 +1,8 @@
 # api/funds.py
-import urllib.parse
 import http.client
 import json
+import urllib.parse
+
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -14,7 +15,7 @@ def get_margin_data(auth_token):
     sid = access_token_parts[1]
     hsServerId = access_token_parts[2]
     access_token = access_token_parts[3]
-    
+
     conn = http.client.HTTPSConnection("gw-napi.kotaksecurities.com")
     payload = 'jData=%7B%22seg%22%3A%22ALL%22%2C%22exch%22%3A%22ALL%22%2C%22prod%22%3A%22ALL%22%7D'
     query_params = {"sId": hsServerId}
@@ -36,7 +37,7 @@ def get_margin_data(auth_token):
         #logger.info(f"Margin Data {margin_data}")
 
         # Process and return the 'data' key from margin_data if it exists and is not None
-        
+
         #TODO FIX realized and unrealized
         processed_margin_data = {
                 "availablecash": f"{float(margin_data['Net']):.2f}",

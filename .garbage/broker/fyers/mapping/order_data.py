@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol , get_oa_symbol
+from database.token_db import get_oa_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,7 +17,7 @@ exchange_map = {
 def get_exchange(exchange_code, segment_code):
     # Key is a tuple of exchange_code and segment_code
     key = (exchange_code, segment_code)
-    
+
     # Return the exchange name if key exists, else return None or a default value
     return exchange_map.get(key, "Unknown Exchange")
 
@@ -36,7 +35,7 @@ def map_order_data(order_data):
     if not order_data or order_data.get('orderBook') is None:
         logger.debug("No order data available in 'orderBook'.")
         return []
-    
+
     order_list = order_data['orderBook']
 
     for order in order_list:
@@ -44,7 +43,7 @@ def map_order_data(order_data):
         segment_code = order.get('segment')
         exchange = get_exchange(exchange_code, segment_code)
         symbol = order.get('symbol')
-        
+
         if symbol:
             oa_symbol = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             if oa_symbol:
@@ -54,7 +53,7 @@ def map_order_data(order_data):
                 logger.warning(f"Could not map Fyers brsymbol '{symbol}' for exchange '{exchange}'. Keeping original.")
         else:
             logger.warning(f"Symbol not found in order: {order}. Keeping original trading symbol.")
-            
+
     return order_list
 
 
@@ -80,7 +79,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order['side'] == -1:
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['status'] == 2:
                 total_completed_orders += 1
@@ -104,7 +103,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     status_map = {2: "complete", 5: "rejected", 4: "trigger pending", 6: "open", 1: "cancelled"}
     side_map = {1: "BUY", -1: "SELL"}
     type_map = {1: "LIMIT", 2: "MARKET", 3: "SL-M", 4: "SL"}
@@ -129,7 +128,7 @@ def transform_order_data(orders):
         ordertype = type_map.get(type_code, "unknown")
         if ordertype == "unknown":
             logger.warning(f"Unknown order type code '{type_code}' for order: {order.get('id')}")
-        
+
         product_code = order.get("productType")
         producttype = product_map.get(product_code, "unknown")
         if producttype == "unknown":
@@ -165,7 +164,7 @@ def map_trade_data(trade_data):
     if not trade_data or trade_data.get('tradeBook') is None:
         logger.debug("No trade data available in 'tradeBook'.")
         return []
-    
+
     trade_list = trade_data['tradeBook']
 
     for trade in trade_list:
@@ -173,7 +172,7 @@ def map_trade_data(trade_data):
         segment_code = trade.get('segment')
         exchange = get_exchange(exchange_code, segment_code)
         symbol = trade.get('symbol')
-        
+
         if symbol:
             oa_symbol = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             if oa_symbol:
@@ -183,7 +182,7 @@ def map_trade_data(trade_data):
                 logger.warning(f"Could not map Fyers brsymbol '{symbol}' for exchange '{exchange}'. Keeping original.")
         else:
             logger.warning(f"Symbol not found in trade: {trade}. Keeping original trading symbol.")
-            
+
     return trade_list
 
 def transform_tradebook_data(tradebook_data):
@@ -193,7 +192,7 @@ def transform_tradebook_data(tradebook_data):
 
     for trade in tradebook_data:
         symbol = trade.get('symbol')
-        
+
         side_code = trade.get("side")
         action = side_map.get(side_code, "unknown")
         if action == "unknown":
@@ -231,7 +230,7 @@ def map_position_data(position_data):
     if not position_data or position_data.get('netPositions') is None:
         logger.debug("No position data available in 'netPositions'.")
         return []
-    
+
     position_list = position_data['netPositions']
     logger.debug(f"Raw Fyers positions: {position_list}")
 
@@ -240,7 +239,7 @@ def map_position_data(position_data):
         segment_code = position.get('segment')
         exchange = get_exchange(exchange_code, segment_code)
         symbol = position.get('symbol')
-        
+
         if symbol:
             oa_symbol = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             if oa_symbol:
@@ -250,17 +249,17 @@ def map_position_data(position_data):
                 logger.warning(f"Could not map Fyers brsymbol '{symbol}' for exchange '{exchange}'. Keeping original.")
         else:
             logger.warning(f"Symbol not found in position: {position}. Keeping original trading symbol.")
-            
+
     return position_list
-    
+
 
 def transform_positions_data(positions_data):
-    transformed_data = [] 
+    transformed_data = []
 
     for position in positions_data:
         # Ensure average_price is treated as a float, then format to a string with 2 decimal places
         average_price_formatted = "{:.2f}".format(float(position.get('netAvg', 0.0)))
-        
+
         # Get LTP and PNL from Fyers response
         ltp = "{:.2f}".format(float(position.get('ltp', 0.0)))
         pnl = "{:.2f}".format(float(position.get('pl', 0.0)))
@@ -290,7 +289,7 @@ def transform_positions_data(positions_data):
 
 
 
-    
+
 def map_portfolio_data(portfolio_data):
     """
     Processes and modifies a list of Portfolio dictionaries based on specific conditions.
@@ -304,7 +303,7 @@ def map_portfolio_data(portfolio_data):
     if not portfolio_data or portfolio_data.get('holdings') is None:
         logger.debug("No portfolio data available in 'holdings'.")
         return []
-    
+
     portfolio_list = portfolio_data['holdings']
     logger.debug(f"Raw Fyers portfolio: {portfolio_list}")
 
@@ -313,7 +312,7 @@ def map_portfolio_data(portfolio_data):
             portfolio['holdingType'] = 'CNC'
         else:
             logger.warning(f"Fyers Portfolio - Unknown product value for delivery: {portfolio.get('holdingType')}")
-        
+
         exchange_code = portfolio.get('exchange')
         segment_code = portfolio.get('segment')
         exchange = get_exchange(exchange_code, segment_code)
@@ -328,14 +327,14 @@ def map_portfolio_data(portfolio_data):
                 logger.warning(f"Could not map Fyers brsymbol '{symbol}' for exchange '{exchange}'. Keeping original.")
         else:
             logger.warning(f"Symbol not found in portfolio holding: {portfolio}. Keeping original trading symbol.")
-            
+
     return portfolio_list
 
 
 def transform_holdings_data(holdings_data):
     transformed_data = []
     for holdings in holdings_data:
-        
+
         pnl = round(holdings.get('pl', 0.0),2)
 
         transformed_position = {
@@ -345,7 +344,7 @@ def transform_holdings_data(holdings_data):
             "product": holdings.get('holdingType', ''),
             "pnl": pnl,
             "pnlpercent": (holdings.get('ltp', 0) - holdings.get('costPrice', 0.0)) /holdings.get('costPrice', 0.0) *100
-            
+
         }
         transformed_data.append(transformed_position)
     return transformed_data
@@ -355,7 +354,7 @@ def calculate_portfolio_statistics(holdings_data):
     totalholdingvalue = sum(item['ltp'] * item['quantity'] for item in holdings_data)
     totalinvvalue = sum(item['costPrice'] * item['quantity'] for item in holdings_data)
     totalprofitandloss = sum(item['pl'] for item in holdings_data)
-    
+
     # To avoid division by zero in the case when total_investment_value is 0
     totalpnlpercentage = (totalprofitandloss / totalinvvalue * 100) if totalinvvalue else 0
     totalpnlpercentage = round(totalpnlpercentage, 2)

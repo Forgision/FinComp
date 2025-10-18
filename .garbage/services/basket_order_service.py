@@ -1,23 +1,23 @@
-import importlib
-import traceback
 import copy
-from typing import Tuple, Dict, Any, Optional, List, Union
-from database.auth_db import get_auth_token_broker
-from database.apilog_db import async_log_order, executor as log_executor
-from database.settings_db import get_analyze_mode
+import importlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, Optional, Tuple
+
 from database.analyzer_db import async_log_analyzer
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
+from database.auth_db import get_auth_token_broker
+from database.settings_db import get_analyze_mode
 from extensions import socketio
-from utils.api_analyzer import analyze_request, generate_order_id
+from services.telegram_alert_service import telegram_alert_service
 from utils.constants import (
-    VALID_EXCHANGES,
+    REQUIRED_ORDER_FIELDS,
     VALID_ACTIONS,
+    VALID_EXCHANGES,
     VALID_PRICE_TYPES,
     VALID_PRODUCT_TYPES,
-    REQUIRED_ORDER_FIELDS
 )
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils.logging import get_logger
-from services.telegram_alert_service import telegram_alert_service
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -38,22 +38,22 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
         'status': 'error',
         'message': error_message
     }
-    
+
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
     if 'apikey' in analyzer_request:
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'basketorder'
-    
+
     # Log to analyzer database
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'basketorder')
-    
+
     # Emit socket event
     socketio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
-    
+
     return error_response
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
@@ -112,10 +112,10 @@ def validate_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     return True, None
 
 def place_single_order(
-    order_data: Dict[str, Any], 
-    broker_module: Any, 
-    auth_token: str, 
-    total_orders: int, 
+    order_data: Dict[str, Any],
+    broker_module: Any,
+    auth_token: str,
+    total_orders: int,
     order_index: int
 ) -> Dict[str, Any]:
     """
@@ -194,9 +194,9 @@ def process_basket_order_with_auth(
     basket_request_data = copy.deepcopy(original_data)
     if 'apikey' in basket_request_data:
         basket_request_data.pop('apikey', None)
-    
+
     api_key = basket_data.get('apikey')
-    
+
     # If in analyze mode, route each order to sandbox
     if get_analyze_mode():
         from services.sandbox_service import sandbox_place_order
@@ -284,10 +284,10 @@ def process_basket_order_with_auth(
     buy_orders = [order for order in basket_data['orders'] if order.get('action', '').upper() == 'BUY']
     sell_orders = [order for order in basket_data['orders'] if order.get('action', '').upper() == 'SELL']
     sorted_orders = buy_orders + sell_orders
-    
+
     results = []
     total_orders = len(sorted_orders)
-    
+
     # Process BUY orders first
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Process all BUY orders first
@@ -305,13 +305,13 @@ def process_basket_order_with_auth(
                     i
                 )
             )
-        
+
         # Wait for all BUY orders to complete
         for future in as_completed(buy_futures):
             result = future.result()
             if result:
                 results.append(result)
-        
+
         # Then process SELL orders
         sell_futures = []
         for i, order in enumerate(sell_orders, start=len(buy_orders)):
@@ -327,7 +327,7 @@ def process_basket_order_with_auth(
                     i
                 )
             )
-        
+
         # Wait for all SELL orders to complete
         for future in as_completed(sell_futures):
             result = future.result()
@@ -372,12 +372,12 @@ def place_basket_order(
         - HTTP status code (int)
     """
     original_data = copy.deepcopy(basket_data)
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to basket data
         basket_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -386,13 +386,13 @@ def place_basket_order(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return process_basket_order_with_auth(basket_data, AUTH_TOKEN, broker_name, original_data)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return process_basket_order_with_auth(basket_data, auth_token, broker, original_data)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {

@@ -1,11 +1,12 @@
 # api/funds.py
 
-import os
 import json
+import os
+
 import httpx
-from utils.httpx_client import get_httpx_client
 from broker.upstox.api.order_api import get_positions
 from broker.upstox.mapping.order_data import map_order_data
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -26,13 +27,13 @@ def get_margin_data(auth_token):
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         }
-        
+
         url = "https://api.upstox.com/v2/user/get-funds-and-margin"
         logger.debug(f"Requesting funds and margin data from {url}")
-        
+
         response = client.get(url, headers=headers)
         response.raise_for_status()
-        
+
         margin_data = response.json()
         logger.debug(f"Received funds and margin data: {margin_data}")
 
@@ -71,10 +72,10 @@ def get_margin_data(auth_token):
         }
         logger.debug(f"Successfully processed margin data: {processed_margin_data}")
         return processed_margin_data
-        
+
     except httpx.HTTPStatusError as e:
         response_text = e.response.text
-        
+
         # Check if it's a service hours error (423 Locked)
         if e.response.status_code == 423:
             try:
@@ -94,13 +95,13 @@ def get_margin_data(auth_token):
                             }
             except json.JSONDecodeError:
                 pass
-        
+
         # Log the full error only if it's not a service hours issue
         logger.exception(f"HTTP error occurred while fetching margin data: {response_text}")
         return {}
     except (KeyError, TypeError) as e:
         logger.exception(f"Error processing margin data structure: {e}")
         return {}
-    except Exception as e:
+    except Exception:
         logger.exception("An unexpected error occurred while fetching margin data")
         return {}

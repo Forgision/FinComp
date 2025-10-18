@@ -1,25 +1,25 @@
 import asyncio
-import json
-from typing import Dict, Any
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from typing import Any, Dict
+
+from app.core.security import check_session_validity_fastapi
+from app.frontend import templates
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from app.db.telegram_db import (
-    get_bot_config,
-    update_bot_config,
-    get_all_telegram_users,
-    get_telegram_user_by_username,
-    delete_telegram_user,
-    get_command_stats,
-    get_telegram_user
-)
-from app.web.services.telegram_bot_service import telegram_bot_service
-from app.utils.logging import logger
-from app.utils.session import check_session_validity_fastapi
-from app.db.session import get_db
-from app.web.frontend import templates
+
 from app.core.config import settings
+from app.core.services.telegram_bot_service import telegram_bot_service
+from app.db.models.session import get_db
+from app.db.models.telegram_db import (
+    delete_telegram_user,
+    get_all_telegram_users,
+    get_bot_config,
+    get_command_stats,
+    get_telegram_user,
+    get_telegram_user_by_username,
+    update_bot_config,
+)
+from app.utils.logging import logger
 
 # Rate limiting configuration from environment
 # Assuming slowapi integration will be handled via middleware or a custom dependency

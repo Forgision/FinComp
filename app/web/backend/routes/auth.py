@@ -1,33 +1,34 @@
-import qrcode  # type: ignore #Library stubs not installed for "qrcode"
-import io
 import base64
+import io
 import re
 import secrets
-from typing import Annotated, Optional
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi_csrf_protect.flexible import CsrfProtect
-from fastapi_csrf_protect.exceptions import CsrfProtectError
-from sqlalchemy.orm import Session
-from app.core.config import settings
-from ....utils.web import limiter
-from ....db.session import get_db
-from ....db.user_db import add_user, find_user_by_username, find_user_by_email
-from ....db.settings_db import get_smtp_settings, set_smtp_settings
-from ....db.auth_db import upsert_api_key, upsert_auth, auth_cache, feed_token_cache
-from ...frontend import templates
-from app.db.user_db import User
-from ...models.auth import SMTPConfig, SMTPTest, SMTPDebug
-from ....utils.auth_utils import mask_api_credential
-from ....utils.web.security import verify_password
-from ....utils.email_utils import send_password_reset_email, send_test_email
-from ....utils.email_debug import debug_smtp_connection
-from ...frontend import templates
-from ...services import user_service
-from ....utils.web.flash import flash
-from ....utils.web.security import generate_api_key, generate_csrf_token, validate_csrf_token
-from ....utils.logging import logger
+from typing import Optional
 
+import qrcode  # type: ignore #Library stubs not installed for "qrcode"
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi_csrf_protect.flexible import CsrfProtect
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.models.auth import SMTPConfig, SMTPDebug, SMTPTest
+from app.core.services import user_service
+from app.db.models.auth_db import (
+    auth_cache,
+    feed_token_cache,
+    upsert_api_key,
+    upsert_auth,
+)
+from app.db.models.session import get_db
+from app.db.models.settings_db import get_smtp_settings, set_smtp_settings
+from app.db.models.user_db import add_user, find_user_by_email
+from app.utils.auth_utils import mask_api_credential
+from app.utils.email_debug import debug_smtp_connection
+from app.utils.email_utils import send_password_reset_email, send_test_email
+from app.utils.web.flash import flash
+from app.utils.web.security import generate_api_key, verify_password
+
+from ....utils.logging import logger
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,11 +44,9 @@ async def login_get(request: Request,
 
     if request.session.get('logged_in'): # Check if already logged in
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-        
+
     csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-    response = templates.TemplateResponse(
-        "login.html", {"request": request, "csrf_token": csrf_token}
-        )
+    response = JSONResponse(content={"csrf_token": csrf_token})
     csrf_protect.set_csrf_cookie(signed_token, response)
     return response
 
@@ -69,7 +68,7 @@ async def login_post(request: Request, username: str = Form(...), password: str 
 async def logout(request: Request, db: Session = Depends(get_db)):
     if 'user' in request.session:
         username = request.session['user']
-        
+
         # Clear cache entries
         cache_key_auth = f"auth-{username}"
         cache_key_feed = f"feed-{username}"
@@ -79,7 +78,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
         if cache_key_feed in feed_token_cache:
             del feed_token_cache[cache_key_feed]
             logger.info(f"Cleared feed token cache for user: {username}")
-            
+
         # Clear symbol cache
         try:
             from app.db.master_contract_cache_hook import clear_cache_on_logout
@@ -87,14 +86,14 @@ async def logout(request: Request, db: Session = Depends(get_db)):
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:
             logger.error(f"Error clearing symbol cache on logout: {cache_error}")
-        
+
         # Revoke auth token in the database
         inserted_id = upsert_auth(db, username, "", "", revoke=True)
         if inserted_id:
             logger.info(f"Auth revoked in the database for user: {username}")
         else:
             logger.error(f"Failed to upsert auth token for user: {username}")
-        
+
         # Clear session data
         request.session.pop('user', None)
         request.session.pop('broker', None)
@@ -112,21 +111,20 @@ async def change_password_get(request: Request, db: Session = Depends(get_db)):
 
     username = request.session['user']
     user = user_service.get_user_by_username(db, username)
-    
+
     qr_code = None
     if user:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(user.get_totp_uri())
         qr.make(fit=True)
-        
+
         img_buffer = io.BytesIO()
         qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
         qr_code = base64.b64encode(img_buffer.getvalue()).decode()
 
     smtp_settings = get_smtp_settings(db)
-    
-    return templates.TemplateResponse("profile.html", {
-        "request": request,
+
+    return JSONResponse(content={
         "username": username,
         "smtp_settings": smtp_settings,
         "qr_code": qr_code,
@@ -158,7 +156,7 @@ async def change_password_post(
             flash(request, "New password and confirm password do not match.", "error")
     else:
         flash(request, "Old Password is incorrect.", "error")
-        
+
     return RedirectResponse(url=request.url_for('auth.change'), status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -171,9 +169,7 @@ async def setup_get(request: Request,
         return RedirectResponse(url=auth_router.url_path_for('auth.login'))
 
     csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-    response = templates.TemplateResponse(
-        "setup.html", {"request": request, "csrf_token": csrf_token}
-    )
+    response = JSONResponse(content={"csrf_token": csrf_token})
     csrf_protect.set_csrf_cookie(signed_token, response)
     return response
 
@@ -204,7 +200,7 @@ async def setup_post(
     user = add_user(username, email, password, is_admin=True)
     if user:
         logger.info(f"New admin user {username} created successfully")
-        
+
         # Automatically generate and save API key
         api_key = generate_api_key()
         key_id = upsert_api_key(username, api_key)
@@ -212,23 +208,23 @@ async def setup_post(
             logger.error(f"Failed to create API key for user {username}")
         else:
             logger.info(f"API key created successfully for user {username}")
-        
+
         # Generate QR code
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(user.get_totp_uri())
         qr.make(fit=True)
-        
+
         # Create QR code image
         img_buffer = io.BytesIO()
         qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
         qr_code = base64.b64encode(img_buffer.getvalue()).decode()
-        
+
         # Store TOTP setup in session temporarily for later access if needed
         request.session['totp_setup'] = True
         request.session['username'] = username
         request.session['qr_code'] = qr_code
         request.session['totp_secret'] = user.totp_secret
-        
+
         # Flash message with SMTP setup info and redirect to login
         flash(request, 'Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.', 'success')
         return RedirectResponse(auth_router.url_path_for('auth.login'))
@@ -237,7 +233,7 @@ async def setup_post(
         logger.error(f"Failed to create admin user {username}")
         flash('User already exists or an error occurred', 'error')
         return RedirectResponse(auth_router.url_path_for('setup'))
-    
+
 
 @auth_router.get('/broker', name='broker_login', response_class=HTMLResponse)
 async def broker_login_get(request: Request):
@@ -261,7 +257,7 @@ async def broker_login_get(request: Request):
         "redirect_url": redirect_url,
         "broker_name": broker_name,
     }
-    return templates.TemplateResponse("broker.html", context)
+    return JSONResponse(content=context)
 
 
 @auth_router.post('/broker', name='broker_login_post')
@@ -286,7 +282,7 @@ async def broker_login_post(request: Request):
 
 @auth_router.get('/reset-password', name='auth.reset_password', response_class=HTMLResponse)
 async def reset_password_get(request: Request):
-    return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": False})
+    return JSONResponse(content={"email_sent": False})
 
 @auth_router.post('/reset-password', name='reset_password')
 async def reset_password_post(
@@ -302,8 +298,7 @@ async def reset_password_post(
         user = find_user_by_email(email, db)
         if user:
             request.session['reset_email'] = email
-        return templates.TemplateResponse('reset_password.html', {
-            "request": request,
+        return JSONResponse(content={
             "email_sent": True,
             "method_selected": False,
             "email": email
@@ -311,8 +306,7 @@ async def reset_password_post(
 
     elif step == 'select_totp':
         request.session['reset_method'] = 'totp'
-        return templates.TemplateResponse('reset_password.html', {
-            "request": request,
+        return JSONResponse(content={
             "email_sent": True,
             "method_selected": 'totp',
             "totp_verified": False,
@@ -324,13 +318,12 @@ async def reset_password_post(
         smtp_settings = get_smtp_settings(db)
         if not smtp_settings or not smtp_settings.smtp_server:
             flash(request, 'Email reset is not available. Please use TOTP authentication.', 'error')
-            return templates.TemplateResponse('reset_password.html', {
-                "request": request,
+            return JSONResponse(content={
                 "email_sent": True,
                 "method_selected": False,
                 "email": email
             })
-        
+
         user = find_user_by_email(email, db)
         if user:
             try:
@@ -343,15 +336,13 @@ async def reset_password_post(
             except Exception as e:
                 logger.error(f"Failed to send password reset email to {email}: {e}")
                 flash(request, 'Failed to send reset email. Please try TOTP authentication instead.', 'error')
-                return templates.TemplateResponse('reset_password.html', {
-                    "request": request,
+                return JSONResponse(content={
                     "email_sent": True,
                     "method_selected": False,
                     "email": email
                 })
-        
-        return templates.TemplateResponse('reset_password.html', {
-            "request": request,
+
+        return JSONResponse(content={
             "email_sent": True,
             "method_selected": 'email',
             "email_verified": False,
@@ -364,8 +355,7 @@ async def reset_password_post(
             token = secrets.token_urlsafe(32)
             request.session['reset_token'] = token
             request.session['reset_email'] = email
-            return templates.TemplateResponse('reset_password.html', {
-                "request": request,
+            return JSONResponse(content={
                 "email_sent": True,
                 "method_selected": 'totp',
                 "totp_verified": True,
@@ -374,8 +364,7 @@ async def reset_password_post(
             })
         else:
             flash(request, 'Invalid TOTP code. Please try again.', 'error')
-            return templates.TemplateResponse('reset_password.html', {
-                "request": request,
+            return JSONResponse(content={
                 "email_sent": True,
                 "method_selected": 'totp',
                 "totp_verified": False,
@@ -387,23 +376,23 @@ async def reset_password_post(
         if not valid_token or email != request.session.get('reset_email'):
             flash(request, 'Invalid or expired reset token.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
-        
+
         user = find_user_by_email(email, db)
         if user:
             user.set_password(password)
             db.commit()
-            
+
             request.session.pop('reset_token', None)
             request.session.pop('reset_email', None)
             request.session.pop('reset_method', None)
             request.session.pop('email_reset_token', None)
-            
+
             flash(request, 'Your password has been reset successfully.', 'success')
             return RedirectResponse(url=request.url_for('auth.login'), status_code=status.HTTP_302_FOUND)
         else:
             flash(request, 'Error resetting password.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
-    
+
     return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
 
 
@@ -413,27 +402,26 @@ async def reset_password_email(request: Request, token: str):
         if not token or len(token) != 43:
             flash(request, 'Invalid reset link.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
-        
+
         if token != request.session.get('reset_token'):
             flash(request, 'Invalid or expired reset link.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
-        
+
         reset_email = request.session.get('reset_email')
         if not reset_email:
             flash(request, 'Reset session expired. Please start again.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
-        
+
         request.session['email_reset_token'] = token
-        
-        return templates.TemplateResponse('reset_password.html', {
-            "request": request,
+
+        return JSONResponse(content={
             "email_sent": True,
             "method_selected": 'email',
             "email_verified": True,
             "email": reset_email,
             "token": token
         })
-                             
+
     except Exception as e:
         logger.error(f"Error processing email reset link: {e}")
         flash(request, 'Invalid or expired reset link.', 'error')

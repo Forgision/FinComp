@@ -1,24 +1,23 @@
-import importlib
-import traceback
 import copy
+import importlib
 import time
-from typing import Tuple, Dict, Any, Optional
+import traceback
+from typing import Any, Dict, Optional, Tuple
 
-from database.auth_db import get_auth_token_broker
-from database.apilog_db import async_log_order, executor
-from database.settings_db import get_analyze_mode
 from database.analyzer_db import async_log_analyzer
+from database.apilog_db import async_log_order, executor
+from database.auth_db import get_auth_token_broker
+from database.settings_db import get_analyze_mode
 from extensions import socketio
-from utils.api_analyzer import analyze_request, generate_order_id
+from services.telegram_alert_service import telegram_alert_service
 from utils.constants import (
-    VALID_EXCHANGES,
+    REQUIRED_SMART_ORDER_FIELDS,
     VALID_ACTIONS,
+    VALID_EXCHANGES,
     VALID_PRICE_TYPES,
     VALID_PRODUCT_TYPES,
-    REQUIRED_SMART_ORDER_FIELDS
 )
 from utils.logging import get_logger
-from services.telegram_alert_service import telegram_alert_service
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -42,22 +41,22 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
         'status': 'error',
         'message': error_message
     }
-    
+
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
     if 'apikey' in analyzer_request:
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'placesmartorder'
-    
+
     # Log to analyzer database
     executor.submit(async_log_analyzer, analyzer_request, error_response, 'placesmartorder')
-    
+
     # Emit socket event
     socketio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
-    
+
     return error_response
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
@@ -141,7 +140,7 @@ def place_smart_order_with_auth(
     order_request_data = copy.deepcopy(original_data)
     if 'apikey' in order_request_data:
         order_request_data.pop('apikey', None)
-    
+
     # Validate order data
     is_valid, error_message = validate_smart_order(order_data)
     if not is_valid:
@@ -150,7 +149,7 @@ def place_smart_order_with_auth(
         error_response = {'status': 'error', 'message': error_message}
         executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
         return False, error_response, 400
-    
+
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode():
         from services.sandbox_service import sandbox_place_smart_order
@@ -195,7 +194,7 @@ def place_smart_order_with_auth(
 
     try:
         res, response_data, order_id = broker_module.place_smartorder_api(order_data, auth_token)
-        
+
         # Handle case where position size matches current position
         if res is None and response_data.get('status') == 'success' and 'No action needed' in response_data.get('message', ''):
             # Log the no-action-needed case
@@ -204,7 +203,7 @@ def place_smart_order_with_auth(
                 'message': 'Positions Already Matched. No Action needed.'
             }
             executor.submit(async_log_order, 'placesmartorder', order_request_data, order_response_data)
-            
+
             # Emit notification for matched positions
             socketio.emit('order_notification', {
                 'symbol': order_data.get('symbol'),
@@ -227,7 +226,7 @@ def place_smart_order_with_auth(
                 'orderid': order_id,
                 'mode': 'live'
             })
-        
+
     except Exception as e:
         logger.error(f"Error in broker_module.place_smartorder_api: {e}")
         traceback.print_exc()
@@ -241,7 +240,7 @@ def place_smart_order_with_auth(
     # Add delay if needed
     try:
         time.sleep(float(smart_order_delay))
-    except Exception as e:
+    except Exception:
         logger.error(f"Invalid SMART_ORDER_DELAY value: {smart_order_delay}")
         traceback.print_exc()
 
@@ -284,16 +283,16 @@ def place_smart_order(
     original_data = copy.deepcopy(order_data)
     if api_key:
         original_data['apikey'] = api_key
-    
+
     # Use default delay if not provided
     if smart_order_delay is None:
         smart_order_delay = SMART_ORDER_DELAY
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to order data
         order_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -302,13 +301,13 @@ def place_smart_order(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return place_smart_order_with_auth(order_data, AUTH_TOKEN, broker_name, original_data, smart_order_delay)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return place_smart_order_with_auth(order_data, auth_token, broker, original_data, smart_order_delay)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {

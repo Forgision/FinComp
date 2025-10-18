@@ -1,7 +1,8 @@
 # utils/plugin_loader.py
 
-import os
 import importlib
+import os
+
 from app.core.config import settings
 from app.utils.logging import logger
 

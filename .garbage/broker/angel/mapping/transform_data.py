@@ -3,6 +3,7 @@
 
 from database.token_db import get_br_symbol
 
+
 def transform_data(data,token):
     """
     Transforms the new API request structure to the current expected structure.
@@ -21,7 +22,7 @@ def transform_data(data,token):
         "duration": "DAY",  # Assuming DAY as default; you might need logic to handle this if it can vary
         "price": data.get("price", "0"),
         "squareoff": "0",  # Assuming not applicable; adjust if needed
-        "stoploss": data.get("trigger_price", "0"),  
+        "stoploss": data.get("trigger_price", "0"),
         "disclosedquantity": data.get("disclosed_quantity", "0"),
         "quantity": data["quantity"]
     }
@@ -30,7 +31,7 @@ def transform_data(data,token):
     # Extended mapping for fields that might need conditional logic or additional processing
     transformed["disclosedquantity"] = data.get("disclosed_quantity", "0")
     transformed["triggerprice"] = data.get("trigger_price", "0")
-    
+
     return transformed
 
 
@@ -98,5 +99,5 @@ def reverse_map_product_type(product):
         "CARRYFORWARD": "NRML",
         "INTRADAY": "MIS",
     }
-    return reverse_product_type_mapping.get(product)  
+    return reverse_product_type_mapping.get(product)
 

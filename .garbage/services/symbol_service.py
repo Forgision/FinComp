@@ -1,5 +1,5 @@
 import traceback
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from database.auth_db import get_auth_token_broker
 from database.symbol import SymToken, db_session
@@ -36,14 +36,14 @@ def get_symbol_info_with_auth(
             SymToken.symbol == symbol,
             SymToken.exchange == exchange
         ).first()
-        
+
         if result is None:
             error_response = {
                 'status': 'error',
                 'message': f'Symbol {symbol} not found in exchange {exchange}'
             }
             return False, error_response, 404
-        
+
         # Transform the SymToken object to a dictionary
         symbol_info = {
             'id': result.id,
@@ -59,21 +59,21 @@ def get_symbol_info_with_auth(
             'instrumenttype': result.instrumenttype,
             'tick_size': result.tick_size
         }
-        
+
         response_data = {
             'data': symbol_info,
             'status': 'success'
         }
-        
+
         return True, response_data, 200
-        
+
     except NoResultFound:
         error_response = {
             'status': 'error',
             'message': f'Symbol {symbol} not found in exchange {exchange}'
         }
         return False, error_response, 404
-        
+
     except Exception as e:
         logger.error(f"Error retrieving symbol information: {e}")
         traceback.print_exc()
@@ -116,19 +116,19 @@ def get_symbol_info(
                 'message': 'Invalid openalgo apikey'
             }
             return False, error_response, 403
-        
+
         return get_symbol_info_with_auth(symbol, exchange, AUTH_TOKEN, broker_name)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_symbol_info_with_auth(symbol, exchange, auth_token, broker)
-    
+
     # Case 3: No authentication required for this endpoint
     # Symbol information can be accessed without authentication
     elif not api_key and not auth_token and not broker:
         # Use a dummy auth token and broker since they're not used in the actual implementation
         return get_symbol_info_with_auth(symbol, exchange, "", "")
-    
+
     # Case 4: Invalid parameters
     else:
         error_response = {

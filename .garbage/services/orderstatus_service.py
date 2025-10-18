@@ -1,13 +1,14 @@
 import copy
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
-from database.auth_db import get_auth_token_broker
-from database.apilog_db import async_log_order, executor as log_executor
-from database.settings_db import get_analyze_mode
 from database.analyzer_db import async_log_analyzer
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
+from database.auth_db import get_auth_token_broker
+from database.settings_db import get_analyze_mode
 from extensions import socketio
-from utils.logging import get_logger
 from services.tradebook_service import get_tradebook
+from utils.logging import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -29,22 +30,22 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
         'status': 'error',
         'message': error_message
     }
-    
+
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
     if 'apikey' in analyzer_request:
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'orderstatus'
-    
+
     # Log to analyzer database
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'orderstatus')
-    
+
     # Emit socket event
     socketio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
-    
+
     return error_response
 
 def get_order_status_with_auth(
@@ -71,12 +72,12 @@ def get_order_status_with_auth(
     request_data = copy.deepcopy(original_data)
     if 'apikey' in request_data:
         request_data.pop('apikey', None)
-    
+
     # Log the mode and order details
     is_analyze_mode = get_analyze_mode()
     orderid = status_data.get('orderid')
     logger.info(f"[OrderStatus] Processing order status request - Mode: {'ANALYZE' if is_analyze_mode else 'LIVE'}, OrderID: {orderid}, Broker: {broker}")
-    
+
     # In analyze mode, route to sandbox for real order status
     if is_analyze_mode and orderid:
         from services.sandbox_service import sandbox_get_order_status
@@ -92,23 +93,23 @@ def get_order_status_with_auth(
             }, 400
 
         return sandbox_get_order_status(status_data, api_key, original_data)
-    
+
     # For live mode or real orders in analyze mode, fetch from orderbook
     # Both analyze mode and live mode use the same logic - fetch from orderbook
     # This ensures consistent behavior and real data in both modes
-    
+
     # Use orderbook_service to get order data
     from services.orderbook_service import get_orderbook
-    
+
     logger.debug(f"[OrderStatus] Fetching orderbook for OrderID: {orderid}")
-    
+
     success, orderbook_response, status_code = get_orderbook(
         auth_token=auth_token,
         broker=broker
     )
-    
+
     logger.debug(f"[OrderStatus] Orderbook service response: success={success}, status_code={status_code}")
-    
+
     if not success or orderbook_response.get('status') != 'success':
         logger.error(f"[OrderStatus] Failed to fetch orderbook - Message: {orderbook_response.get('message', 'Unknown error')}, OrderID: {orderid}")
         error_response = {
@@ -131,7 +132,7 @@ def get_order_status_with_auth(
     # Find the specific order in the orderbook
     order_found = None
     orderbook_data = orderbook_response.get('data', {})
-    
+
     # Handle different orderbook response structures
     if isinstance(orderbook_data, dict) and 'orders' in orderbook_data:
         orders_list = orderbook_data.get('orders', [])
@@ -139,19 +140,19 @@ def get_order_status_with_auth(
         orders_list = orderbook_data
     else:
         orders_list = []
-    
+
     logger.info(f"[OrderStatus] Searching for OrderID {orderid} in {len(orders_list)} orders from orderbook")
-    
+
     for idx, order in enumerate(orders_list):
         current_orderid = str(order.get('orderid'))
         if idx < 5:  # Log first 5 order IDs for debugging
             logger.debug(f"[OrderStatus] Order {idx+1}: OrderID={current_orderid}, Symbol={order.get('symbol')}, Status={order.get('order_status')}")
-        
+
         if current_orderid == str(orderid):
             order_found = order
             logger.info(f"[OrderStatus] Found matching order - Symbol: {order.get('symbol')}, Status: {order.get('order_status')}, Price: {order.get('price')}")
             break
-    
+
     if not order_found:
         logger.warning(f"[OrderStatus] Order {orderid} not found in orderbook after searching {len(orders_list)} orders")
         error_response = {
@@ -174,34 +175,34 @@ def get_order_status_with_auth(
     # Fetch average_price from tradebook if order is executed
     average_price = 0.0
     order_status = order_found.get('order_status', '')
-    
+
     logger.info(f"[OrderStatus] Order status is '{order_status}', checking if tradebook lookup needed")
-    
+
     # Only fetch average_price for complete orders
     # Order statuses can be: open, complete, rejected
     if order_status.lower() == 'complete':
-        logger.info(f"[OrderStatus] Order is complete, fetching average price from tradebook")
+        logger.info("[OrderStatus] Order is complete, fetching average price from tradebook")
         try:
             # Use tradebook_service to get trade data
             success, tradebook_response, status_code = get_tradebook(
                 auth_token=auth_token,
                 broker=broker
             )
-            
+
             logger.debug(f"[OrderStatus] Tradebook service response: success={success}, status_code={status_code}")
-            
+
             if success and tradebook_response.get('status') == 'success':
                 # Get trades list from response
                 trades_list = tradebook_response.get('data', [])
                 logger.debug(f"[OrderStatus] Tradebook returned {len(trades_list)} trades")
-                
+
                 # Find matching trade by orderid and get average_price
                 logger.info(f"[OrderStatus] Searching for OrderID {orderid} in {len(trades_list)} trades")
                 for trade_idx, trade in enumerate(trades_list):
                     trade_orderid = str(trade.get('orderid'))
                     # Log all trades for better debugging
                     logger.debug(f"[OrderStatus] Trade {trade_idx+1}: OrderID={trade_orderid}, Symbol={trade.get('symbol')}, AvgPrice={trade.get('average_price')}")
-                    
+
                     if trade_orderid == str(orderid):
                         # Extract average_price from trade data
                         avg_price_raw = trade.get('average_price', 0.0)
@@ -227,30 +228,30 @@ def get_order_status_with_auth(
         'status': 'success',
         'data': order_found
     }
-    
+
     # Add mode indicator for analyze mode
     if is_analyze_mode:
         response_data['mode'] = 'analyze'
         logger.info(f"[OrderStatus] ANALYZE mode - Preparing response for OrderID {orderid} with status: {order_found.get('order_status')}")
-        
+
         # Store complete request data without apikey
         analyzer_request = request_data.copy()
         analyzer_request['api_type'] = 'orderstatus'
-        
+
         # Log to analyzer database
         log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'orderstatus')
-        logger.debug(f"[OrderStatus] Logged to analyzer database")
-        
+        logger.debug("[OrderStatus] Logged to analyzer database")
+
         # Emit socket event for toast notification
         socketio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
-        logger.debug(f"[OrderStatus] Emitted socket event for analyzer update")
+        logger.debug("[OrderStatus] Emitted socket event for analyzer update")
     else:
         logger.info(f"[OrderStatus] LIVE mode - Preparing response for OrderID {orderid} with status: {order_found.get('order_status')}")
         log_executor.submit(async_log_order, 'orderstatus', request_data, response_data)
-        logger.debug(f"[OrderStatus] Logged to order database")
+        logger.debug("[OrderStatus] Logged to order database")
 
     logger.info(f"[OrderStatus] Successfully processed order status for OrderID {orderid} - Status: {order_found.get('order_status')}, Symbol: {order_found.get('symbol')}, Average Price: {average_price}")
     return True, response_data, 200
@@ -280,12 +281,12 @@ def get_order_status(
     original_data = copy.deepcopy(status_data)
     if api_key:
         original_data['apikey'] = api_key
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to status data
         status_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -294,13 +295,13 @@ def get_order_status(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return get_order_status_with_auth(status_data, AUTH_TOKEN, broker_name, original_data)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_order_status_with_auth(status_data, auth_token, broker, original_data)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {

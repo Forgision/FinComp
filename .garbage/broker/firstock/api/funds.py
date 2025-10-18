@@ -1,7 +1,7 @@
-import json
 import os
-from utils.logging import get_logger
+
 from utils.httpx_client import get_httpx_client
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -22,12 +22,12 @@ def get_margin_data(auth_token):
         if not userid:
             logger.error("BROKER_API_KEY not found in environment variables")
             return {}
-            
+
         userid = userid[:-4]  # Trim the last 4 characters
 
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         # Firstock API URL for getting limits
         url = "https://api.firstock.in/V1/limit"
 
@@ -46,7 +46,7 @@ def get_margin_data(auth_token):
 
         # Send POST request using shared httpx client
         response = client.post(url, json=payload, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility with existing codebase
         response.status = response.status_code
 
@@ -55,16 +55,16 @@ def get_margin_data(auth_token):
             data = response.json()
             if data.get('status') == "success":
                 margin_data = data.get('data', {})
-                
+
                 # Calculate total_available_margin as the sum of 'cash' and 'payin'
                 cash = float(margin_data.get('cash', 0))
                 payin = float(margin_data.get('payin', 0))
                 margin_used = float(margin_data.get('marginused', 0))
                 total_available_margin = cash + payin - margin_used
-                
+
                 total_collateral = float(margin_data.get('brkcollamt', 0))
                 total_used_margin = margin_used
-                
+
                 # Construct and return the processed margin data in same format as Shoonya
                 processed_margin_data = {
                     "availablecash": "{:.2f}".format(total_available_margin),
@@ -73,7 +73,7 @@ def get_margin_data(auth_token):
                     "m2mrealized": "0.00",    # Not provided by Firstock API
                     "utiliseddebits": "{:.2f}".format(total_used_margin)
                 }
-                
+
                 logger.info("Successfully fetched and processed margin data")
                 return processed_margin_data
             else:

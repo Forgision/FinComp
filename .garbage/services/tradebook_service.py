@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -90,7 +91,7 @@ def get_tradebook_with_auth(auth_token: str, broker: str, original_data: Dict[st
     try:
         # Get tradebook data using broker's implementation
         trade_data = broker_funcs['get_trade_book'](auth_token)
-        
+
         if 'status' in trade_data and trade_data['status'] == 'error':
             return False, {
                 'status': 'error',
@@ -100,10 +101,10 @@ def get_tradebook_with_auth(auth_token: str, broker: str, original_data: Dict[st
         # Transform data using mapping functions
         trade_data = broker_funcs['map_trade_data'](trade_data=trade_data)
         trade_data = broker_funcs['transform_tradebook_data'](trade_data)
-        
+
         # Format numeric values to 2 decimal places
         formatted_trades = format_trade_data(trade_data)
-        
+
         return True, {
             'status': 'success',
             'data': formatted_trades
@@ -117,8 +118,8 @@ def get_tradebook_with_auth(auth_token: str, broker: str, original_data: Dict[st
         }, 500
 
 def get_tradebook(
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -150,7 +151,7 @@ def get_tradebook(
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_tradebook_with_auth(auth_token, broker, None)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

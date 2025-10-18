@@ -10,13 +10,14 @@ Manages the square-off manager as a separate daemon thread using APScheduler tha
 - Reads all configuration from sandbox database config
 """
 
-import threading
 import logging
+import threading
+
+import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-import pytz
-from utils.logging import get_logger
 from database.sandbox_db import get_config
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 

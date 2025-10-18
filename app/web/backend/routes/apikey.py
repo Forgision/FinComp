@@ -1,16 +1,12 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, status
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-import secrets
 from argon2 import PasswordHasher
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.utils.web.security import generate_api_key
-from app.db.auth_db import upsert_api_key, get_api_key_for_tradingview
-from app.web.frontend import templates
-from app.core.config import settings
+from app.db.models.auth_db import get_api_key_for_tradingview, upsert_api_key
+from app.db.models.session import get_db
 from app.utils.logging import logger
+from app.utils.web.security import generate_api_key
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()
@@ -36,15 +32,11 @@ async def get_manage_api_key(
     api_key = get_api_key_for_tradingview(login_username)
     has_api_key = api_key is not None
     logger.info(f"Checking API key status for user: {login_username}")
-    return templates.TemplateResponse(
-        "apikey.html",
-        {
-            "request": request,
-            "login_username": login_username,
-            "has_api_key": has_api_key,
-            "api_key": api_key
-        }
-    )
+    return JSONResponse(content={
+        "login_username": login_username,
+        "has_api_key": has_api_key,
+        "api_key": api_key
+    })
 
 @apikey_router.post('/apikey', response_class=JSONResponse, name="manage_api_key")
 async def post_manage_api_key(
@@ -68,13 +60,13 @@ async def post_manage_api_key(
             content={'error': 'User ID is required'},
             status_code=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Generate new API key
     api_key = generate_api_key()
-    
+
     # Store the API key (upsert_api_key will handle both hashing and encryption)
     key_id = upsert_api_key(db, user_id, api_key) # Assuming upsert_api_key takes db session
-    
+
     if key_id is not None:
         logger.info(f"API key updated successfully for user: {user_id}")
         return JSONResponse(

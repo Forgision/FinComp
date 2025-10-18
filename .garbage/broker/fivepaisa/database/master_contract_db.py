@@ -1,19 +1,15 @@
 #database/master_contract_db.py
 
 import os
-import pandas as pd
-import gzip
-import shutil
-from datetime import datetime
 
 # Import httpx and shared client
 import httpx
-from utils.httpx_client import get_httpx_client
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+import pandas as pd
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -33,7 +29,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -89,43 +85,43 @@ def download_csv_5paisa_data(url, output_path):
     max_retries = 3
     current_retry = 0
     chunk_size = 16384  # Increased chunk size for better performance
-    
+
     # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
+
     while current_retry < max_retries:
         try:
             logger.info(f"Downloading CSV data (attempt {current_retry + 1}/{max_retries})")
-            
+
             # Use a custom timeout for this specific request
             client = get_httpx_client()
-            
+
             # Custom timeout for master contract download (2 minutes)
             timeout = httpx.Timeout(120.0)
-            
+
             with client.stream('GET', url, timeout=timeout) as response:
                 response.raise_for_status()
-                
+
                 total_size = int(response.headers.get('content-length', 0))
                 bytes_downloaded = 0
                 last_progress_report = 0
-                
+
                 with open(output_path, 'wb') as f:
                     for chunk in response.iter_bytes(chunk_size=chunk_size):
                         if chunk:  # Filter out keep-alive chunks
                             f.write(chunk)
                             bytes_downloaded += len(chunk)
-                            
+
                             # Report progress every 10%
                             if total_size > 0:
                                 progress = int((bytes_downloaded / total_size) * 100)
                                 if progress >= last_progress_report + 10:
                                     logger.info(f"Download progress: {progress}% ({bytes_downloaded} / {total_size} bytes)")
                                     last_progress_report = progress
-                    
+
             logger.info("Download complete")
             return  # Successfully downloaded, exit the function
-            
+
         except httpx.TimeoutException as e:
             current_retry += 1
             logger.info(f"Timeout downloading master contract (attempt {current_retry}/{max_retries}): {e}")
@@ -224,23 +220,23 @@ def process_5paisa_csv(path):
             return row['SymbolRoot'] + row['Expiry1'] + str(row['StrikeRate']) + 'CE'
         elif row['Series'] == 'PE':
             return row['SymbolRoot'] + row['Expiry1'] + str(row['StrikeRate']) + 'PE'
-        return row['SymbolRoot'] 
+        return row['SymbolRoot']
 
     filtered_df['TradingSymbol'] = filtered_df.apply(create_trading_symbol, axis=1)
 
     # Create a new DataFrame in OpenAlgo format
     new_df = pd.DataFrame()
-    new_df['symbol'] = filtered_df['TradingSymbol'] 
+    new_df['symbol'] = filtered_df['TradingSymbol']
     new_df['brsymbol'] = filtered_df['Name'].str.upper().str.rstrip()
-    new_df['name'] = filtered_df['FullName'] 
-    new_df['exchange'] = filtered_df['exchange'] 
-    new_df['brexchange'] = filtered_df['exchange'] 
-    new_df['token'] = filtered_df['ScripCode'] 
-    new_df['expiry'] = filtered_df['Expiry'] 
-    new_df['strike'] = filtered_df['StrikeRate'] 
-    new_df['lotsize'] = filtered_df['LotSize'] 
-    new_df['instrumenttype'] = filtered_df['Series'] 
-    new_df['tick_size'] = filtered_df['TickSize'] 
+    new_df['name'] = filtered_df['FullName']
+    new_df['exchange'] = filtered_df['exchange']
+    new_df['brexchange'] = filtered_df['exchange']
+    new_df['token'] = filtered_df['ScripCode']
+    new_df['expiry'] = filtered_df['Expiry']
+    new_df['strike'] = filtered_df['StrikeRate']
+    new_df['lotsize'] = filtered_df['LotSize']
+    new_df['instrumenttype'] = filtered_df['Series']
+    new_df['tick_size'] = filtered_df['TickSize']
     # Common Index Symbol Formats
 
     new_df['symbol'] = new_df['symbol'].replace({
@@ -271,41 +267,41 @@ def master_contract_download():
     logger.info("Starting Master Contract Download Process")
     url = 'https://openapi.5paisa.com/VendorsAPI/Service1.svc/ScripMaster/segment/all'
     output_path = 'tmp/5paisa.csv'
-    
+
     # Ensure tmp directory exists
     os.makedirs('tmp', exist_ok=True)
-    
+
     try:
         logger.info(f"Initiating download from {url}")
         download_csv_5paisa_data(url, output_path)
-        
+
         logger.info("CSV downloaded, processing data...")
         token_df = process_5paisa_csv(output_path)
         logger.info(f"Processed {len(token_df)} symbols")
-        
+
         # Clean up temporary files
         delete_5paisa_temp_data(output_path)
-        
+
         # Clear existing data and insert new data
         logger.info("Updating database with new symbols...")
         delete_symtoken_table()  # Clear existing table
         copy_from_dataframe(token_df)
-        
+
         logger.info("Master contract download completed successfully")
         # Notify UI through Socket.IO
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded Master Contract'})
-    
+
     except Exception as e:
         error_message = str(e)
         logger.error(f"Error during master contract download: {error_message}")
-        
+
         # Check if it's a timeout error and provide more helpful message
         if 'timeout' in error_message.lower() or 'timed out' in error_message.lower():
             error_message = f"Download timed out. The FivePaisa server is not responding within the allowed time. Error details: {error_message}"
-        
+
         # Notify UI through Socket.IO
         return socketio.emit('master_contract_download', {
-            'status': 'error', 
+            'status': 'error',
             'message': error_message
         })
 

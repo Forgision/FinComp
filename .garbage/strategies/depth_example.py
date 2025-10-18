@@ -2,8 +2,9 @@
 OpenAlgo WebSocket Market Depth Example
 """
 
-from openalgo import api
 import time
+
+from openalgo import api
 
 # Initialize feed client with explicit parameters
 client = api(

@@ -2,7 +2,6 @@
 Mapping utilities for Dhan broker integration.
 Provides exchange code mappings between OpenAlgo and Dhan formats.
 """
-from typing import Dict
 
 # Exchange code mappings
 # OpenAlgo exchange code -> Dhan exchange code
@@ -32,7 +31,7 @@ def get_dhan_exchange(openalgo_exchange: str) -> str:
         str: Exchange code in Dhan format
     """
     return OPENALGO_TO_DHAN_EXCHANGE.get(openalgo_exchange, openalgo_exchange)
-    
+
 def get_openalgo_exchange(dhan_exchange: str) -> str:
     """
     Convert Dhan exchange code to OpenAlgo exchange code.

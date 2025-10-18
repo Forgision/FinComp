@@ -1,5 +1,6 @@
 import socket
 import time
+
 from utils.logging import get_logger
 
 logger = get_logger("websocket_proxy")
@@ -43,7 +44,7 @@ def is_port_in_use(host, port, wait_time=0):
                 # Port is in use
                 logger.info(f"Port {port} is already in use on {host}")
                 return True
-            
+
 def find_available_port(start_port=8899, max_attempts=10):
     """
     Find an available port starting from the given port
@@ -58,6 +59,6 @@ def find_available_port(start_port=8899, max_attempts=10):
     for port in range(start_port, start_port + max_attempts):
         if not is_port_in_use('127.0.0.1', port):
             return port
-            
+
     logger.error(f"Could not find an available port after {max_attempts} attempts starting from {start_port}")
     return None

@@ -3,12 +3,13 @@
 
 from database.token_db import get_br_symbol
 
+
 def transform_data(data, token):
     """
     Transforms OpenAlgo order format to Tradejini API format.
     """
     symbol = get_br_symbol(data["symbol"], data["exchange"])
-    
+
     # Basic mapping
     transformed = {
         "symId": f"{symbol}",
@@ -24,12 +25,12 @@ def transform_data(data, token):
         "mktProt": str(data.get("market_protection", "0")),
         "remarks": data.get("remarks", "")
     }
-    
+
     # Remove optional fields if not set
     for key in ["limitPrice", "trigPrice", "discQty", "mktProt", "remarks"]:
         if transformed[key] == "0" or transformed[key] == "":
             del transformed[key]
-    
+
     return transformed
 
 
@@ -48,12 +49,12 @@ def transform_modify_order_data(data, token):
     filled_qty = int(data.get("filled_quantity", 0))
     modified_qty = int(data["quantity"])
     total_qty = filled_qty + modified_qty
-    
+
     # Get the correct br_symbol from the database
     br_symbol = get_br_symbol(data["symbol"], data["exchange"])
     if not br_symbol:
         raise ValueError(f"Could not find br_symbol for {data['symbol']} on {data['exchange']}")
-    
+
     transformed = {
         "symId": br_symbol,
         "orderId": data["orderid"],
@@ -62,20 +63,20 @@ def transform_modify_order_data(data, token):
         "validity": map_validity(data.get("validity", "DAY")),
         "side": data["action"].lower(),
     }
-    
+
     # Add optional fields based on order type
     if data["pricetype"] in ["LIMIT", "SL"]:
         transformed["limitPrice"] = float(data["price"])
-    
+
     if data["pricetype"] in ["SL", "SL-M"]:
         transformed["trigPrice"] = float(data["trigger_price"])
-    
+
     if data.get("disclosed_quantity"):
         transformed["discQty"] = int(data["disclosed_quantity"])
-    
+
     if data.get("market_protection"):
         transformed["mktProt"] = float(data["market_protection"])
-    
+
     return transformed
 
 
@@ -122,4 +123,4 @@ def reverse_map_product_type(product):
         "normal": "NRML",
         "intraday": "MIS"
     }
-    return reverse_product_type_mapping.get(product)  
+    return reverse_product_type_mapping.get(product)

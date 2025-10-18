@@ -1,10 +1,11 @@
 import pytest
-from fastapi.testclient import TestClient
-from app.web.main import _app as app # Import the underlying FastAPI app
+from app.core.session import check_session_validity_fastapi
 from app.db.session import get_db
-from app.utils.session import check_session_validity_fastapi
-from app.db.user_db import add_user, delete_user_by_username
-from app.db.auth_db import upsert_api_key, delete_api_key_by_username
+from fastapi.testclient import TestClient
+
+from app.db.models.auth_db import delete_api_key_by_username, upsert_api_key
+from app.db.models.user_db import add_user, delete_user_by_username
+from app.main import app  # Import the underlying FastAPI app
 
 
 @pytest.fixture(name="client")
@@ -61,15 +62,15 @@ def test_client_with_mocks(test_user, mocker):
     app.dependency_overrides[check_session_validity_fastapi] = mock_check_session_validity_fastapi
 
     # Apply mocks before creating the TestClient
-    mocker.patch('app.db.settings_db.get_analyze_mode', return_value=True)
+    mocker.patch('app.db.models.settings_db.get_analyze_mode', return_value=True)
     mocker.patch('app.web.backend.routes.orders.get_analyze_mode', return_value=True)
-    
+
     # Mock request.session.get to provide user and broker directly
     mocker.patch('starlette.requests.Request.session', new_callable=mocker.PropertyMock, return_value={
         "user": test_user["username"],
         "broker": "test_broker"
     })
-    
+
     # Mock the get_orderbook service call
     mock_orderbook_data = {
         "data": {
@@ -96,7 +97,7 @@ def test_client_with_mocks(test_user, mocker):
         'calculate_order_statistics': mocker.Mock(return_value={}),
         'transform_order_data': mocker.Mock(return_value=[])
     }
-    mocker.patch('app.web.services.orderbook_service.import_broker_module', return_value=mock_broker_funcs)
+    mocker.patch('app.core.services.orderbook_service.import_broker_module', return_value=mock_broker_funcs)
 
     # Create and yield the TestClient after mocks are applied
     with TestClient(app, follow_redirects=True) as client_with_mocks:

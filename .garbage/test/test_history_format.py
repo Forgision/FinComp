@@ -1,11 +1,13 @@
-import sys
 import os
+import sys
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from openalgo import api
-import pandas as pd
 from datetime import datetime, timedelta
+
+import pandas as pd
+from openalgo import api
 
 # Test the history API to see the response format
 client = api(api_key="56c3dc6ba7d9c9df478e4f19ffc5d3e15e1dd91b5aa11e91c910f202c91eff9d", host="http://127.0.0.1:5000")

@@ -1,15 +1,12 @@
-import websocket
-import threading
-import time
-import struct
-import zlib
-import traceback
-import errno
 import json
 import re
-import os
+import struct
 import sys
+import threading
+import zlib
 from datetime import datetime
+
+import websocket
 from utils.logging import get_logger
 
 logger = get_logger(__name__)

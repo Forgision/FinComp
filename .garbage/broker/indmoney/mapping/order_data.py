@@ -1,6 +1,5 @@
-import json
-from database.token_db import get_symbol 
 from broker.indmoney.mapping.transform_data import map_exchange
+from database.token_db import get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,35 +21,35 @@ def map_order_data(order_data):
             # Handle the case where there is no data
             logger.info("No data available.")
             return []  # Return empty list since we expect a list of orders
-        
+
         # Check if order_data is an error response (dict with status)
         if isinstance(order_data, dict) and 'status' in order_data:
             if order_data.get('status') in ['error', 'failure']:
                 logger.error(f"Error in order data: {order_data.get('message', 'Unknown error')}")
                 return []
-        
+
         # Check if order_data is a string (unexpected response)
         if isinstance(order_data, str):
             logger.error(f"Received string response instead of order data: {order_data[:200]}...")
             return []
-        
+
         # Ensure order_data is a list
         if not isinstance(order_data, list):
             logger.warning(f"Expected list but got {type(order_data)}: {order_data}")
             return []
-            
+
         if order_data:
             for order in order_data:
                 # Ensure each order is a dictionary
                 if not isinstance(order, dict):
                     logger.warning(f"Skipping non-dictionary order: {type(order)}")
                     continue
-                    
+
                 # Extract the instrument_token and exchange for the current order
                 # Handle new IndMoney API format
                 instrument_token = order.get('security_id')
                 exchange = map_exchange(order.get('exchange', ''))
-                
+
                 # Map new format to expected format for consistency
                 order['exchangeSegment'] = exchange
                 order['securityId'] = instrument_token
@@ -63,11 +62,11 @@ def map_order_data(order_data):
                 order['price'] = order.get('requested_price', 0.0)
                 order['triggerPrice'] = order.get('sl_trigger_price', 0.0)
                 order['updateTime'] = order.get('created_at', '')
-                
+
                 # Use the get_symbol function to fetch the symbol from the database
                 if instrument_token:
                     symbol_from_db = get_symbol(instrument_token, exchange)
-                    
+
                     # Check if a symbol was found; if so, update the trading_symbol in the current order
                     if symbol_from_db:
                         order['tradingSymbol'] = symbol_from_db
@@ -78,7 +77,7 @@ def map_order_data(order_data):
                 else:
                     # Use the 'name' field from Indmoney API
                     order['tradingSymbol'] = order.get('name', '')
-                
+
                 # Map product types
                 if (order['exchangeSegment'] == 'NSE' or order['exchangeSegment'] == 'BSE') and order['productType'] == 'CNC':
                     order['productType'] = 'CNC'
@@ -86,9 +85,9 @@ def map_order_data(order_data):
                     order['productType'] = 'MIS'
                 elif order['exchangeSegment'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['productType'] == 'MARGIN':
                     order['productType'] = 'NRML'
-                    
+
         return order_data
-        
+
     except Exception as e:
         logger.error(f"Exception in map_order_data: {e}")
         return []
@@ -124,13 +123,13 @@ def calculate_order_statistics(order_data):
             # Skip non-dictionary items
             if not isinstance(order, dict):
                 continue
-                
+
             # Count buy and sell orders
             if order.get('transactionType') == 'BUY':
                 total_buy_orders += 1
             elif order.get('transactionType') == 'SELL':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status - handle new Indmoney status values
             status = order.get('orderStatus', '').upper()
             if status in ['SUCCESS', 'TRADED']:
@@ -169,7 +168,7 @@ def transform_order_data(orders):
         # Handle None input
         if orders is None:
             return []
-            
+
         # Directly handling a dictionary assuming it's the structure we expect
         if isinstance(orders, dict):
             # Convert the single dictionary into a list of one dictionary
@@ -181,7 +180,7 @@ def transform_order_data(orders):
             return []
 
         transformed_orders = []
-        
+
         for order in orders:
             # Make sure each item is indeed a dictionary
             if not isinstance(order, dict):
@@ -257,21 +256,21 @@ def map_position_data(position_data):
         if position_data is None:
             logger.info("No position data available.")
             return []
-        
+
         # Check if position_data is an error response (dict with status)
         if isinstance(position_data, dict) and 'status' in position_data:
             if position_data.get('status') in ['error', 'failure']:
                 logger.error(f"Error in position data: {position_data.get('message', 'Unknown error')}")
                 return []
-        
+
         # Check if position_data is a string (unexpected response)
         if isinstance(position_data, str):
             logger.error(f"Received string response instead of position data: {position_data[:200]}...")
             return []
-        
+
         # Handle the actual IndMoney flat array format
         all_positions = []
-        
+
         if isinstance(position_data, list):
             # Direct flat list from actual API
             all_positions = position_data
@@ -283,9 +282,9 @@ def map_position_data(position_data):
         else:
             logger.warning(f"Unexpected position data format: {type(position_data)}")
             return []
-        
+
         processed_positions = []
-        
+
         for position in all_positions:
             # Ensure each position is a dictionary
             if not isinstance(position, dict):
@@ -295,7 +294,7 @@ def map_position_data(position_data):
             # Extract fields from actual IndMoney API format
             instrument_token = position.get('security_id')
             segment = position.get('segment', '')
-            
+
             # Map segment to standard exchange format
             if segment == 'F&O' or segment == 'FUTURES':
                 exchange = 'NFO'
@@ -317,7 +316,7 @@ def map_position_data(position_data):
             position['pnlAbsolute'] = position.get('realized_profit', 0.0)
             position['multiplier'] = 1  # Default multiplier
             position['positionType'] = 'open' if position.get('net_qty', 0) != 0 else 'closed'
-            
+
             # Determine product type based on actual API response
             api_product = position.get('product', '')
             if api_product == 'INTRADAY':
@@ -332,7 +331,7 @@ def map_position_data(position_data):
             # Use the get_symbol function to fetch the symbol from the database
             if instrument_token and exchange:
                 symbol_from_db = get_symbol(instrument_token, exchange)
-                
+
                 # Check if a symbol was found; if so, update the trading_symbol
                 if symbol_from_db:
                     position['tradingSymbol'] = symbol_from_db
@@ -343,7 +342,7 @@ def map_position_data(position_data):
             processed_positions.append(position)
 
         return processed_positions
-        
+
     except Exception as e:
         logger.error(f"Exception in map_position_data: {e}")
         return []
@@ -354,19 +353,19 @@ def transform_positions_data(positions_data):
         # Handle None input
         if positions_data is None:
             return []
-            
+
         # Handle non-list inputs
         if not isinstance(positions_data, list):
             logger.warning(f"Expected list but got {type(positions_data)}")
             return []
-            
+
         transformed_data = []
         for position in positions_data:
             # Ensure each position is a dictionary
             if not isinstance(position, dict):
                 logger.warning(f"Skipping non-dictionary position: {type(position)}")
                 continue
-                
+
             transformed_position = {
                 "symbol": position.get('tradingSymbol', ''),
                 "exchange": position.get('exchangeSegment', ''),
@@ -385,19 +384,19 @@ def transform_holdings_data(holdings_data):
         # Handle None input
         if holdings_data is None:
             return []
-            
+
         # Handle non-list inputs
         if not isinstance(holdings_data, list):
             logger.warning(f"Expected list but got {type(holdings_data)}")
             return []
-            
+
         transformed_data = []
         for holding in holdings_data:
             # Ensure each holding is a dictionary
             if not isinstance(holding, dict):
                 logger.warning(f"Skipping non-dictionary holding: {type(holding)}")
                 continue
-                
+
             transformed_holding = {
                 "symbol": holding.get('tradingSymbol', holding.get('symbol', '')),
                 "exchange": holding.get('exchangeSegment', 'NSE'),  # Default to NSE
@@ -412,7 +411,7 @@ def transform_holdings_data(holdings_data):
         logger.error(f"Exception in transform_holdings_data: {e}")
         return []
 
-    
+
 def map_portfolio_data(portfolio_data):
     """
     Processes and modifies a list of Portfolio dictionaries based on specific conditions.
@@ -428,18 +427,18 @@ def map_portfolio_data(portfolio_data):
         if portfolio_data is None:
             logger.info("No portfolio data available.")
             return []
-        
+
         # Check if portfolio_data is an error response (dict with status)
         if isinstance(portfolio_data, dict) and 'status' in portfolio_data:
             if portfolio_data.get('status') in ['error', 'failure']:
                 logger.error(f"Error in portfolio data: {portfolio_data.get('message', 'Unknown error')}")
                 return []
-        
+
         # Check if portfolio_data is a string (unexpected response)
         if isinstance(portfolio_data, str):
             logger.error(f"Received string response instead of portfolio data: {portfolio_data[:200]}...")
             return []
-        
+
         # Ensure portfolio_data is a list
         if not isinstance(portfolio_data, list):
             logger.warning(f"Expected list but got {type(portfolio_data)}: {portfolio_data}")
@@ -455,7 +454,7 @@ def map_portfolio_data(portfolio_data):
                 # Extract the instrument_token from the actual Indmoney format
                 instrument_token = holding.get('security_id')
                 symbol = holding.get('symbol', '')
-                
+
                 # Map actual Indmoney format to expected format for consistency
                 holding['securityId'] = instrument_token
                 holding['tradingSymbol'] = symbol
@@ -477,7 +476,7 @@ def map_portfolio_data(portfolio_data):
                 # For now, we'll use average price as placeholder - this should be updated with live market data
                 total_qty = holding.get('total_qty', 0)
                 avg_price = holding.get('avg_price', 0.0)
-                
+
                 # Use average price as last traded price placeholder
                 holding['lastTradedPrice'] = avg_price
                 holding['marketValue'] = total_qty * avg_price
@@ -487,7 +486,7 @@ def map_portfolio_data(portfolio_data):
                 # Use the get_symbol function to fetch the symbol from the database if needed
                 if instrument_token and exchange:
                     symbol_from_db = get_symbol(instrument_token, exchange)
-                    
+
                     # Check if a symbol was found; if so, update the trading_symbol
                     if symbol_from_db:
                         holding['tradingSymbol'] = symbol_from_db
@@ -496,7 +495,7 @@ def map_portfolio_data(portfolio_data):
                         logger.warning(f"Symbol not found for token {instrument_token} and exchange {exchange}. Using: {symbol}")
 
         return portfolio_data
-        
+
     except Exception as e:
         logger.error(f"Exception in map_portfolio_data: {e}")
         return []
@@ -512,34 +511,34 @@ def calculate_portfolio_statistics(holdings_data):
                 'totalprofitandloss': 0.0,
                 'totalpnlpercentage': 0.0
             }
-        
+
         totalholdingvalue = 0.0
         totalinvvalue = 0.0
         totalprofitandloss = 0.0
-        
+
         for holding in holdings_data:
             # Ensure each holding is a dictionary
             if not isinstance(holding, dict):
                 continue
-                
+
             # Calculate values from actual Indmoney format
             total_qty = holding.get('total_qty', holding.get('totalQty', 0))
             avg_price = holding.get('avg_price', holding.get('avgCostPrice', 0.0))
-            
+
             # For now, use avg_price as market price since Indmoney doesn't provide current market price
             # In a real implementation, this should fetch current market price
             market_price = avg_price  # Placeholder - should be replaced with live market data
-            
+
             # Calculate values
             investment_value = total_qty * avg_price
             market_value = total_qty * market_price
             pnl = market_value - investment_value
-            
+
             # Add to totals
             totalholdingvalue += market_value
             totalinvvalue += investment_value
             totalprofitandloss += pnl
-        
+
         # Calculate percentage - avoid division by zero
         totalpnlpercentage = (totalprofitandloss / totalinvvalue * 100) if totalinvvalue > 0 else 0.0
 

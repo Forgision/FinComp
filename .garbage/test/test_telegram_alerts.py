@@ -3,14 +3,13 @@ Test script for Telegram Alert Service
 Tests the integration of telegram alerts with order services
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.telegram_alert_service import telegram_alert_service
-from database.telegram_db import get_telegram_user_by_username
-from database.auth_db import get_username_by_apikey
-import time
+
 
 def test_telegram_alerts():
     """Test various order alert types"""
@@ -155,7 +154,7 @@ def test_telegram_alerts():
             test['data'],
             test['response_live']
         )
-        print(f"   LIVE Mode:")
+        print("   LIVE Mode:")
         try:
             print("   " + message_live.replace('\n', '\n   '))
         except UnicodeEncodeError:
@@ -168,7 +167,7 @@ def test_telegram_alerts():
             test['data'],
             test['response_analyze']
         )
-        print(f"\n   ANALYZE Mode:")
+        print("\n   ANALYZE Mode:")
         try:
             print("   " + message_analyze.replace('\n', '\n   '))
         except UnicodeEncodeError:

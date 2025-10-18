@@ -1,9 +1,7 @@
 # api/funds.py
 
-import os
-import json
-from utils.httpx_client import get_httpx_client
 from broker.paytm.api.order_api import get_positions
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -32,7 +30,7 @@ def get_margin_data(auth_token):
             logger.error(f"Error fetching margin data: {error_details}")
             logger.debug(f"Full error response from margin API: {margin_data}")
             return {}
-        
+
         # Extracting funds summary safely
         funds_summary = margin_data.get('data', {}).get('funds_summary', {})
         position_book = get_positions(auth_token)
@@ -49,7 +47,7 @@ def get_margin_data(auth_token):
             return total_realised, total_unrealised
 
         total_realised, total_unrealised = sum_realised_unrealised(position_book)
-        
+
         # Construct and return the processed margin data
         processed_margin_data = {
             "availablecash": f"{funds_summary.get('available_cash', 0):.2f}",

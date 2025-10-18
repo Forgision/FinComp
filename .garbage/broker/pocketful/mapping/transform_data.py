@@ -3,6 +3,7 @@
 
 from database.token_db import get_br_symbol, get_token
 
+
 def transform_data(data, client_id=None):
     """
     Transforms OpenAlgo order format to Pocketful order format.
@@ -13,19 +14,19 @@ def transform_data(data, client_id=None):
     """
     # Get broker symbol for the order
     symbol = get_br_symbol(data['symbol'], data['exchange'])
-    
+
     # Get the numeric token for the symbol
     token = get_token(data['symbol'], data['exchange'])
-    
+
     # Map order type
     order_type = map_order_type(data['pricetype'])
-    
+
     # Map order side (BUY/SELL)
     order_side = data['action'].upper()
-    
+
     # Map product type
     product = map_product_type(data['product'])
-    
+
     # Basic mapping
     transformed = {
         "exchange": data['exchange'],
@@ -49,7 +50,7 @@ def transform_data(data, client_id=None):
     # Extended mapping for fields that might need conditional logic or additional processing
     transformed["disclosed_quantity"] = int(data.get("disclosed_quantity", "0"))
     transformed["trigger_price"] = float(data.get("trigger_price", "0"))
-    
+
     return transformed
 
 
@@ -63,19 +64,19 @@ def transform_modify_order_data(data, client_id=None):
     """
     # Get broker symbol for the order
     symbol = get_br_symbol(data['symbol'], data['exchange'])
-    
+
     # Get the numeric token for the symbol
     token = get_token(data['symbol'], data['exchange'])
-    
+
     # Map order type
     order_type = map_order_type(data['pricetype'])
-    
+
     # Map order side (BUY/SELL)
     order_side = data['action'].upper()
-    
+
     # Map product type
     product = map_product_type(data['product'])
-    
+
     # Create the transformed data dictionary with all required fields for Pocketful API
     return {
         "exchange": data['exchange'],
@@ -129,6 +130,5 @@ def reverse_map_product_type(exchange,product):
         "NRML": "NRML",
         "MIS": "MIS",
     }
-   
+
     return exchange_mapping.get(product)
-    

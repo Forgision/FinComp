@@ -1,9 +1,8 @@
 import os
-import json
-import urllib.parse
 from hashlib import sha256
-from utils.logging import get_logger
+
 from utils.httpx_client import get_httpx_client
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -25,7 +24,7 @@ def authenticate_broker(otp_token, otp, api_secret=None):
         if not api_secret:
             api_secret = os.getenv('BROKER_API_SECRET')
         api_token = os.getenv('BROKER_API_KEY')
-        
+
         # Step 2: Verify OTP with auth code to get session keys
         session_response = login_step2(otp_token, otp, api_secret)
         if not session_response:
@@ -46,7 +45,7 @@ def authenticate_broker(otp_token, otp, api_secret=None):
         # Return auth string in format expected by OpenAlgo
         auth_string = f"{api_session_key}:::{susertoken or ''}:::{api_token}"
         feed_token = susertoken  # susertoken is used as feed_token for websocket
-        
+
         return auth_string, feed_token, user_id, None
 
     except Exception as e:
@@ -61,25 +60,25 @@ def login_step1(api_token=None, api_secret=None):
             api_token = os.getenv('BROKER_API_KEY')
         if not api_secret:
             api_secret = os.getenv('BROKER_API_SECRET')
-        
+
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         headers = {
             'api_secret': api_secret
         }
 
         url = f"https://signin.definedgesecurities.com/auth/realms/debroking/dsbpkc/login/{api_token}"
-        
+
         response = client.get(url, headers=headers)
         response.raise_for_status()  # Raise exception for 4XX/5XX responses
-        
+
         response_data = response.json()
-        
+
         # Add a message field if not present
         if 'message' not in response_data:
             response_data['message'] = 'OTP has been sent successfully'
-        
+
         return response_data
 
     except Exception as e:
@@ -107,10 +106,10 @@ def login_step2(otp_token, otp, api_secret):
         }
 
         url = "https://signin.definedgesecurities.com/auth/realms/debroking/dsbpkc/token"
-        
+
         response = client.post(url, json=payload, headers=headers)
         response.raise_for_status()  # Raise exception for 4XX/5XX responses
-        
+
         return response.json()
 
     except Exception as e:

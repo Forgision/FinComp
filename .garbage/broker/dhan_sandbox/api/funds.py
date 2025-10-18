@@ -1,12 +1,11 @@
 # api/funds.py
 
-import os
 import json
-import httpx
-from broker.dhan_sandbox.api.order_api import get_positions
-from broker.dhan_sandbox.mapping.order_data import map_position_data
-from utils.httpx_client import get_httpx_client
+import os
+
 from broker.dhan_sandbox.api.baseurl import get_url
+from broker.dhan_sandbox.api.order_api import get_positions
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -15,35 +14,35 @@ logger = get_logger(__name__)
 def test_auth_token(auth_token):
     """Test if the auth token is valid by making a simple API call to funds endpoint."""
     api_key = os.getenv('BROKER_API_KEY')
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
         'access-token': auth_token,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     }
-    
+
     try:
         url = get_url("/v2/fundlimit")
         res = client.get(url, headers=headers)
         res.status = res.status_code
         response_data = json.loads(res.text)
-        
+
         # Check for authentication errors
         if response_data.get('errorType') == 'Invalid_Authentication':
             error_msg = response_data.get('errorMessage', 'Invalid authentication token')
             return False, error_msg
-        
+
         # Check for other error types
         if response_data.get('status') == 'error':
             error_msg = response_data.get('errors', 'Unknown error occurred')
             return False, str(error_msg)
-        
+
         # If we get here, authentication is valid
         return True, None
-        
+
     except Exception as e:
         logger.error(f"Error testing auth token: {str(e)}")
         return False, f"Error validating authentication: {str(e)}"
@@ -52,16 +51,16 @@ def test_auth_token(auth_token):
 def get_margin_data(auth_token):
     """Fetch margin data from Dhan API using the provided auth token."""
     api_key = os.getenv('BROKER_API_KEY')
-    
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
         'access-token': auth_token,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     }
-    
+
     url = get_url("/v2/fundlimit")
     res = client.get(url, headers=headers)
     # Add status attribute for compatibility with existing codebase
@@ -75,7 +74,7 @@ def get_margin_data(auth_token):
         logger.error(f"Authentication error: {margin_data.get('errorMessage')}")
         return {
             "availablecash": "0.00",
-            "collateral": "0.00", 
+            "collateral": "0.00",
             "m2munrealized": "0.00",
             "m2mrealized": "0.00",
             "utiliseddebits": "0.00",
@@ -86,7 +85,7 @@ def get_margin_data(auth_token):
         logger.error(f"Error fetching margin data: {margin_data.get('errors')}")
         return {
             "availablecash": "0.00",
-            "collateral": "0.00", 
+            "collateral": "0.00",
             "m2munrealized": "0.00",
             "m2mrealized": "0.00",
             "utiliseddebits": "0.00",
@@ -116,7 +115,7 @@ def get_margin_data(auth_token):
                 return total_realised, total_unrealised
 
             total_realised, total_unrealised = sum_realised_unrealised(position_book)
-        
+
         # Construct and return the processed margin data with null checks
         processed_margin_data = {
             "availablecash": "{:.2f}".format(margin_data.get('availabelBalance') or 0),

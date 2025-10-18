@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol, get_oa_symbol
+from database.token_db import get_oa_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -33,25 +32,25 @@ def map_order_data(order_data):
             # Extract the exchange and symbol for the current order
             exchange = order.get('exchange', '')
             symbol = order.get('tradingsymbol', '')
-            
+
             # Convert broker symbol to OpenAlgo format
             if symbol and exchange:
                 oa_symbol = get_oa_symbol(symbol=symbol, exchange=exchange)
                 if oa_symbol:
                     order['tradingsymbol'] = oa_symbol
-                    
+
                     # Map product types to OpenAlgo constants following Angel pattern
                     if (order['exchange'] == 'NSE' or order['exchange'] == 'BSE') and order.get('product_type') == 'NORMAL':
                         order['product_type'] = 'CNC'
-                        
+
                     elif order.get('product_type') == 'INTRADAY':
                         order['product_type'] = 'MIS'
-                    
+
                     elif order['exchange'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order.get('product_type') == 'NORMAL':
                         order['product_type'] = 'NRML'
                 else:
                     logger.info(f"Symbol {symbol} on exchange {exchange} not found. Keeping original.")
-                    
+
     return orders
 
 
@@ -77,7 +76,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order_type == 'SELL':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status (DefinedGe status mapping)
             status = order.get('order_status', '').upper()
             if status in ['COMPLETE', 'EXECUTED']:
@@ -112,7 +111,7 @@ def transform_order_data(orders):
         orders = [orders]
 
     transformed_orders = []
-    
+
     for order in orders:
         if not isinstance(order, dict):
             logger.warning(f"Expected a dict, but found a {type(order)}. Skipping this item.")
@@ -180,7 +179,7 @@ def map_trade_data(trade_data):
             # Extract the exchange and symbol for the current trade
             exchange = trade.get('exchange', '')
             symbol = trade.get('tradingsymbol', '')
-            
+
             # Convert broker symbol to OpenAlgo format
             if symbol and exchange:
                 oa_symbol = get_oa_symbol(symbol=symbol, exchange=exchange)
@@ -188,7 +187,7 @@ def map_trade_data(trade_data):
                     trade['tradingsymbol'] = oa_symbol
                 else:
                     logger.info(f"Symbol {symbol} on exchange {exchange} not found. Keeping original.")
-            
+
             # Map product types to OpenAlgo constants (following OpenAlgo order constants)
             product_type = trade.get('product_type', '')
             if product_type == 'INTRADAY':
@@ -200,7 +199,7 @@ def map_trade_data(trade_data):
                     trade['product_type'] = 'NRML'
             elif product_type == 'CNC':
                 trade['product_type'] = 'CNC'
-                    
+
     return trades
 
 
@@ -215,27 +214,27 @@ def transform_tradebook_data(tradebook_data):
     - List of transformed trade dictionaries matching OpenAlgo format
     """
     transformed_data = []
-    
+
     for trade in tradebook_data:
         if not isinstance(trade, dict):
             logger.warning(f"Expected a dict, but found a {type(trade)}. Skipping this item.")
             continue
-        
+
         # Extract quantity - ensure it's an integer
         quantity = int(trade.get('filled_qty', trade.get('quantity', 0)))
-        
+
         # Get fill price (executed trade price) - Definedge returns this as 'fill_price'
         # If fill_price is 0 or not present, use average_traded_price or price as fallback
         fill_price = float(trade.get('fill_price', 0))
         if fill_price == 0:
             fill_price = float(trade.get('average_traded_price', trade.get('price', 0)))
-        
+
         # Calculate trade value = quantity * fill_price
         trade_value = round(quantity * fill_price, 2)
-        
+
         # Get timestamp - Definedge provides fill_time for executed trades
         timestamp = trade.get('fill_time', trade.get('exchange_time', ''))
-        
+
         # Map product type to OpenAlgo format
         product_type = trade.get('product_type', '')
         if product_type == 'INTRADAY':
@@ -247,7 +246,7 @@ def transform_tradebook_data(tradebook_data):
                 product_type = 'CNC'
             else:
                 product_type = 'NRML'
-        
+
         transformed_trade = {
             "symbol": trade.get('tradingsymbol', ''),
             "exchange": trade.get('exchange', ''),
@@ -259,9 +258,9 @@ def transform_tradebook_data(tradebook_data):
             "orderid": trade.get('order_id', ''),
             "timestamp": timestamp  # Using fill_time for executed trades
         }
-        
+
         transformed_data.append(transformed_trade)
-        
+
     return transformed_data
 
 
@@ -293,7 +292,7 @@ def map_position_data(position_data):
             # Extract the exchange and symbol for the current position
             exchange = position.get('exchange', '')
             symbol = position.get('tradingsymbol', '')
-            
+
             # Convert broker symbol to OpenAlgo format
             if symbol and exchange:
                 oa_symbol = get_oa_symbol(symbol=symbol, exchange=exchange)
@@ -301,7 +300,7 @@ def map_position_data(position_data):
                     position['tradingsymbol'] = oa_symbol
                 else:
                     logger.info(f"Symbol {symbol} on exchange {exchange} not found. Keeping original.")
-            
+
             # Map product types to OpenAlgo constants
             product_type = position.get('product_type', '')
             if product_type == 'INTRADAY':
@@ -313,7 +312,7 @@ def map_position_data(position_data):
                     position['product_type'] = 'NRML'
             elif product_type == 'CNC':
                 position['product_type'] = 'CNC'
-                    
+
     return positions
 
 
@@ -323,17 +322,17 @@ def transform_positions_data(positions_data):
     Following Angel's pattern for consistency.
     """
     transformed_data = []
-    
+
     for position in positions_data:
         # Get net quantity to determine if position is closed
         net_qty = int(position.get('net_quantity', 0))
-        
+
         # For closed positions (net_qty = 0), show realized P&L, otherwise show unrealized P&L
         if net_qty == 0:
             pnl = position.get('realized_pnl', 0.0)
         else:
             pnl = position.get('unrealized_pnl', 0.0)
-        
+
         transformed_position = {
             "symbol": position.get('tradingsymbol', ''),
             "exchange": position.get('exchange', ''),
@@ -344,7 +343,7 @@ def transform_positions_data(positions_data):
             "pnl": pnl,  # Shows realized P&L for closed, unrealized for open positions
         }
         transformed_data.append(transformed_position)
-    
+
     return transformed_data
 
 
@@ -382,17 +381,17 @@ def map_portfolio_data(portfolio_data):
     for holding in data['holdings']:
         # DefinedGe API returns tradingsymbol as an array of objects
         tradingsymbol_array = holding.get('tradingsymbol', [])
-        
+
         if tradingsymbol_array and isinstance(tradingsymbol_array, list):
             # Use the first tradingsymbol entry (usually NSE)
             first_symbol_obj = tradingsymbol_array[0]
             exchange = first_symbol_obj.get('exchange', '')
             symbol = first_symbol_obj.get('tradingsymbol', '')
-            
+
             # Add exchange and symbol fields to holding for compatibility
             holding['exchange'] = exchange
             holding['symbol'] = symbol
-            
+
             # Convert broker symbol to OpenAlgo format
             if symbol and exchange:
                 oa_symbol = get_oa_symbol(symbol=symbol, exchange=exchange)
@@ -403,7 +402,7 @@ def map_portfolio_data(portfolio_data):
                     logger.info(f"Symbol {symbol} on exchange {exchange} not found. Keeping original.")
             else:
                 holding['tradingsymbol'] = symbol
-                
+
     return data
 
 
@@ -417,8 +416,8 @@ def calculate_portfolio_statistics(holdings_data):
     totalinvvalue = 0
     totalprofitandloss = 0
     totalpnlpercentage = 0
-    
-    # Since Definedge doesn't provide totalholding summary, 
+
+    # Since Definedge doesn't provide totalholding summary,
     # we need to calculate from individual holdings
     if holdings_data.get('holdings'):
         for holding in holdings_data['holdings']:
@@ -426,28 +425,28 @@ def calculate_portfolio_statistics(holdings_data):
             dp_qty = float(holding.get('dp_qty', 0))
             t1_qty = float(holding.get('t1_qty', 0))
             total_qty = dp_qty + t1_qty
-            
+
             # Skip if no holdings
             if total_qty == 0:
                 continue
-            
+
             # Get average buy price
             avg_buy_price = float(holding.get('avg_buy_price', 0))
-            
+
             # Calculate investment value
             investment_value = total_qty * avg_buy_price
             totalinvvalue += investment_value
-            
+
             # For current value, we need LTP which Definedge doesn't provide in holdings
             # In production, this should be fetched from market data
             # For now, use investment value as placeholder
             current_value = investment_value  # Should be total_qty * ltp
             totalholdingvalue += current_value
-            
+
             # Calculate P&L (will be 0 with placeholder values)
             pnl = current_value - investment_value
             totalprofitandloss += pnl
-        
+
         # Calculate percentage
         if totalinvvalue > 0:
             totalpnlpercentage = (totalprofitandloss / totalinvvalue) * 100
@@ -466,34 +465,34 @@ def transform_holdings_data(holdings_data):
     Following Angel's pattern for consistency.
     """
     transformed_data = []
-    
+
     # Get holdings from the data structure
     holdings = holdings_data.get('holdings', [])
-    
+
     for holding in holdings:
         if not isinstance(holding, dict):
             logger.warning(f"Expected a dict, but found a {type(holding)}. Skipping this item.")
             continue
-        
+
         # Get quantity - use dp_qty + t1_qty for total holding quantity
         dp_qty = float(holding.get('dp_qty', 0))
         t1_qty = float(holding.get('t1_qty', 0))
         total_qty = dp_qty + t1_qty
-        
+
         # Skip if no holdings
         if total_qty == 0:
             continue
-        
+
         # Get average buy price
         avg_buy_price = float(holding.get('avg_buy_price', 0))
-        
+
         # Get symbol and exchange (already processed by map_portfolio_data)
         symbol = holding.get('tradingsymbol', '')
         exchange = holding.get('exchange', '')
-        
+
         # Calculate investment value
         investment_value = total_qty * avg_buy_price
-        
+
         # For current value, we need LTP - since Definedge doesn't provide it in holdings,
         # we'll need to get it from market data or use a placeholder
         # For now, calculate P&L as 0 since we don't have real-time price
@@ -501,7 +500,7 @@ def transform_holdings_data(holdings_data):
         current_value = investment_value  # Placeholder - should be total_qty * ltp
         pnl = 0.0  # Placeholder - should be current_value - investment_value
         pnl_percent = 0.0  # Placeholder
-        
+
         transformed_holding = {
             "symbol": symbol,
             "exchange": exchange,
@@ -510,7 +509,7 @@ def transform_holdings_data(holdings_data):
             "pnl": round(pnl, 2),
             "pnlpercent": round(pnl_percent, 2)
         }
-        
+
         transformed_data.append(transformed_holding)
-    
+
     return transformed_data

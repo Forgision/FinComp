@@ -1,9 +1,10 @@
 import pytest
-from fastapi.testclient import TestClient
-from app.web.main import _app as app  # Import the underlying FastAPI app
 from app.db.session import get_db
-from app.db.user_db import add_user, delete_user_by_username
-from app.db.auth_db import upsert_api_key, delete_api_key_by_username
+from fastapi.testclient import TestClient
+
+from app.db.models.auth_db import delete_api_key_by_username, upsert_api_key
+from app.db.models.user_db import add_user, delete_user_by_username
+from app.main import app  # Import the underlying FastAPI app
 
 client = TestClient(app, follow_redirects=True)
 

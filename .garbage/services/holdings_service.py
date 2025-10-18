@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -100,7 +101,7 @@ def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str
     try:
         # Get holdings using broker functions
         holdings = broker_funcs['get_holdings'](auth_token)
-        
+
         if 'status' in holdings and holdings['status'] == 'error':
             return False, {
                 'status': 'error',
@@ -111,11 +112,11 @@ def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str
         holdings = broker_funcs['map_portfolio_data'](holdings)
         portfolio_stats = broker_funcs['calculate_portfolio_statistics'](holdings)
         holdings = broker_funcs['transform_holdings_data'](holdings)
-        
+
         # Format numeric values to 2 decimal places
         formatted_holdings = format_holdings_data(holdings)
         formatted_stats = format_statistics(portfolio_stats)
-        
+
         return True, {
             'status': 'success',
             'data': {
@@ -132,8 +133,8 @@ def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str
         }, 500
 
 def get_holdings(
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -165,7 +166,7 @@ def get_holdings(
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_holdings_with_auth(auth_token, broker, None)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

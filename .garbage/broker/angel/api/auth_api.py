@@ -1,7 +1,8 @@
-import httpx
 import json
 import os
+
 from utils.httpx_client import get_httpx_client
+
 
 def authenticate_broker(clientcode, broker_pin, totp_code):
     """
@@ -12,7 +13,7 @@ def authenticate_broker(clientcode, broker_pin, totp_code):
     try:
         # Get the shared httpx client
         client = get_httpx_client()
-        
+
         payload = json.dumps({
             "clientcode": clientcode,
             "password": broker_pin,
@@ -34,10 +35,10 @@ def authenticate_broker(clientcode, broker_pin, totp_code):
             headers=headers,
             content=payload
         )
-        
+
         # Add status attribute for compatibility with the existing codebase
         response.status = response.status_code
-        
+
         data = response.text
         data_dict = json.loads(data)
 

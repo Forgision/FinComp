@@ -19,7 +19,7 @@ def transform_data(data,token):
         "instrument_token": token,
         "order_type": map_order_type(data["pricetype"]),
         "transaction_type": data['action'].upper(),
-        "disclosed_quantity": data.get("disclosed_quantity", "0"),  
+        "disclosed_quantity": data.get("disclosed_quantity", "0"),
         "trigger_price": data.get("trigger_price", "0"),
         "is_amo": "false"  # Assuming false as default; you might need logic to handle this if it can vary
     }
@@ -28,7 +28,7 @@ def transform_data(data,token):
     # Extended mapping for fields that might need conditional logic or additional processing
     transformed["disclosed_quantity"] = data.get("disclosed_quantity", "0")
     transformed["trigger_price"] = data.get("trigger_price", "0")
-    
+
     return transformed
 
 
@@ -87,7 +87,7 @@ def reverse_map_product_type(exchange,product):
         "MCX": "NRML",
         "CDS": "NRML",
     }
-    
+
     # Reverse mapping based on product type and exchange
     if product == 'D':
         openalgo_product = exchange_mapping_for_d.get(exchange)

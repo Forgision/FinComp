@@ -1,24 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from collections import defaultdict
-import numpy as np
-from datetime import datetime
-import pytz
 import csv
 import io
+from datetime import datetime
 
-from app.db.session import get_db
-from app.utils.session import check_session_validity_fastapi
-from app.db.latency_db import OrderLatency # Assuming OrderLatency is still valid
-from app.core.config import settings # Assuming settings for templates directory
-from app.utils.web import limiter # Assuming limiter is in this path
-from app.core.config import settings # Assuming settings for templates directory
+import numpy as np
+import pytz
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy.orm import Session
+
+from app.db.models.latency_db import OrderLatency
+from app.db.models.session import get_db
 from app.utils.logging import logger
-from app.web.frontend import templates
-
+from app.utils.session import check_session_validity_fastapi
+from app.utils.web.limiter import limiter
 
 latency_router = APIRouter(prefix="/latency", tags=["Latency"])
 
@@ -46,10 +40,10 @@ def get_histogram_data(db: Session, broker: str = None):
         query = db.query(OrderLatency.rtt_ms)
         if broker:
             query = query.filter(OrderLatency.broker == broker)
-        
+
         # Get all RTT values
         rtts = [r[0] for r in query.all()]
-        
+
         if not rtts:
             return {
                 'bins': [],
@@ -58,26 +52,25 @@ def get_histogram_data(db: Session, broker: str = None):
                 'min_rtt': 0,
                 'max_rtt': 0
             }
-        
+
         # Calculate statistics
         avg_rtt = sum(rtts) / len(rtts)
         min_rtt = min(rtts)
         max_rtt = max(rtts)
-        
+
         # Create histogram bins
         bin_count = 30  # Number of bins
-        bin_width = (max_rtt - min_rtt) / bin_count if max_rtt > min_rtt else 1
-        
+
         # Create histogram using numpy
         counts, bins = np.histogram(rtts, bins=bin_count, range=(min_rtt, max_rtt))
-        
+
         # Convert to list for JSON serialization
         counts = counts.tolist()
         bins = bins.tolist()
-        
+
         # Create bin labels (use the start of each bin)
         bin_labels = [f"{bins[i]:.1f}" for i in range(len(bins)-1)]
-        
+
         data = {
             'bins': bin_labels,
             'counts': counts,
@@ -85,9 +78,9 @@ def get_histogram_data(db: Session, broker: str = None):
             'min_rtt': float(min_rtt),
             'max_rtt': float(max_rtt)
         }
-        
+
         return data
-        
+
     except Exception as e:
         logger.error(f"Error getting histogram data: {e}")
         return {
@@ -102,10 +95,10 @@ def generate_csv(logs):
     """Generate CSV file from latency logs"""
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write header
     writer.writerow(['Timestamp', 'Broker', 'Order ID', 'Symbol', 'Order Type', 'RTT (ms)', 'Overhead (ms)', 'Total Latency (ms)', 'Status'])
-    
+
     # Write data
     for log in logs:
         writer.writerow([
@@ -119,7 +112,7 @@ def generate_csv(logs):
             round(log.total_latency_ms, 2),
             log.status
         ])
-    
+
     return output.getvalue()
 
 @latency_router.get("/", dependencies=[Depends(check_session_validity_fastapi)])
@@ -128,23 +121,37 @@ async def latency_dashboard(request: Request, db: Session = Depends(get_db)):
     """Display latency monitoring dashboard"""
     stats = OrderLatency.get_latency_stats(db)
     recent_logs = OrderLatency.get_recent_logs(db, limit=100)
-    
+
     # Get histogram data for each broker
     broker_histograms = {}
     brokers = [b[0] for b in db.query(OrderLatency.broker).distinct().all()]
     for broker in brokers:
         if broker:  # Skip None values
             broker_histograms[broker] = get_histogram_data(db, broker)
-    
+
     # Format timestamps in IST
     for log in recent_logs:
         log.formatted_timestamp = format_ist_time(log.timestamp)
-    
-    return templates.TemplateResponse('latency/dashboard.html',
-                                  {"request": request,
-                                   "stats": stats,
-                                   "logs": recent_logs,
-                                   "broker_histograms": broker_histograms})
+
+    return JSONResponse(content={
+        "stats": stats,
+        "logs": [{
+            'timestamp': convert_to_ist(log.timestamp).isoformat(),
+            'id': log.id,
+            'order_id': log.order_id,
+            'broker': log.broker,
+            'symbol': log.symbol,
+            'order_type': log.order_type,
+            'rtt_ms': log.rtt_ms,
+            'validation_latency_ms': log.validation_latency_ms,
+            'response_latency_ms': log.response_latency_ms,
+            'overhead_ms': log.overhead_ms,
+            'total_latency_ms': log.total_latency_ms,
+            'status': log.status,
+            'error': log.error
+        } for log in recent_logs],
+        "broker_histograms": broker_histograms
+    })
 
 @latency_router.get("/api/logs", dependencies=[Depends(check_session_validity_fastapi)])
 @limiter.limit("60/minute")
@@ -178,12 +185,12 @@ async def get_stats(request: Request, db: Session = Depends(get_db)):
     """API endpoint to get latency statistics"""
     try:
         stats = OrderLatency.get_latency_stats(db)
-        
+
         # Add histogram data for each broker
         broker_histograms = {}
         for broker in stats.get('broker_stats', {}):
             broker_histograms[broker] = get_histogram_data(db, broker)
-        
+
         stats['broker_histograms'] = broker_histograms
         return JSONResponse(stats)
     except Exception as e:
@@ -199,7 +206,7 @@ async def get_broker_stats(request: Request, broker: str, db: Session = Depends(
         broker_stats = stats.get('broker_stats', {}).get(broker, {})
         if not broker_stats:
             raise HTTPException(status_code=404, detail="Broker not found")
-        
+
         # Add histogram data
         broker_stats['histogram'] = get_histogram_data(db, broker)
         return JSONResponse(broker_stats)
@@ -214,16 +221,16 @@ async def export_logs(request: Request, db: Session = Depends(get_db)):
     try:
         # Get all logs for the current day
         logs = OrderLatency.get_recent_logs(db, limit=None)  # None to get all logs
-        
+
         # Generate CSV
         csv_data = generate_csv(logs)
-        
+
         return StreamingResponse(
             io.BytesIO(csv_data.encode('utf-8')),
             media_type='text/csv',
             headers={'Content-Disposition': 'attachment; filename=latency_logs.csv'}
         )
-        
+
     except Exception as e:
         logger.error(f"Error exporting latency logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))

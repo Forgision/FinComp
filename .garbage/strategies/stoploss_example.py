@@ -2,9 +2,9 @@
 🔁 OpenAlgo Python Bot is running.
 """
 
-from openalgo import api
 import time
-from datetime import datetime
+
+from openalgo import api
 
 # Setup OpenAlgo client
 client = api(

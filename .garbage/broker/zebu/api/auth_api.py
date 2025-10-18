@@ -1,8 +1,9 @@
-import httpx
 import hashlib
 import json
 import os
+
 from utils.httpx_client import get_httpx_client
+
 
 def sha256_hash(text):
     """Generate SHA256 hash."""

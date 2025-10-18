@@ -2,12 +2,17 @@
 Debug script to check Telegram user linkage
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.telegram_db import get_all_telegram_users, get_telegram_user_by_username, get_bot_config
 from database.auth_db import get_username_by_apikey, verify_api_key
+from database.telegram_db import (
+    get_all_telegram_users,
+    get_bot_config,
+    get_telegram_user_by_username,
+)
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -77,7 +82,7 @@ def debug_telegram_users():
                 print(f"   [OK] Telegram user '{tg_username}' matches auth user: {matches}")
             else:
                 print(f"   [ERROR] Telegram user '{tg_username}' has NO matching auth user!")
-                print(f"      This user won't receive alerts!")
+                print("      This user won't receive alerts!")
 
     except Exception as e:
         print(f"   Error checking auth users: {e}")
@@ -98,7 +103,7 @@ def debug_telegram_users():
             # Check if this user has telegram linked
             telegram_user = get_telegram_user_by_username(username)
             if telegram_user:
-                print(f"   [OK] Telegram linked:")
+                print("   [OK] Telegram linked:")
                 print(f"     - Telegram ID: {telegram_user['telegram_id']}")
                 print(f"     - Notifications: {telegram_user.get('notifications_enabled', False)}")
             else:

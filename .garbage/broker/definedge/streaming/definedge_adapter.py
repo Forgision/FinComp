@@ -1,51 +1,49 @@
-import threading
-import json
 import logging
+import os
+import sys
+import threading
 import time
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 
 from broker.definedge.streaming.definedge_websocket import DefinedGeWebSocket
 from database.auth_db import get_auth_token, get_feed_token
-from database.token_db import get_token
-
-import sys
-import os
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
 from websocket_proxy.mapping import SymbolMapper
-from .definedge_mapping import DefinedgeExchangeMapper, DefinedgeCapabilityRegistry
+
+from .definedge_mapping import DefinedgeCapabilityRegistry, DefinedgeExchangeMapper
 
 
 class MarketDataCache:
     """Manages market data caching with thread safety for DefinEdge"""
-    
+
     def __init__(self):
         self._cache = {}
         self._initialized_tokens = set()
         self._lock = threading.Lock()
         self.logger = logging.getLogger("market_cache")
-    
+
     def get(self, token: str) -> Dict[str, Any]:
         """Get cached data for a token"""
         with self._lock:
             return self._cache.get(token, {}).copy()
-    
+
     def update(self, token: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update cache with new data and return merged result"""
         with self._lock:
             cached_data = self._cache.get(token, {})
             merged_data = self._merge_data(cached_data, data, token)
             self._cache[token] = merged_data
-            
+
             if token not in self._initialized_tokens:
                 self._initialized_tokens.add(token)
                 self._log_cache_initialization(token, data)
-            
+
             return merged_data.copy()
-    
+
     def clear(self, token: str = None) -> None:
         """Clear cache for specific token or all tokens"""
         with self._lock:
@@ -58,7 +56,7 @@ class MarketDataCache:
                 self._cache.clear()
                 self._initialized_tokens.clear()
                 self.logger.info(f"Cleared all cached market data ({cache_size} tokens)")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
@@ -67,24 +65,24 @@ class MarketDataCache:
                 'initialized_tokens': len(self._initialized_tokens),
                 'tokens': list(self._cache.keys())
             }
-    
+
     def _merge_data(self, cached: Dict, new: Dict, token: str) -> Dict:
         """Smart merge logic for market data - similar to Shoonya"""
         merged = cached.copy()
-        
+
         # Update with new values
         for key, value in new.items():
             if self._should_preserve_cached_value(key, value, cached):
                 continue
             merged[key] = value
-        
+
         # Preserve cached values for missing fields (like Shoonya does)
         for key, value in cached.items():
             if key not in new:
                 merged[key] = value
-        
+
         return merged
-    
+
     def _should_preserve_cached_value(self, key: str, new_value: Any, cached: Dict) -> bool:
         """Determine if cached value should be preserved - same logic as Shoonya"""
         # Preserve non-zero OHLC values when new value is zero (same as Shoonya line 119-121)
@@ -93,23 +91,23 @@ class MarketDataCache:
             cached_value = cached.get(key)
             return cached_value is not None and not self._is_zero_value(cached_value)
         return False
-    
+
     def _is_zero_value(self, value: Any) -> bool:
         """Check if value represents zero - same as Shoonya line 130-132"""
         return value in [None, '', '0', 0, '0.0', 0.0]
-    
+
     def _log_cache_initialization(self, token: str, data: Dict) -> None:
         """Log cache initialization details - same as Shoonya"""
         # Use raw field names like Shoonya
         basic_fields = ['lp', 'o', 'h', 'l', 'c', 'v', 'ap', 'pc', 'ltq', 'ltt', 'tbq', 'tsq']
         present_fields = sum(1 for field in basic_fields if field in data)
         completeness = present_fields / len(basic_fields)
-        
+
         # Check specifically for OHLC snapshot
         has_ohlc = any(data.get(f) and not self._is_zero_value(data.get(f)) for f in ['o', 'h', 'l', 'c'])
         if has_ohlc:
             self.logger.info(f"📸 OHLC snapshot cached for {token}: o={data.get('o')}, h={data.get('h')}, l={data.get('l')}, c={data.get('c')}")
-        
+
         self.logger.info(f"Initializing cache for token {token} - "
                         f"{present_fields}/{len(basic_fields)} fields present ({completeness:.1%})")
 
@@ -132,7 +130,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.market_cache = MarketDataCache()  # Initialize market data cache
         self.token_to_symbol = {}  # Map tokens to symbols for cache management
         self.ws_subscription_refs = {}  # Reference counting for WebSocket subscriptions
-    
+
     def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize connection with DefinEdge WebSocket API
@@ -147,29 +145,29 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         self.user_id = user_id
         self.broker_name = broker_name
-        
+
         # Get tokens from database if not provided (following Angel pattern)
         if not auth_data:
             # Fetch authentication tokens from database
             auth_token = get_auth_token(user_id)
             feed_token = get_feed_token(user_id)  # This contains susertoken for DefinEdge
-            
+
             if not auth_token:
                 self.logger.error(f"No authentication tokens found for user {user_id}")
                 raise ValueError(f"No authentication tokens found for user {user_id}")
-                
+
             # Get the actual DefinEdge user_id from database
             from database.auth_db import get_user_id
             definedge_uid = get_user_id(user_id)  # This should return "1272808"
-            
+
             self.logger.info(f"Tokens retrieved from DB for user {user_id}, DefinEdge uid: {definedge_uid}")
-            
+
             # For DefinEdge, uid and actid are typically the same value
             # If uid is not found, use a default or raise error
             if not definedge_uid:
                 self.logger.error(f"No DefinEdge user ID found in database for {user_id}")
                 raise ValueError(f"No DefinEdge user ID found for {user_id}")
-            
+
             # Create auth_data dict for WebSocket
             auth_data = {
                 'auth_token': auth_token,
@@ -177,27 +175,27 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'uid': definedge_uid,      # "1272808"
                 'actid': definedge_uid     # Same as uid for DefinEdge
             }
-        
+
         # Create DefinedGeWebSocket instance with auth data
         self.ws_client = DefinedGeWebSocket(auth_data)
-        
+
         # Set callbacks
         self.ws_client.on_connect = self._on_open
         self.ws_client.on_tick = self._on_data
         self.ws_client.on_depth = self._on_depth_data
         self.ws_client.on_error = self._on_error
         self.ws_client.on_disconnect = self._on_close
-        
+
         self.running = True
-        
+
     def connect(self) -> None:
         """Establish connection to DefinEdge WebSocket"""
         if not self.ws_client:
             self.logger.error("WebSocket client not initialized. Call initialize() first.")
             return
-            
+
         threading.Thread(target=self._connect_with_retry, daemon=True).start()
-    
+
     def _connect_with_retry(self) -> None:
         """Connect to DefinEdge WebSocket with retry logic"""
         while self.running and self.reconnect_attempts < self.max_reconnect_attempts:
@@ -206,7 +204,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 if not self.running:
                     self.logger.info("Adapter stopped - aborting connection attempt")
                     return
-                    
+
                 self.logger.info(f"Connecting to DefinEdge WebSocket (attempt {self.reconnect_attempts + 1})")
                 if self.ws_client and self.ws_client.connect():
                     self.reconnect_attempts = 0  # Reset attempts on successful connection
@@ -214,65 +212,65 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     break
                 else:
                     raise Exception("Connection failed")
-                    
+
             except Exception as e:
                 self.reconnect_attempts += 1
-                
+
                 # Check again if we should still be running before sleeping
                 if not self.running:
                     self.logger.info("Adapter stopped during retry - aborting")
                     return
-                    
+
                 delay = min(self.reconnect_delay * (2 ** self.reconnect_attempts), self.max_reconnect_delay)
                 self.logger.error(f"Connection failed: {e}. Retrying in {delay} seconds...")
                 time.sleep(delay)
-        
+
         if self.reconnect_attempts >= self.max_reconnect_attempts:
             self.logger.error("Max reconnection attempts reached. Giving up.")
             self.running = False  # Stop the adapter
-    
+
     def disconnect(self) -> None:
         """Disconnect from DefinEdge WebSocket with proper cleanup"""
         self.logger.info("Starting DefinEdge adapter disconnection...")
-        
+
         # First set running flag to False to prevent any reconnection attempts
         self.running = False
-        
+
         # Clear all subscriptions before disconnecting
         with self.lock:
             subscription_count = len(self.subscriptions)
             self.subscriptions.clear()
             self.logger.info(f"Cleared {subscription_count} active subscriptions")
-        
+
         # Disconnect WebSocket client
         if hasattr(self, 'ws_client') and self.ws_client:
             self.logger.info("Disconnecting WebSocket client...")
             self.ws_client.disconnect()
             self.ws_client = None  # Clear reference
-        
+
         # Clean up market data cache
         if hasattr(self, 'market_cache'):
             self.market_cache.clear()
             self.logger.info("Cleared market data cache")
-        
+
         # Clean up token mappings
         if hasattr(self, 'token_to_symbol'):
             self.token_to_symbol.clear()
             self.logger.info("Cleared token mappings")
-        
+
         # Reset connection state
         self.connected = False
         self.reconnect_attempts = 0
-            
+
         # Clean up ZeroMQ resources - IMPORTANT for port release
         try:
             self.cleanup_zmq()
             self.logger.info("ZeroMQ resources cleaned up successfully")
         except Exception as e:
             self.logger.error(f"Error cleaning up ZeroMQ: {e}")
-        
+
         self.logger.info("DefinEdge adapter disconnection completed")
-    
+
     def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5) -> Dict[str, Any]:
         """
         Subscribe to market data with DefinEdge-specific implementation
@@ -411,7 +409,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             actual_depth=actual_depth,
             is_fallback=is_fallback
         )
-    
+
     def unsubscribe(self, symbol: str, exchange: str, mode: int = 2) -> Dict[str, Any]:
         """
         Unsubscribe from market data
@@ -495,17 +493,17 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             exchange=exchange,
             mode=mode
         )
-    
+
     def _on_open(self, wsapp) -> None:
         """Callback when connection is established"""
         self.logger.info("Connected to DefinEdge WebSocket")
         self.connected = True
-        
+
         # Schedule resubscription after a short delay to allow authentication
         if self.subscriptions:
             import threading
             threading.Timer(1.0, self._resubscribe_all).start()
-    
+
     def _resubscribe_all(self) -> None:
         """Resubscribe to all existing subscriptions after reconnection"""
         with self.lock:
@@ -549,63 +547,63 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.warning("Cannot resubscribe - not authenticated")
             except Exception as e:
                 self.logger.error(f"Error during resubscription: {e}")
-    
+
     def _on_error(self, wsapp, error) -> None:
         """Callback for WebSocket errors"""
         self.logger.error(f"DefinEdge WebSocket error: {error}")
-    
+
     def _on_close(self, wsapp, code, reason) -> None:
         """Callback when connection is closed"""
         self.logger.info(f"DefinEdge WebSocket connection closed: {code} - {reason}")
         self.connected = False
-        
+
         # Only attempt to reconnect if adapter is still running (not manually disconnected)
         if self.running:
             self.logger.info("Connection lost - will attempt to reconnect")
             threading.Thread(target=self._connect_with_retry, daemon=True).start()
         else:
             self.logger.info("Adapter stopped - not attempting reconnection")
-    
+
     def _on_data(self, wsapp, message) -> None:
         """Callback for touchline/tick data from the WebSocket"""
         try:
             # DefinEdge sends data with 't' field indicating message type
             # 'tf' for touchline feed, 'tk' for touchline acknowledgement
-            
+
             if message.get('t') == 'tk':
                 # This is subscription acknowledgement with initial OHLC snapshot
                 token = message.get('tk')
                 exchange = message.get('e')
                 self.logger.info(f"📸 Touchline ACK for {exchange}|{token} - Initial snapshot")
-                
+
                 # Check and log OHLC values in acknowledgment
                 ohlc_values = {
                     'open': message.get('o'),
-                    'high': message.get('h'), 
+                    'high': message.get('h'),
                     'low': message.get('l'),
                     'close': message.get('c')
                 }
-                
+
                 # Check if we have non-zero OHLC
                 has_nonzero_ohlc = any(
-                    v not in [None, '', '0', 0] 
+                    v not in [None, '', '0', 0]
                     for v in ohlc_values.values()
                 )
-                
+
                 if has_nonzero_ohlc:
                     self.logger.info(f"✅ OHLC snapshot received: Open={ohlc_values['open']}, High={ohlc_values['high']}, Low={ohlc_values['low']}, Close={ohlc_values['close']}")
                     # Mark this as initial snapshot for cache
                     message['_is_snapshot'] = True
                 else:
-                    self.logger.warning(f"⚠️ No OHLC in touchline ACK (market may be closed)")
-                
+                    self.logger.warning("⚠️ No OHLC in touchline ACK (market may be closed)")
+
                 # Always process acknowledgment as it contains initial snapshot
                 # Continue processing - don't return
-            
+
             # Extract symbol and exchange from our subscriptions using token
             token = message.get('tk')
             exchange = message.get('e')
-            
+
             # Find the subscription that matches this token
             subscription = None
             with self.lock:
@@ -613,26 +611,26 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     if sub['token'] == token and sub['definedge_exchange'] == exchange:
                         subscription = sub
                         break
-            
+
             if not subscription:
                 self.logger.warning(f"Received data for unsubscribed token: {exchange}|{token}")
                 return
-            
+
             # Create topic for ZeroMQ
             symbol = subscription['symbol']
             orig_exchange = subscription['exchange']
             mode = subscription['mode']
-            
+
             mode_str = {1: 'LTP', 2: 'QUOTE', 3: 'DEPTH'}[mode]
             topic = f"{orig_exchange}_{symbol}_{mode_str}"
-            
+
             # Use cache BEFORE normalization (like Shoonya does)
             # This preserves raw field names for cache logic
             cached_data = self.market_cache.update(token, message)
-            
+
             # Now normalize the cached data for output
             market_data = self._normalize_raw_data(cached_data, mode)
-            
+
             # Add metadata
             market_data.update({
                 'symbol': symbol,
@@ -640,16 +638,16 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'mode': mode,
                 'timestamp': int(time.time() * 1000)  # Current timestamp in ms
             })
-            
+
             # Log the market data we're sending
             self.logger.debug(f"Publishing market data on topic {topic}: {market_data}")
-            
+
             # Publish to ZeroMQ
             self.publish_market_data(topic, market_data)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing market data: {e}", exc_info=True)
-    
+
     def _publish_for_other_modes(self, token: str, symbol: str, exchange: str, market_data: Dict) -> None:
         """
         Publish market data for other subscription modes (Quote/LTP) when depth data is available.
@@ -663,7 +661,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         mode = sub['mode']
                         mode_str = {1: 'LTP', 2: 'QUOTE'}[mode]
                         topic = f"{exchange}_{symbol}_{mode_str}"
-                        
+
                         # Create mode-specific data
                         if mode == 1:  # LTP mode - only send LTP
                             ltp_data = {
@@ -675,7 +673,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             }
                             self.publish_market_data(topic, ltp_data)
                             self.logger.debug(f"Published LTP data from depth for {symbol}")
-                            
+
                         elif mode == 2:  # Quote mode - send OHLC + quote data
                             quote_data = {
                                 'symbol': symbol,
@@ -689,22 +687,22 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                                 'volume': market_data.get('volume', 0),
                                 'timestamp': int(time.time() * 1000)
                             }
-                            
+
                             # Log if we're providing OHLC from depth
                             if any(market_data.get(f) for f in ['open', 'high', 'low', 'close']):
                                 self.logger.info(f"✓ Providing OHLC to Quote mode from Depth data for {symbol}")
-                            
+
                             self.publish_market_data(topic, quote_data)
-                            
+
         except Exception as e:
             self.logger.error(f"Error publishing for other modes: {e}")
-    
+
     def _on_depth_data(self, wsapp, message) -> None:
         """Callback for depth data from the WebSocket"""
         try:
             # DefinEdge sends depth data with 't' field = 'df' for depth feed
             # or 'dk' for depth acknowledgement
-            
+
             if message.get('t') == 'dk':
                 # This is subscription acknowledgement with initial data
                 self.logger.info(f"Depth subscription acknowledged: {message.get('e')}|{message.get('tk')}")
@@ -714,11 +712,11 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     # Process the acknowledgment as initial data
                 else:
                     return
-            
+
             # Process depth data similar to touchline but with depth fields
             token = message.get('tk')
             exchange = message.get('e')
-            
+
             # Debug: Log what OHLC fields are in depth feed
             if message.get('t') == 'df':
                 ohlc_check = {
@@ -736,7 +734,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         self.logger.info(f"✓ Depth feed has OHLC for {exchange}|{token}: {ohlc_check}")
                     else:
                         self.logger.warning(f"✗ Depth feed has NO OHLC for {exchange}|{token}")
-            
+
             # Find the subscription
             subscription = None
             with self.lock:
@@ -744,23 +742,23 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     if sub['token'] == token and sub['definedge_exchange'] == exchange:
                         subscription = sub
                         break
-            
+
             if not subscription:
                 self.logger.warning(f"Received depth data for unsubscribed token: {exchange}|{token}")
                 return
-            
+
             # Create topic for ZeroMQ
             symbol = subscription['symbol']
             orig_exchange = subscription['exchange']
-            
+
             topic = f"{orig_exchange}_{symbol}_DEPTH"
-            
+
             # Use cache BEFORE normalization (like Shoonya)
             cached_data = self.market_cache.update(token, message)
-            
+
             # Now normalize the cached data for output
             market_data = self._normalize_raw_depth_data(cached_data)
-            
+
             # Add metadata for depth subscription
             depth_data = market_data.copy()
             depth_data.update({
@@ -769,17 +767,17 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'mode': 3,  # Depth mode
                 'timestamp': int(time.time() * 1000)
             })
-            
+
             # Publish to ZeroMQ for depth subscribers
             self.publish_market_data(topic, depth_data)
-            
+
             # IMPORTANT: Also publish OHLC data for any Quote mode subscriptions
             # This allows Quote mode to get OHLC from Depth data
             self._publish_for_other_modes(token, symbol, orig_exchange, market_data)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing depth data: {e}", exc_info=True)
-    
+
     def _normalize_raw_data(self, message, mode) -> Dict[str, Any]:
         """
         Normalize broker-specific data format without converting missing values to 0
@@ -792,14 +790,14 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             Dict: Normalized market data (only includes fields that are present)
         """
         result = {}
-        
+
         if mode == 1:  # LTP mode
             # Only include fields that are actually present in the message
             if 'lp' in message:
                 result['ltp'] = float(message['lp'])
             if 'ft' in message:
                 result['ltt'] = message['ft']
-                
+
         elif mode == 2:  # Quote mode
             # Similar to Shoonya, include all fields with safe conversion
             result['ltp'] = self._safe_float(message.get('lp'))
@@ -818,13 +816,13 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             result['bid_qty'] = self._safe_int(message.get('bq1'))
             result['ask'] = self._safe_float(message.get('sp1'))
             result['ask_qty'] = self._safe_int(message.get('sq1'))
-            
+
             # Debug logging for OHLC
             if any(message.get(f) for f in ['o', 'h', 'l', 'c']):
                 self.logger.debug(f"OHLC in message: o={message.get('o')}, h={message.get('h')}, l={message.get('l')}, c={message.get('c')}")
-                        
+
         return result
-    
+
     def _safe_float(self, value, default=0.0):
         """Safely convert value to float (similar to Shoonya)"""
         if value is None or value == '' or value == '-':
@@ -833,7 +831,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return float(value)
         except (ValueError, TypeError):
             return default
-    
+
     def _safe_int(self, value, default=0):
         """Safely convert value to int (similar to Shoonya)"""
         if value is None or value == '' or value == '-':
@@ -842,7 +840,7 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return int(float(value))
         except (ValueError, TypeError):
             return default
-    
+
     def _should_ws_subscribe(self, scrip: str, subscription_type: str) -> bool:
         """
         Check if we should send WebSocket subscription using reference counting
@@ -944,11 +942,11 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
             'prev_oi': self._safe_int(message.get('poi')),
             'total_oi': self._safe_int(message.get('toi'))
         }
-        
+
         # Handle depth data separately (similar to Shoonya)
         depth_buy = []
         depth_sell = []
-        
+
         # Extract 5 levels of depth
         for i in range(1, 6):
             # Buy side - always include even if 0
@@ -958,19 +956,19 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 'orders': self._safe_int(message.get(f'bo{i}'))
             }
             depth_buy.append(buy_level)
-            
-            # Sell side - always include even if 0  
+
+            # Sell side - always include even if 0
             sell_level = {
                 'price': self._safe_float(message.get(f'sp{i}')),
                 'quantity': self._safe_int(message.get(f'sq{i}')),
                 'orders': self._safe_int(message.get(f'so{i}'))
             }
             depth_sell.append(sell_level)
-        
+
         # Always include depth structure
         result['depth'] = {
             'buy': depth_buy,
             'sell': depth_sell
         }
-        
+
         return result

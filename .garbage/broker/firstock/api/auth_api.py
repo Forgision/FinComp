@@ -1,8 +1,8 @@
 import hashlib
-import json
 import os
-from utils.logging import get_logger
+
 from utils.httpx_client import get_httpx_client
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -38,25 +38,25 @@ def authenticate_broker(userid, password, totp_code):
     # Get the Firstock API credentials from environment variables
     api_key = os.getenv('BROKER_API_SECRET')  # This should be the apiKey
     vendor_code = os.getenv('BROKER_API_KEY')  # This should be the vendorCode
-    
+
     # Validate required environment variables
     if not api_key:
         return None, "BROKER_API_SECRET (apiKey) not found in environment variables"
-    
+
     if not vendor_code:
         return None, "BROKER_API_KEY (vendorCode) not found in environment variables"
-    
+
     # Validate required parameters
     if not userid:
         return None, "User ID is required"
-    
+
     if not password:
         return None, "Password is required"
 
     try:
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
-        
+
         # Firstock API login URL
         url = "https://api.firstock.in/V1/login"
 
@@ -79,19 +79,19 @@ def authenticate_broker(userid, password, totp_code):
 
         # Send the POST request to Firstock's API using shared httpx client
         response = client.post(url, json=payload, headers=headers, timeout=30)
-        
+
         # Add status attribute for compatibility with existing codebase
         response.status = response.status_code
 
         # Handle the response based on new API documentation
         if response.status_code == 200:
             data = response.json()
-            
+
             if data.get('status') == "success":
                 # Extract the session token from successful response
                 token_data = data.get('data', {})
                 susertoken = token_data.get('susertoken') or token_data.get('jKey')
-                
+
                 if susertoken:
                     logger.info("Firstock authentication successful")
                     return susertoken, None
@@ -101,16 +101,16 @@ def authenticate_broker(userid, password, totp_code):
                 # Handle failure response structure
                 error_msg = data.get('message', 'Authentication failed')
                 error_details = data.get('error', {})
-                
+
                 if isinstance(error_details, dict):
                     field_error = error_details.get('field', '')
                     error_message = error_details.get('message', '')
                     if field_error and error_message:
                         error_msg = f"Field '{field_error}': {error_message}"
-                
+
                 logger.error(f"Firstock authentication failed: {error_msg}")
                 return None, error_msg
-                
+
         elif response.status_code == 400:
             # Bad request - missing or invalid fields
             try:
@@ -119,11 +119,11 @@ def authenticate_broker(userid, password, totp_code):
                 return None, f"Bad Request: {error_msg}"
             except:
                 return None, "Bad Request: Missing or invalid required fields"
-                
+
         elif response.status_code == 401:
             # Unauthorized - invalid credentials
             return None, "Unauthorized: Invalid credentials or API key"
-            
+
         else:
             # Other HTTP errors
             return None, f"HTTP Error {response.status_code}: {response.text}"

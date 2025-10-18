@@ -1,10 +1,11 @@
 import copy
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
+from database.analyzer_db import AnalyzerLog, db_session
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
 from database.auth_db import get_auth_token_broker
 from database.settings_db import get_analyze_mode, set_analyze_mode
-from database.analyzer_db import AnalyzerLog, db_session
-from database.apilog_db import async_log_order, executor as log_executor
 from utils.logging import get_logger
 
 # Initialize logger
@@ -34,14 +35,14 @@ def get_analyzer_status_with_auth(
     request_data = copy.deepcopy(original_data)
     if 'apikey' in request_data:
         request_data.pop('apikey', None)
-    
+
     try:
         # Get current analyzer mode
         current_mode = get_analyze_mode()
-        
+
         # Get analyzer logs count
         logs_count = db_session.query(AnalyzerLog).count()
-        
+
         response_data = {
             'status': 'success',
             'data': {
@@ -50,10 +51,10 @@ def get_analyzer_status_with_auth(
                 'total_logs': logs_count
             }
         }
-        
+
         log_executor.submit(async_log_order, 'analyzer_status', request_data, response_data)
         return True, response_data, 200
-        
+
     except Exception as e:
         logger.error(f"Error getting analyzer status: {e}")
         error_response = {
@@ -87,7 +88,7 @@ def toggle_analyzer_mode_with_auth(
     request_data = copy.deepcopy(original_data)
     if 'apikey' in request_data:
         request_data.pop('apikey', None)
-    
+
     try:
         # Get the requested mode
         new_mode = analyzer_data.get('mode', False)
@@ -96,8 +97,14 @@ def toggle_analyzer_mode_with_auth(
         set_analyze_mode(new_mode)
 
         # Start/stop execution engine and squareoff scheduler based on mode
-        from sandbox.execution_thread import start_execution_engine, stop_execution_engine
-        from sandbox.squareoff_thread import start_squareoff_scheduler, stop_squareoff_scheduler
+        from sandbox.execution_thread import (
+            start_execution_engine,
+            stop_execution_engine,
+        )
+        from sandbox.squareoff_thread import (
+            start_squareoff_scheduler,
+            stop_squareoff_scheduler,
+        )
 
         if new_mode:
             # Analyzer mode ON - start both threads
@@ -134,7 +141,7 @@ def toggle_analyzer_mode_with_auth(
 
         log_executor.submit(async_log_order, 'analyzer_toggle', request_data, response_data)
         return True, response_data, 200
-        
+
     except Exception as e:
         logger.error(f"Error toggling analyzer mode: {e}")
         error_response = {
@@ -169,12 +176,12 @@ def get_analyzer_status(
     original_data = copy.deepcopy(analyzer_data)
     if api_key:
         original_data['apikey'] = api_key
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to analyzer data
         analyzer_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -183,13 +190,13 @@ def get_analyzer_status(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return get_analyzer_status_with_auth(analyzer_data, AUTH_TOKEN, broker_name, original_data)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_analyzer_status_with_auth(analyzer_data, auth_token, broker, original_data)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {
@@ -223,12 +230,12 @@ def toggle_analyzer_mode(
     original_data = copy.deepcopy(analyzer_data)
     if api_key:
         original_data['apikey'] = api_key
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to analyzer data
         analyzer_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -237,13 +244,13 @@ def toggle_analyzer_mode(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return toggle_analyzer_mode_with_auth(analyzer_data, AUTH_TOKEN, broker_name, original_data)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return toggle_analyzer_mode_with_auth(analyzer_data, auth_token, broker, original_data)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {

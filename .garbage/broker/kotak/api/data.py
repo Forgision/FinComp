@@ -1,10 +1,12 @@
-from .HSWebSocketLib import HSWebSocket
 import json
-import time
 import threading
+import time
+
 import pandas as pd
 from database.token_db import get_token
 from utils.logging import get_logger
+
+from .HSWebSocketLib import HSWebSocket
 
 logger = get_logger(__name__)
 
@@ -52,7 +54,7 @@ class KotakWebSocket:
                         for i in range(5):
                             price_key = f'bp{i}' if i > 0 else 'bp'
                             qty_key = f'bq{i}' if i > 0 else 'bq'
-                            
+
                             price = float(msg.get(price_key, 0))
                             bids.append({
                                 'price': price,
@@ -63,7 +65,7 @@ class KotakWebSocket:
                         for i in range(5):
                             price_key = f'sp{i}' if i > 0 else 'sp'
                             qty_key = f'bs{i}' if i > 0 else 'bs'
-                            
+
                             price = float(msg.get(price_key, 0))
                             asks.append({
                                 'price': price,
@@ -95,7 +97,7 @@ class KotakWebSocket:
             self.ws.close()
 
     def on_open(self, token, sid, exchange, scrip, message_type):  # Add message_type parameter
-        threading.Thread(target=self._send_messages, 
+        threading.Thread(target=self._send_messages,
                        args=(token, sid, exchange, scrip, message_type)).start()
 
     def connect(self, url, token, sid, exchange, scrip, message_type):  # Add message_type parameter
@@ -126,7 +128,7 @@ class BrokerData:
                 raise ValueError(f"Token not found for {symbol} on {exchange}")
 
             exchange_map = {'NSE': 'nse_cm', 'BSE': 'bse_cm', 'NFO': 'nse_fo',
-                            "BFO": "bse_fo", "CDS": "cde_fo", "MCX": "mcx_fo", 
+                            "BFO": "bse_fo", "CDS": "cde_fo", "MCX": "mcx_fo",
                             "NSE_INDEX": "nse_cm", "BSE_INDEX": "bse_cm"
                             }
             kotak_exchange = exchange_map.get(exchange)

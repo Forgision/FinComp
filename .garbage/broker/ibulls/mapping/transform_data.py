@@ -1,11 +1,11 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping ibullssecurities Broking Parameters https://symphonyfintech.com/xts-trading-front-end-api/
 
-from database.token_db import get_br_symbol,get_token
-from utils.logging import get_logger
 from broker.ibulls.api.data import BrokerData
+from database.auth_db import get_feed_token
+from database.token_db import get_br_symbol
 from flask import session
-from database.auth_db import get_auth_token, get_feed_token
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -18,32 +18,32 @@ def transform_data(data, token):
     - SELL: Uses ask price + 0.1%
     """
     symbol = get_br_symbol(data['symbol'], data['exchange'])
-    
+
     # Check if market order and convert to limit order with adjusted price
     order_type = map_order_type(data["pricetype"])
     price = data.get("price", "0")
     action = data['action'].upper()
-    
+
     if data["pricetype"] == "MARKET":
         try:
             # Get username from Flask session
             username = None
             if session and hasattr(session, 'get'):
                 username = session.get('username')
-            
+
             # Get feed token for market data using username (not broker name)
             feed_token = get_feed_token(username if username else "kalaivani")
-            
+
             logger.info(f"Using feed token for user: {username if username else 'kalaivani'}")
-            
+
             if feed_token:
                 # Create BrokerData instance to use get_quotes - only need feed_token for market data
                 broker_data = BrokerData(feed_token, feed_token)
-                
+
                 # Fetch quotes for the symbol
                 quote_data = broker_data.get_quotes(data['symbol'], data['exchange'])
                 logger.info(f"Quote data for market order adjustment: {quote_data}")
-                
+
                 # Adjust price based on action (BUY or SELL)
                 if action == "BUY":
                     bid_price = float(quote_data.get('bid', 0))
@@ -67,7 +67,7 @@ def transform_data(data, token):
                 logger.warning("No feed token available, cannot fetch quotes for market order price adjustment")
         except Exception as e:
             logger.error(f"Error adjusting market order price: {str(e)}. Proceeding with regular market order.")
-    
+
     # Basic mapping
     transformed = {
         "exchangeSegment": map_exchange(data['exchange']),
@@ -149,5 +149,5 @@ def reverse_map_product_type(exchange,product):
         "NRML": "NRML",
         "MIS": "MIS",
     }
-   
+
     return exchange_mapping.get(product)

@@ -1,7 +1,8 @@
 import json
 import os
+from typing import Optional, Tuple
+
 import httpx
-from typing import Tuple, Optional
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 

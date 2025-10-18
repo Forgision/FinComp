@@ -1,4 +1,5 @@
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -54,11 +55,11 @@ def get_ping(api_key: Optional[str] = None, auth_token: Optional[str] = None, br
                 'message': 'Invalid openalgo apikey'
             }, 403
         return ping_with_auth(AUTH_TOKEN, broker_name)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return ping_with_auth(auth_token, broker)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

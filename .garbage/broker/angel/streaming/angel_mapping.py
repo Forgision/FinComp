@@ -1,8 +1,7 @@
-import logging
 
 class AngelExchangeMapper:
     """Maps OpenAlgo exchange codes to Angel-specific exchange types"""
-    
+
     # Exchange type mapping for Angel broker
     EXCHANGE_TYPES = {
         'NSE': 1,  # NSE Cash Market
@@ -15,7 +14,7 @@ class AngelExchangeMapper:
         'NSE_INDEX': 1,  # NSE Index
         'BSE_INDEX': 3  # BSE Index
     }
-    
+
     @staticmethod
     def get_exchange_type(exchange):
         """
@@ -35,7 +34,7 @@ class AngelCapabilityRegistry:
     Registry of Angel broker's capabilities including supported exchanges, 
     subscription modes, and market depth levels
     """
-    
+
     # Angel broker capabilities
     exchanges = ['NSE', 'BSE', 'BFO','NFO', 'MCX', 'CDS']
     subscription_modes = [1, 2, 3]  # 1: LTP, 2: Quote, 3: Snap Quote (Depth)
@@ -47,7 +46,7 @@ class AngelCapabilityRegistry:
         'MCX': [5],           # MCX supports only 5 levels
         'CDS': [5]            # CDS supports only 5 levels
     }
-    
+
     @classmethod
     def get_supported_depth_levels(cls, exchange):
         """
@@ -60,7 +59,7 @@ class AngelCapabilityRegistry:
             list: List of supported depth levels (e.g., [5, 20, 30])
         """
         return cls.depth_support.get(exchange, [5])
-    
+
     @classmethod
     def is_depth_level_supported(cls, exchange, depth_level):
         """
@@ -75,7 +74,7 @@ class AngelCapabilityRegistry:
         """
         supported_depths = cls.get_supported_depth_levels(exchange)
         return depth_level in supported_depths
-    
+
     @classmethod
     def get_fallback_depth_level(cls, exchange, requested_depth):
         """

@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol , get_oa_symbol
+from database.token_db import get_oa_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -24,7 +23,7 @@ def map_order_data(order_data):
             order_data = {}
     else:
         order_data = order_data
-        
+
     # logger.info(f"{order_data}")
 
     if order_data:
@@ -32,14 +31,14 @@ def map_order_data(order_data):
             # Extract the instrument_token and exchange for the current order
             exchange = order['Exchange']
             symbol = order['Trsym']
-       
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol:
                 order['Trsym'] = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             else:
                 logger.info(f"{symbol} and exchange {exchange} not found. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -65,7 +64,7 @@ def calculate_order_statistics(order_data):
                 total_buy_orders += 1
             elif order['Trantype'] == 'S':
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['Status'] == 'complete':
                 total_completed_orders += 1
@@ -97,12 +96,12 @@ def transform_order_data(orders):
         if not isinstance(order, dict):
             logger.warning(f"Warning: Expected a dict, but found a {type(order)}. Skipping this item.")
             continue
-        
+
         # Check if the necessary keys exist in the order
         if 'Trantype' not in order or 'Prctype' not in order:
             logger.error("Error: Missing required keys in the order. Skipping this item.")
             continue
-        
+
         if order['Trantype'] == 'B':
             trans_type = 'BUY'
         elif order['Trantype'] == 'S':
@@ -178,13 +177,13 @@ def map_trade_data(trade_data):
             # Extract the instrument_token and exchange for the current trade
             exchange = trade['Exchange']
             symbol = trade['Tsym']
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current trade
             if symbol:
                 trade['Tsym'] = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             else:
                 logger.info(f"{symbol} and exchange {exchange} not found. Keeping original trading symbol.")
-                
+
     return trade_data
 
 def transform_tradebook_data(tradebook_data):
@@ -201,7 +200,7 @@ def transform_tradebook_data(tradebook_data):
             logger.debug(f"Got average price: {average_price} for qty: {quantity}")
         else:
             logger.warning(f"Zero or missing AvgPrice. Raw value: {trade.get('AvgPrice')}")
-        
+
         # Map transaction type from 'B'/'S' to 'BUY'/'SELL'
         trantype = trade.get('Trantype', '')
         if trantype == 'B':
@@ -210,7 +209,7 @@ def transform_tradebook_data(tradebook_data):
             action = 'SELL'
         else:
             action = trantype
-        
+
         transformed_trade = {
             "symbol": trade.get('Tsym'),
             "exchange": trade.get('Exchange', ''),
@@ -245,7 +244,7 @@ def map_position_data(position_data):
             position_data = {}
     else:
         position_data = position_data
-        
+
     # logger.info(f"{order_data}")
 
     if position_data:
@@ -253,16 +252,16 @@ def map_position_data(position_data):
             # Extract the instrument_token and exchange for the current order
             exchange = position['Exchange']
             symbol = position['Tsym']
-       
-            
+
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol:
                 position['Tsym'] = get_oa_symbol(brsymbol=symbol, exchange=exchange)
             else:
                 logger.info(f"{symbol} and exchange {exchange} not found. Keeping original trading symbol.")
-                
+
     return position_data
-    
+
 
 def transform_positions_data(positions_data):
     transformed_data = []
@@ -335,18 +334,18 @@ def transform_positions_data(positions_data):
 
 def transform_holdings_data(holdings_data):
     transformed_data = []
-    
+
     # Return empty list if holdings_data is not a list
     if not isinstance(holdings_data, list):
         logger.warning(f"Holdings data is not a list: {type(holdings_data)}")
         return []
-    
+
     for holdings in holdings_data:
         # Skip if holdings is not a dictionary
         if not isinstance(holdings, dict):
             logger.warning(f"Skipping invalid holdings item: {holdings}")
             continue
-            
+
         try:
             ltp = float(holdings.get('Ltp', 0))
             price = float(holdings.get('Price', 0.0))
@@ -367,11 +366,11 @@ def transform_holdings_data(holdings_data):
         except (KeyError, TypeError, ValueError) as e:
             logger.error(f"Error transforming holdings item: {e}, Item: {holdings}")
             continue
-            
+
     return transformed_data
 
 
-    
+
 def map_portfolio_data(portfolio_data):
     """
     Processes and modifies a list of Portfolio dictionaries based on specific conditions.
@@ -382,7 +381,7 @@ def map_portfolio_data(portfolio_data):
     Returns:
     - The modified portfolio_data with  'product' fields.
     """
-    
+
     # Check if portfolio_data is a string (might be JSON string)
     if isinstance(portfolio_data, str):
         try:
@@ -391,7 +390,7 @@ def map_portfolio_data(portfolio_data):
         except json.JSONDecodeError:
             logger.error(f"Failed to parse portfolio_data as JSON: {portfolio_data}")
             return []
-    
+
     # Check if 'data' is None
     if isinstance(portfolio_data, dict):
         if portfolio_data.get('stat') == 'Not_Ok':
@@ -407,7 +406,7 @@ def map_portfolio_data(portfolio_data):
     else:
         logger.error(f"Unexpected portfolio_data type: {type(portfolio_data)}")
         return []
-        
+
     logger.info(f"Processing portfolio data: {portfolio_data}")
 
     if portfolio_data and isinstance(portfolio_data, list):
@@ -416,7 +415,7 @@ def map_portfolio_data(portfolio_data):
                 portfolio['Pcode'] = 'CNC'
             else:
                 logger.info("AliceBlue Portfolio - Product Value for Delivery Not Found or Changed.")
-                
+
     return portfolio_data if isinstance(portfolio_data, list) else []
 
 def calculate_portfolio_statistics(holdings_data):
@@ -428,12 +427,12 @@ def calculate_portfolio_statistics(holdings_data):
             'totalprofitandloss': 0,
             'totalpnlpercentage': 0
         }
-    
+
     try:
         totalholdingvalue = sum(float(item.get('Ltp', 0)) * int(item.get('HUqty', item.get('Holdqty', 0))) for item in holdings_data)
         totalinvvalue = sum(float(item.get('Price', 0)) * int(item.get('HUqty', item.get('Holdqty', 0))) for item in holdings_data)
         totalprofitandloss = sum((float(item.get('Ltp', 0)) - float(item.get('Price', 0))) * int(item.get('HUqty', item.get('Holdqty', 0))) for item in holdings_data)
-        
+
         for item in holdings_data:
             logger.info(f"Holdings item: LTP={item.get('Ltp')}, Price={item.get('Price')}, Qty={item.get('HUqty', item.get('Holdqty'))}")
         # To avoid division by zero in the case when totalinvvalue is 0

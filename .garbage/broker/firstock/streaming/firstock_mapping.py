@@ -4,7 +4,7 @@ Firstock-specific exchange mapping and capability registry
 
 class FirstockExchangeMapper:
     """Maps between standard exchange codes and Firstock-specific codes"""
-    
+
     # Mapping from standard codes to Firstock exchange codes
     EXCHANGE_MAP = {
         'NSE': 'NSE',
@@ -15,10 +15,10 @@ class FirstockExchangeMapper:
         'BFO': 'BFO',
         'NSE_INDEX': 'NSE'  # NSE indices use NSE exchange in Firstock
     }
-    
+
     # Reverse mapping
     REVERSE_MAP = {v: k for k, v in EXCHANGE_MAP.items()}
-    
+
     @classmethod
     def get_firstock_exchange(cls, standard_exchange: str) -> str:
         """
@@ -31,7 +31,7 @@ class FirstockExchangeMapper:
             str: Firstock exchange code
         """
         return cls.EXCHANGE_MAP.get(standard_exchange, standard_exchange)
-    
+
     @classmethod
     def get_standard_exchange(cls, firstock_exchange: str) -> str:
         """

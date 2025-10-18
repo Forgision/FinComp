@@ -1,24 +1,17 @@
 #database/master_contract_db.py
 
-import os
-import pandas as pd
-import numpy as np
-import requests
-import gzip
-import shutil
 import http.client
 import json
+import os
+
 import pandas as pd
-import gzip
-import io
-
-
-from sqlalchemy import create_engine, Column, Integer, String, Float , Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+import requests
 from database.auth_db import get_auth_token
 from database.user_db import find_user_by_username
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -40,7 +33,7 @@ class SymToken(Base):
     brsymbol = Column(String, nullable=False, index=True)  # Single column index
     name = Column(String)
     exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)  
+    brexchange = Column(String, index=True)
     token = Column(String, index=True)  # Indexed for performance
     expiry = Column(String)
     strike = Column(Float)
@@ -106,7 +99,7 @@ def download_csv_kotak_data(output_path):
             downloaded_files.append(file_path)
         else:
             logger.error(f"Failed to download {key} from {url}. Status code: {response.status_code}")
-    
+
 
 def process_kotak_nse_csv(path):
     """
@@ -117,9 +110,9 @@ def process_kotak_nse_csv(path):
 
     df = pd.read_csv(file_path)
 
-    
+
     filtereddataframe = pd.DataFrame()
-    
+
     filtereddataframe['token'] = df['pSymbol']
     filtereddataframe['name'] = df['pDesc']
     filtereddataframe['expiry'] = df['pExpiryDate']
@@ -130,7 +123,7 @@ def process_kotak_nse_csv(path):
     filtereddataframe['symbol'] = df['pSymbolName']
 
     # Filtering the DataFrame based on 'Exchange Instrument type' and assigning values to 'exchange'
-    
+
     df.loc[df['pGroup'].isin(['EQ', 'BE']), 'instrumenttype'] = 'EQ'
     df.loc[df['pISIN'].isna(), 'exchange'] = 'NSE_INDEX'
     df.loc[df['pGroup'].isin(['EQ', 'BE']), 'exchange'] = 'NSE'
@@ -140,12 +133,12 @@ def process_kotak_nse_csv(path):
     filtereddataframe['instrumenttype'] = df['instrumenttype']
     filtereddataframe['exchange'] = df['exchange']
     filtereddataframe['pGroup'] = df['pGroup']
-    
+
     # Keeping only rows where 'exchange' column has been filled ('NSE' or 'NSE_INDEX')
     df_filtered = filtereddataframe[filtereddataframe['pGroup'].isin(['EQ', 'BE', ''])].copy()
 
     df_filtered['brexchange'] = 'NSE'
-    
+
     # List of columns to remove
     columns_to_remove = [
         "pGroup"
@@ -167,9 +160,9 @@ def process_kotak_bse_csv(path):
     df.columns = df.columns.str.replace(' ', '')
     df.columns = df.columns.str.replace(';', '')
     df.dropna(subset=['pSymbolName'], inplace=True)
-    
+
     filtereddataframe = pd.DataFrame()
-    
+
     filtereddataframe['token'] = df['pSymbol']
     filtereddataframe['name'] = df['pDesc']
     filtereddataframe['expiry'] = df['pExpiryDate']
@@ -180,9 +173,9 @@ def process_kotak_bse_csv(path):
     filtereddataframe['symbol'] = df['pSymbolName']
 
     # Filtering the DataFrame based on 'Exchange Instrument type' and assigning values to 'exchange'
-    
+
     df['instrumenttype'] = 'EQ'
-    
+
     df['exchange'] = 'BSE'
     df.loc[df['pISIN'].isna(), 'exchange'] = 'BSE_INDEX'
     df.loc[df['pISIN'].isna(), 'instrumenttype'] = 'INDEX'
@@ -191,12 +184,12 @@ def process_kotak_bse_csv(path):
     filtereddataframe['instrumenttype'] = df['instrumenttype']
     filtereddataframe['exchange'] = df['exchange']
     filtereddataframe['pGroup'] = df['pGroup']
-    
+
     # Keeping only rows where 'exchange' column has been filled ('NSE' or 'NSE_INDEX')
     df_filtered = filtereddataframe.copy()
 
     df_filtered['brexchange'] = 'BSE'
-    
+
     # List of columns to remove
     columns_to_remove = [
         "pGroup"
@@ -231,7 +224,7 @@ def process_kotak_nfo_csv(path):
     tokensymbols['token'] = df['pSymbol']
     tokensymbols['name'] = df['pSymbolName']
     df['lExpiryDate'] = df['lExpiryDate']+315513000
-    
+
     # Convert 'Expiry date' from Unix timestamp to datetime
     tokensymbols['expiry'] = pd.to_datetime(df['lExpiryDate'], unit='s')
 
@@ -240,16 +233,16 @@ def process_kotak_nfo_csv(path):
 
     tokensymbols['strike'] = df['dStrikePrice']/100
     tokensymbols['strike'] = tokensymbols['strike'].apply(lambda x: int(x) if x.is_integer() else x)
-    
+
     tokensymbols['lotsize'] = df['lLotSize']
     tokensymbols['tick_size'] = df['dTickSize']
     tokensymbols['brsymbol'] = df['pTrdSymbol']
     tokensymbols['brexchange'] = df['pExchSeg']
     tokensymbols['exchange'] = 'NFO'
-    
+
     #df1['instrumenttype'] = df['pOptionType'].apply(lambda x: x.replace('XX', 'FUT'))
     tokensymbols['instrumenttype'] = df['pOptionType'].str.replace('XX','FUT')
-    
+
     #pSymbolName  df['expiry']
     tokensymbols['symbol'] = tokensymbols.apply(combine_details, axis=1)
     return tokensymbols
@@ -267,10 +260,10 @@ def get_kotak_master_filepaths():
     }
     conn.request("GET", "/Files/1.0/masterscrip/v2/file-paths", payload, headers)
     res = conn.getresponse()
-    
+
     data = res.read().decode("utf-8")
     data_dict = json.loads(data)
-        
+
     filepaths_list = data_dict['data']['filesPaths']
     file_dict = {}
     for url in filepaths_list:
@@ -278,7 +271,7 @@ def get_kotak_master_filepaths():
         file_dict[file_name] = url
 
     return file_dict
-    
+
 
 def process_kotak_cds_csv(path):
     """
@@ -294,7 +287,7 @@ def process_kotak_cds_csv(path):
     tokensymbols['token'] = df['pSymbol']
     tokensymbols['name'] = df['pSymbolName']
     df['lExpiryDate'] = df['lExpiryDate']+315513000
-    
+
     # Convert 'Expiry date' from Unix timestamp to datetime
     tokensymbols['expiry'] = pd.to_datetime(df['lExpiryDate'], unit='s')
 
@@ -303,18 +296,18 @@ def process_kotak_cds_csv(path):
 
     tokensymbols['strike'] = df['dStrikePrice']/100
     tokensymbols['strike'] = tokensymbols['strike'].apply(lambda x: int(x) if x.is_integer() else x)
-    
+
     tokensymbols['lotsize'] = df['lLotSize']
     tokensymbols['tick_size'] = df['dTickSize']
     tokensymbols['brsymbol'] = df['pTrdSymbol']
     tokensymbols['brexchange'] = df['pExchSeg']
     tokensymbols['exchange'] = 'CDS'
-    
-    
-    
+
+
+
     #df1['instrumenttype'] = df['pOptionType'].apply(lambda x: x.replace('XX', 'FUT'))
     tokensymbols['instrumenttype'] = df['pOptionType'].str.replace('XX','FUT')
-    
+
     #pSymbolName  df['expiry']
     tokensymbols['symbol'] = tokensymbols.apply(combine_details, axis=1)
     return tokensymbols
@@ -335,7 +328,7 @@ def process_kotak_mcx_csv(path):
     tokensymbols['token'] = df['pSymbol']
     tokensymbols['name'] = df['pSymbolName']
     df['lExpiryDate'] = df['lExpiryDate']
-    
+
     # Convert 'Expiry date' from Unix timestamp to datetime
     tokensymbols['expiry'] = pd.to_datetime(df['lExpiryDate'], unit='s')
 
@@ -344,18 +337,18 @@ def process_kotak_mcx_csv(path):
 
     tokensymbols['strike'] = df['dStrikePrice']/100
     tokensymbols['strike'] = tokensymbols['strike'].apply(lambda x: int(x) if x.is_integer() else x)
-    
+
     tokensymbols['lotsize'] = df['lLotSize']
     tokensymbols['tick_size'] = df['dTickSize']
     tokensymbols['brsymbol'] = df['pTrdSymbol']
     tokensymbols['brexchange'] = df['pExchSeg']
     tokensymbols['exchange'] = 'MCX'
-    
-    
-    
+
+
+
     #df1['instrumenttype'] = df['pOptionType'].apply(lambda x: x.replace('XX', 'FUT'))
     tokensymbols['instrumenttype'] = df['pOptionType'].str.replace('XX','FUT')
-    
+
     #pSymbolName  df['expiry']
     tokensymbols['symbol'] = tokensymbols.apply(combine_details, axis=1)
     return tokensymbols
@@ -376,7 +369,7 @@ def process_kotak_bfo_csv(path):
     tokensymbols['token'] = df['pSymbol']
     tokensymbols['name'] = df['pSymbolName']
     df['lExpiryDate'] = df['lExpiryDate']
-    
+
     # Convert 'Expiry date' from Unix timestamp to datetime
     tokensymbols['expiry'] = pd.to_datetime(df['lExpiryDate'], unit='s')
 
@@ -385,18 +378,18 @@ def process_kotak_bfo_csv(path):
 
     tokensymbols['strike'] = df['dStrikePrice']/100
     tokensymbols['strike'] = tokensymbols['strike'].apply(lambda x: int(x) if x.is_integer() else x)
-    
+
     tokensymbols['lotsize'] = df['lLotSize']
     tokensymbols['tick_size'] = df['dTickSize']
     tokensymbols['brsymbol'] = df['pTrdSymbol']
     tokensymbols['brexchange'] = df['pExchSeg']
     tokensymbols['exchange'] = 'BFO'
-    
-    
-    
+
+
+
     #df1['instrumenttype'] = df['pOptionType'].apply(lambda x: x.replace('XX', 'FUT'))
     tokensymbols['instrumenttype'] = df['pOptionType'].str.replace('XX','FUT')
-    
+
     #pSymbolName  df['expiry']
     tokensymbols['symbol'] = tokensymbols.apply(combine_details, axis=1)
     return tokensymbols
@@ -410,10 +403,10 @@ def delete_kotak_temp_data(output_path):
         if filename.endswith(".csv") and os.path.isfile(file_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
-    
+
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    
+
     output_path = 'tmp'
     try:
         download_csv_kotak_data(output_path)
@@ -432,12 +425,12 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         delete_kotak_temp_data(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
-        
+
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
-    
+
     except Exception as e:
         logger.info(f"{str(e)}")
         return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})

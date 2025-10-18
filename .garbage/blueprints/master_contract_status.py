@@ -1,7 +1,7 @@
-from flask import Blueprint, jsonify, session, request
-from database.master_contract_status_db import get_status, check_if_ready
-from utils.session import check_session_validity
+from database.master_contract_status_db import check_if_ready, get_status
+from flask import Blueprint, jsonify, session
 from utils.logging import get_logger
+from utils.session import check_session_validity
 
 logger = get_logger(__name__)
 
@@ -18,10 +18,10 @@ def get_master_contract_status():
                 'status': 'error',
                 'message': 'No broker session found'
             }), 401
-            
+
         status_data = get_status(broker)
         return jsonify(status_data), 200
-        
+
     except Exception as e:
         logger.error(f"Error getting master contract status: {str(e)}")
         return jsonify({
@@ -40,13 +40,13 @@ def check_master_contract_ready():
                 'ready': False,
                 'message': 'No broker session found'
             }), 401
-            
+
         is_ready = check_if_ready(broker)
         return jsonify({
             'ready': is_ready,
             'message': 'Master contracts are ready' if is_ready else 'Master contracts not ready'
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error checking master contract readiness: {str(e)}")
         return jsonify({
@@ -60,10 +60,10 @@ def get_cache_status():
     """Get the current symbol cache status and statistics"""
     try:
         from database.token_db_enhanced import get_cache_stats
-        
+
         cache_info = get_cache_stats()
         return jsonify(cache_info), 200
-        
+
     except ImportError:
         # Fallback if enhanced cache not available yet
         return jsonify({
@@ -83,10 +83,10 @@ def get_cache_health():
     """Get cache health metrics and recommendations"""
     try:
         from database.master_contract_cache_hook import get_cache_health
-        
+
         health_info = get_cache_health()
         return jsonify(health_info), 200
-        
+
     except ImportError:
         return jsonify({
             'health_score': 0,
@@ -112,11 +112,11 @@ def reload_cache():
                 'status': 'error',
                 'message': 'No broker session found'
             }), 401
-        
+
         from database.master_contract_cache_hook import load_symbols_to_cache
-        
+
         success = load_symbols_to_cache(broker)
-        
+
         if success:
             return jsonify({
                 'status': 'success',
@@ -127,7 +127,7 @@ def reload_cache():
                 'status': 'error',
                 'message': 'Failed to reload cache'
             }), 500
-            
+
     except ImportError:
         return jsonify({
             'status': 'error',
@@ -146,14 +146,14 @@ def clear_cache():
     """Manually clear the cache"""
     try:
         from database.token_db_enhanced import clear_cache as clear_symbol_cache
-        
+
         clear_symbol_cache()
-        
+
         return jsonify({
             'status': 'success',
             'message': 'Cache cleared successfully'
         }), 200
-        
+
     except ImportError:
         return jsonify({
             'status': 'error',

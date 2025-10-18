@@ -1,11 +1,9 @@
+import time
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
 from starlette.types import ASGIApp
-from app.core.config import settings
-import hmac
-import hashlib
-import time
+
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

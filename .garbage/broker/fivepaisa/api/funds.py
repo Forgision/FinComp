@@ -1,9 +1,9 @@
 import os
-import json
+from typing import Any, Dict
+
 import httpx
-from typing import Dict, Any
-from utils.httpx_client import get_httpx_client
 from broker.fivepaisa.api.order_api import get_positions
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -63,7 +63,7 @@ def get_margin_data(auth_token: str) -> Dict[str, Any]:
         response.raise_for_status()
         margin_data = response.json()
         logger.info(f"Margin Data is : {margin_data}")
-        
+
         equity_margin = margin_data.get('body', {}).get('EquityMargin', [])[0]  # Access the first element of the list
         positions_data = get_positions(auth_token)
 

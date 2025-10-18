@@ -8,20 +8,21 @@ virtual trading environment instead of the live broker.
 """
 
 import copy
-from typing import Tuple, Dict, Any, Optional
-from database.settings_db import get_analyze_mode
-from database.auth_db import verify_api_key
-from database.apilog_db import async_log_order, executor
+from typing import Any, Dict, Optional, Tuple
+
 from database.analyzer_db import async_log_analyzer
+from database.apilog_db import executor
+from database.auth_db import verify_api_key
+from database.settings_db import get_analyze_mode
 from extensions import socketio
-from utils.logging import get_logger
-from services.telegram_alert_service import telegram_alert_service
+from sandbox.fund_manager import get_user_funds
+from sandbox.holdings_manager import HoldingsManager
 
 # Import sandbox managers
 from sandbox.order_manager import OrderManager
 from sandbox.position_manager import PositionManager
-from sandbox.holdings_manager import HoldingsManager
-from sandbox.fund_manager import FundManager, get_user_funds
+from services.telegram_alert_service import telegram_alert_service
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -655,7 +656,10 @@ def sandbox_reload_squareoff_schedule() -> Tuple[bool, Dict[str, Any], int]:
         - HTTP status code (int)
     """
     try:
-        from sandbox.squareoff_thread import reload_squareoff_schedule, get_squareoff_scheduler_status
+        from sandbox.squareoff_thread import (
+            get_squareoff_scheduler_status,
+            reload_squareoff_schedule,
+        )
 
         # Reload the schedule from config
         success, message = reload_squareoff_schedule()

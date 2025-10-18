@@ -1,7 +1,8 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, List, Union
-from database.auth_db import get_auth_token_broker, Auth, db_session, verify_api_key
+from typing import Any, Dict, Optional, Tuple
+
+from database.auth_db import Auth, get_auth_token_broker, verify_api_key
 from utils.logging import get_logger
 
 # Initialize logger
@@ -26,10 +27,10 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         return None
 
 def get_depth_with_auth(
-    auth_token: str, 
-    feed_token: Optional[str], 
-    broker: str, 
-    symbol: str, 
+    auth_token: str,
+    feed_token: Optional[str],
+    broker: str,
+    symbol: str,
     exchange: str,
     user_id: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
@@ -71,9 +72,9 @@ def get_depth_with_auth(
         else:
             # Fallback to just auth token if we can't inspect
             data_handler = broker_module.BrokerData(auth_token)
-            
+
         depth = data_handler.get_depth(symbol, exchange)
-        
+
         if depth is None:
             return False, {
                 'status': 'error',
@@ -93,11 +94,11 @@ def get_depth_with_auth(
         }, 500
 
 def get_depth(
-    symbol: str, 
+    symbol: str,
     exchange: str,
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
-    feed_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
+    feed_token: Optional[str] = None,
     broker: Optional[str] = None,
     user_id: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
@@ -130,7 +131,7 @@ def get_depth(
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'
             }, 403
-            
+
         # Get user_id from auth database
         extracted_user_id = None
         try:
@@ -141,27 +142,27 @@ def get_depth(
                     extracted_user_id = auth_obj.user_id
         except Exception as e:
             logger.warning(f"Could not fetch user_id: {e}")
-            
+
         return get_depth_with_auth(
-            AUTH_TOKEN, 
-            FEED_TOKEN, 
-            broker_name, 
-            symbol, 
+            AUTH_TOKEN,
+            FEED_TOKEN,
+            broker_name,
+            symbol,
             exchange,
             extracted_user_id
         )
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_depth_with_auth(
-            auth_token, 
-            feed_token, 
-            broker, 
-            symbol, 
+            auth_token,
+            feed_token,
+            broker,
+            symbol,
             exchange,
             user_id
         )
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

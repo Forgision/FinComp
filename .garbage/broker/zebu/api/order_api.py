@@ -1,9 +1,13 @@
-import httpx
 import json
 import os
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.zebu.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
+
+from broker.zebu.mapping.transform_data import (
+    map_product_type,
+    reverse_map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_symbol, get_token
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -109,15 +113,15 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-    
+
 
     # Get current open position for the symbol
     current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
 
-    logger.info(f"position_size : {position_size}") 
-    logger.info(f"Open Position : {current_position}") 
-    
+    logger.info(f"position_size : {position_size}")
+    logger.info(f"Open Position : {current_position}")
+
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -132,9 +136,9 @@ def place_smartorder_api(data,auth):
         res, response, orderid = place_order_api(data,AUTH_TOKEN)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
-        
+
         return res , response, orderid
-        
+
     elif position_size == current_position:
         if int(data['quantity'])==0:
             response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
@@ -142,8 +146,8 @@ def place_smartorder_api(data,auth):
             response = {"status": "success", "message": "No action needed. Position size matches current position"}
         orderid = None
         return res, response, orderid  # res remains None as no API call was made
-   
-   
+
+
 
     if position_size == 0 and current_position>0 :
         action = "SELL"
@@ -179,9 +183,9 @@ def place_smartorder_api(data,auth):
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
-        
+
         return res , response, orderid
-    
+
 
 
 
@@ -233,7 +237,7 @@ def close_all_positions(current_api_key,auth):
             # logger.info(f"{orderid}")
 
 
-            
+
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
@@ -305,7 +309,7 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     #logger.info(f"{order_book_response}")
@@ -327,6 +331,6 @@ def cancel_all_orders_api(data,auth):
             canceled_orders.append(orderid)
         else:
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations
 

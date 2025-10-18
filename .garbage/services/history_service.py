@@ -1,7 +1,8 @@
 import importlib
 import traceback
+from typing import Any, Dict, Optional, Tuple
+
 import pandas as pd
-from typing import Tuple, Dict, Any, Optional, List, Union
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -27,13 +28,13 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         return None
 
 def get_history_with_auth(
-    auth_token: str, 
-    feed_token: Optional[str], 
-    broker: str, 
-    symbol: str, 
-    exchange: str, 
-    interval: str, 
-    start_date: str, 
+    auth_token: str,
+    feed_token: Optional[str],
+    broker: str,
+    symbol: str,
+    exchange: str,
+    interval: str,
+    start_date: str,
     end_date: str
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -84,14 +85,14 @@ def get_history_with_auth(
             start_date,
             end_date
         )
-        
+
         if not isinstance(df, pd.DataFrame):
             raise ValueError("Invalid data format returned from broker")
-            
+
         # Ensure all responses include 'oi' field, set to 0 if not present
         if 'oi' not in df.columns:
             df['oi'] = 0
-            
+
         return True, {
             'status': 'success',
             'data': df.to_dict(orient='records')
@@ -105,14 +106,14 @@ def get_history_with_auth(
         }, 500
 
 def get_history(
-    symbol: str, 
-    exchange: str, 
-    interval: str, 
-    start_date: str, 
+    symbol: str,
+    exchange: str,
+    interval: str,
+    start_date: str,
     end_date: str,
-    api_key: Optional[str] = None, 
-    auth_token: Optional[str] = None, 
-    feed_token: Optional[str] = None, 
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
+    feed_token: Optional[str] = None,
     broker: Optional[str] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -145,29 +146,29 @@ def get_history(
                 'message': 'Invalid openalgo apikey'
             }, 403
         return get_history_with_auth(
-            AUTH_TOKEN, 
-            FEED_TOKEN, 
-            broker_name, 
-            symbol, 
-            exchange, 
-            interval, 
-            start_date, 
+            AUTH_TOKEN,
+            FEED_TOKEN,
+            broker_name,
+            symbol,
+            exchange,
+            interval,
+            start_date,
             end_date
         )
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_history_with_auth(
-            auth_token, 
-            feed_token, 
-            broker, 
-            symbol, 
-            exchange, 
-            interval, 
-            start_date, 
+            auth_token,
+            feed_token,
+            broker,
+            symbol,
+            exchange,
+            interval,
+            start_date,
             end_date
         )
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

@@ -1,8 +1,9 @@
 import logging
 
+
 class WisdomExchangeMapper:
     """Maps between OpenAlgo exchange codes and Wisdom XTS specific exchange types"""
-    
+
     # Exchange type mapping for Wisdom XTS broker
     # Format: {OpenAlgo_Exchange: Wisdom_Exchange_Code}
     # Based on Wisdom API documentation:
@@ -13,15 +14,15 @@ class WisdomExchangeMapper:
         'NFO': 2,        # NSEFO - NSE F&O
         'NSE_INDEX': 1,  # NSE Index
         'CDS': 3,        # NSECD - NSE Currency Derivatives
-        
+
         # BSE Segments
         'BSE': 11,       # BSECM - BSE Cash Market
         'BFO': 12,       # BSEFO - BSE F&O
         'BSE_INDEX': 11, # BSE Index
-        
+
         # MCX Segment
         'MCX': 51,       # MCXFO - MCX F&O
-        
+
         # Broker specific codes
         'NSECM': 1,      # NSE Cash Market
         'NSEFO': 2,      # NSE F&O
@@ -30,7 +31,7 @@ class WisdomExchangeMapper:
         'BSEFO': 12,     # BSE F&O
         'MCXFO': 51      # MCX F&O
     }
-    
+
     # Reverse mapping for converting Wisdom exchange codes to OpenAlgo format
     # Format: {Wisdom_Exchange_Code: OpenAlgo_Exchange}
     REVERSE_EXCHANGE_TYPES = {
@@ -41,7 +42,7 @@ class WisdomExchangeMapper:
         12: 'BFO',      # BSEFO
         51: 'MCX'       # MCXFO
     }
-    
+
     @staticmethod
     def get_exchange_type(exchange):
         """
@@ -56,10 +57,10 @@ class WisdomExchangeMapper:
         if exchange is None:
             logging.warning("Exchange is None, defaulting to NSE (1)")
             return 1
-            
+
         # Convert to string and uppercase
         exchange = str(exchange).upper().strip()
-        
+
         # Comprehensive mapping including all possible exchange codes
         # Mapping based on Wisdom API documentation:
         # "NSECM": 1, "NSEFO": 2, "NSECD": 3, "BSECM": 11, "BSEFO": 12, "MCXFO": 51
@@ -71,7 +72,7 @@ class WisdomExchangeMapper:
             'BSE': 11,       # BSE Cash Market
             'BFO': 12,       # BSE F&O
             'MCX': 51,       # MCX F&O
-            
+
             # Broker specific codes (from API docs)
             'NSECM': 1,      # NSE Cash Market
             'NSEFO': 2,      # NSE F&O
@@ -79,11 +80,11 @@ class WisdomExchangeMapper:
             'BSECM': 11,     # BSE Cash Market
             'BSEFO': 12,     # BSE F&O
             'MCXFO': 51,     # MCX F&O
-            
+
             # Additional mappings for index segments
             'NSE_INDEX': 1,  # NSE Index
             'BSE_INDEX': 11, # BSE Index
-            
+
             # Numeric string mappings (in case exchange comes as string number)
             '1': 1,          # NSECM
             '2': 2,          # NSEFO
@@ -92,18 +93,18 @@ class WisdomExchangeMapper:
             '12': 12,        # BSEFO
             '51': 51         # MCXFO
         }
-        
+
         # Try to find the exchange in our mapping
         exchange_code = all_exchange_mappings.get(exchange)
-        
+
         if exchange_code is not None:
             logging.info(f"Mapped exchange '{exchange}' to code {exchange_code}")
             return exchange_code
-            
+
         # If we get here, log a warning and default to NSE
         logging.warning(f"Unknown exchange '{exchange}', defaulting to NSE (1)")
         return 1
-    
+
     @staticmethod
     def get_openalgo_exchange(wisdom_code):
         """
@@ -123,7 +124,7 @@ class WisdomCapabilityRegistry:
     Registry of Wisdom XTS broker's capabilities including supported exchanges, 
     subscription modes, and market depth levels
     """
-    
+
     # Wisdom XTS broker capabilities
     exchanges = ['NSE', 'NFO', 'CDS', 'BSE', 'BFO', 'MCX']
     subscription_modes = [1, 2, 3]  # 1: LTP, 2: Quote, 3: Depth
@@ -135,7 +136,7 @@ class WisdomCapabilityRegistry:
         'BFO': [5],       # BSE F&O supports only 5 levels
         'MCX': [5]        # MCX supports 5 levels
     }
-    
+
     @classmethod
     def get_supported_depth_levels(cls, exchange):
         """
@@ -148,7 +149,7 @@ class WisdomCapabilityRegistry:
             list: List of supported depth levels (e.g., [5, 20])
         """
         return cls.depth_support.get(exchange, [5])
-    
+
     @classmethod
     def is_depth_level_supported(cls, exchange, depth_level):
         """
@@ -163,7 +164,7 @@ class WisdomCapabilityRegistry:
         """
         supported_depths = cls.get_supported_depth_levels(exchange)
         return depth_level in supported_depths
-    
+
     @classmethod
     def get_fallback_depth_level(cls, exchange, requested_depth):
         """

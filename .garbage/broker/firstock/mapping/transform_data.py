@@ -2,7 +2,7 @@
 #Mapping Firstock API Parameters https://connect.thefirstock.com/api/V4/placeOrder
 
 from database.token_db import get_br_symbol
-import html
+
 
 def transform_data(data,token):
     """
@@ -39,15 +39,15 @@ def transform_data(data,token):
     """
     userid = data["apikey"]
     userid = userid[:-4]  # Remove last 4 characters
-    
+
     # Get broker symbol and handle special characters
     symbol = get_br_symbol(data["symbol"], data["exchange"])
     if symbol and '&' in symbol:
         symbol = symbol.replace('&', '%26')
-    
+
     # Convert action to transactionType (case insensitive)
     transaction_type = 'B' if data["action"].upper() == "BUY" else 'S'
-    
+
     # Basic mapping
     transformed = {
         "userId": userid,
@@ -62,7 +62,7 @@ def transform_data(data,token):
         "retention": "DAY",
         "remarks": data.get("strategy", "Place Order")  # Use strategy name as remarks if available
     }
-    
+
     return transformed
 
 
@@ -86,7 +86,7 @@ def transform_modify_order_data(data, token):
     symbol = data["symbol"]
     if '&' in symbol:
         symbol = symbol.replace('&', '%26')
-        
+
     return {
         "exchange": data["exchange"],
         "orderNumber": data["orderid"],

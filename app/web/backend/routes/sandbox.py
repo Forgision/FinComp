@@ -1,23 +1,31 @@
 import traceback
 from datetime import datetime
 from decimal import Decimal
+
 import pytz
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from app.core.security import check_session_validity_fastapi
+from app.frontend import templates
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.web.services.sandbox_service import sandbox_reload_squareoff_schedule, sandbox_get_squareoff_status
-from app.db.sandbox_db import (
-    get_config, set_config, get_all_configs,
-    SandboxOrders, SandboxTrades, SandboxPositions,
-    SandboxHoldings, SandboxFunds, db_session as sandbox_db_session
-)
-from app.utils.session import check_session_validity_fastapi
-from app.utils.logging import logger
-from app.db.session import get_db
-from app.web.frontend import templates
 from app.core.config import settings
+from app.core.services.sandbox_service import (
+    sandbox_get_squareoff_status,
+    sandbox_reload_squareoff_schedule,
+)
+from app.db.models.sandbox_db import (
+    SandboxFunds,
+    SandboxHoldings,
+    SandboxOrders,
+    SandboxPositions,
+    SandboxTrades,
+    get_all_configs,
+    set_config,
+)
+from app.db.models.sandbox_db import db_session as sandbox_db_session
+from app.db.models.session import get_db
+from app.utils.logging import logger
 
 # Use existing rate limits from .env (same as API endpoints)
 API_RATE_LIMIT = settings.API_RATE_LIMIT
@@ -334,7 +342,7 @@ def validate_config(config_key, config_value):
                 hours, minutes = config_value.split(':')
                 if not (0 <= int(hours) <= 23 and 0 <= int(minutes) <= 59):
                     return 'Invalid time format'
-            except:
+            except Exception:
                 return 'Time must be in HH:MM format'
 
         # Validate day of week

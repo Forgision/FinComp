@@ -1,6 +1,7 @@
 import importlib
 import traceback
-from typing import Tuple, Dict, Any, Optional, Union
+from typing import Any, Dict, Optional, Tuple
+
 from database.auth_db import get_auth_token_broker
 from utils.logging import get_logger
 
@@ -66,7 +67,7 @@ def get_funds_with_auth(auth_token: str, broker: str, original_data: Dict[str, A
     try:
         # Get funds data using broker's implementation
         funds = broker_module.get_margin_data(auth_token)
-        
+
         return True, {
             'status': 'success',
             'data': funds
@@ -109,7 +110,7 @@ def get_funds(api_key: Optional[str] = None, auth_token: Optional[str] = None, b
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_funds_with_auth(auth_token, broker, None)
-    
+
     # Case 3: Invalid parameters
     else:
         return False, {

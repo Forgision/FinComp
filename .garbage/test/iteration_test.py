@@ -5,16 +5,15 @@ This script tests the WebSocket proxy server's handling of concurrent dictionary
 by creating multiple clients that rapidly connect, subscribe, and disconnect.
 """
 
-import asyncio
-import websockets
-import json
-import random
-import time
 import argparse
-import uuid
+import asyncio
+import json
 import logging
 import os
+import random
 from datetime import datetime
+
+import websockets
 
 # Set up logging
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
@@ -49,20 +48,20 @@ SYMBOLS = [
 
 class WebSocketClient:
     """Represents a single WebSocket client for testing"""
-    
+
     def __init__(self, client_id):
         self.id = client_id
         self.ws = None
         self.connected = False
         self.subscriptions = []
-    
+
     async def connect(self):
         """Connect to the WebSocket server and authenticate"""
         try:
             self.ws = await websockets.connect(WEBSOCKET_URI)
             self.connected = True
             logger.info(f"[{self.id}] Connected")
-            
+
             # Send authentication message
             auth_msg = {
                 "action": "authenticate",
@@ -81,12 +80,12 @@ class WebSocketClient:
             logger.error(f"[{self.id}] Connection error: {e}")
             self.connected = False
             return False
-    
+
     async def subscribe(self, symbol, exchange, mode=1):
         """Subscribe to a market data feed"""
         if not self.connected:
             return False
-        
+
         try:
             sub_msg = {
                 "action": "subscribe",
@@ -106,12 +105,12 @@ class WebSocketClient:
         except Exception as e:
             logger.error(f"[{self.id}] Subscription error: {e}")
             return False
-    
+
     async def unsubscribe(self, symbol, exchange):
         """Unsubscribe from a market data feed"""
         if not self.connected or f"{exchange}:{symbol}" not in self.subscriptions:
             return False
-        
+
         try:
             unsub_msg = {
                 "action": "unsubscribe",
@@ -130,7 +129,7 @@ class WebSocketClient:
         except Exception as e:
             logger.error(f"[{self.id}] Unsubscription error: {e}")
             return False
-    
+
     async def disconnect(self):
         """Disconnect from the WebSocket server"""
         if self.connected and self.ws:
@@ -166,19 +165,19 @@ async def random_client_behavior(client, running_flag):
     """Exhibit random behavior for a client - connect, subscribe, unsubscribe, disconnect"""
     # Start listener task
     listener_task = asyncio.create_task(listener(client))
-    
+
     try:
         # Connect
         if not await client.connect():
             return
-        
+
         # Random subscriptions
         for _ in range(random.randint(1, len(SYMBOLS))):
             symbol_info = random.choice(SYMBOLS)
             await client.subscribe(symbol_info["symbol"], symbol_info["exchange"])
             # Brief delay between subscriptions
             await asyncio.sleep(random.uniform(0.05, 0.2))
-        
+
         while running_flag.is_set():
             # Perform random actions
             action = random.choices(
@@ -186,7 +185,7 @@ async def random_client_behavior(client, running_flag):
                 weights=[0.3, 0.3, 0.4],
                 k=1
             )[0]
-            
+
             if action == "subscribe" and len(client.subscriptions) < len(SYMBOLS):
                 # Subscribe to a new symbol
                 for symbol_info in SYMBOLS:
@@ -194,16 +193,16 @@ async def random_client_behavior(client, running_flag):
                     if key not in client.subscriptions:
                         await client.subscribe(symbol_info["symbol"], symbol_info["exchange"])
                         break
-                        
+
             elif action == "unsubscribe" and client.subscriptions:
                 # Unsubscribe from a random symbol
                 sub_key = random.choice(client.subscriptions)
                 exchange, symbol = sub_key.split(":")
                 await client.unsubscribe(symbol, exchange)
-            
+
             # Sleep briefly between actions
             await asyncio.sleep(random.uniform(0.1, 0.5))
-        
+
     except Exception as e:
         print(f"[{client.id}] Error during random behavior: {e}")
     finally:
@@ -224,34 +223,34 @@ async def run_test(client_count, duration):
     header += f"Test duration: {duration} seconds\n"
     header += f"Logging to: {log_file}\n"
     header += f"{'='*60}\n"
-    
+
     print(header)
     logger.info(header)
-    
+
     # Create clients
     clients = [WebSocketClient(f"Client-{i+1}") for i in range(client_count)]
-    
+
     # Flag to signal tasks to stop
     running = asyncio.Event()
     running.set()
-    
+
     # Create tasks for each client
     tasks = [asyncio.create_task(random_client_behavior(client, running)) for client in clients]
-    
+
     # Create staggered connections
     clients_in_flight = []
     for i, client in enumerate(clients):
         # Add client to tracking list
         clients_in_flight.append(client)
-        
+
         # Every 3rd client, disconnect a previous one to create churn
         if i > 5 and i % 3 == 0 and clients_in_flight:
             disconnected = clients_in_flight.pop(0)
             await disconnected.disconnect()
-        
+
         # Spread out connections
         await asyncio.sleep(random.uniform(0.3, 0.7))
-    
+
     # Run for specified duration
     try:
         await asyncio.sleep(duration)
@@ -261,16 +260,16 @@ async def run_test(client_count, duration):
         logger.info(shutdown_msg)
         # Signal tasks to stop
         running.clear()
-        
+
         # Wait for all tasks to complete
         await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     summary = f"\n{'='*60}\n"
     summary += f"TEST COMPLETED at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    summary += f"No dictionary size errors detected during the test.\n"
+    summary += "No dictionary size errors detected during the test.\n"
     summary += f"Log file saved to: {log_file}\n"
     summary += f"{'='*60}\n"
-    
+
     print(summary)
     logger.info(summary)
 
@@ -280,11 +279,11 @@ def main():
     parser.add_argument("--clients", type=int, default=CLIENT_COUNT, help="Number of clients to simulate")
     parser.add_argument("--duration", type=int, default=TEST_DURATION_SECONDS, help="Test duration in seconds")
     args = parser.parse_args()
-    
+
     try:
         asyncio.run(run_test(args.clients, args.duration))
     except KeyboardInterrupt:
         print("\nTest interrupted by user.")
-    
+
 if __name__ == "__main__":
     main()

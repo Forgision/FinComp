@@ -1,5 +1,6 @@
 import json
 import os
+
 import httpx
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
@@ -24,7 +25,7 @@ def authenticate_broker(code):
             'redirect_uri': REDIRECT_URL,
             'grant_type': 'authorization_code',
         }
-        
+
         client = get_httpx_client()
         response = client.post(url, data=data)
 
@@ -49,12 +50,12 @@ def authenticate_broker(code):
             except json.JSONDecodeError:
                 logger.error(f"{error_msg} | Status: {response.status_code}, Response: {response.text}")
             return None, error_msg
-            
+
     except httpx.RequestError as e:
         logger.exception("An HTTP request error occurred during Upstox authentication.")
         return None, f"An HTTP request error occurred: {e}"
-        
-    except Exception as e:
+
+    except Exception:
         logger.exception("An unexpected error occurred during Upstox authentication.")
         return None, "An unexpected error occurred during authentication."
 

@@ -1,24 +1,16 @@
-import importlib
-import traceback
 import copy
-from typing import Tuple, Dict, Any, Optional, List
+import importlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, Optional, Tuple
 
-from database.auth_db import get_auth_token_broker
-from database.apilog_db import async_log_order, executor as log_executor
-from database.settings_db import get_analyze_mode
 from database.analyzer_db import async_log_analyzer
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
+from database.auth_db import get_auth_token_broker
+from database.settings_db import get_analyze_mode
 from extensions import socketio
-from utils.api_analyzer import analyze_request, generate_order_id
-from utils.constants import (
-    VALID_EXCHANGES,
-    VALID_ACTIONS,
-    VALID_PRICE_TYPES,
-    VALID_PRODUCT_TYPES,
-    REQUIRED_ORDER_FIELDS
-)
-from utils.logging import get_logger
 from services.telegram_alert_service import telegram_alert_service
+from utils.logging import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -42,22 +34,22 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
         'status': 'error',
         'message': error_message
     }
-    
+
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
     if 'apikey' in analyzer_request:
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'splitorder'
-    
+
     # Log to analyzer database
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'splitorder')
-    
+
     # Emit socket event
     socketio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
-    
+
     return error_response
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
@@ -79,10 +71,10 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         return None
 
 def place_single_order(
-    order_data: Dict[str, Any], 
-    broker_module: Any, 
-    auth_token: str, 
-    order_num: int, 
+    order_data: Dict[str, Any],
+    broker_module: Any,
+    auth_token: str,
+    order_num: int,
     total_orders: int
 ) -> Dict[str, Any]:
     """
@@ -167,7 +159,7 @@ def split_order_with_auth(
     split_request_data = copy.deepcopy(original_data)
     if 'apikey' in split_request_data:
         split_request_data.pop('apikey', None)
-    
+
     # Validate quantities
     try:
         split_size = int(split_data['splitsize'])
@@ -201,7 +193,7 @@ def split_order_with_auth(
         error_response = {'status': 'error', 'message': error_message}
         log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
         return False, error_response, 400
-    
+
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode():
         from services.sandbox_service import sandbox_place_order
@@ -304,12 +296,12 @@ def split_order_with_auth(
 
     # Process orders concurrently
     results = []
-    
+
     # Create a ThreadPoolExecutor for concurrent order placement
     with ThreadPoolExecutor(max_workers=10) as order_executor:
         # Prepare orders for concurrent execution
         futures = []
-        
+
         # Submit full-size orders
         for i in range(num_full_orders):
             order_data = copy.deepcopy(split_data)
@@ -387,12 +379,12 @@ def split_order(
     original_data = copy.deepcopy(split_data)
     if api_key:
         original_data['apikey'] = api_key
-    
+
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to split data
         split_data['apikey'] = api_key
-        
+
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
             error_response = {
@@ -401,13 +393,13 @@ def split_order(
             }
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
-        
+
         return split_order_with_auth(split_data, AUTH_TOKEN, broker_name, original_data)
-    
+
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return split_order_with_auth(split_data, auth_token, broker, original_data)
-    
+
     # Case 3: Invalid parameters
     else:
         error_response = {

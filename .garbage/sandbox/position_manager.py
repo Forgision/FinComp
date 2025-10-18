@@ -12,17 +12,16 @@ Features:
 
 import os
 import sys
-from decimal import Decimal
-from datetime import datetime
-import pytz
 import time
+from datetime import datetime
+from decimal import Decimal
+
+import pytz
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.sandbox_db import (
-    SandboxPositions, SandboxTrades, db_session, get_config
-)
+from database.sandbox_db import SandboxPositions, SandboxTrades, db_session, get_config
 from sandbox.fund_manager import FundManager
 from sandbox.holdings_manager import HoldingsManager
 from services.quotes_service import get_quotes
@@ -51,8 +50,8 @@ class PositionManager:
             tuple: (success: bool, response: dict, status_code: int)
         """
         try:
-            from datetime import datetime, time, timedelta
             import os
+            from datetime import datetime, time, timedelta
 
             # Get session expiry time from config (e.g., '03:00')
             session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')
@@ -394,8 +393,8 @@ class PositionManager:
     def get_tradebook(self):
         """Get all executed trades for the user for current session only"""
         try:
-            from datetime import datetime, time, timedelta
             import os
+            from datetime import datetime, time, timedelta
 
             # Get session expiry time from config (e.g., '03:00')
             session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')
@@ -471,10 +470,11 @@ class PositionManager:
         This should be called at session expiry time (e.g., 3:00 AM IST)
         """
         try:
-            from datetime import datetime, date
-            from database.sandbox_db import SandboxHoldings
-            from database import db
             import os
+            from datetime import date
+
+            from database import db
+            from database.sandbox_db import SandboxHoldings
 
             # Get session expiry time from config
             session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')

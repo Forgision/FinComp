@@ -4,11 +4,9 @@ Implements core NATS protocol without external dependencies
 """
 
 import json
-import random
-import string
 import logging
-from typing import Dict, Any, Optional, Callable, List, Union, Tuple
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +36,7 @@ class NATSProtocol:
     """
     Minimal NATS protocol handler for WebSocket communication
     """
-    
+
     def __init__(self, on_message: Optional[Callable] = None):
         """
         Initialize NATS protocol handler
@@ -51,13 +49,13 @@ class NATSProtocol:
         self.server_info: Dict[str, Any] = {}
         self.pending_data = ""  # Buffer for incomplete messages
         self.next_sid = 1
-        
+
     def generate_sid(self) -> str:
         """Generate unique subscription ID"""
         sid = str(self.next_sid)
         self.next_sid += 1
         return sid
-    
+
     def create_connect(self, jwt: str, nkey: str = None, sig: str = None) -> str:
         """
         Create CONNECT message
@@ -84,14 +82,14 @@ class NATSProtocol:
             "headers": True,  # Enable headers support
             "no_responders": True  # Enable no responders detection
         }
-        
+
         if nkey:
             connect_opts["nkey"] = nkey
         if sig:
             connect_opts["sig"] = sig
-            
+
         return f"CONNECT {json.dumps(connect_opts)}\r\n"
-    
+
     def create_subscribe(self, subject: str, queue_group: str = None) -> tuple[str, str]:
         """
         Create SUB message
@@ -104,22 +102,22 @@ class NATSProtocol:
             Tuple of (subscription_id, NATS SUB command)
         """
         sid = self.generate_sid()
-        
+
         # Store subscription
         self.subscriptions[sid] = Subscription(
             sid=sid,
             subject=subject,
             queue_group=queue_group
         )
-        
+
         if queue_group:
             sub_cmd = f"SUB {subject} {queue_group} {sid}\r\n"
         else:
             sub_cmd = f"SUB {subject} {sid}\r\n"
-            
+
         logger.debug(f"Created subscription: {sub_cmd.strip()}")
         return sid, sub_cmd
-    
+
     def create_unsubscribe(self, sid: str, max_msgs: int = None) -> str:
         """
         Create UNSUB message
@@ -135,21 +133,21 @@ class NATSProtocol:
             unsub_cmd = f"UNSUB {sid} {max_msgs}\r\n"
         else:
             unsub_cmd = f"UNSUB {sid}\r\n"
-            
+
         # Remove subscription if no max_msgs
         if not max_msgs and sid in self.subscriptions:
             del self.subscriptions[sid]
-            
+
         return unsub_cmd
-    
+
     def create_ping(self) -> str:
         """Create PING message"""
         return "PING\r\n"
-    
+
     def create_pong(self) -> str:
         """Create PONG message"""
         return "PONG\r\n"
-    
+
     def parse_message(self, data: Union[str, bytes], original_binary: bytes = None) -> List[Dict[str, Any]]:
         """
         Parse NATS protocol messages
@@ -166,11 +164,11 @@ class NATSProtocol:
         # Store original binary for payload extraction
         self.original_binary = original_binary
         messages = []
-        
+
         # Log if we have data to parse
         if self.pending_data:
             logger.debug(f"NATS Parser: Processing {len(self.pending_data)} bytes")
-        
+
         while self.pending_data:
             # Try to find complete messages
             if self.pending_data.startswith(INFO):
@@ -178,10 +176,10 @@ class NATSProtocol:
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
                     break  # Incomplete message
-                    
+
                 info_line = self.pending_data[:end_idx]
                 self.pending_data = self.pending_data[end_idx + 2:]
-                
+
                 # Extract JSON from INFO
                 json_start = info_line.find('{')
                 if json_start != -1:
@@ -194,28 +192,28 @@ class NATSProtocol:
                         })
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse INFO: {e}")
-                        
+
             elif self.pending_data.startswith(MSG):
                 # MSG format: MSG <subject> <sid> [reply-to] <#bytes>\r\n<payload>\r\n
-                logger.info(f"🔍 Found MSG in data stream")
+                logger.info("🔍 Found MSG in data stream")
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
-                    logger.debug(f"MSG header incomplete, waiting for more data")
+                    logger.debug("MSG header incomplete, waiting for more data")
                     break  # Incomplete header
-                    
+
                 msg_header = self.pending_data[:end_idx]
                 remaining = self.pending_data[end_idx + 2:]
-                
+
                 # Parse MSG header
                 parts = msg_header.split(' ')
                 if len(parts) < 4:
                     logger.error(f"Invalid MSG header: {msg_header}")
                     self.pending_data = remaining
                     continue
-                
+
                 subject = parts[1]
                 sid = parts[2]
-                
+
                 # Check if there's a reply-to
                 if len(parts) == 4:
                     # No reply-to
@@ -225,18 +223,18 @@ class NATSProtocol:
                     # Has reply-to
                     reply_to = parts[3]
                     size = int(parts[4])
-                
+
                 # Check if we have enough data for payload
                 if len(remaining) < size + 2:  # +2 for \r\n
                     logger.debug(f"MSG payload incomplete: need {size + 2} bytes, have {len(remaining)}")
                     break  # Incomplete payload
-                
+
                 # Extract payload - keep it as bytes when possible
                 if self.original_binary:
                     # We have the original binary data
                     # Find where this MSG starts in the original binary
                     msg_pattern = f"MSG {subject} {sid}".encode('utf-8')
-                    
+
                     try:
                         # Find the MSG header in binary data
                         idx = self.original_binary.find(msg_pattern)
@@ -246,7 +244,7 @@ class NATSProtocol:
                             if header_end != -1:
                                 payload_start = header_end + 2  # Skip \r\n
                                 payload_end = payload_start + size
-                                
+
                                 if payload_end <= len(self.original_binary):
                                     # Extract binary payload directly
                                     payload = self.original_binary[payload_start:payload_end]
@@ -264,17 +262,17 @@ class NATSProtocol:
                 else:
                     # No binary data available, encode the string
                     payload = remaining[:size].encode('latin-1', errors='ignore')
-                
+
                 self.pending_data = remaining[size + 2:]  # Skip payload and \r\n
-                
+
                 logger.info(f"📊 MSG parsed - Subject: {subject}, SID: {sid}, Size: {size}")
-                
+
                 # Process the message
                 if sid in self.subscriptions:
                     sub = self.subscriptions[sid]
                     sub.received_msgs += 1
                     logger.info(f"✅ Subscription found for SID {sid}: {sub.subject}")
-                    
+
                     messages.append({
                         'type': 'MSG',
                         'subject': subject,
@@ -284,7 +282,7 @@ class NATSProtocol:
                         'payload': payload,  # Now this is bytes
                         'subscription': sub
                     })
-                    
+
                     # Check if we should auto-unsub
                     if sub.max_msgs and sub.received_msgs >= sub.max_msgs:
                         del self.subscriptions[sid]
@@ -299,43 +297,43 @@ class NATSProtocol:
                         'payload': payload,  # Now this is bytes
                         'subscription': None
                     })
-                        
+
             elif self.pending_data.startswith(PING):
                 # PING message
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
                     break
-                    
+
                 self.pending_data = self.pending_data[end_idx + 2:]
                 messages.append({'type': 'PING'})
-                
+
             elif self.pending_data.startswith(PONG):
                 # PONG message
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
                     break
-                    
+
                 self.pending_data = self.pending_data[end_idx + 2:]
                 messages.append({'type': 'PONG'})
-                
+
             elif self.pending_data.startswith(OK):
                 # +OK message
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
                     break
-                    
+
                 self.pending_data = self.pending_data[end_idx + 2:]
                 messages.append({'type': 'OK'})
-                
+
             elif self.pending_data.startswith(ERR):
                 # -ERR message
                 end_idx = self.pending_data.find('\r\n')
                 if end_idx == -1:
                     break
-                    
+
                 err_line = self.pending_data[:end_idx]
                 self.pending_data = self.pending_data[end_idx + 2:]
-                
+
                 # Extract error message
                 error_msg = err_line[4:].strip().strip("'\"")
                 messages.append({
@@ -349,7 +347,7 @@ class NATSProtocol:
                     idx = self.pending_data.find(cmd)
                     if idx > 0 and (next_cmd_idx == -1 or idx < next_cmd_idx):
                         next_cmd_idx = idx
-                
+
                 if next_cmd_idx > 0:
                     # Skip unknown data
                     logger.debug(f"Skipping unknown data: {self.pending_data[:next_cmd_idx]}")
@@ -357,9 +355,9 @@ class NATSProtocol:
                 else:
                     # No known command found, wait for more data
                     break
-        
+
         return messages
-    
+
     def format_topic_for_groww(self, exchange: str, segment: str, token: str, mode: str) -> str:
         """
         Format subscription topic for Groww

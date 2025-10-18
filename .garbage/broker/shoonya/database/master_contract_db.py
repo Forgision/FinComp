@@ -1,13 +1,14 @@
-import os
-import requests
-import zipfile
 import io
-import pandas as pd
+import os
+import zipfile
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+
+import pandas as pd
+import requests
 from extensions import socketio  # Import SocketIO
+from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -100,10 +101,10 @@ def download_and_unzip_shoonya_data(output_path):
         try:
             # Send GET request to download the zip file
             response = requests.get(url, timeout=10)
-            
+
             if response.status_code == 200:
                 logger.info(f"Successfully downloaded {key} from {url}")
-                
+
                 # Use in-memory file to handle the downloaded zip file
                 z = zipfile.ZipFile(io.BytesIO(response.content))
                 z.extractall(output_path)
@@ -221,7 +222,7 @@ def process_shoonya_nfo_data(output_path):
             compact_expiry = expiry_date.replace('-', '')
         else:
             compact_expiry = ''
-            
+
         if row['instrumenttype'] == 'FUT':
             return f"{row['name']}{compact_expiry}FUT"
         else:
@@ -300,7 +301,7 @@ def process_shoonya_cds_data(output_path):
             compact_expiry = expiry_date.replace('-', '')
         else:
             compact_expiry = ''
-            
+
         if row['instrumenttype'] == 'FUT':
             return f"{row['name']}{compact_expiry}FUT"
         else:
@@ -380,7 +381,7 @@ def process_shoonya_mcx_data(output_path):
             compact_expiry = expiry_date.replace('-', '')
         else:
             compact_expiry = ''
-            
+
         if row['instrumenttype'] == 'FUT':
             return f"{row['name']}{compact_expiry}FUT"
         else:
@@ -452,7 +453,7 @@ def process_shoonya_bse_data(output_path):
     # Map all instrument types to 'EQ' for consistency
     # Original instrument types in BSE include: F, B, A, E, G, T, Z, X, XT, M, MT, TS, W, etc.
     df['instrumenttype'] = 'EQ'
-    
+
     logger.info(f"Mapped all BSE instrument types to 'EQ'. Original types found: {df['instrumenttype'].unique()}")
 
     # Handle missing or invalid numeric values in 'lotsize' and 'tick_size'
@@ -511,7 +512,7 @@ def process_shoonya_bfo_data(output_path):
     """
     logger.info("Processing shoonya BFO Data")
     file_path = f'{output_path}/BFO_symbols.txt'
-    
+
     try:
         # Read the BFO symbols file
         df = pd.read_csv(file_path, usecols=['Exchange', 'Token', 'LotSize', 'Symbol', 'TradingSymbol', 'Expiry', 'Instrument', 'OptionType', 'StrikePrice', 'TickSize'])
@@ -580,7 +581,7 @@ def process_shoonya_bfo_data(output_path):
             compact_expiry = expiry_date.replace('-', '')
         else:
             compact_expiry = ''
-            
+
         if row['instrumenttype'] == 'FUT':
             return f"{row['name']}{compact_expiry}FUT"
         else:
@@ -622,7 +623,7 @@ def master_contract_download():
     try:
         download_and_unzip_shoonya_data(output_path)
         delete_symtoken_table()
-        
+
         # Process exchange data
         token_df = process_shoonya_nse_data(output_path)
         copy_from_dataframe(token_df)
@@ -636,9 +637,9 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         token_df = process_shoonya_bfo_data(output_path)
         copy_from_dataframe(token_df)
-        
+
         delete_shoonya_temp_data(output_path)
-        
+
         return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
     except Exception as e:
         logger.info(f"{str(e)}")

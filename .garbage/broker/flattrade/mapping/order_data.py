@@ -1,5 +1,4 @@
-import json
-from database.token_db import get_symbol, get_oa_symbol
+from database.token_db import get_oa_symbol, get_symbol
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -27,19 +26,19 @@ def map_order_data(order_data):
             # Extract the instrument_token and exchange for the current order
             symboltoken = order['token']
             exchange = order['exch']
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_symbol(symboltoken, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tsym'] = symbol_from_db
                 if (order['exch'] == 'NSE' or order['exch'] == 'BSE') and order['prd'] == 'C':
                     order['prd'] = 'CNC'
-                            
+
                 elif order['prd'] == 'I':
                     order['prd'] = 'MIS'
-                
+
                 elif order['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['prd'] == 'M':
                     order['prd'] = 'NRML'
 
@@ -51,24 +50,24 @@ def map_order_data(order_data):
                     order['prctyp']="SL-M"
                 elif(order['prctyp']=="SL-LMT"):
                     order['prctyp']="SL"
-                
+
                 # 🔥 NEW: Use avgprc if instname and avgprc are present (highest priority)
                 if order.get('instname') and order.get('avgprc'):
                     avgprc = order.get('avgprc', 0)
                     if avgprc and float(avgprc) > 0:
                         order['prc'] = avgprc
                         logger.debug(f"Updated price from avgprc for order with instname: {order.get('norenordno', '')} - Price: {avgprc}")
-                
+
                 # 🔥 EXISTING: Price logic for MARKET and SL-M orders (fallback)
                 elif order['prctyp'] in ["MARKET", "SL-M"] and float(order.get('prc', 0)) == 0.0:
                     rprc = order.get('rprc', 0)
                     if rprc and float(rprc) > 0:
                         order['prc'] = rprc
                         logger.debug(f"Updated price from rprc for {order['prctyp']} order: {order.get('norenordno', '')}")
-                
+
             else:
                 logger.warning(f"Symbol not found for token {symboltoken} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return order_data
 
 
@@ -96,7 +95,7 @@ def calculate_order_statistics(order_data):
             elif order['trantype'] == 'S':
                 order['trantype'] = 'SELL'
                 total_sell_orders += 1
-            
+
             # Count orders based on their status
             if order['status'] == 'COMPLETE':
                 total_completed_orders += 1
@@ -116,18 +115,18 @@ def calculate_order_statistics(order_data):
 
 
 def transform_order_data(orders):
-    
+
     # Handle None or empty orders
     if orders is None:
         logger.warning("No order data available - orders is None")
         return []
-    
+
     if not orders:
         logger.info("No orders found - empty list")
         return []
 
     transformed_orders = []
-    
+
     for order in orders:
         # Make sure each item is indeed a dictionary
         if not isinstance(order, dict):
@@ -173,7 +172,7 @@ def map_trade_data(trade_data):
         trade_data = {}  # or set it to an empty list if it's supposed to be a list
     else:
         trade_data = trade_data
-        
+
 
 
     if trade_data:
@@ -181,19 +180,19 @@ def map_trade_data(trade_data):
             # Extract the instrument_token and exchange for the current order
             symbol = order['tsym']
             exchange = order['exch']
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_oa_symbol(symbol, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tsym'] = symbol_from_db
                 if (order['exch'] == 'NSE' or order['exch'] == 'BSE') and order['prd'] == 'C':
                     order['prd'] = 'CNC'
-                               
+
                 elif order['prd'] == 'I':
                     order['prd'] = 'MIS'
-                
+
                 elif order['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['prd'] == 'M':
                     order['prd'] = 'NRML'
 
@@ -201,11 +200,11 @@ def map_trade_data(trade_data):
                     order['trantype']="BUY"
                 elif(order['trantype']=="S"):
                     order['trantype']="SELL"
-                
-                
+
+
             else:
                 logger.warning(f"Unable to find the symbol {symbol} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return trade_data
 
 
@@ -218,7 +217,7 @@ def transform_tradebook_data(tradebook_data):
         avg_price = round(float(trade.get('avgprc', 0)), 2)
         quantity = int(trade.get('qty', 0))
         trade_value = round(avg_price * quantity, 2)
-        
+
         transformed_trade = {
             "symbol": trade.get('tsym', ''),
             "exchange": trade.get('exch', ''),
@@ -256,24 +255,24 @@ def map_position_data(position_data):
             # Extract the instrument_token and exchange for the current order
             symbol = order['tsym']
             exchange = order['exch']
-            
+
             # Use the get_symbol function to fetch the symbol from the database
             symbol_from_db = get_oa_symbol(symbol, exchange)
-            
+
             # Check if a symbol was found; if so, update the trading_symbol in the current order
             if symbol_from_db:
                 order['tsym'] = symbol_from_db
                 if (order['exch'] == 'NSE' or order['exch'] == 'BSE') and order['prd'] == 'C':
                     order['prd'] = 'CNC'
-                               
+
                 elif order['prd'] == 'I':
                     order['prd'] = 'MIS'
-                
+
                 elif order['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['prd'] == 'M':
                     order['prd'] = 'NRML'
             else:
                 logger.warning(f"Unable to find the symbol {symbol} and exchange {exchange}. Keeping original trading symbol.")
-                
+
     return position_data
 
 
@@ -292,7 +291,7 @@ def transform_positions_data(positions_data):
         # Calculate P&L using broker-provided values
         realized_pnl = float(position.get('rpnl', 0))
         unrealized_pnl = float(position.get('urmtom', 0))
-        
+
         # Fallback calculation if broker values aren't available
         if unrealized_pnl == 0 and float(position.get('netqty', 0)) != 0:
             price_factor = float(position.get('prcftr', 1))
@@ -300,10 +299,10 @@ def transform_positions_data(positions_data):
             avg_price = float(position.get('netavgprc', 0))
             quantity = float(position.get('netqty', 0))
             unrealized_pnl = (ltp - avg_price) * quantity * price_factor
-        
-        # Calculate total P&L (realized + unrealized)        
+
+        # Calculate total P&L (realized + unrealized)
         total_pnl = realized_pnl + unrealized_pnl
-        
+
         transformed_position = {
             "symbol": position.get('tsym', ''),
             "exchange": position.get('exch', ''),
@@ -349,12 +348,12 @@ def map_portfolio_data(portfolio_data):
 
             # Replace 'get_oa_symbol' function with your actual symbol fetching logic
             symbol_from_db = get_oa_symbol(symbol, exchange)
-            
+
             if symbol_from_db:
                 exch_tsym['tsym'] = symbol_from_db
             else:
                 logger.info(f"Flattrade Portfolio - Product Value for {symbol} Not Found or Changed.")
-    
+
     return portfolio_data
 
 def calculate_portfolio_statistics(holdings_data):

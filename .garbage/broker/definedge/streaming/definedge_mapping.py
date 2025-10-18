@@ -1,12 +1,11 @@
-import logging
 
 class DefinedgeExchangeMapper:
     """Maps OpenAlgo exchange codes to DefinEdge-specific exchange types"""
-    
+
     # Exchange mapping for DefinEdge broker (as per API docs)
     EXCHANGE_MAP = {
         'NSE': 'NSE',
-        'BSE': 'BSE', 
+        'BSE': 'BSE',
         'NFO': 'NFO',
         'BFO': 'BFO',
         'CDS': 'CDS',
@@ -14,7 +13,7 @@ class DefinedgeExchangeMapper:
         'NSE_INDEX': 'NSE',
         'BSE_INDEX': 'BSE'
     }
-    
+
     @staticmethod
     def get_exchange_code(exchange):
         """
@@ -34,11 +33,11 @@ class DefinedgeCapabilityRegistry:
     Registry of DefinEdge broker's capabilities including supported exchanges, 
     subscription modes, and market depth levels
     """
-    
+
     # DefinEdge broker capabilities
     exchanges = ['NSE', 'BSE', 'NFO', 'BFO', 'MCX', 'CDS']
     subscription_modes = ['t', 'd']  # 't': touchline (LTP+Quote), 'd': depth
-    
+
     # Depth support - DefinEdge supports 5 level depth for all exchanges
     depth_support = {
         'NSE': [5],
@@ -48,7 +47,7 @@ class DefinedgeCapabilityRegistry:
         'MCX': [5],
         'CDS': [5]
     }
-    
+
     @classmethod
     def get_supported_depth_levels(cls, exchange):
         """
@@ -61,7 +60,7 @@ class DefinedgeCapabilityRegistry:
             list: List of supported depth levels
         """
         return cls.depth_support.get(exchange, [5])
-    
+
     @classmethod
     def is_depth_level_supported(cls, exchange, depth_level):
         """
@@ -76,7 +75,7 @@ class DefinedgeCapabilityRegistry:
         """
         supported_depths = cls.get_supported_depth_levels(exchange)
         return depth_level in supported_depths
-    
+
     @classmethod
     def get_fallback_depth_level(cls, exchange, requested_depth):
         """

@@ -1,11 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.pool import NullPool
-import os
 import logging
-from datetime import datetime
+import os
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
+from sqlalchemy.sql import func
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ LatencyBase.query = latency_session.query_property()
 class OrderLatency(LatencyBase):
     """Model for tracking end-to-end order execution latency"""
     __tablename__ = 'order_latency'
-    
+
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     order_id = Column(String(100), nullable=False)
@@ -44,24 +44,24 @@ class OrderLatency(LatencyBase):
     broker = Column(String(50))
     symbol = Column(String(50))
     order_type = Column(String(20))  # MARKET, LIMIT, etc.
-    
+
     # Round-trip time (comparable to Postman/Bruno)
     rtt_ms = Column(Float)
-    
+
     # Our processing overhead
     validation_latency_ms = Column(Float)  # Pre-request processing
     response_latency_ms = Column(Float)  # Post-response processing
     overhead_ms = Column(Float)  # Total overhead
-    
+
     # Total time including overhead
     total_latency_ms = Column(Float, nullable=False)
-    
+
     # Request details
     request_body = Column(JSON)  # Original request
     response_body = Column(JSON)  # Broker response
     status = Column(String(20))  # SUCCESS, FAILED, PARTIAL
     error = Column(String(500))  # Error message if any
-    
+
     @staticmethod
     def log_latency(order_id, user_id, broker, symbol, order_type, latencies, request_body, response_body, status, error=None):
         """Log order execution latency"""
@@ -104,26 +104,26 @@ class OrderLatency(LatencyBase):
         """Get latency statistics"""
         try:
             from sqlalchemy import func
-            
+
             # Overall stats
             total_orders = OrderLatency.query.count()
             failed_orders = OrderLatency.query.filter(OrderLatency.status == 'FAILED').count()
-            
+
             # Get average latencies
             avg_rtt = latency_session.query(func.avg(OrderLatency.rtt_ms)).scalar() or 0
             avg_overhead = latency_session.query(func.avg(OrderLatency.overhead_ms)).scalar() or 0
             avg_total = latency_session.query(func.avg(OrderLatency.total_latency_ms)).scalar() or 0
-            
+
             # Get p50, p90, p99 latencies for RTT
             rtt_latencies = [l[0] for l in OrderLatency.query.with_entities(OrderLatency.rtt_ms).all()]
             rtt_latencies.sort()
-            
+
             p50_rtt = p90_rtt = p99_rtt = 0
             if rtt_latencies:
                 p50_rtt = rtt_latencies[int(len(rtt_latencies) * 0.5)]
                 p90_rtt = rtt_latencies[int(len(rtt_latencies) * 0.9)]
                 p99_rtt = rtt_latencies[int(len(rtt_latencies) * 0.99)]
-            
+
             # Breakdown by broker
             broker_stats = {}
             brokers = [b[0] for b in OrderLatency.query.with_entities(OrderLatency.broker).distinct().all()]
@@ -137,7 +137,7 @@ class OrderLatency(LatencyBase):
                         'avg_overhead': float(broker_orders.with_entities(func.avg(OrderLatency.overhead_ms)).scalar() or 0),
                         'avg_total': float(broker_orders.with_entities(func.avg(OrderLatency.total_latency_ms)).scalar() or 0)
                     }
-            
+
             return {
                 'total_orders': total_orders,
                 'failed_orders': failed_orders,
@@ -170,6 +170,6 @@ def init_latency_db():
     db_dir = os.path.dirname(db_path)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
-    
+
     logger.info(f"Initializing Latency DB at: {LATENCY_DATABASE_URL}")
     LatencyBase.metadata.create_all(bind=latency_engine)

@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, validate
 
+
 class OrderSchema(Schema):
     apikey = fields.Str(required=True)
     strategy = fields.Str(required=True)

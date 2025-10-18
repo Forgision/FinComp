@@ -1,6 +1,32 @@
+__all__ = [
+    "analyzer_router",
+    "apikey_router",
+    "auth_router",
+    "broker_router",
+    "chartink_router",
+    "core_router",
+    "dashboard_router",
+    "latency_router",
+    "log_router",
+    "master_contract_status_router",
+    "orders_router",
+    "pnltracker_router",
+    "python_strategy_router",
+    "sandbox_router",
+    "search_router",
+    "security_router",
+    "settings_router",
+    "strategy_router",
+    "telegram_router",
+    "traffic_router",
+    "tv_json_router",
+    "websocket_router",
+]
+
 from .analyzer import analyzer_router
 from .apikey import apikey_router
 from .auth import auth_router
+
 # from .brlogin import brlogin_router
 from .broker_auth import broker_router
 from .chartink import chartink_router

@@ -1,13 +1,13 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
-import traceback
 
-from .data_schemas import IntervalsSchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.intervals_service import get_intervals
 from utils.logging import get_logger
+
+from .data_schemas import IntervalsSchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('intervals', description='Supported Intervals API')
@@ -28,10 +28,10 @@ class Intervals(Resource):
             intervals_data = intervals_schema.load(request.json)
 
             api_key = intervals_data['apikey']
-            
+
             # Call the service function to get intervals data with API key
             success, response_data, status_code = get_intervals(api_key=api_key)
-            
+
             return make_response(jsonify(response_data), status_code)
 
         except ValidationError as err:

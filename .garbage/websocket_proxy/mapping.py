@@ -1,10 +1,10 @@
+from database.token_db import get_brexchange, get_token
 from utils.logging import get_logger
-from database.token_db import get_token, get_brexchange
-from database.symbol import SymToken
+
 
 class ExchangeMapper:
     """Base class for mapping OpenAlgo exchange codes to broker-specific exchange types"""
-    
+
     @staticmethod
     def get_exchange_type(exchange, broker):
         """
@@ -26,9 +26,9 @@ class ExchangeMapper:
 
 class SymbolMapper:
     """Maps OpenAlgo symbols to broker-specific tokens"""
-    
+
     logger = get_logger("symbol_mapper")
-    
+
     @staticmethod
     def get_token_from_symbol(symbol, exchange):
         """
@@ -45,11 +45,11 @@ class SymbolMapper:
             # Get token from database
             token = get_token(symbol, exchange)
             brexchange = get_brexchange(symbol, exchange)
-            
+
             if not token or not brexchange:
                 SymbolMapper.logger.error(f"Symbol not found: {symbol}-{exchange}")
                 return None
-                
+
             return {
                 'token': token,
                 'brexchange': brexchange
@@ -67,7 +67,7 @@ class BrokerCapabilityRegistry:
     Each broker should implement its own capability registry that can be queried
     for supported features.
     """
-    
+
     @classmethod
     def get_supported_depth_levels(cls, broker, exchange):
         """
@@ -83,7 +83,7 @@ class BrokerCapabilityRegistry:
         # This method should be implemented by broker-specific capability registries
         # By default, assume support for the standard 5-level depth
         return [5]
-    
+
     @classmethod
     def is_depth_level_supported(cls, broker, exchange, depth_level):
         """
@@ -99,7 +99,7 @@ class BrokerCapabilityRegistry:
         """
         supported_depths = cls.get_supported_depth_levels(broker, exchange)
         return depth_level in supported_depths
-    
+
     @classmethod
     def get_fallback_depth_level(cls, broker, exchange, requested_depth):
         """

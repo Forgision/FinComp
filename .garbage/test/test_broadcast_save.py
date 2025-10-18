@@ -1,8 +1,9 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.telegram_db import update_bot_config, get_bot_config
+from database.telegram_db import get_bot_config, update_bot_config
 
 # Test saving with broadcast disabled
 print("Testing broadcast_enabled field:")

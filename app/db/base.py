@@ -1,8 +1,9 @@
 # app/db/base.py
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
 
 # Get database URL from settings

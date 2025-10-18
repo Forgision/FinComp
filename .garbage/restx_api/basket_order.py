@@ -1,16 +1,15 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
 import traceback
-import copy
 
-from restx_api.schemas import BasketOrderSchema
-from services.basket_order_service import place_basket_order
-from database.apilog_db import async_log_order, executor as log_executor
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
 from database.settings_db import get_analyze_mode
-from services.basket_order_service import emit_analyzer_error
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
+from restx_api.schemas import BasketOrderSchema
+from services.basket_order_service import emit_analyzer_error, place_basket_order
 from utils.logging import get_logger
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
@@ -29,7 +28,7 @@ class BasketOrder(Resource):
         """Place multiple orders in a basket"""
         try:
             data = request.json
-            
+
             # Validate and deserialize input
             try:
                 basket_data = basket_schema.load(data)
@@ -43,16 +42,16 @@ class BasketOrder(Resource):
 
             # Extract API key
             api_key = basket_data.pop('apikey', None)
-            
+
             # Call the service function to place the basket order
             success, response_data, status_code = place_basket_order(
                 basket_data=basket_data,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
-            
-        except Exception as e:
+
+        except Exception:
             logger.error("An unexpected error occurred in BasketOrder endpoint.")
             traceback.print_exc()
             error_message = 'An unexpected error occurred'

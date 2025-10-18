@@ -1,8 +1,9 @@
-from flask import request, abort, jsonify
-from database.traffic_db import IPBan, Error404Tracker, logs_session
-from functools import wraps
-from utils.ip_helper import get_real_ip, get_real_ip_from_environ
 import logging
+from functools import wraps
+
+from database.traffic_db import IPBan
+from flask import abort, jsonify
+from utils.ip_helper import get_real_ip, get_real_ip_from_environ
 
 logger = logging.getLogger(__name__)
 

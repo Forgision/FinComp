@@ -1,9 +1,9 @@
-from mcp.server.fastmcp import FastMCP
-from openalgo import api
-from typing import List, Dict, Any, Optional
 import json
 import sys
+from typing import Optional
 
+from mcp.server.fastmcp import FastMCP
+from openalgo import api
 
 # Get API key and host from command line arguments
 if len(sys.argv) < 3:
@@ -22,12 +22,12 @@ mcp = FastMCP("openalgo")
 
 @mcp.tool()
 def place_order(
-    symbol: str, 
-    quantity: int, 
-    action: str, 
-    exchange: str = "NSE", 
-    price_type: str = "MARKET", 
-    product: str = "MIS", 
+    symbol: str,
+    quantity: int,
+    action: str,
+    exchange: str = "NSE",
+    price_type: str = "MARKET",
+    product: str = "MIS",
     strategy: str = "Python",
     price: Optional[float] = None,
     trigger_price: Optional[float] = None,
@@ -58,14 +58,14 @@ def place_order(
             "product": product.upper(),
             "quantity": quantity
         }
-        
+
         if price is not None:
             params["price"] = price
         if trigger_price is not None:
             params["trigger_price"] = trigger_price
         if disclosed_quantity is not None:
             params["disclosed_quantity"] = disclosed_quantity
-            
+
         response = client.placeorder(**params)
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -73,13 +73,13 @@ def place_order(
 
 @mcp.tool()
 def place_smart_order(
-    symbol: str, 
-    quantity: int, 
-    action: str, 
+    symbol: str,
+    quantity: int,
+    action: str,
     position_size: int,
-    exchange: str = "NSE", 
-    price_type: str = "MARKET", 
-    product: str = "MIS", 
+    exchange: str = "NSE",
+    price_type: str = "MARKET",
+    product: str = "MIS",
     strategy: str = "Python",
     price: Optional[float] = None
 ) -> str:
@@ -108,10 +108,10 @@ def place_smart_order(
             "quantity": quantity,
             "position_size": position_size
         }
-        
+
         if price is not None:
             params["price"] = price
-            
+
         response = client.placesmartorder(**params)
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -167,10 +167,10 @@ def place_split_order(
             "price_type": price_type.upper(),
             "product": product.upper()
         }
-        
+
         if price is not None:
             params["price"] = price
-            
+
         response = client.splitorder(**params)
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -213,10 +213,10 @@ def modify_order(
             "product": product.upper(),
             "quantity": quantity
         }
-        
+
         if price is not None:
             params["price"] = price
-            
+
         response = client.modifyorder(**params)
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -432,7 +432,7 @@ def search_instruments(query: str, exchange: str = "NSE", instrument_type: str =
                 exchange = "NSE_INDEX"
             elif exchange.upper() == "BSE":
                 exchange = "BSE_INDEX"
-        
+
         response = client.search(query=query, exchange=exchange.upper())
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -455,16 +455,16 @@ def get_symbol_info(symbol: str, exchange: str = "NSE", instrument_type: str = N
                 exchange = "NSE_INDEX"
             elif exchange.upper() == "BSE":
                 exchange = "BSE_INDEX"
-        
+
         # Or check if symbol is a known index
         nse_indices = ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY", "INDIAVIX"]
         bse_indices = ["SENSEX", "BANKEX", "SENSEX50"]
-        
+
         if symbol.upper() in nse_indices and exchange.upper() == "NSE":
             exchange = "NSE_INDEX"
         elif symbol.upper() in bse_indices and exchange.upper() == "BSE":
             exchange = "BSE_INDEX"
-        
+
         response = client.get_symbol_info(symbol=symbol, exchange=exchange.upper())
         return json.dumps(response, indent=2)
     except Exception as e:
@@ -487,11 +487,11 @@ def get_index_symbols(exchange: str = "NSE") -> str:
             "symbols": ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY", "INDIAVIX"]
         },
         "BSE": {
-            "exchange_code": "BSE_INDEX", 
+            "exchange_code": "BSE_INDEX",
             "symbols": ["SENSEX", "BANKEX", "SENSEX50"]
         }
     }
-    
+
     exchange_upper = exchange.upper()
     if exchange_upper in indices:
         return json.dumps({
@@ -565,17 +565,17 @@ def validate_order_constants() -> str:
     constants = {
         "exchanges": {
             "NSE": "NSE Equity",
-            "NFO": "NSE Futures & Options", 
+            "NFO": "NSE Futures & Options",
             "CDS": "NSE Currency",
             "BSE": "BSE Equity",
             "BFO": "BSE Futures & Options",
-            "BCD": "BSE Currency", 
+            "BCD": "BSE Currency",
             "MCX": "MCX Commodity",
             "NCDEX": "NCDEX Commodity"
         },
         "product_types": {
             "CNC": "Cash & Carry for equity",
-            "NRML": "Normal for futures and options", 
+            "NRML": "Normal for futures and options",
             "MIS": "Intraday Square off"
         },
         "price_types": {

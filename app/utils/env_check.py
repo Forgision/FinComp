@@ -1,6 +1,8 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
+
 from app.core.config import settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -25,7 +27,7 @@ def check_env_version_compatibility():
     if not SAMPLE_ENV_PATH.exists():
         print("\nWarning: .sample.env file not found. Cannot check version compatibility.")
         return True  # Assume compatible if sample file is missing
-    
+
     # Read version from .env file
     env_version = None
     try:
@@ -38,7 +40,7 @@ def check_env_version_compatibility():
     except Exception as e:
         print(f"\nWarning: Could not read .env file: {e}")
         return True  # Assume compatible if can't read
-    
+
     # Read version from .sample.env file
     sample_version = None
     try:
@@ -51,7 +53,7 @@ def check_env_version_compatibility():
     except Exception as e:
         print(f"\nWarning: Could not read .sample.env file: {e}")
         return True  # Assume compatible if can't read
-    
+
     # If either version is missing, warn but continue
     if not env_version:
         print("\n" + "="*70)
@@ -60,19 +62,19 @@ def check_env_version_compatibility():
         print("   Consider updating it with new variables from .sample.env")
         print("="*70)
         return True
-        
+
     if not sample_version:
         return True  # Can't compare without sample version
-    
+
     # Compare versions using simple string comparison for semantic versions
     try:
         def version_tuple(v):
             """Convert version string to tuple of integers for comparison"""
             return tuple(map(int, v.split('.')))
-        
+
         env_ver = version_tuple(env_version)
         sample_ver = version_tuple(sample_version)
-        
+
         if env_ver < sample_ver:
             print("\n" + "🔴 " + "="*68)
             print("🔴  CONFIGURATION UPDATE REQUIRED")
@@ -88,7 +90,7 @@ def check_env_version_compatibility():
             print("")
             print("   New features may not work properly with an outdated configuration!")
             print("🔴 " + "="*68)
-            
+
             # Give user a chance to continue anyway
             try:
                 response = input("\n⚠️  Continue anyway? (y/N): ").lower().strip()
@@ -98,19 +100,19 @@ def check_env_version_compatibility():
             except (KeyboardInterrupt, EOFError):
                 print("\nApplication startup cancelled.")
                 return False
-                
+
         elif env_ver > sample_ver:
             print(f"\n✅ Your .env version ({env_version}) is newer than sample ({sample_version})")
-            
+
         else:
             print(f"\n✅ Configuration version check passed ({env_version})")
-            
+
     except Exception as e:
         print(f"\nWarning: Could not parse version numbers: {e}")
         print(f"   .env version: {env_version}")
         print(f"   .sample.env version: {sample_version}")
         return True  # Continue if version parsing fails
-    
+
     return True
 
 def load_and_check_env_variables():
@@ -130,21 +132,21 @@ def load_and_check_env_variables():
     # Define the required environment variables
     required_vars = [
         'ENV_CONFIG_VERSION',  # Version tracking for configuration compatibility
-        'BROKER_API_KEY', 
-        'BROKER_API_SECRET', 
-        'REDIRECT_URL', 
-        'APP_KEY', 
+        'BROKER_API_KEY',
+        'BROKER_API_SECRET',
+        'REDIRECT_URL',
+        'APP_KEY',
         'API_KEY_PEPPER',  # Added API_KEY_PEPPER as it's required for security
         'DATABASE_URL',
-        'NGROK_ALLOW', 
-        'HOST_SERVER', 
-        'FLASK_HOST_IP', 
-        'FLASK_PORT', 
+        'NGROK_ALLOW',
+        'HOST_SERVER',
+        'FLASK_HOST_IP',
+        'FLASK_PORT',
         'FLASK_DEBUG',
         'FLASK_ENV',  # Added FLASK_ENV as it's important for app configuration
-        'LOGIN_RATE_LIMIT_MIN', 
+        'LOGIN_RATE_LIMIT_MIN',
         'LOGIN_RATE_LIMIT_HOUR',
-        'API_RATE_LIMIT', 
+        'API_RATE_LIMIT',
         'ORDER_RATE_LIMIT',  # Rate limit for order placement, modification, and cancellation
         'SMART_ORDER_RATE_LIMIT',  # Rate limit for smart order placement
         'WEBHOOK_RATE_LIMIT',  # Rate limit for webhook endpoints
@@ -172,9 +174,8 @@ def load_and_check_env_variables():
 
     # Special validation for broker-specific API key formats
     broker_api_key = settings.BROKER_API_KEY
-    broker_api_secret = settings.BROKER_API_SECRET
     redirect_url = settings.REDIRECT_URL
-    
+
     # Extract broker name from redirect URL for validation
     broker_name = None
     try:
@@ -182,9 +183,9 @@ def load_and_check_env_variables():
         match = re.search(r'/([^/]+)/callback$', redirect_url)
         if match:
             broker_name = match.group(1).lower()
-    except:
+    except Exception:
         pass
-    
+
     # Validate 5paisa API key format
     if broker_name == 'fivepaisa':
         if ':::' not in broker_api_key or broker_api_key.count(':::') != 2:
@@ -197,7 +198,7 @@ def load_and_check_env_variables():
             print("\nFor detailed instructions, please refer to:")
             print("  https://docs.openalgo.in/connect-brokers/brokers/5paisa")
             sys.exit(1)
-            
+
     # Validate flattrade API key format
     elif broker_name == 'flattrade':
         if ':::' not in broker_api_key or broker_api_key.count(':::') != 1:
@@ -232,7 +233,7 @@ def load_and_check_env_variables():
         print("\nError: FLASK_PORT must be a valid port number (0-65535)")
         print("Example: FLASK_PORT='5000'")
         sys.exit(1)
-        
+
     # Validate WebSocket port
     try:
         ws_port = settings.WEBSOCKET_PORT
@@ -246,7 +247,7 @@ def load_and_check_env_variables():
     # Check REDIRECT_URL configuration
     redirect_url = settings.REDIRECT_URL
     default_value = 'http://127.0.0.1:5000/<broker>/callback'
-    
+
     if redirect_url == default_value:
         print("\nError: Default REDIRECT_URL detected in .env file.")
         print("The application cannot start with the default configuration.")
@@ -276,7 +277,7 @@ def load_and_check_env_variables():
         sys.exit(1)
 
     valid_brokers = set(broker.strip().lower() for broker in valid_brokers_str.split(','))
-    
+
     try:
         import re
         match = re.search(r'/([^/]+)/callback$', redirect_url)
@@ -285,7 +286,7 @@ def load_and_check_env_variables():
             print("The URL must end with '/broker_name/callback'")
             print("Example: http://127.0.0.1:5000/zerodha/callback")
             sys.exit(1)
-            
+
         broker_name = match.group(1).lower()
         if broker_name not in valid_brokers:
             print("\nError: Invalid broker name in REDIRECT_URL.")
@@ -293,7 +294,7 @@ def load_and_check_env_variables():
             print(f"\nValid brokers are: {', '.join(sorted(valid_brokers))}")
             print("\nPlease update your REDIRECT_URL with a valid broker name.")
             sys.exit(1)
-            
+
     except Exception as e:
         print("\nError: Could not validate REDIRECT_URL format.")
         print(f"Details: {str(e)}")
@@ -304,7 +305,7 @@ def load_and_check_env_variables():
     # Validate rate limits format
     rate_limit_vars = ['LOGIN_RATE_LIMIT_MIN', 'LOGIN_RATE_LIMIT_HOUR', 'API_RATE_LIMIT', 'ORDER_RATE_LIMIT', 'SMART_ORDER_RATE_LIMIT', 'WEBHOOK_RATE_LIMIT', 'STRATEGY_RATE_LIMIT']
     rate_limit_pattern = re.compile(r'^\d+\s+per\s+(second|minute|hour|day)$')
-    
+
     for var in rate_limit_vars:
         value = getattr(settings, var, '')
         if not rate_limit_pattern.match(value):
@@ -331,28 +332,28 @@ def load_and_check_env_variables():
         print("\nError: SMART_ORDER_DELAY must be a valid positive number")
         print("Example: SMART_ORDER_DELAY='0.5'")
         sys.exit(1)
-        
+
     # Validate WEBSOCKET_URL format
     websocket_url = settings.WEBSOCKET_URL
     if not websocket_url.startswith('ws://') and not websocket_url.startswith('wss://'):
         print("\nError: WEBSOCKET_URL must start with 'ws://' or 'wss://'")
         print("Example: WEBSOCKET_URL='ws://localhost:8765'")
         sys.exit(1)
-        
+
     # Validate logging configuration
     log_to_file = str(settings.LOG_TO_FILE).lower()
     if log_to_file not in ['true', 'false']:
         print("\nError: LOG_TO_FILE must be 'True' or 'False'")
         print("Example: LOG_TO_FILE=False")
         sys.exit(1)
-        
+
     log_level = settings.LOG_LEVEL.upper()
     valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
     if log_level not in valid_log_levels:
         print(f"\nError: LOG_LEVEL must be one of: {', '.join(valid_log_levels)}")
         print("Example: LOG_LEVEL=INFO")
         sys.exit(1)
-        
+
     # Validate LOG_RETENTION is a positive integer
     try:
         retention = settings.LOG_RETENTION
@@ -362,14 +363,14 @@ def load_and_check_env_variables():
         print("\nError: LOG_RETENTION must be a positive integer (days)")
         print("Example: LOG_RETENTION=14")
         sys.exit(1)
-        
+
     # Validate LOG_DIR is not empty
     log_dir = settings.LOG_DIR.strip()
     if not log_dir:
         print("\nError: LOG_DIR cannot be empty")
         print("Example: LOG_DIR=log")
         sys.exit(1)
-        
+
     # Validate LOG_FORMAT is not empty
     log_format = settings.LOG_FORMAT.strip()
     if not log_format:

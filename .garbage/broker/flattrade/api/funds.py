@@ -1,6 +1,6 @@
-import os
-import httpx
 import json
+import os
+
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -12,12 +12,12 @@ def calculate_pnl(entry):
     # Use broker-provided values directly for more accurate calculation
     unrealized_pnl = float(entry.get("urmtom", 0))
     realized_pnl = float(entry.get("rpnl", 0))
-    
+
     # Fallback calculation if broker values aren't available
     if unrealized_pnl == 0 and float(entry.get("netqty", 0)) != 0:
         price_factor = float(entry.get("prcftr", 1))
         unrealized_pnl = (float(entry.get("lp", 0)) - float(entry.get("netavgprc", 0))) * float(entry.get("netqty", 0)) * price_factor
-    
+
     return realized_pnl, unrealized_pnl
 
 def fetch_data(endpoint, payload, headers, client):
@@ -42,7 +42,7 @@ def get_margin_data(auth_token):
 
     # Fetch margin data
     margin_data = fetch_data("/PiConnectTP/Limits", payload, headers, client)
-    
+
     # Check if the request was successful
     if margin_data.get('stat') != 'Ok':
         # Log the error or return an empty dictionary to indicate failure
@@ -51,7 +51,7 @@ def get_margin_data(auth_token):
 
     # Fetch position data
     position_data = fetch_data("/PiConnectTP/PositionBook", payload, headers, client)
-    
+
     total_realised = 0
     total_unrealised = 0
 

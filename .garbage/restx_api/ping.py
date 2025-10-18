@@ -1,13 +1,14 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
 import traceback
 
-from .account_schema import PingSchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.ping_service import get_ping
 from utils.logging import get_logger
+
+from .account_schema import PingSchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('ping', description='Ping API to check connectivity and authentication')
@@ -28,7 +29,7 @@ class Ping(Resource):
             ping_data = ping_schema.load(request.json)
 
             api_key = ping_data['apikey']
-            
+
             # Call the service function to get ping response with API key
             success, response_data, status_code = get_ping(api_key=api_key)
             return make_response(jsonify(response_data), status_code)

@@ -1,28 +1,13 @@
-import os
 
-from fastapi import APIRouter, Request, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from ....utils.logging import logger
-from ....core.config import settings
-from ...frontend import templates
-
+from app.utils.session import check_session_validity_fastapi as get_current_user
 
 dashboard_router = APIRouter()
 
 # Placeholder for session validation dependency
 # This will be properly implemented later as a FastAPI dependency
-async def get_current_user(request: Request):
-    # For now, just check if 'user' is in session.
-    # A proper implementation will involve token verification etc.
-    if "user" not in request.session:
-        raise HTTPException(
-            status_code=status.HTTP_303_SEE_OTHER,
-            detail="Not authenticated",
-            headers={"Location": "/auth/login"}
-        )
-    return request.session.get("user")
 
 
 @dashboard_router.get("/dashboard", response_class=HTMLResponse, name= "dashboard")
@@ -44,4 +29,4 @@ async def dashboard(request: Request, current_user: str = Depends(get_current_us
     # In FastAPI, this would typically be handled by the authentication dependency
     # or specific error handling. For now, we assume current_user is valid.
 
-    return templates.TemplateResponse("dashboard.html", {"request": request, "margin_data": margin_data})
+    return JSONResponse(content={"margin_data": margin_data})

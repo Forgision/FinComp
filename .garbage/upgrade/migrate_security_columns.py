@@ -14,8 +14,8 @@ import sys
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine, text, inspect
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, inspect, text
 
 # Load environment from parent directory
 env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
@@ -87,7 +87,7 @@ def migrate_settings_table():
                     logger.info(f"✓ Column already exists: {column_name}")
                     columns_existing += 1
 
-        logger.info(f"\n📊 Migration Summary:")
+        logger.info("\n📊 Migration Summary:")
         logger.info(f"   - Columns added: {columns_added}")
         logger.info(f"   - Columns already existing: {columns_existing}")
         logger.info(f"   - Total security columns: {len(security_columns)}")

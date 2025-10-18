@@ -3,8 +3,14 @@
 Test script to verify bot starts properly from web UI
 """
 import time
-from services.telegram_bot_service import init_bot_sync, start_bot_sync, stop_bot_sync, get_telegram_bot
+
 from database.telegram_db import get_bot_config
+from services.telegram_bot_service import (
+    get_telegram_bot,
+    init_bot_sync,
+    start_bot_sync,
+    stop_bot_sync,
+)
 
 # Get config
 config = get_bot_config()

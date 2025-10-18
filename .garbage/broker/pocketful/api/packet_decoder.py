@@ -1,6 +1,6 @@
-import struct
 import json
-import ctypes
+import struct
+
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -16,13 +16,13 @@ def decodeSnapquoteData(message):
     """
     try:
         logger.debug(f"Decoding snapquote message: {message[:100]}{'...' if len(str(message)) > 100 else ''}")
-        
+
         # For JSON responses (modern API version)
         if isinstance(message, str):
             try:
                 data = json.loads(message)
                 logger.debug(f"Parsed JSON data: {data}")
-                
+
                 # Handle various JSON response formats
                 if isinstance(data, dict):
                     # Direct data object
@@ -33,7 +33,7 @@ def decodeSnapquoteData(message):
                         if 'exchangeCode' in data and 'exchange_code' not in data:
                             data['exchange_code'] = data['exchangeCode']
                         return data
-                    
+
                     # Nested data in 'd' field (common in some APIs)
                     if 'd' in data and isinstance(data['d'], dict):
                         result = data['d']
@@ -42,7 +42,7 @@ def decodeSnapquoteData(message):
                         if 'exchangeCode' in result and 'exchange_code' not in result:
                             result['exchange_code'] = result['exchangeCode']
                         return result
-                    
+
                     # Check for 'data' field
                     if 'data' in data and isinstance(data['data'], dict):
                         result = data['data']
@@ -51,7 +51,7 @@ def decodeSnapquoteData(message):
                         if 'exchangeCode' in result and 'exchange_code' not in result:
                             result['exchange_code'] = result['exchangeCode']
                         return result
-                                        
+
                 # Handle array responses
                 elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
                     # Return first item in array if it has right fields
@@ -62,18 +62,18 @@ def decodeSnapquoteData(message):
                         if 'exchangeCode' in result and 'exchange_code' not in result:
                             result['exchange_code'] = result['exchangeCode']
                         return result
-                
+
                 logger.debug(f"JSON format not recognized: {data}")
             except Exception as e:
                 logger.debug(f"JSON parsing failed: {str(e)}")
-                
+
         # Use the official Pocketful binary decoder for snapquote data
         try:
             # Check minimum message length for snapquote data
             if not message or len(message) < 166:  # Minimum size for snapquote
                 logger.warning(f"Message too short for snapquote data: {len(message) if message else 0} bytes")
                 return {}
-                
+
             return {
                 "mode": struct.unpack('>b', message[0:1])[0],
                 "exchange_code": struct.unpack('>b', message[1:2])[0],
@@ -129,11 +129,11 @@ def decodeSnapquoteData(message):
                 "totalSellQty": struct.unpack('>Q', message[154:162])[0],
                 "volume": struct.unpack('>I', message[162:166])[0],
             }
-                
+
         except Exception as e:
             logger.error(f"Binary parsing failed: {str(e)}")
             return {}
-            
+
     except Exception as e:
         logger.error(f"Error decoding snapquote data: {str(e)}")
         return {}
@@ -147,7 +147,7 @@ def decodeDetailedMarketData(message):
         if not message or len(message) < 102:  # Minimum size for detailed market data
             logger.warning(f"Message too short for detailed market data: {len(message) if message else 0} bytes")
             return {}
-            
+
         return {
             "mode": struct.unpack('>b', message[0:1])[0],
             "exchange_code": struct.unpack('>b', message[1:2])[0],
@@ -186,13 +186,13 @@ def decodeCompactMarketData(message):
     """
     try:
         logger.debug(f"Decoding compact market data message: {message[:100]}{'...' if len(str(message)) > 100 else ''}")
-        
+
         # Handle JSON format
         if isinstance(message, str):
             try:
                 data = json.loads(message)
                 logger.debug(f"Parsed JSON data: {data}")
-                
+
                 # Standardize field names
                 if isinstance(data, dict):
                     # Direct dict with expected fields
@@ -203,7 +203,7 @@ def decodeCompactMarketData(message):
                         if 'exchangeCode' in data and 'exchange_code' not in data:
                             data['exchange_code'] = data['exchangeCode']
                         return data
-                    
+
                     # Nested data in 'd' field
                     if 'd' in data and isinstance(data['d'], dict):
                         result = data['d']
@@ -213,8 +213,8 @@ def decodeCompactMarketData(message):
                         if 'exchangeCode' in result and 'exchange_code' not in result:
                             result['exchange_code'] = result['exchangeCode']
                         return result
-                        
-                    # Nested data in 'data' field  
+
+                    # Nested data in 'data' field
                     if 'data' in data and isinstance(data['data'], dict):
                         result = data['data']
                         # Standardize key names
@@ -223,18 +223,18 @@ def decodeCompactMarketData(message):
                         if 'exchangeCode' in result and 'exchange_code' not in result:
                             result['exchange_code'] = result['exchangeCode']
                         return result
-                
+
                 logger.debug(f"JSON format not recognized: {data}")
             except Exception as e:
                 logger.debug(f"JSON parsing failed: {str(e)}")
-        
+
         # Use the official Pocketful binary decoder
         try:
             # Check if we have enough bytes for the basic header
             if not message or len(message) < 42:  # Minimum size for compact market data
                 logger.warning(f"Message too short for compact data parsing: {len(message) if message else 0} bytes")
                 return {}
-            
+
             result = {
                 "mode": struct.unpack('>b', message[0:1])[0],
                 "exchange_code": struct.unpack('>b', message[1:2])[0],
@@ -249,14 +249,14 @@ def decodeCompactMarketData(message):
                 "bidPrice": struct.unpack('>I', message[34:38])[0],
                 "askPrice": struct.unpack('>I', message[38:42])[0],
             }
-            
+
             logger.debug(f"Decoded compact market data: {result}")
             return result
-            
+
         except Exception as e:
             logger.error(f"Binary parsing failed: {str(e)}")
             return {}
-            
+
     except Exception as e:
         logger.error(f"Error decoding compact market data: {str(e)}")
         return {}

@@ -1,19 +1,20 @@
-import os
 import glob
 import logging
+import os
+
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import text
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, 
+logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def add_user_id_column():
     """Add user_id column to the auth table in the database."""
     logger.info("Starting to add user_id column to auth table")
-    
+
     # Search for SQLite database files in the db directory
     db_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'db')
     logger.info(f"Searching for database files in: {db_dir}")
@@ -36,7 +37,7 @@ def add_user_id_column():
 
     if not success:
         logger.warning("Could not automatically find or update any databases.")
-        
+
     logger.info("User ID column addition process completed")
     return success
 
@@ -67,7 +68,7 @@ def _add_column_to_database(db_path):
                 logger.info(f"Successfully added user_id column to auth table in: {db_path}")
             else:
                 logger.info(f"Column user_id already exists in auth table in: {db_path}")
-            
+
             return True
 
     except SQLAlchemyError as e:

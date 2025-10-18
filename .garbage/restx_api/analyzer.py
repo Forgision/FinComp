@@ -1,13 +1,13 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
-import traceback
 
+from database.apilog_db import async_log_order
+from database.apilog_db import executor as log_executor
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from restx_api.account_schema import AnalyzerSchema, AnalyzerToggleSchema
 from services.analyzer_service import get_analyzer_status, toggle_analyzer_mode
-from database.apilog_db import async_log_order, executor as log_executor
 from utils.logging import get_logger
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
@@ -39,16 +39,16 @@ class AnalyzerStatus(Resource):
 
             # Extract API key
             api_key = analyzer_data.pop('apikey', None)
-            
+
             # Call the service function to get analyzer status
             success, response_data, status_code = get_analyzer_status(
                 analyzer_data=analyzer_data,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
 
-        except Exception as e:
+        except Exception:
             logger.exception("An unexpected error occurred in Analyzer status endpoint.")
             error_message = 'An unexpected error occurred'
             error_response = {'status': 'error', 'message': error_message}
@@ -74,16 +74,16 @@ class AnalyzerToggle(Resource):
 
             # Extract API key
             api_key = analyzer_data.pop('apikey', None)
-            
+
             # Call the service function to toggle analyzer mode
             success, response_data, status_code = toggle_analyzer_mode(
                 analyzer_data=analyzer_data,
                 api_key=api_key
             )
-            
+
             return make_response(jsonify(response_data), status_code)
 
-        except Exception as e:
+        except Exception:
             logger.exception("An unexpected error occurred in Analyzer toggle endpoint.")
             error_message = 'An unexpected error occurred'
             error_response = {'status': 'error', 'message': error_message}

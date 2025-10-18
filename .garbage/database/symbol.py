@@ -1,9 +1,20 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, Sequence, Index, or_, and_
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import NullPool
 from typing import List
+
+from sqlalchemy import (
+    Column,
+    Float,
+    Index,
+    Integer,
+    Sequence,
+    String,
+    and_,
+    create_engine,
+    or_,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -66,14 +77,14 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
     try:
         # Split the query into terms and clean them
         terms = [term.strip().upper() for term in query.split() if term.strip()]
-        
+
         # Base query
         base_query = SymToken.query
-        
+
         # If exchange is specified, filter by it
         if exchange:
             base_query = base_query.filter(SymToken.exchange == exchange)
-        
+
         # Create conditions for each term
         all_conditions = []
         for term in terms:
@@ -95,7 +106,7 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
                     SymToken.token.ilike(f'%{term}%')
                 )
             all_conditions.append(term_conditions)
-        
+
         # Combine all conditions with AND
         if all_conditions:
             final_query = base_query.filter(and_(*all_conditions))
@@ -105,7 +116,7 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
         # Execute query - no limit to show all matching results
         results = final_query.all()
         return results
-        
+
     except Exception as e:
         logger.error(f"Error in enhanced search: {str(e)}")
         return []

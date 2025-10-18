@@ -1,7 +1,8 @@
 # utils/config.py
 
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
 
 # Load environment variables from .env file with override=True to ensure values are updated
 load_dotenv(override=True)

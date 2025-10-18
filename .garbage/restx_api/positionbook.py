@@ -1,12 +1,13 @@
-from flask_restx import Namespace, Resource
-from flask import request, jsonify, make_response
-from marshmallow import ValidationError
-from limiter import limiter
 import os
 
-from .account_schema import PositionbookSchema
+from flask import jsonify, make_response, request
+from flask_restx import Namespace, Resource
+from limiter import limiter
+from marshmallow import ValidationError
 from services.positionbook_service import get_positionbook
 from utils.logging import get_logger
+
+from .account_schema import PositionbookSchema
 
 API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "10 per second")
 api = Namespace('positionbook', description='Position Book API')
@@ -27,10 +28,10 @@ class Positionbook(Resource):
             positionbook_data = positionbook_schema.load(request.json)
 
             api_key = positionbook_data['apikey']
-            
+
             # Call the service function to get positionbook data with API key
             success, response_data, status_code = get_positionbook(api_key=api_key)
-            
+
             return make_response(jsonify(response_data), status_code)
 
         except ValidationError as err:

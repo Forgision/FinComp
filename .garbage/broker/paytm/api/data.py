@@ -1,11 +1,9 @@
 import json
-import os
 import urllib.parse
+
 import httpx
-from database.token_db import get_br_symbol, get_token
-from broker.paytm.database.master_contract_db import SymToken, db_session
 import pandas as pd
-from datetime import datetime, timedelta
+from database.token_db import get_br_symbol, get_token
 from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
@@ -53,11 +51,11 @@ class BrokerData:
     def __init__(self, auth_token):
         """Initialize Paytm data handler with authentication token"""
         self.auth_token = auth_token
-        
+
         # PAYTM does not support historical data API
         # Empty timeframe map since historical data is not supported
         self.timeframe_map = {}
-        
+
         # Market timing configuration for different exchanges
         self.market_timings = {
             'NSE': {
@@ -81,7 +79,7 @@ class BrokerData:
                 'end': '17:00:00'
             }
         }
-        
+
         # Default market timings if exchange not found
         self.default_market_timings = {
             'start': '09:15:00',
@@ -118,7 +116,7 @@ class BrokerData:
                     opt_type = 'EQUITY'
             else:
                 opt_type = 'EQUITY'
-            
+
             # URL encode the symbol to handle special characters
             # Paytm expects the symbol to be in the format "exchange:symbol" E,g: NSE:335:EQUITY
             # 	INDEX, EQUITY, ETF, FUTURE, OPTION
@@ -130,15 +128,15 @@ class BrokerData:
             else:
                 request_exchange = exchange
             encoded_symbol = urllib.parse.quote(f"{request_exchange}:{token}:{opt_type}")
-            
+
             response = get_api_response(f"/data/v1/price/live?mode=QUOTE&pref={encoded_symbol}", self.auth_token)
-            
+
             if not response or not response.get('data', []):
                 error_msg = f"Error from Paytm API: {response.get('message', 'Unknown error')}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
-            
-            
+
+
             # Return quote data
             quote = response.get('data', [])[0] if response.get('data') else {}
             if not quote:
@@ -156,7 +154,7 @@ class BrokerData:
                 'prev_close': quote.get('ohlc', {}).get('close', 0),
                 'volume': quote.get('volume_traded', 0)
             }
-            
+
         except Exception as e:
             logger.exception(f"Error fetching quotes for {symbol}: {e}")
             raise
@@ -188,7 +186,7 @@ class BrokerData:
                     opt_type = 'EQUITY'
             else:
                 opt_type = 'EQUITY'
-            
+
             # URL encode the symbol to handle special characters
             # Paytm expects the symbol to be in the format "exchange:symbol" E,g: NSE:335:EQUITY
             # 	INDEX, EQUITY, ETF, FUTURE, OPTION
@@ -200,28 +198,28 @@ class BrokerData:
             else:
                 request_exchange = exchange
             encoded_symbol = urllib.parse.quote(f"{request_exchange}:{token}:{opt_type}")
-            
+
             response = get_api_response(f"/data/v1/price/live?mode=FULL&pref={encoded_symbol}", self.auth_token)
-            
+
             if not response or not response.get('data', []):
                 error_msg = f"Error from Paytm API: {response.get('message', 'Unknown error')}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
-            
-            
+
+
             # Return quote data
             quote = response.get('data', [])[0] if response.get('data') else {}
             if not quote:
                 error_msg = f"No market depth data found for {symbol}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
-            
+
             depth = quote.get('depth', {})
-            
+
             # Format asks and bids data
             asks = []
             bids = []
-            
+
             # Process sell orders (asks)
             sell_orders = depth.get('sell', [])
             for i in range(5):
@@ -232,7 +230,7 @@ class BrokerData:
                     })
                 else:
                     asks.append({'price': 0, 'quantity': 0})
-                    
+
             # Process buy orders (bids)
             buy_orders = depth.get('buy', [])
             for i in range(5):
@@ -243,7 +241,7 @@ class BrokerData:
                     })
                 else:
                     bids.append({'price': 0, 'quantity': 0})
-            
+
             # Return market depth data
             return {
                 'asks': asks,
@@ -259,7 +257,7 @@ class BrokerData:
                 'totalsellqty': sum(order.get('quantity', 0) for order in sell_orders),
                 'volume': quote.get('volume', 0)
             }
-            
+
         except Exception as e:
             logger.exception(f"Error fetching market depth for {symbol}: {e}")
             raise

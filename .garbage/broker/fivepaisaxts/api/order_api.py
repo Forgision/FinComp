@@ -1,12 +1,14 @@
 import json
 import os
-from tokenize import Token
-import httpx
-from database.auth_db import get_auth_token
-from database.token_db import get_token , get_br_symbol, get_symbol
-from broker.fivepaisaxts.mapping.transform_data import transform_data , map_product_type, reverse_map_product_type, transform_modify_order_data
-from utils.httpx_client import get_httpx_client
+
 from broker.fivepaisaxts.baseurl import INTERACTIVE_URL
+from broker.fivepaisaxts.mapping.transform_data import (
+    map_product_type,
+    transform_data,
+    transform_modify_order_data,
+)
+from database.token_db import get_br_symbol, get_token
+from utils.httpx_client import get_httpx_client
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,25 +20,25 @@ def get_api_response(endpoint, auth, method="GET",  payload=''):
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     headers = {
       'authorization': AUTH_TOKEN,
       'Content-Type': 'application/json',
     }
-    
+
     url = f"{INTERACTIVE_URL}{endpoint}"
 
     #logger.info(f"Request URL: {url}")
     #logger.info(f"Headers: {headers}")
     #logger.info(f'Payload: {json.dumps(payload, indent=2) if payload else "None"}')
-    
+
     if method == "GET":
         response = client.get(url, headers=headers)
     elif method == "POST":
         response = client.post(url, headers=headers, json=payload)
     else:
         response = client.request(method, url, headers=headers, json=payload)
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
     #logger.info(f"Response Status Code: {response.status_code}")
@@ -57,7 +59,7 @@ def get_holdings(auth):
 
 def get_open_position(tradingsymbol, exchange, producttype,auth):
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    
+
     tradingsymbol = get_br_symbol(tradingsymbol,exchange)
     positions_data = get_positions(auth)
 
@@ -69,11 +71,11 @@ def get_open_position(tradingsymbol, exchange, producttype,auth):
                 net_qty = position.get('Quantity', '0')
                 #logger.info(f"Net Quantity: {net_qty}")
                 break  # Assuming you need the first match
-        
+
     return net_qty
 
 def place_order_api(data,auth):
-    AUTH_TOKEN = auth   
+    AUTH_TOKEN = auth
     logger.info(f"Data: {data}")
 
     # Check if this is a direct instrument ID payload or needs transformation
@@ -89,20 +91,20 @@ def place_order_api(data,auth):
         'authorization': AUTH_TOKEN,
         'Content-Type': 'application/json',
     }
-   
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
-    
+
     # Make the request using the shared client
     response = client.post(
         f"{INTERACTIVE_URL}/orders",
         headers=headers,
         json=newdata
     )
-    
+
     # Add status attribute for compatibility
     response.status = response.status_code
-    
+
     # Parse the JSON response
     try:
         response_data = response.json()
@@ -110,7 +112,7 @@ def place_order_api(data,auth):
         response_data = {"error": "Invalid JSON response from server", "raw_response": response.text}
 
     orderid = response_data.get("result", {}).get("AppOrderID") if response_data.get("type") == "success" else None
-    
+
     return response, response_data, orderid
 
 
@@ -127,12 +129,12 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-    
+
 
     # Get current open position for the symbol
     current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
-    
+
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -147,9 +149,9 @@ def place_smartorder_api(data,auth):
         res, response, orderid = place_order_api(data,AUTH_TOKEN)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
-        
+
         return res , response, orderid
-        
+
     elif position_size == current_position:
         if int(data['quantity'])==0:
             response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
@@ -157,7 +159,7 @@ def place_smartorder_api(data,auth):
             response = {"status": "success", "message": "No action needed. Position size matches current position"}
         orderid = None
         return res, response, orderid  # res remains None as no API call was mad
-   
+
 
     if position_size == 0 and current_position>0 :
         action = "SELL"
@@ -193,9 +195,9 @@ def place_smartorder_api(data,auth):
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
-        
+
         return res , response, orderid
-    
+
 
 
 
@@ -222,7 +224,7 @@ def close_all_positions(current_api_key,auth):
 
         exchange_segment = position['ExchangeSegment']
         instrument_id = position['ExchangeInstrumentId']
-        
+
         logger.info(f"Exchange Segment: {exchange_segment}")
         logger.info(f"Exchange Instrument ID: {instrument_id}")
 
@@ -249,7 +251,7 @@ def close_all_positions(current_api_key,auth):
         # logger.info(f"{orderid}")
 
 
-            
+
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
@@ -258,8 +260,8 @@ def close_all_positions(current_api_key,auth):
 def cancel_order(orderid,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    
-    
+
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
     #logger.info(f"{orderid}")
@@ -268,13 +270,13 @@ def cancel_order(orderid,auth):
         'authorization': AUTH_TOKEN,
         'Content-Type': 'application/json',
     }
-    
+
     # Prepare the payload
     payload = json.dumps({
         "appOrderID": orderid,
         "orderUniqueIdentifier": "openalgo"
     })
-    
+
     # Make the request using the shared client
     response = client.delete(
     f"{INTERACTIVE_URL}/orders?appOrderID={orderid}",
@@ -282,9 +284,9 @@ def cancel_order(orderid,auth):
 )
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    
+
     data = json.loads(response.text)
-    
+
     # Check if the request was successful
     if data.get("status"):
         # Return a success response
@@ -298,8 +300,8 @@ def modify_order(data,auth):
 
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
-    
-    
+
+
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
 
@@ -319,7 +321,7 @@ def modify_order(data,auth):
         headers=headers,
         content=payload
     )
-    
+
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
     logger.info(f"Response of modify order :{response.status}")
@@ -335,19 +337,19 @@ def cancel_all_orders_api(data,auth):
     # Get the order book
 
     AUTH_TOKEN = auth
-    
+
 
     order_book_response = get_order_book(AUTH_TOKEN)
     logger.info(f"Order book response: {order_book_response}")
     if order_book_response.get("type") != "success":
         return [], []  # Return empty lists indicating failure to retrieve the order book
-    
+
     orders = order_book_response.get("result", [])
 
      # Filter orders that are in 'open' or 'trigger_pending' state
     #logger.info(f"Orders: {orders}")
     orders_to_cancel = [
-        order for order in orders 
+        order for order in orders
         if order["OrderStatus"] in ["New", "Trigger Pending"]
     ]
     logger.info(f"Orders to cancel: {orders_to_cancel}")
@@ -364,5 +366,5 @@ def cancel_all_orders_api(data,auth):
         else:
             logger.error(f"Failed to cancel order {orderid}")
             failed_cancellations.append(orderid)
-    
+
     return canceled_orders, failed_cancellations
