@@ -18,17 +18,18 @@ A balanced and intuitive folder structure is crucial. The structure should be or
 ```
 /
 ├── app/
+│   ├── main.py               # Main application entrypoint
+│   ├── broker/               # Broker-specific implementations
 │   ├── core/                 # Cross-cutting concerns (config, logging)
 │   ├── db/                   # Database schema and session management
-│   └── web/                  # Web application root
-│       ├── __init__.py
-│       ├── main.py           # Main application entrypoint
-│       ├── backend/          # Backend source code (FastAPI)
-│       ├── broker/           # Broker-specific implementations
-│       ├── frontend/         # Frontend source code
-│       ├── models/           # Pydantic schemas
-│       ├── services/         # Business logic layer
-│       └── websocket/        # WebSocket proxy server
+│   ├── frontend/             # Jinja2 templates and static assets
+│   ├── sandbox/              # Sandbox trading environment
+│   ├── strategies/           # User-defined trading strategies
+│   ├── utils/                # Shared utilities
+│   ├── web/                  # Web-specific components
+│   │   └── backend/
+│   │       └── routes/       # FastAPI routers for different features
+│   └── websocket/            # WebSocket proxy server
 ├── test/                     # Test code
 ├── .env                      # Local environment variables (not committed)
 ├── Dockerfile                # Instructions for building the application container

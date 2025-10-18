@@ -11,6 +11,7 @@ This document outlines the technologies, development setup, and technical constr
     *   SQLite for development and testing.
     *   PostgreSQL or MySQL for production environments.
 *   **Database Migrations:** Alembic for managing and versioning the database schema.
+*   **Data Validation:** Pydantic for data validation and settings management.
 
 ## Security & Authentication
 *   **Password Hashing:** Argon2 (specifically Argon2id) with a pepper for securely hashing user passwords and API keys.

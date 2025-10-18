@@ -46,10 +46,6 @@ async def is_session_valid_fastapi(request: Request) -> bool:
         logger.debug("Session invalid: 'logged_in' flag not set")
         return False
 
-    if 'user' not in request.session:
-        logger.debug("Session invalid: 'user' not in session")
-        return False
-
     # If no login time is set, consider session invalid
     if 'login_time' not in request.session:
         logger.debug("Session invalid: 'login_time' not in session")

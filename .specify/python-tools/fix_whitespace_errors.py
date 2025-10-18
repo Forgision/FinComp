@@ -1,5 +1,5 @@
+#!/usr/bin/env python
 import os
-import re
 
 def fix_whitespace_errors(directory):
     """
