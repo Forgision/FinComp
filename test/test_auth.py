@@ -1,4 +1,4 @@
-import pytest
+import unittest
 from app.db.models.session import get_db
 from fastapi.testclient import TestClient
 
@@ -6,52 +6,49 @@ from app.db.models.auth_db import delete_api_key_by_username, upsert_api_key
 from app.db.models.user_db import add_user, delete_user_by_username
 from app.main import app  # Import the underlying FastAPI app
 
-client = TestClient(app, follow_redirects=True)
 
-def test_read_main():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "Login" in response.text
+class TestAuth(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app, follow_redirects=True)
+        self.username = "testuser"
+        self.email = "test@example.com"
+        self.password = "testpassword"
+        self.api_key = "testapikey"
+
+        # Create a test user and API key
+        db = next(get_db())
+        add_user(db, self.username, self.email, self.password, True)
+        upsert_api_key(self.username, self.api_key)
+        db.close()
+
+    def tearDown(self):
+        # Clean up the test user and API key
+        db = next(get_db())
+        delete_api_key_by_username(db, self.username)
+        delete_user_by_username(db, self.username)
+        db.close()
+
+    def test_read_main(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Login", response.text)
+
+    def test_login_page_access(self):
+        response = self.client.get("/auth/login")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Login", response.text)
+        self.assertIn("Username", response.text)
+        self.assertIn("Password", response.text)
+
+    def test_successful_login(self):
+        response = self.client.post(
+            "/auth/login",
+            data={"username": self.username, "password": self.password},
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "success"})
 
 
-@pytest.fixture(name="test_user")
-def test_user_fixture():
-    username = "testuser"
-    email = "test@example.com"
-    password = "testpassword"
-    api_key = "testapikey"
-
-    # Create a test user and API key
-    db = next(get_db())
-    add_user(db, username, email, password, True)
-    upsert_api_key(username, api_key)
-    db.close()
-
-    yield {
-        "username": username,
-        "email": email,
-        "password": password,
-        "api_key": api_key
-    }
-
-    # Clean up the test user and API key
-    db = next(get_db())
-    delete_api_key_by_username(db, username)
-    delete_user_by_username(db, username)
-    db.close()
-
-def test_login_page_access():
-    response = client.get("/auth/login")
-    assert response.status_code == 200
-    assert "Login" in response.text
-    assert "Username" in response.text
-    assert "Password" in response.text
-
-def test_successful_login(test_user):
-    response = client.post(
-        "/auth/login",
-        data={"username": test_user["username"], "password": test_user["password"]},
-        follow_redirects=True
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
+if __name__ == '__main__':
+    unittest.main()
