@@ -103,7 +103,7 @@ Unit tests are written for existing code, and a coverage report can be generated
 - [x] T032 Set up `unittest` framework in `test/`
 - [x] T033 Set up `coverage.py` for test coverage measurement
 - [x] T034 [P] Write initial unit tests for `app/main.py`
-- [ ] T035 [P] Write initial unit tests for `app/broker/finvasia/api/auth_api.py`
+- [x] T035 [P] Write initial unit tests for `app/broker/finvasia/api/auth_api.py`
 - [ ] T036 [P] Write initial unit tests for `app/broker/finvasia/api/data.py`
 - [ ] T037 [P] Write initial unit tests for `app/broker/finvasia/api/funds.py`
 - [ ] T038 [P] Write initial unit tests for `app/broker/finvasia/api/order_api.py`
