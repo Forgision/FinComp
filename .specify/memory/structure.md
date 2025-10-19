@@ -8,16 +8,16 @@ This document provides an overview of the directory structure for the current Op
 /
 ├── app/                  # Main application container.
 │   ├── core/             # Core components shared across the application.
-│   │   ├── models/       # Pydantic models for request/response validation and data transfer objects (DTOs).
+│   │   ├── models/       # Pydantic models for request/response validation for fastapi and data transfer objects (DTOs).
 │   │   └── services/     # Implements the business logic, decoupling the API from the database. Contains CRUD operations and other data processing tasks.
 │   ├── db/               # Database related files
-│   │   └── models/       # Database schemas (SQLAlchemy models).
+│   │   └── models/       # Database schemas (SQLAlchemy models) for CRUD operations in database.
 │   ├── web/              # Web-facing components, including the API and frontend.
 │   │   ├── main.py       # The main FastAPI application instance and entry point.
 │   │   ├── backend/      # API endpoints (routes) that the frontend consumes. Handles HTTP requests and responses.
 │   │   ├── broker/       # Contains integrations with third-party broker APIs.
 │   │   │   ├── routes/   # All routes related to backend api.
-│   │   ├── frontend/     # All frontend-related code: HTML templates, CSS, JavaScript, and static assets. Also includes routes that serve web pages.
+│   │   ├── frontend/     # All frontend-related code: HTML templates, CSS, JavaScript, and static assets. Also includes routes that serve web pages and static files.
 │   │   │   ├── routes/   # All routes related to frontend interface like serving html files, etc.
 │   │   └── websocket/    # Real-time communication layer using WebSockets.
 │   └── algo/             # Houses quantitative trading strategies and algorithms.

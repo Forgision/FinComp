@@ -46,3 +46,6 @@ docker-compose.yml
 !docs/
 .mypy_cache/
 .ruff_cache/
+
+node_modules/
+coverage/

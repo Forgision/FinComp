@@ -64,3 +64,5 @@ Dockerfile*
 coverage/
 .mypy_cache/
 .ruff_cache/
+
+*.env*
