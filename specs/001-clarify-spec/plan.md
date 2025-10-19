@@ -18,7 +18,7 @@ This feature will execute a comprehensive restructuring of the project, aligning
 **Language/Version**: Python >=3.12
 **Primary Dependencies**: FastAPI, Jinja2, SQLAlchemy
 **Storage**: SQLite
-**Testing**: N/A
+**Testing**: unittest, coverage.py
 **Target Platform**: Linux server (via Docker)
 **Project Type**: Web Application
 **Performance Goals**: 100 requests/second

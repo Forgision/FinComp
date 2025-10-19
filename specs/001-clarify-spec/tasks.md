@@ -9,11 +9,11 @@ Initialize the project environment and establish the new directory structure.
 New directories are created as specified in the plan.
 
 ### Implementation Tasks
-- [ ] T001 Create `app/core/models/` directory
-- [ ] T002 Create `app/core/services/` directory
-- [ ] T003 Create `app/db/models/` directory
-- [ ] T004 Create `app/web/backend/routes/` directory
-- [ ] T005 Create `app/web/frontend/routes/` directory
+- [x] T001 Create `app/core/models/` directory
+- [x] T002 Create `app/core/services/` directory
+- [x] T003 Create `app/db/models/` directory
+- [x] T004 Create `app/web/backend/routes/` directory
+- [x] T005 Create `app/web/frontend/routes/` directory
 
 ## Phase 2: [US2] Restructure the project
 
@@ -69,7 +69,7 @@ The application runs without runtime errors, and `ruff check .` reports no error
 ## Phase 5: [US1] Verify with comprehensive test suite (Post-Restructuring)
 
 ### Story Goal
-Execute the comprehensive test suite after restructuring to ensure no regressions and achieve 90% test coverage.
+Execute the comprehensive test suite with unittest after restructuring to ensure no regressions and achieve 90% test coverage.
 
 ### Independent Test Criteria
 All tests pass, and the project achieves a minimum of 90% test coverage.
@@ -100,9 +100,9 @@ Establish a robust unit test suite and coverage measurement before any restructu
 Unit tests are written for existing code, and a coverage report can be generated.
 
 ### Implementation Tasks
-- [ ] T032 Set up `unittest` framework in `test/`
-- [ ] T033 Set up `coverage.py` for test coverage measurement
-- [ ] T034 [P] Write initial unit tests for `app/main.py`
+- [x] T032 Set up `unittest` framework in `test/`
+- [x] T033 Set up `coverage.py` for test coverage measurement
+- [x] T034 [P] Write initial unit tests for `app/main.py`
 - [ ] T035 [P] Write initial unit tests for `app/broker/finvasia/api/auth_api.py`
 - [ ] T036 [P] Write initial unit tests for `app/broker/finvasia/api/data.py`
 - [ ] T037 [P] Write initial unit tests for `app/broker/finvasia/api/funds.py`
