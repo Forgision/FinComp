@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
-from app.core.security import check_session_validity_fastapi
-from app.frontend import templates
+from app.utils.session import check_session_validity_fastapi
+from app.web.frontend import templates
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session

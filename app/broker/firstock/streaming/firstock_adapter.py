@@ -4,7 +4,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.db.auth_db import get_auth_token
+from app.db.models.auth_db import get_auth_token
 import os
 
 from app.core.config import settings
@@ -12,8 +12,8 @@ from app.core.config import settings
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
-from websocket_proxy.mapping import SymbolMapper
+from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.websocket.mapping import SymbolMapper
 
 from .firstock_websocket import FirstockWebSocket
 

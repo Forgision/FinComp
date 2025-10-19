@@ -2,7 +2,7 @@ import hashlib
 import json
 
 from app.core.config import settings
-from .....utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 
 def sha256_hash(text):

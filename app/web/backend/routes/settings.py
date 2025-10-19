@@ -1,4 +1,4 @@
-from app.core.security import check_session_validity_fastapi
+from app.utils.session import check_session_validity_fastapi
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session

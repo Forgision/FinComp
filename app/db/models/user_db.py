@@ -121,7 +121,7 @@ def authenticate_user(username, password):
             del username_cache[cache_key]  # Remove invalid cache entry
             return False
     else:
-        user = User.query.filter_by(username=username).first()
+        user = db_session.query(User).filter_by(username=username).first()
         if user and user.check_password(password):
             username_cache[cache_key] = user  # Cache the User object
             return True
@@ -129,11 +129,11 @@ def authenticate_user(username, password):
 
 def find_user_by_email(email):
     """Find user by email for password reset"""
-    return User.query.filter_by(email=email).first()
+    return db_session.query(User).filter_by(email=email).first()
 
 def find_user_by_username():
     """Find admin user"""
-    return User.query.filter_by(is_admin=True).first()
+    return db_session.query(User).filter_by(is_admin=True).first()
 
 def rehash_all_passwords():
     """
@@ -141,7 +141,7 @@ def rehash_all_passwords():
     This should be called once when upgrading from the old hashing method.
     Requires knowing the original passwords or having users reset them.
     """
-    users = User.query.all()
+    users = db_session.query(User).all()
     for user in users:
         if user.password_hash.startswith('pbkdf2:sha256'):  # Old Werkzeug format
             # At this point, you would either:
@@ -153,7 +153,7 @@ def rehash_all_passwords():
 
 def delete_user_by_username(username):
     """Delete a user by username."""
-    user = User.query.filter_by(username=username).first()
+    user = db_session.query(User).filter_by(username=username).first()
     if user:
         db_session.delete(user)
         db_session.commit()

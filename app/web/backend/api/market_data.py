@@ -4,9 +4,7 @@ from typing import Optional
 
 import pandas as pd
 import pytz
-from app.web.backend.dependencies.users import (
-    get_current_user,  # Assuming this dependency exists
-)
+from app.web.backend.routes.analyzer import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -29,7 +27,7 @@ from app.core.services.symbol_service import get_symbol_info
 from app.db.models.auth_db import get_auth_token_broker
 from app.utils.logging import get_logger
 
-router = APIRouter(
+market_data_router = APIRouter(
     prefix="/market_data",
     tags=["Market Data"],
     dependencies=[Depends(get_current_user)] # Secure all market data endpoints
@@ -88,7 +86,7 @@ def validate_and_adjust_date_range(start_date: str, end_date: str, interval: str
 
 # --- Endpoints ---
 
-@router.post("/quotes")
+@market_data_router.post("/quotes")
 async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = Depends(get_current_user)):
     """Get real-time quotes for given symbol"""
     try:
@@ -102,7 +100,7 @@ async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = De
         logger.exception(f"Unexpected error in quotes endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/history")
+@market_data_router.post("/history")
 async def get_history_endpoint(history_data: HistorySchema, current_user: dict = Depends(get_current_user)):
     """Get historical data for given symbol"""
     try:
@@ -119,7 +117,7 @@ async def get_history_endpoint(history_data: HistorySchema, current_user: dict =
         logger.exception(f"Unexpected error in history endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/depth")
+@market_data_router.post("/depth")
 async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depends(get_current_user)):
     """Get market depth for given symbol"""
     try:
@@ -133,7 +131,7 @@ async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depen
         logger.exception(f"Unexpected error in depth endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/intervals")
+@market_data_router.post("/intervals")
 async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: dict = Depends(get_current_user)):
     """Get supported intervals for the broker"""
     try:
@@ -143,7 +141,7 @@ async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: 
         logger.exception(f"Unexpected error in intervals endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/symbol")
+@market_data_router.post("/symbol")
 async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = Depends(get_current_user)):
     """Get symbol information for a given symbol and exchange"""
     try:
@@ -157,7 +155,7 @@ async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = De
         logger.exception(f"Unexpected error in symbol endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/search")
+@market_data_router.post("/search")
 async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict = Depends(get_current_user)):
     """Search for symbols in the database"""
     try:
@@ -171,7 +169,7 @@ async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict 
         logger.exception(f"Unexpected error in search endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/expiry")
+@market_data_router.post("/expiry")
 async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = Depends(get_current_user)):
     """Get expiry dates for F&O symbols (futures or options) for a given underlying symbol"""
     try:
@@ -186,7 +184,7 @@ async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = De
         logger.exception(f"Unexpected error in expiry endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.get("/ticker/{symbol_with_exchange}")
+@market_data_router.get("/ticker/{symbol_with_exchange}")
 async def get_ticker_endpoint(
     symbol_with_exchange: str,
     interval: str = Query("D"),

@@ -5,18 +5,18 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
-from app.db.auth_db import get_auth_token, get_feed_token
-from app.web.broker.definedge.streaming.definedge_websocket import DefinedGeWebSocket
+from app.db.models.auth_db import get_auth_token, get_feed_token
+from app.broker.definedge.streaming.definedge_websocket import DefinedGeWebSocket
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from app.web.broker.definedge.streaming.definedge_mapping import (
+from app.broker.definedge.streaming.definedge_mapping import (
     DefinedgeCapabilityRegistry,
     DefinedgeExchangeMapper,
 )
-from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.mapping import SymbolMapper
+from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.websocket.mapping import SymbolMapper
 
 
 class MarketDataCache:

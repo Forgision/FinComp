@@ -24,7 +24,7 @@ from app.db.models.apilog_db import executor as log_executor
 from app.db.models.settings_db import get_analyze_mode
 from app.utils.logging import logger
 
-router = APIRouter()
+account_router = APIRouter()
 
 # Placeholder for get_current_user dependency - assume it exists and handles authentication
 async def get_current_user():
@@ -32,7 +32,7 @@ async def get_current_user():
     # For this migration, we assume it's available and handles authentication.
     pass
 
-@router.post("/funds", response_model=FundsResponse)
+@account_router.post("/funds", response_model=FundsResponse)
 async def funds_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
@@ -49,7 +49,7 @@ async def funds_endpoint(
         logger.exception(f"Unexpected error in funds endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/orderbook", response_model=OrderbookResponse)
+@account_router.post("/orderbook", response_model=OrderbookResponse)
 async def orderbook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
@@ -66,7 +66,7 @@ async def orderbook_endpoint(
         logger.exception(f"Unexpected error in orderbook endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/tradebook", response_model=TradebookResponse)
+@account_router.post("/tradebook", response_model=TradebookResponse)
 async def tradebook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
@@ -83,7 +83,7 @@ async def tradebook_endpoint(
         logger.exception(f"Unexpected error in tradebook endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/positionbook", response_model=PositionbookResponse)
+@account_router.post("/positionbook", response_model=PositionbookResponse)
 async def positionbook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
@@ -100,7 +100,7 @@ async def positionbook_endpoint(
         logger.exception(f"Unexpected error in positionbook endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/holdings", response_model=HoldingsResponse)
+@account_router.post("/holdings", response_model=HoldingsResponse)
 async def holdings_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
@@ -117,7 +117,7 @@ async def holdings_endpoint(
         logger.exception(f"Unexpected error in holdings endpoint: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/openposition", response_model=OpenPositionResponse)
+@account_router.post("/openposition", response_model=OpenPositionResponse)
 async def openposition_endpoint(
     open_position_request: OpenPositionRequest,
     current_user: dict = Depends(get_current_user)

@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pytz
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 
 from .logging import logger
 
-# Placeholder for get_db and Session. Will be properly imported in main.py
-# from app.db.connection import get_db
+from app.db.models.session import get_db
 
 
 def get_session_expiry_time():
@@ -104,17 +103,11 @@ async def revoke_user_tokens_fastapi(request: Request, db: Session):
         except Exception as e:
             logger.error(f"Error revoking tokens during auto-expiry for user {username}: {e}")
 
-async def check_session_validity_fastapi(request: Request, db: Session = Depends(None)) -> Dict[str, Any]:
+async def check_session_validity_fastapi(request: Request, db: Session = Depends(get_db), func: Optional[str] = Query(None)) -> str:
     """
     FastAPI dependency to check session validity.
     Raises HTTPException if session is invalid, otherwise returns user data.
     """
-    # NOTE: db: Session = Depends(None) is a placeholder.
-    # get_db will be injected by FastAPI in the actual route.
-    # This is to avoid circular dependency here.
-    from app.db.session import get_db
-    if db is None:
-        db = next(get_db())
 
     if not await is_session_valid_fastapi(request):
         logger.info("Invalid session detected - revoking tokens and clearing session")
@@ -140,16 +133,18 @@ async def check_session_validity_fastapi(request: Request, db: Session = Depends
             )
 
     user_data = request.session.get('user')
+    if not user_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session is invalid or user not found."
+        )
     logger.debug("Session validated successfully for FastAPI.")
     return user_data
 
-async def invalidate_session_if_invalid_fastapi(request: Request, db: Session = Depends(None)):
+async def invalidate_session_if_invalid_fastapi(request: Request, db: Session = Depends(get_db)):
     """
     FastAPI dependency to invalidate session if invalid without raising HTTPException.
     """
-    from app.db.session import get_db
-    if db is None:
-        db = next(get_db())
 
     if not await is_session_valid_fastapi(request):
         logger.info("Invalid session detected - clearing session (FastAPI)")

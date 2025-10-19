@@ -17,13 +17,13 @@ from typing import Any, Dict, Optional
 #     sys.path.append(str(ws_dir.parent))
 #     from base_adapter import BaseBrokerWebSocketAdapter # type: ignore
 #     from mapping import SymbolMapper
-from app.db.auth_db import get_auth_token
+from app.db.models.auth_db import get_auth_token
 
 # Import base adapter
 # sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 # try:
-from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.mapping import SymbolMapper
+from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.websocket.mapping import SymbolMapper
 
 from app.utils.logging import logger
 

@@ -10,21 +10,21 @@ virtual trading environment instead of the live broker.
 import copy
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.analyzer_db import async_log_analyzer
-from app.db.apilog_db import executor
-from app.db.auth_db import verify_api_key
-from app.db.settings_db import get_analyze_mode
-from app.web.sandbox.fund_manager import get_user_funds
-from app.web.sandbox.holdings_manager import HoldingsManager
+from app.db.models.analyzer_db import async_log_analyzer
+from app.db.models.apilog_db import executor
+from app.db.models.auth_db import verify_api_key
+from app.db.models.settings_db import get_analyze_mode
+from app.sandbox.fund_manager import get_user_funds
+from app.sandbox.holdings_manager import HoldingsManager
 
 # Import sandbox managers
-from app.web.sandbox.order_manager import OrderManager
-from app.web.sandbox.position_manager import PositionManager
-from app.web.sandbox.squareoff_thread import (
+from app.sandbox.order_manager import OrderManager
+from app.sandbox.position_manager import PositionManager
+from app.sandbox.squareoff_thread import (
     get_squareoff_scheduler_status,
     reload_squareoff_schedule,
 )
-from app.web.services.telegram_alert_service import telegram_alert_service
+from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio

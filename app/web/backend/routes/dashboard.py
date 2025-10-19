@@ -1,6 +1,6 @@
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.utils.session import check_session_validity_fastapi as get_current_user
 
@@ -10,8 +10,11 @@ dashboard_router = APIRouter()
 # This will be properly implemented later as a FastAPI dependency
 
 
-@dashboard_router.get("/dashboard", response_class=HTMLResponse, name= "dashboard")
+@dashboard_router.get("/dashboard", response_class=HTMLResponse, name="dashboard")
 async def dashboard(request: Request, current_user: str = Depends(get_current_user)):
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
+
     # The original Flask code had a lot of logic related to fetching funds
     # and handling different modes (analyze vs live broker).
     # For migration, we'll keep a simplified version and add back the logic
@@ -25,8 +28,4 @@ async def dashboard(request: Request, current_user: str = Depends(get_current_us
         "utiliseddebits": "0.00"
     }
 
-    # The original Flask code also handled redirects to logout on auth failure.
-    # In FastAPI, this would typically be handled by the authentication dependency
-    # or specific error handling. For now, we assume current_user is valid.
-
-    return JSONResponse(content={"margin_data": margin_data})
+    return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)

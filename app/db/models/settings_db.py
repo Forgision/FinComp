@@ -40,7 +40,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
     # Create default settings only if no settings exist
-    if not Settings.query.first():
+    if not db_session.query(Settings).first():
         logger.info("Creating default settings (Live Mode)")
         default_settings = Settings(analyze_mode=False)
         db_session.add(default_settings)
@@ -48,7 +48,7 @@ def init_db():
 
 def get_analyze_mode():
     """Get current analyze mode setting"""
-    settings = Settings.query.first()
+    settings = db_session.query(Settings).first()
     if not settings:
         settings = Settings(analyze_mode=False)  # Default to Live Mode
         db_session.add(settings)
@@ -57,7 +57,7 @@ def get_analyze_mode():
 
 def set_analyze_mode(mode: bool):
     """Set analyze mode setting"""
-    settings = Settings.query.first()
+    settings = db_session.query(Settings).first()
     if not settings:
         settings = Settings(analyze_mode=mode)
         db_session.add(settings)
@@ -135,7 +135,7 @@ def set_smtp_settings(db: db_session, smtp_server=None, smtp_port=None, smtp_use
 
 def get_security_settings():
     """Get security configuration"""
-    settings = Settings.query.first()
+    settings = db_session.query(Settings).first()
     if not settings:
         # Create with defaults
         settings = Settings(
@@ -161,7 +161,7 @@ def set_security_settings(threshold_404=None, ban_duration_404=None,
                          threshold_api=None, ban_duration_api=None,
                          repeat_offender_limit=None):
     """Set security configuration"""
-    settings = Settings.query.first()
+    settings = db_session.query(Settings).first()
     if not settings:
         settings = Settings(analyze_mode=False)
         db_session.add(settings)

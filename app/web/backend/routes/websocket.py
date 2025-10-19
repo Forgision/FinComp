@@ -5,9 +5,9 @@ and real-time market data without authentication overhead.
 
 from typing import Any, Dict, Optional
 
-from app.core.security import check_session_validity_fastapi
-from app.core.socketio import sio
-from app.frontend import templates
+from app.utils.session import check_session_validity_fastapi
+from app.utils.web.socketio import sio
+from app.web.frontend import templates
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 

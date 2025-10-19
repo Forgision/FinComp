@@ -128,7 +128,7 @@ def upsert_auth(db, name, auth_token, broker, feed_token=None, user_id=None, rev
     encrypted_token = encrypt_token(auth_token)
     encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
 
-    auth_obj = db.query(Auth).filter_by(name=name).first()
+    auth_obj = db_session.query(Auth).filter_by(name=name).first()
     if auth_obj:
         auth_obj.auth = encrypted_token
         auth_obj.feed_token = encrypted_feed_token
@@ -180,7 +180,7 @@ def get_auth_token_dbquery(name):
             logger.debug("get_auth_token_dbquery called with empty/None name")
             return None
 
-        auth_obj = Auth.query.filter_by(name=name).first()
+        auth_obj = db_session.query(Auth).filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj
         else:
@@ -221,7 +221,7 @@ def get_feed_token_dbquery(name):
             logger.debug("get_feed_token_dbquery called with empty/None name")
             return None
 
-        auth_obj = Auth.query.filter_by(name=name).first()
+        auth_obj = db_session.query(Auth).filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj
         else:
@@ -240,7 +240,7 @@ def get_user_id(name):
             logger.debug("get_user_id called with empty/None name")
             return None
 
-        auth_obj = Auth.query.filter_by(name=name).first()
+        auth_obj = db_session.query(Auth).filter_by(name=name).first()
         if auth_obj and not auth_obj.is_revoked:
             return auth_obj.user_id  # This should return "1272808" for DefinEdge
         else:
@@ -260,7 +260,7 @@ def upsert_api_key(user_id, api_key):
     # Encrypt for retrieval
     encrypted_key = encrypt_token(api_key)
 
-    api_key_obj = ApiKeys.query.filter_by(user_id=user_id).first()
+    api_key_obj = db_session.query(ApiKeys).filter_by(user_id=user_id).first()
     if api_key_obj:
         api_key_obj.api_key_hash = hashed_key
         api_key_obj.api_key_encrypted = encrypted_key
@@ -277,7 +277,7 @@ def upsert_api_key(user_id, api_key):
 def get_api_key(user_id):
     """Check if user has an API key"""
     try:
-        api_key_obj = ApiKeys.query.filter_by(user_id=user_id).first()
+        api_key_obj = db_session.query(ApiKeys).filter_by(user_id=user_id).first()
         return api_key_obj is not None
     except Exception as e:
         logger.error(f"Error while querying the database for API key: {e}")
@@ -286,7 +286,7 @@ def get_api_key(user_id):
 def get_api_key_for_tradingview(user_id):
     """Get decrypted API key for TradingView configuration"""
     try:
-        api_key_obj = ApiKeys.query.filter_by(user_id=user_id).first()
+        api_key_obj = db_session.query(ApiKeys).filter_by(user_id=user_id).first()
         if api_key_obj and api_key_obj.api_key_encrypted:
             return decrypt_token(api_key_obj.api_key_encrypted)
         return None
@@ -300,13 +300,13 @@ def verify_api_key(provided_api_key):
 
     from flask import has_request_context
 
-    from ..db.traffic_db import InvalidAPIKeyTracker
-    from ..utils.ip_helper import get_real_ip
+    from app.db.models.traffic_db import InvalidAPIKeyTracker
+    from app.utils.ip_helper import get_real_ip
 
     peppered_key = provided_api_key + PEPPER
     try:
         # Query all API keys
-        api_keys = ApiKeys.query.all()
+        api_keys = db_session.query(ApiKeys).all()
 
         # Try to verify against each stored hash
         for api_key_obj in api_keys:
@@ -354,7 +354,7 @@ def get_broker_name(provided_api_key):
 
     if user_id:
         try:
-            auth_obj = Auth.query.filter_by(name=user_id).first()
+            auth_obj = db_session.query(Auth).filter_by(name=user_id).first()
             if auth_obj and not auth_obj.is_revoked:
                 # Cache the broker name
                 broker_cache[provided_api_key] = auth_obj.broker
@@ -373,7 +373,7 @@ def get_auth_token_broker(provided_api_key, include_feed_token=False):
 
     if user_id:
         try:
-            auth_obj = Auth.query.filter_by(name=user_id).first()
+            auth_obj = db_session.query(Auth).filter_by(name=user_id).first()
             if auth_obj and not auth_obj.is_revoked:
                 decrypted_token = decrypt_token(auth_obj.auth)
                 if include_feed_token:

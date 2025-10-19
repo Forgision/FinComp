@@ -3,12 +3,12 @@ import importlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.analyzer_db import async_log_analyzer
-from app.db.apilog_db import async_log_order
-from app.db.apilog_db import executor as log_executor
-from app.db.auth_db import get_auth_token_broker
-from app.db.settings_db import get_analyze_mode
-from app.web.services.telegram_alert_service import telegram_alert_service
+from app.db.models.analyzer_db import async_log_analyzer
+from app.db.models.apilog_db import async_log_order
+from app.db.models.apilog_db import executor as log_executor
+from app.db.models.auth_db import get_auth_token_broker
+from app.db.models.settings_db import get_analyze_mode
+from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.constants import (
     REQUIRED_ORDER_FIELDS,

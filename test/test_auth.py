@@ -1,5 +1,5 @@
 import pytest
-from app.db.session import get_db
+from app.db.models.session import get_db
 from fastapi.testclient import TestClient
 
 from app.db.models.auth_db import delete_api_key_by_username, upsert_api_key

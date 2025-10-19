@@ -9,9 +9,9 @@ import threading
 import time
 from typing import Any, Callable, Dict, List
 
-from app.web.broker.fyers.streaming.fyers_hsm_websocket import FyersHSMWebSocket
-from app.web.broker.fyers.streaming.fyers_mapping import FyersDataMapper
-from app.web.broker.fyers.streaming.fyers_token_converter import FyersTokenConverter
+from app.broker.fyers.streaming.fyers_hsm_websocket import FyersHSMWebSocket
+from app.broker.fyers.streaming.fyers_mapping import FyersDataMapper
+from app.broker.fyers.streaming.fyers_token_converter import FyersTokenConverter
 
 
 class FyersAdapter:

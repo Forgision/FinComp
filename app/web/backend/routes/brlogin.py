@@ -3,7 +3,7 @@ import json
 from urllib.parse import unquote
 
 import jwt
-from app.core.services.limiter import limiter
+from app.utils.web.limiter import limiter
 from app.core.services.utils import get_httpx_client
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse

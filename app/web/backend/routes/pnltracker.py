@@ -4,8 +4,8 @@ from importlib import import_module
 
 import pandas as pd
 import pytz
-from app.core.security import check_session_validity_fastapi
-from app.frontend import templates
+from app.utils.session import check_session_validity_fastapi
+from app.web.frontend import templates
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session

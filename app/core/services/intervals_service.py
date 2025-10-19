@@ -2,7 +2,7 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.auth_db import get_auth_token_broker
+from app.db.models.auth_db import get_auth_token_broker
 
 from app.utils.logging import logger
 

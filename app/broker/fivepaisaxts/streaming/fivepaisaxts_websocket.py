@@ -2,7 +2,7 @@ import json
 from typing import Dict, List
 
 import requests
-from app.web.broker.fivepaisaxts.baseurl import BASE_URL, MARKET_DATA_URL
+from app.broker.fivepaisaxts.baseurl import BASE_URL, MARKET_DATA_URL
 
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio

@@ -5,8 +5,8 @@ Each instance is fully isolated and safe for multi-client use.
 import threading
 import time
 
-from app.db.auth_db import get_auth_token
-from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.db.models.auth_db import get_auth_token
+from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from app.utils.logging import logger
 

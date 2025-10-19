@@ -44,3 +44,5 @@ docker-compose.yml
 
 # Project docs (EXPLICITLY INCLUDED)
 !docs/
+.mypy_cache/
+.ruff_cache/

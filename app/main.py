@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 import socketio
-from app.frontend import templates
+from app.web.frontend import templates
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_csrf_protect.exceptions import CsrfProtectError
@@ -44,6 +44,7 @@ from app.websocket.fastapi_integration import (
     cleanup_websocket_server,
     start_websocket_server,
 )
+from app.websocket.broker_factory import register_all_adapters
 
 # from app.utils.plugin_loader import load_broker_auth_functions
 
@@ -141,7 +142,6 @@ _app.include_router(chartink_router, tags=["chartink"])
 _app.include_router(latency_router, tags=["latency"])
 _app.include_router(log_router, tags=["logs"])
 _app.include_router(master_contract_status_router)
-_app.include_router(orders_router)
 _app.include_router(pnltracker_router)
 _app.include_router(python_strategy_router)
 _app.include_router(sandbox_router)
@@ -149,10 +149,10 @@ _app.include_router(search_router)
 _app.include_router(security_router)
 _app.include_router(settings_router)
 _app.include_router(strategy_router)
-_app.include_router(telegram_router)
 _app.include_router(traffic_router)
 _app.include_router(tv_json_router)
 _app.include_router(websocket_router)
+register_all_adapters()
 #Following are from app/web/backend/api
 # _app.include_router(account_router, prefix="/api/v1/account", tags=["Account"])
 # _app.include_router(market_data_router, prefix="/api/v1/data", tags=["Market Data"])

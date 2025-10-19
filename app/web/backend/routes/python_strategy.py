@@ -21,8 +21,8 @@ from typing import Any, Dict, List, Optional
 
 import psutil
 import pytz
-from app.core.security import check_session_validity_fastapi
-from app.frontend import templates
+from app.utils.session import check_session_validity_fastapi
+from app.web.frontend import templates
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from cryptography.fernet import Fernet

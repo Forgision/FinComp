@@ -7,7 +7,7 @@ from datetime import datetime
 
 import httpx
 import pytz
-from app.utils.logger import logger
+from app.utils.logging import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse

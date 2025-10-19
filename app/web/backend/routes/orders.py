@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -19,16 +20,14 @@ from app.db.models.auth_db import get_api_key_for_tradingview, get_auth_token
 from app.db.models.session import get_db
 from app.db.models.settings_db import get_analyze_mode
 from app.utils.logging import logger
-from app.utils.session import check_session_validity_fastapi
 from app.utils.web.limiter import limiter
 
 # Use existing rate limits from .env
 API_RATE_LIMIT = settings.API_RATE_LIMIT
 
 orders_router = APIRouter(
-    prefix="/orders",
     tags=["Orders"],
-    dependencies=[Depends(check_session_validity_fastapi), Depends(limiter.limit(API_RATE_LIMIT))]
+    dependencies=[Depends(limiter.limit(API_RATE_LIMIT))]
 )
 
 

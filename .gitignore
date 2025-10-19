@@ -62,3 +62,5 @@ Dockerfile*
 .dockerignore
 *.swp
 coverage/
+.mypy_cache/
+.ruff_cache/

@@ -8,8 +8,8 @@ from datetime import datetime
 
 import pytz
 import requests
-from app.core.security import check_session_validity_fastapi
-from app.frontend import templates
+from app.utils.session import check_session_validity_fastapi
+from app.web.frontend import templates
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse

@@ -17,7 +17,7 @@ def validate_date_or_timestamp_str(data: str) -> str:
     return data
 
 # From .garbage/restx_api/schemas.py
-class OrderSchema(BaseModel):
+class PlaceOrderSchema(BaseModel):
     apikey: str
     strategy: str
     exchange: str
@@ -30,7 +30,7 @@ class OrderSchema(BaseModel):
     trigger_price: float = Field(0.0, ge=0, description="Trigger price must be a non-negative number.")
     disclosed_quantity: int = Field(0, ge=0, description="Disclosed quantity must be a non-negative integer.")
 
-class SmartOrderSchema(BaseModel):
+class PlaceSmartOrderSchema(BaseModel):
     apikey: str
     strategy: str
     exchange: str
@@ -185,6 +185,47 @@ class SearchSchema(BaseModel):
     apikey: str
     query: str
     exchange: Optional[str] = None
+
+
+class FundsResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class OrderbookResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class TradebookResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class PositionbookResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class HoldingsResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class OpenPositionResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class OpenPositionRequest(BaseModel):
+    apikey: str
+    symbol: str
+    exchange: str
+    product: Literal["MIS", "NRML", "CNC"]
+
+class APIKeySchema(BaseModel):
+    api_key: str
+    username: str
 
 class ExpirySchema(BaseModel):
     apikey: str

@@ -3,11 +3,11 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.analyzer_db import async_log_analyzer
-from app.db.apilog_db import async_log_order, executor
-from app.db.auth_db import get_auth_token_broker
-from app.db.settings_db import get_analyze_mode
-from app.web.services.telegram_alert_service import telegram_alert_service
+from app.db.models.analyzer_db import async_log_analyzer
+from app.db.models.apilog_db import async_log_order, executor
+from app.db.models.auth_db import get_auth_token_broker
+from app.db.models.settings_db import get_analyze_mode
+from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio

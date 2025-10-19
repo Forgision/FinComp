@@ -1,7 +1,8 @@
 from typing import Any, Dict, Tuple
 
-from app.db.auth_db import verify_api_key
-from app.db.symbol import SymToken, db_session
+from app.db.models.auth_db import verify_api_key
+from app.db.models.symbol import SymToken
+from app.db.models.session import db_session
 
 from app.utils.logging import logger
 

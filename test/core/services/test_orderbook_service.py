@@ -55,21 +55,23 @@ class TestOrderbookService(unittest.TestCase):
         """Test get_orderbook with a valid API key (analyze mode)."""
         api_key = "some_api_key"
 
-        with patch('app.core.services.orderbook_service.get_analyze_mode', return_value=True) as mock_get_analyze_mode, \
-             patch('app.core.services.orderbook_service.sandbox_get_orderbook', new_callable=AsyncMock) as mock_sandbox_get_orderbook:
+        with patch('app.db.models.settings_db.get_analyze_mode', return_value=True) as mock_get_analyze_mode:
+            with patch('app.sandbox.order_manager.OrderManager') as MockOrderManager:
 
-            mock_sandbox_get_orderbook.return_value = (True, {
-                'status': 'success',
-                'data': {
-                    'orders': [{"symbol": "SANDBOX", "quantity": 10}],
-                    'statistics': {"total_orders": 1}
-                }
-            }, 200)
+                mock_order_manager_instance = MockOrderManager.return_value
+                mock_order_manager_instance.get_orderbook.return_value = (True, {
+                    'status': 'success',
+                    'data': {
+                        'orders': [{"symbol": "SANDBOX", "quantity": 10}],
+                        'statistics': {"total_orders": 1}
+                    }
+                }, 200)
 
-            success, response, status_code = await get_orderbook(api_key=api_key)
+                success, response, status_code = await get_orderbook(api_key=api_key)
 
-            mock_get_analyze_mode.assert_called_once()
-            mock_sandbox_get_orderbook.assert_called_once_with(api_key, {'apikey': api_key})
+                mock_get_analyze_mode.assert_called_once()
+                MockOrderManager.assert_called_once_with(user_id=api_key)
+                mock_order_manager_instance.get_orderbook.assert_called_once()
 
         self.assertTrue(success)
         self.assertEqual(status_code, 200)

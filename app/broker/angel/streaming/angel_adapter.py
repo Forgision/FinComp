@@ -5,18 +5,18 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.db.auth_db import get_auth_token, get_feed_token
-from app.web.broker.angel.streaming.smartWebSocketV2 import SmartWebSocketV2
+from app.db.models.auth_db import get_auth_token, get_feed_token
+from app.broker.angel.streaming.smartWebSocketV2 import SmartWebSocketV2
 
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from app.web.broker.angel.streaming.angel_mapping import (
+from app.broker.angel.streaming.angel_mapping import (
     AngelCapabilityRegistry,
     AngelExchangeMapper,
 )
-from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.mapping import SymbolMapper
+from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.websocket.mapping import SymbolMapper
 
 
 class AngelWebSocketAdapter(BaseBrokerWebSocketAdapter):

@@ -15,7 +15,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytz
-from app.web.services.quotes_service import get_quotes
+from app.core.services.quotes_service import get_quotes
 
 from app.db.models.auth_db import ApiKeys, decrypt_token
 from app.db.models.sandbox_db import (
