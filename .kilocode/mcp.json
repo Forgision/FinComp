@@ -15,7 +15,14 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/config/mnt/vault/@work-station/Python/FinComp/"
+        "${workspaceFolder}"
+      ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
       ]
     }
   }
