@@ -4,9 +4,9 @@ import os
 import ssl
 import struct
 import time
+import websocket
 
 import logzero
-import websocket
 from logzero import logger
 
 

@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 
 import requests
-from broker.iifl.baseurl import BASE_URL, MARKET_DATA_URL
+from ..baseurl import BASE_URL, MARKET_DATA_URL
 
 from app.utils.web.socketio import socketio
 

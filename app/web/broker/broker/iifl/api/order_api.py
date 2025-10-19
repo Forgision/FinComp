@@ -1,13 +1,13 @@
 import json
 
-from broker.iifl.baseurl import INTERACTIVE_URL
-from broker.iifl.mapping.transform_data import (
+from app.web.broker.iifl.baseurl import INTERACTIVE_URL
+from app.web.broker.iifl.mapping.transform_data import (
     map_product_type,
     transform_data,
     transform_modify_order_data,
 )
 from database.token_db import get_br_symbol, get_token
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.utils.logging import logger
 

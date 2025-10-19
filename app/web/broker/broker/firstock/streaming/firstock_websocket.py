@@ -2,9 +2,9 @@ import json
 import ssl
 import threading
 import time
+import websocket
 from urllib.parse import urlencode
 
-import websocket
 
 from app.utils.logging import logger
 

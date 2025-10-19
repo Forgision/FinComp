@@ -3,25 +3,16 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.analyzer_db import async_log_analyzer
-from app.db.apilog_db import async_log_order, executor
-from app.db.auth_db import get_auth_token_broker
-from app.db.settings_db import get_analyze_mode
-from restx_api.schemas import OrderSchema
-from services.telegram_alert_service import telegram_alert_service
+from app.db.models.analyzer_db import async_log_analyzer
+from app.db.models.apilog_db import async_log_order, executor
+from app.db.models.auth_db import get_auth_token_broker
+from app.db.models.settings_db import get_analyze_mode
+from app.web.backend.schemas.order_schemas import OrderData
+from app.core.services.telegram_alert_service import telegram_alert_service
 
-from app.utils.constants import (
-    REQUIRED_ORDER_FIELDS,
-    VALID_ACTIONS,
-    VALID_EXCHANGES,
-    VALID_PRICE_TYPES,
-    VALID_PRODUCT_TYPES,
-)
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
 
-# Initialize schema
-order_schema = OrderSchema()
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
@@ -34,7 +25,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     try:
-        module_path = f'broker.{broker_name}.api.order_api'
+        module_path = f'app.web.broker.{broker_name}.api.order_api'
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -75,49 +66,6 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
 
     return error_response
 
-def validate_order_data(data: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
-    """
-    Validate order data against required fields and valid values
-
-    Args:
-        data: Order data to validate
-
-    Returns:
-        Tuple containing:
-        - Success status (bool)
-        - Validated order data (dict) or None if validation failed
-        - Error message (str) or None if validation succeeded
-    """
-    # Check for missing mandatory fields
-    missing_fields = [field for field in REQUIRED_ORDER_FIELDS if field not in data]
-    if missing_fields:
-        return False, None, f'Missing mandatory field(s): {", ".join(missing_fields)}'
-
-    # Validate exchange
-    if 'exchange' in data and data['exchange'] not in VALID_EXCHANGES:
-        return False, None, f'Invalid exchange. Must be one of: {", ".join(VALID_EXCHANGES)}'
-
-    # Convert action to uppercase and validate
-    if 'action' in data:
-        data['action'] = data['action'].upper()
-        if data['action'] not in VALID_ACTIONS:
-            return False, None, f'Invalid action. Must be one of: {", ".join(VALID_ACTIONS)} (case insensitive)'
-
-    # Validate price type if provided
-    if 'price_type' in data and data['price_type'] not in VALID_PRICE_TYPES:
-        return False, None, f'Invalid price type. Must be one of: {", ".join(VALID_PRICE_TYPES)}'
-
-    # Validate product type if provided
-    if 'product_type' in data and data['product_type'] not in VALID_PRODUCT_TYPES:
-        return False, None, f'Invalid product type. Must be one of: {", ".join(VALID_PRODUCT_TYPES)}'
-
-    # Validate and deserialize input
-    try:
-        order_data = order_schema.load(data)
-        return True, order_data, None
-    except Exception as err:
-        return False, None, str(err)
-
 def place_order_with_auth(
     order_data: Dict[str, Any],
     auth_token: str,
@@ -145,7 +93,7 @@ def place_order_with_auth(
 
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode():
-        from services.sandbox_service import sandbox_place_order
+        from app.core.services.sandbox_service import sandbox_place_order
 
         # Get API key from original data
         api_key = original_data.get('apikey')
@@ -208,7 +156,7 @@ def place_order_with_auth(
         return False, error_response, res.status if res.status != 200 else 500
 
 def place_order(
-    order_data: Dict[str, Any],
+    order_data: OrderData,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     broker: Optional[str] = None
@@ -218,7 +166,7 @@ def place_order(
     Supports both API-based authentication and direct internal calls.
 
     Args:
-        order_data: Order data containing all required fields
+        order_data: Pydantic model containing validated order data
         api_key: OpenAlgo API key (for API-based calls)
         auth_token: Direct broker authentication token (for internal calls)
         broker: Direct broker name (for internal calls)
@@ -229,20 +177,13 @@ def place_order(
         - Response data (dict)
         - HTTP status code (int)
     """
-    original_data = copy.deepcopy(order_data)
+    # Pydantic has already validated the data, so we can proceed.
+    # We'll use the model_dump method to get a dictionary.
+    order_dict = order_data.model_dump()
+    original_data = copy.deepcopy(order_dict)
+
     if api_key:
         original_data['apikey'] = api_key
-        # Also add apikey to order_data for validation
-        order_data['apikey'] = api_key
-
-    # Validate the order data
-    is_valid, _, error_message = validate_order_data(order_data)
-    if not is_valid:
-        if get_analyze_mode():
-            return False, emit_analyzer_error(original_data, error_message), 400
-        error_response = {'status': 'error', 'message': error_message}
-        executor.submit(async_log_order, 'placeorder', original_data, error_response)
-        return False, error_response, 400
 
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
@@ -255,11 +196,11 @@ def place_order(
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return place_order_with_auth(order_data, AUTH_TOKEN, broker_name, original_data)
+        return place_order_with_auth(order_dict, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return place_order_with_auth(order_data, auth_token, broker, original_data)
+        return place_order_with_auth(order_dict, auth_token, broker, original_data)
 
     # Case 3: Invalid parameters
     else:

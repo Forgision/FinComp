@@ -4,7 +4,7 @@ from typing import Optional
 
 import pandas as pd
 import pytz
-from app.web.backend.routes.analyzer import get_current_user
+from app.utils.session import check_session_validity_fastapi
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -30,7 +30,7 @@ from app.utils.logging import get_logger
 market_data_router = APIRouter(
     prefix="/market_data",
     tags=["Market Data"],
-    dependencies=[Depends(get_current_user)] # Secure all market data endpoints
+    dependencies=[Depends(check_session_validity_fastapi)] # Secure all market data endpoints
 )
 
 logger = get_logger(__name__)
@@ -87,7 +87,7 @@ def validate_and_adjust_date_range(start_date: str, end_date: str, interval: str
 # --- Endpoints ---
 
 @market_data_router.post("/quotes")
-async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = Depends(get_current_user)):
+async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get real-time quotes for given symbol"""
     try:
         success, response_data, status_code = await get_quotes(
@@ -101,7 +101,7 @@ async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = De
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/history")
-async def get_history_endpoint(history_data: HistorySchema, current_user: dict = Depends(get_current_user)):
+async def get_history_endpoint(history_data: HistorySchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get historical data for given symbol"""
     try:
         success, response_data, status_code = await get_history(
@@ -118,7 +118,7 @@ async def get_history_endpoint(history_data: HistorySchema, current_user: dict =
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/depth")
-async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depends(get_current_user)):
+async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get market depth for given symbol"""
     try:
         success, response_data, status_code = await get_depth(
@@ -132,7 +132,7 @@ async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depen
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/intervals")
-async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: dict = Depends(get_current_user)):
+async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get supported intervals for the broker"""
     try:
         success, response_data, status_code = await get_intervals(api_key=intervals_data.apikey)
@@ -142,7 +142,7 @@ async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: 
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/symbol")
-async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = Depends(get_current_user)):
+async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get symbol information for a given symbol and exchange"""
     try:
         success, response_data, status_code = await get_symbol_info(
@@ -156,7 +156,7 @@ async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = De
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/search")
-async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict = Depends(get_current_user)):
+async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Search for symbols in the database"""
     try:
         success, response_data, status_code = await search_symbols(
@@ -170,7 +170,7 @@ async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict 
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 @market_data_router.post("/expiry")
-async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = Depends(get_current_user)):
+async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = Depends(check_session_validity_fastapi)):
     """Get expiry dates for F&O symbols (futures or options) for a given underlying symbol"""
     try:
         success, response_data, status_code = await get_expiry_dates(
@@ -194,7 +194,7 @@ async def get_ticker_endpoint(
     sort: Optional[str] = Query(None),
     apikey: str = Query(...),
     format: str = Query("json"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     """Get aggregate bars for a stock over a given date range with specified interval"""
     response_format = format.lower()

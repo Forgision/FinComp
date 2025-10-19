@@ -13,7 +13,7 @@ from app.utils.logging import logger
 from database.auth_db import db_session
 from database.symbol import SymToken
 from database.token_db import get_br_symbol, get_token
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from .alicebluewebsocket import AliceBlueWebSocket
 

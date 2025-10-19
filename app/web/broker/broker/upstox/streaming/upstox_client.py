@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import requests
 import websockets
-from app.broker.upstox.streaming import MarketDataFeedV3_pb2
+from . import MarketDataFeedV3_pb2
 from google.protobuf.json_format import MessageToDict
 
 from app.utils.logging import logger

@@ -1,4 +1,4 @@
-from broker.wisdom.baseurl import INTERACTIVE_URL, MARKET_DATA_URL
+from app.web.broker.wisdom.baseurl import INTERACTIVE_URL, MARKET_DATA_URL
 
 from app.core.config import settings
 

@@ -4,7 +4,7 @@ Execution Engine - Monitors and executes pending orders
 
 Features:
 - Background order monitoring (every 5 seconds configurable)
-- Real-time quote fetching from broker
+- Real-time quote fetching from app.web.broker
 - Order execution based on price type (MARKET, LIMIT, SL, SL-M)
 - Trade creation and position updates
 - Rate limit compliance (10 orders/second, 50 API calls/second)

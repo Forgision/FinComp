@@ -9,7 +9,6 @@ import time
 from typing import Any, Callable, Dict, Optional
 
 import websocket
-
 from app.utils.logging import logger
 
 

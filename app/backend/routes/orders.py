@@ -118,7 +118,7 @@ async def orderbook(request: Request, db: Session = Depends(get_db)):
     if not success:
         logger.error(f"Failed to get orderbook data: {response.get('message', 'Unknown error')}")
         if status_code_service == 404:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import broker module")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import app.web.broker module")
         return RedirectResponse(url=request.url_for("auth_router.logout"), status_code=status.HTTP_302_FOUND)
 
     data = response.get('data', {})
@@ -154,7 +154,7 @@ async def tradebook(request: Request, db: Session = Depends(get_db)):
     if not success:
         logger.error(f"Failed to get tradebook data: {response.get('message', 'Unknown error')}")
         if status_code_service == 404:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import broker module")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import app.web.broker module")
         return RedirectResponse(url=request.url_for("auth_router.logout"), status_code=status.HTTP_302_FOUND)
 
     tradebook_data = response.get('data', [])
@@ -188,7 +188,7 @@ async def positions(request: Request, db: Session = Depends(get_db)):
     if not success:
         logger.error(f"Failed to get positions data: {response.get('message', 'Unknown error')}")
         if status_code_service == 404:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import broker module")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import app.web.broker module")
         return RedirectResponse(url=request.url_for("auth_router.logout"), status_code=status.HTTP_302_FOUND)
 
     positions_data = response.get('data', [])
@@ -222,7 +222,7 @@ async def holdings(request: Request, db: Session = Depends(get_db)):
     if not success:
         logger.error(f"Failed to get holdings data: {response.get('message', 'Unknown error')}")
         if status_code_service == 404:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import broker module")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import app.web.broker module")
         return RedirectResponse(url=request.url_for("auth_router.logout"), status_code=status.HTTP_302_FOUND)
 
     data = response.get('data', {})

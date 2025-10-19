@@ -25,24 +25,19 @@ from app.core.services.orderstatus_service import get_order_status
 from app.core.services.place_order_service import place_order
 from app.core.services.place_smart_order_service import place_smart_order
 from app.core.services.split_order_service import split_order
+from app.utils.session import check_session_validity_fastapi
 
 # Import authentication dependency (assuming it exists)
 # from app.web.backend.dependencies import get_current_user # Placeholder for authentication
 
-router = APIRouter()
-
-# Placeholder for authentication dependency
-def get_current_user():
-    # This is a placeholder. Implement actual authentication logic here.
-    # For now, it just returns a dummy user ID.
-    return {"user_id": "dummy_user"}
+orders_router = APIRouter()
 
 
-@router.post("/placeorder", summary="Place an order with the broker")
+@orders_router.post("/placeorder", summary="Place an order with the broker")
 async def place_order_endpoint(
     order_data: PlaceOrderSchema,
     api_key: Optional[str] = None, # Assuming API key can be passed as a header or part of the body
-    current_user: dict = Depends(get_current_user) # Example of dependency injection for authentication
+    current_user: dict = Depends(check_session_validity_fastapi) # Example of dependency injection for authentication
 ):
     # The Flask-RestX version extracts api_key from the body and pops it.
     # FastAPI handles validation and allows direct access.
@@ -60,11 +55,11 @@ async def place_order_endpoint(
 
     return response_data
 
-@router.post("/placesmartorder", summary="Place a smart order")
+@orders_router.post("/placesmartorder", summary="Place a smart order")
 async def place_smart_order_endpoint(
     order_data: PlaceSmartOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await place_smart_order(
         order_data=order_data.model_dump(),
@@ -76,11 +71,11 @@ async def place_smart_order_endpoint(
 
     return response_data
 
-@router.post("/modifyorder", summary="Modify an existing order")
+@orders_router.post("/modifyorder", summary="Modify an existing order")
 async def modify_order_endpoint(
     order_data: ModifyOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await modify_order(
         order_data=order_data.model_dump(),
@@ -92,11 +87,11 @@ async def modify_order_endpoint(
 
     return response_data
 
-@router.post("/cancelorder", summary="Cancel an existing order")
+@orders_router.post("/cancelorder", summary="Cancel an existing order")
 async def cancel_order_endpoint(
     order_data: CancelOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await cancel_order(
         orderid=order_data.orderid, # Assuming orderid is directly available in the schema
@@ -108,11 +103,11 @@ async def cancel_order_endpoint(
 
     return response_data
 
-@router.post("/closeposition", summary="Close all open positions")
+@orders_router.post("/closeposition", summary="Close all open positions")
 async def close_position_endpoint(
     position_data: ClosePositionSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await close_position(
         position_data=position_data.model_dump(),
@@ -124,11 +119,11 @@ async def close_position_endpoint(
 
     return response_data
 
-@router.post("/cancelallorder", summary="Cancel all open orders")
+@orders_router.post("/cancelallorder", summary="Cancel all open orders")
 async def cancel_all_order_endpoint(
     order_data: CancelAllOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await cancel_all_orders(
         order_data=order_data.model_dump(),
@@ -140,11 +135,11 @@ async def cancel_all_order_endpoint(
 
     return response_data
 
-@router.post("/basketorder", summary="Place multiple orders in a basket")
+@orders_router.post("/basketorder", summary="Place multiple orders in a basket")
 async def basket_order_endpoint(
     basket_data: BasketOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await place_basket_order(
         basket_data=basket_data.model_dump(),
@@ -156,11 +151,11 @@ async def basket_order_endpoint(
 
     return response_data
 
-@router.post("/splitorder", summary="Split a large order into multiple orders of specified size")
+@orders_router.post("/splitorder", summary="Split a large order into multiple orders of specified size")
 async def split_order_endpoint(
     split_data: SplitOrderSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await split_order(
         split_data=split_data.model_dump(),
@@ -172,11 +167,11 @@ async def split_order_endpoint(
 
     return response_data
 
-@router.post("/orderstatus", summary="Get status of a specific order")
+@orders_router.post("/orderstatus", summary="Get status of a specific order")
 async def order_status_endpoint(
     status_data: OrderStatusSchema,
     api_key: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_session_validity_fastapi)
 ):
     success, response_data, status_code = await get_order_status(
         status_data=status_data.model_dump(),

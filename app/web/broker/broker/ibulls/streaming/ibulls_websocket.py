@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 
 import requests
-from broker.ibulls.baseurl import MARKET_DATA_URL
+from ..baseurl import MARKET_DATA_URL
 
 from app.utils.web.socketio import socketio
 

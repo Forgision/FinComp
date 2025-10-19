@@ -3,7 +3,7 @@ import traceback
 
 import httpx
 from app.db.token_db import get_oa_symbol, get_token
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
 from app.utils.logging import logger

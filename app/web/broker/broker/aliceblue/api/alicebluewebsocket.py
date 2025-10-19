@@ -3,9 +3,9 @@ import json
 import ssl
 import threading
 import time
+import websocket
 from datetime import datetime, timedelta
 
-import websocket
 
 from app.core.config import settings
 from app.utils.logging import logger

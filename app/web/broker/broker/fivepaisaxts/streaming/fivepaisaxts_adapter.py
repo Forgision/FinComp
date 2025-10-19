@@ -4,15 +4,15 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.broker.fivepaisaxts.streaming.fivepaisaxts_websocket import (
+from app.web.broker.broker.fivepaisaxts.streaming.fivepaisaxts_websocket import (
     FivepaisaXTSWebSocketClient,
 )
 from app.core.config import settings
 from app.db.models.auth_db import get_auth_token, get_feed_token
 from app.db.models.token_db import get_symbol
 from app.utils.logging import logger
-from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.websocket.mapping import SymbolMapper
+from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.websocket.mapping import SymbolMapper
 
 from .fivepaisaxts_mapping import (
     FivepaisaXTSCapabilityRegistry,

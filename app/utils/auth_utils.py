@@ -1,4 +1,5 @@
 import importlib
+import secrets
 from threading import Thread
 
 from fastapi import Request
@@ -127,6 +128,11 @@ async def handle_auth_failure(request: Request, error_message, forward_url='brok
     """
     logger.error(f"Authentication error: {error_message}")
     return JSONResponse(content={"error_message": error_message})
+
+def generate_api_key():
+    """Generate a secure random API key"""
+    # Generate 32 bytes of random data and encode as hex
+    return secrets.token_hex(32)
 
 def get_feed_token(request: Request):
     """

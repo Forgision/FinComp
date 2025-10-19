@@ -3,22 +3,23 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.db.models.auth_db import get_auth_token_broker
+from app.utils.logging import get_logger
 
-from app.utils.logging import logger
-
+# Initialize logger
+logger = get_logger(__name__)
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     Dynamically import the broker-specific funds module.
-
+    
     Args:
         broker_name: Name of the broker
-
+        
     Returns:
         The imported module or None if import fails
     """
     try:
-        module_path = f'broker.{broker_name}.api.funds'
+        module_path = f'app.web.broker.broker.{broker_name}.api.funds'
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -40,11 +41,9 @@ def get_funds_with_auth(auth_token: str, broker: str, original_data: Dict[str, A
         - Response data (dict)
         - HTTP status code (int)
     """
-    # If in analyze mode AND we have original_data (API call), route to sandbox
-    # If original_data is None (internal call from dashboard), use live broker
-    from database.settings_db import get_analyze_mode
+    from app.db.models.settings_db import get_analyze_mode
     if get_analyze_mode() and original_data:
-        from services.sandbox_service import sandbox_get_funds
+        from app.core.services.sandbox_service import sandbox_get_funds
 
         api_key = original_data.get('apikey')
         if not api_key:
@@ -79,16 +78,16 @@ def get_funds_with_auth(auth_token: str, broker: str, original_data: Dict[str, A
             'message': str(e)
         }, 500
 
-def get_funds(api_key: Optional[str] = None, auth_token: Optional[str] = None, broker: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
+def get_funds(db, api_key: Optional[str] = None, auth_token: Optional[str] = None, broker: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get account funds and margin details from the broker.
     Supports both API-based authentication and direct internal calls.
-
+    
     Args:
         api_key: OpenAlgo API key (for API-based calls)
         auth_token: Direct broker authentication token (for internal calls)
         broker: Direct broker name (for internal calls)
-
+        
     Returns:
         Tuple containing:
         - Success status (bool)
@@ -97,7 +96,7 @@ def get_funds(api_key: Optional[str] = None, auth_token: Optional[str] = None, b
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
+        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {
                 'status': 'error',

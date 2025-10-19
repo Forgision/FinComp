@@ -7,23 +7,11 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
-# except ImportError:
-#     # Direct import if websocket_proxy module has issues
-#     import sys
-#     import os
-#     from pathlib import Path
-#     ws_dir = Path(__file__).resolve().parent.parent.parent.parent / 'websocket'
-#     sys.path.append(str(ws_dir))
-#     sys.path.append(str(ws_dir.parent))
-#     from base_adapter import BaseBrokerWebSocketAdapter # type: ignore
-#     from mapping import SymbolMapper
 from app.db.models.auth_db import get_auth_token
 
 # Import base adapter
-# sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-# try:
-from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.websocket.mapping import SymbolMapper
+from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.websocket.mapping import SymbolMapper
 
 from app.utils.logging import logger
 

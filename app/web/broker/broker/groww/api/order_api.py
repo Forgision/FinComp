@@ -184,7 +184,7 @@ def direct_get_order_book(auth):
                     # Approach 2: Database lookup by broker symbol
                     if not symbol_converted:
                         try:
-                            from broker.groww.database.master_contract_db import (
+                            from app.web.broker.groww.database.master_contract_db import (
                                 SymToken,
                                 db_session,
                             )
@@ -2455,7 +2455,7 @@ def cancel_all_orders_api(data, auth):
                             exchange = order.get('exchange', 'NSE')
                             if exchange == 'NFO' and ' ' in broker_symbol:
                                 try:
-                                    from broker.groww.database.master_contract_db import (
+                                    from app.web.broker.groww.database.master_contract_db import (
                                         format_groww_to_openalgo_symbol,
                                     )
                                     openalgo_symbol = format_groww_to_openalgo_symbol(broker_symbol, exchange)

@@ -1,259 +1,195 @@
-import copy
-from typing import Any, Dict, Optional, Tuple
+import csv
+import io
+import json
+import traceback
+from datetime import datetime, timedelta
 
-from app.db.analyzer_db import AnalyzerLog, db_session
-from app.db.apilog_db import async_log_order
-from app.db.apilog_db import executor as log_executor
-from app.db.auth_db import get_auth_token_broker
-from app.db.settings_db import get_analyze_mode, set_analyze_mode
+import pytz
+from sqlalchemy import func
 
-from app.utils.logging import logger
+from app.db.models.analyzer_db import AnalyzerLog
+from app.db.models.session import db_session
+from app.db.models.settings_db import get_analyze_mode as get_mode, set_analyze_mode
+from app.utils.api_analyzer import get_analyzer_stats
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
-def get_analyzer_status_with_auth(
-    analyzer_data: Dict[str, Any],
-    auth_token: str,
-    broker: str,
-    original_data: Dict[str, Any]
-) -> Tuple[bool, Dict[str, Any], int]:
-    """
-    Get analyzer mode status and statistics.
-
-    Args:
-        analyzer_data: Analyzer data (currently just apikey)
-        auth_token: Authentication token for the broker API
-        broker: Name of the broker
-        original_data: Original request data for logging
-
-    Returns:
-        Tuple containing:
-        - Success status (bool)
-        - Response data (dict)
-        - HTTP status code (int)
-    """
-    request_data = copy.deepcopy(original_data)
-    if 'apikey' in request_data:
-        request_data.pop('apikey', None)
-
+async def get_analyzer_status(analyzer_data: dict, api_key: str):
+    """Get analyzer mode status and statistics"""
     try:
-        # Get current analyzer mode
-        current_mode = get_analyze_mode()
-
-        # Get analyzer logs count
-        logs_count = db_session.query(AnalyzerLog).count()
-
+        is_enabled = get_mode()
+        stats = get_analyzer_stats()
         response_data = {
-            'status': 'success',
-            'data': {
-                'mode': 'analyze' if current_mode else 'live',
-                'analyze_mode': current_mode,
-                'total_logs': logs_count
-            }
+            "status": "success",
+            "mode": "analyze" if is_enabled else "live",
+            "stats": stats
         }
-
-        log_executor.submit(async_log_order, 'analyzer_status', request_data, response_data)
         return True, response_data, 200
-
     except Exception as e:
         logger.error(f"Error getting analyzer status: {e}")
-        error_response = {
-            'status': 'error',
-            'message': str(e)
-        }
-        log_executor.submit(async_log_order, 'analyzer_status', original_data, error_response)
-        return False, error_response, 500
+        return False, {"status": "error", "message": "Internal server error"}, 500
 
-def toggle_analyzer_mode_with_auth(
-    analyzer_data: Dict[str, Any],
-    auth_token: str,
-    broker: str,
-    original_data: Dict[str, Any]
-) -> Tuple[bool, Dict[str, Any], int]:
-    """
-    Toggle analyzer mode on/off.
 
-    Args:
-        analyzer_data: Analyzer data containing mode
-        auth_token: Authentication token for the broker API
-        broker: Name of the broker
-        original_data: Original request data for logging
-
-    Returns:
-        Tuple containing:
-        - Success status (bool)
-        - Response data (dict)
-        - HTTP status code (int)
-    """
-    request_data = copy.deepcopy(original_data)
-    if 'apikey' in request_data:
-        request_data.pop('apikey', None)
-
+async def toggle_analyzer_mode(analyzer_data: dict, api_key: str):
+    """Toggle analyzer mode on/off"""
     try:
-        # Get the requested mode
-        new_mode = analyzer_data.get('mode', False)
-
-        # Set the analyzer mode
+        current_mode = get_mode()
+        new_mode = not current_mode
         set_analyze_mode(new_mode)
-
-        # Start/stop execution engine and squareoff scheduler based on mode
-        from sandbox.execution_thread import (
-            start_execution_engine,
-            stop_execution_engine,
-        )
-        from sandbox.squareoff_thread import (
-            start_squareoff_scheduler,
-            stop_squareoff_scheduler,
-        )
-
-        if new_mode:
-            # Analyzer mode ON - start both threads
-            start_execution_engine()
-            start_squareoff_scheduler()
-
-            # Run catch-up settlement for any missed settlements while app was stopped
-            from sandbox.position_manager import catchup_missed_settlements
-            try:
-                catchup_missed_settlements()
-                logger.info("Catch-up settlement check completed")
-            except Exception as e:
-                logger.error(f"Error in catch-up settlement: {e}")
-
-            logger.info("Analyzer mode enabled - Execution engine and square-off scheduler started")
-        else:
-            # Analyzer mode OFF - stop both threads
-            stop_execution_engine()
-            stop_squareoff_scheduler()
-            logger.info("Analyzer mode disabled - Execution engine and square-off scheduler stopped")
-
-        # Get logs count for response
-        logs_count = db_session.query(AnalyzerLog).count()
-
         response_data = {
-            'status': 'success',
-            'data': {
-                'mode': 'analyze' if new_mode else 'live',
-                'analyze_mode': new_mode,
-                'total_logs': logs_count,
-                'message': f'Analyzer mode switched to {"analyze" if new_mode else "live"}'
-            }
+            "status": "success",
+            "message": f"Analyzer mode turned {'ON' if new_mode else 'OFF'}",
+            "mode": "analyze" if new_mode else "live"
         }
-
-        log_executor.submit(async_log_order, 'analyzer_toggle', request_data, response_data)
         return True, response_data, 200
-
     except Exception as e:
         logger.error(f"Error toggling analyzer mode: {e}")
-        error_response = {
-            'status': 'error',
-            'message': str(e)
-        }
-        log_executor.submit(async_log_order, 'analyzer_toggle', original_data, error_response)
-        return False, error_response, 500
+        return False, {"status": "error", "message": "Internal server error"}, 500
 
-def get_analyzer_status(
-    analyzer_data: Dict[str, Any],
-    api_key: Optional[str] = None,
-    auth_token: Optional[str] = None,
-    broker: Optional[str] = None
-) -> Tuple[bool, Dict[str, Any], int]:
-    """
-    Get analyzer mode status and statistics.
-    Supports both API-based authentication and direct internal calls.
 
-    Args:
-        analyzer_data: Analyzer data (currently just apikey)
-        api_key: OpenAlgo API key (for API-based calls)
-        auth_token: Direct broker authentication token (for internal calls)
-        broker: Direct broker name (for internal calls)
+def format_request(req, ist):
+    """Format a single request entry"""
+    try:
+        request_data = json.loads(req.request_data) if isinstance(req.request_data, str) else req.request_data
+        response_data = json.loads(req.response_data) if isinstance(req.response_data, str) else req.response_data
 
-    Returns:
-        Tuple containing:
-        - Success status (bool)
-        - Response data (dict)
-        - HTTP status code (int)
-    """
-    original_data = copy.deepcopy(analyzer_data)
-    if api_key:
-        original_data['apikey'] = api_key
-
-    # Case 1: API-based authentication
-    if api_key and not (auth_token and broker):
-        # Add API key to analyzer data
-        analyzer_data['apikey'] = api_key
-
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
+        # Base request info
+        formatted_request = {
+            'timestamp': req.created_at.astimezone(ist).strftime('%Y-%m-%d %H:%M:%S'),
+            'api_type': req.api_type,
+            'source': request_data.get('strategy', 'Unknown'),
+            'request_data': request_data,
+            'response_data': response_data,  # Include complete response data
+            'analysis': {
+                'issues': response_data.get('status') == 'error',
+                'error': response_data.get('message'),
+                'error_type': 'error' if response_data.get('status') == 'error' else 'success',
+                'warnings': response_data.get('warnings', [])
             }
-            # Skip logging for invalid API keys to prevent database flooding
-            return False, error_response, 403
-
-        return get_analyzer_status_with_auth(analyzer_data, AUTH_TOKEN, broker_name, original_data)
-
-    # Case 2: Direct internal call with auth_token and broker
-    elif auth_token and broker:
-        return get_analyzer_status_with_auth(analyzer_data, auth_token, broker, original_data)
-
-    # Case 3: Invalid parameters
-    else:
-        error_response = {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
         }
-        return False, error_response, 400
 
-def toggle_analyzer_mode(
-    analyzer_data: Dict[str, Any],
-    api_key: Optional[str] = None,
-    auth_token: Optional[str] = None,
-    broker: Optional[str] = None
-) -> Tuple[bool, Dict[str, Any], int]:
-    """
-    Toggle analyzer mode on/off.
-    Supports both API-based authentication and direct internal calls.
+        # Add fields based on API type
+        if req.api_type in ['placeorder', 'placesmartorder']:
+            formatted_request.update({
+                'symbol': request_data.get('symbol', 'Unknown'),
+                'exchange': request_data.get('exchange', 'Unknown'),
+                'action': request_data.get('action', 'Unknown'),
+                'quantity': request_data.get('quantity', 0),
+                'price_type': request_data.get('pricetype', 'Unknown'),
+                'product_type': request_data.get('product', 'Unknown')
+            })
+            if req.api_type == 'placesmartorder':
+                formatted_request['position_size'] = request_data.get('position_size', 0)
+        elif req.api_type == 'cancelorder':
+            formatted_request.update({
+                'orderid': request_data.get('orderid', 'Unknown')
+            })
 
-    Args:
-        analyzer_data: Analyzer data containing mode
-        api_key: OpenAlgo API key (for API-based calls)
-        auth_token: Direct broker authentication token (for internal calls)
-        broker: Direct broker name (for internal calls)
+        return formatted_request
+    except Exception as e:
+        logger.error(f"Error formatting request {req.id}: {str(e)}")
+        return None
 
-    Returns:
-        Tuple containing:
-        - Success status (bool)
-        - Response data (dict)
-        - HTTP status code (int)
-    """
-    original_data = copy.deepcopy(analyzer_data)
-    if api_key:
-        original_data['apikey'] = api_key
 
-    # Case 1: API-based authentication
-    if api_key and not (auth_token and broker):
-        # Add API key to analyzer data
-        analyzer_data['apikey'] = api_key
+def get_recent_requests():
+    """Get recent analyzer requests"""
+    try:
+        ist = pytz.timezone('Asia/Kolkata')
+        recent = db_session.query(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100).all()
+        requests = []
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
-            # Skip logging for invalid API keys to prevent database flooding
-            return False, error_response, 403
+        for req in recent:
+            formatted = format_request(req, ist)
+            if formatted:
+                requests.append(formatted)
 
-        return toggle_analyzer_mode_with_auth(analyzer_data, AUTH_TOKEN, broker_name, original_data)
+        return requests
+    except Exception as e:
+        logger.error(f"Error getting recent requests: {str(e)}")
+        return []
 
-    # Case 2: Direct internal call with auth_token and broker
-    elif auth_token and broker:
-        return toggle_analyzer_mode_with_auth(analyzer_data, auth_token, broker, original_data)
 
-    # Case 3: Invalid parameters
-    else:
-        error_response = {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
-        }
-        return False, error_response, 400
+def get_filtered_requests(start_date=None, end_date=None):
+    """Get analyzer requests with date filtering"""
+    try:
+        ist = pytz.timezone('Asia/Kolkata')
+        query = db_session.query(AnalyzerLog)
+
+        # Apply date filters if provided
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            query = query.filter(func.date(AnalyzerLog.created_at) >= start_date)
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            query = query.filter(func.date(AnalyzerLog.created_at) <= end_date)
+
+        # If no dates provided, default to today
+        if not start_date and not end_date:
+            today_ist = datetime.now(ist).date()
+            query = query.filter(func.date(AnalyzerLog.created_at) == today_ist)
+
+        # Get results ordered by created_at
+        results = query.order_by(AnalyzerLog.created_at.desc()).all()
+        requests = []
+
+        for req in results:
+            formatted = format_request(req, ist)
+            if formatted:
+                requests.append(formatted)
+
+        return requests
+    except Exception as e:
+        logger.error(f"Error getting filtered requests: {str(e)}\n{traceback.format_exc()}")
+        return []
+
+
+def generate_csv(requests):
+    """Generate CSV from analyzer requests"""
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write headers
+        headers = ['Timestamp', 'API Type', 'Source', 'Symbol', 'Exchange', 'Action',
+                   'Quantity', 'Price Type', 'Product Type', 'Status', 'Error Message']
+        writer.writerow(headers)
+
+        # Write data
+        for req in requests:
+            row = [
+                req['timestamp'],
+                req['api_type'],
+                req['source'],
+                req.get('symbol', ''),
+                req.get('exchange', ''),
+                req.get('action', ''),
+                req.get('quantity', ''),
+                req.get('price_type', ''),
+                req.get('product_type', ''),
+                'Error' if req['analysis']['issues'] else 'Success',
+                req['analysis'].get('error', '')
+            ]
+            writer.writerow(row)
+
+        return output.getvalue()
+    except Exception as e:
+        logger.error(f"Error generating CSV: {str(e)}\n{traceback.format_exc()}")
+        return ""
+
+
+def clear_analyzer_logs():
+    """Clear analyzer logs"""
+    try:
+        # Delete all logs older than 24 hours
+        cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
+        db_session.query(AnalyzerLog).filter(AnalyzerLog.created_at < cutoff).delete()
+        db_session.commit()
+        return True, "Analyzer logs cleared successfully"
+    except Exception as e:
+        logger.error(f"Error clearing analyzer logs: {str(e)}")
+        db_session.rollback()
+        return False, "Error clearing analyzer logs"

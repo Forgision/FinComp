@@ -16,35 +16,35 @@ from app.core.config import settings
 from app.db.models.auth_db import init_db as ensure_auth_tables_exists
 from app.db.models.user_db import init_db as ensure_user_tables_exists
 from app.utils.logging import logger
-from app.utils.web.limiter import limiter
+from app.core.services.limiter_service import limiter
 from app.utils.web.socketio import sio
-from app.web.backend.routes.analyzer import analyzer_router
-from app.web.backend.routes.apikey import apikey_router
-from app.web.backend.routes.auth import auth_router
-from app.web.backend.routes.broker_auth import broker_router
-from app.web.backend.routes.chartink import chartink_router
-from app.web.backend.routes.core import core_router
-from app.web.backend.routes.dashboard import dashboard_router
-from app.web.backend.routes.latency import latency_router
-from app.web.backend.routes.log import log_router
-from app.web.backend.routes.master_contract_status import master_contract_status_router
-from app.web.backend.routes.orders import orders_router
-from app.web.backend.routes.pnltracker import pnltracker_router
-from app.web.backend.routes.python_strategy import python_strategy_router
-from app.web.backend.routes.sandbox import sandbox_router
-from app.web.backend.routes.search import search_router
-from app.web.backend.routes.security import security_router
-from app.web.backend.routes.settings import settings_router
-from app.web.backend.routes.strategy import strategy_router
-from app.web.backend.routes.telegram import telegram_router
-from app.web.backend.routes.traffic import traffic_router
-from app.web.backend.routes.tv_json import tv_json_router
-from app.web.backend.routes.websocket import websocket_router
-from app.websocket.fastapi_integration import (
+from app.web.frontend.routes.analyzer import analyzer_router
+from app.web.frontend.routes.apikey import apikey_router
+from app.web.frontend.routes.auth import auth_router
+from app.web.frontend.routes.broker_auth import broker_router
+from app.web.frontend.routes.chartink import chartink_router
+from app.web.frontend.routes.core import core_router
+from app.web.frontend.routes.dashboard import dashboard_router
+from app.web.frontend.routes.latency import latency_router
+from app.web.frontend.routes.log import log_router
+from app.web.backend.api.master_contract_status import master_contract_status_router
+from app.web.backend.api.orders import orders_router
+from app.web.frontend.routes.pnltracker import pnltracker_router
+from app.web.frontend.routes.python_strategy import python_strategy_router
+from app.web.frontend.routes.sandbox import sandbox_router
+from app.web.frontend.routes.search import search_router
+from app.web.frontend.routes.security import security_router
+from app.web.frontend.routes.settings import settings_router
+from app.web.frontend.routes.strategy import strategy_router
+from app.web.backend.api.telegram import telegram_router
+from app.web.frontend.routes.traffic import traffic_router
+from app.web.frontend.routes.tv_json import tv_json_router
+from app.web.frontend.routes.websocket import websocket_router
+from app.web.websocket.websocket.fastapi_integration import (
     cleanup_websocket_server,
     start_websocket_server,
 )
-from app.websocket.broker_factory import register_all_adapters
+from app.web.websocket.websocket.broker_factory import register_all_adapters
 
 # from app.utils.plugin_loader import load_broker_auth_functions
 
@@ -99,7 +99,7 @@ _app.state.limiter = limiter
 _app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount static files
-_app.mount("/static", StaticFiles(directory="app/frontend/static"), name="static")
+_app.mount("/static", StaticFiles(directory="app/web/frontend/static"), name="static")
 
 # add templete
 templates.env.globals['url_for'] = _app.url_path_for

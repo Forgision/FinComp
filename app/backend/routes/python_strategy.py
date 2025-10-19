@@ -663,7 +663,7 @@ def schedule_strategy(strategy_id: str, start_time: str, stop_time: Optional[str
     if SCHEDULER and SCHEDULER.get_job(stop_job_id):
         SCHEDULER.remove_job(stop_job_id)
 
-    # Schedule start (time is already in IST from frontend)
+    # Schedule start (time is already in IST from app.web.frontend)
     hour, minute = map(int, start_time.split(':'))
     if SCHEDULER:
         # Pass a partial function to func to defer db and request resolution to call time

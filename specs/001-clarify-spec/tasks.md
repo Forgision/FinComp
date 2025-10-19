@@ -24,12 +24,12 @@ Reorganize the application's directory and file structure as per the new archite
 Files are moved to their correct new locations, and code within them is refactored to align with the new structure (e.g., Pydantic models in `app/core/models/`, business logic in `app/core/services/`, database schemas in `app/db/models/`).
 
 ### Implementation Tasks
-- [ ] T006 [US2] Move Pydantic models to `app/core/models/` and refactor code
-- [ ] T007 [US2] Move business logic to `app/core/services/` and refactor code
-- [ ] T008 [US2] Move SQLAlchemy models to `app/db/models/` and refactor code
-- [ ] T009 [US2] Move FastAPI routers to `app/web/backend/routes/` and refactor code
-- [ ] T010 [US2] Move frontend routes to `app/web/frontend/routes/` and refactor code
-- [ ] T011 [US2] Split large files into smaller, more focused modules as needed
+- [x] T006 [US2] Move Pydantic models to `app/core/models/` and refactor code
+- [x] T007 [US2] Move business logic to `app/core/services/` and refactor code
+- [x] T008 [US2] Move SQLAlchemy models to `app/db/models/` and refactor code
+- [x] T009 [US2] Move FastAPI routers to `app/web/backend/routes/` and refactor code
+- [x] T010 [US2] Move frontend routes to `app/web/frontend/routes/` and refactor code
+- [x] T011 [US2] Split large files into smaller, more focused modules as needed
 
 ## Phase 3: [US3] Update all imports
 
@@ -40,15 +40,15 @@ Modify all import statements to reflect the new project structure.
 All import statements are updated and resolve correctly without errors.
 
 ### Implementation Tasks
-- [ ] T012 [US3] Update import statements in `app/core/models/`
-- [ ] T013 [US3] Update import statements in `app/core/services/`
-- [ ] T014 [US3] Update import statements in `app/db/models/`
-- [ ] T015 [US3] Update import statements in `app/web/backend/routes/`
-- [ ] T016 [US3] Update import statements in `app/web/frontend/routes/`
-- [ ] T017 [US3] Update import statements in `app/main.py`
-- [ ] T018 [US3] Update import statements in `app/websocket/`
-- [ ] T019 [US3] Update import statements in `app/sandbox/`
-- [ ] T020 [US3] Update import statements in `app/broker/`
+- [x] T012 [US3] Update import statements in `app/core/models/`
+- [x] T013 [US3] Update import statements in `app/core/services/`
+- [x] T014 [US3] Update import statements in `app/db/models/`
+- [x] T015 [US3] Update import statements in `app/web/backend/routes/`
+- [x] T016 [US3] Update import statements in `app/web/frontend/routes/`
+- [x] T017 [US3] Update import statements in `app/main.py`
+- [x] T018 [US3] Update import statements in `app/websocket/`
+- [x] T019 [US3] Update import statements in `app/sandbox/`
+- [x] T020 [US3] Update import statements in `app/broker/`
 
 ## Phase 4: [US4] Resolve issues & Fix Ruff Linting Errors
 
@@ -59,7 +59,7 @@ Fix any problems or errors that arise from the restructuring process and resolve
 The application runs without runtime errors, and `ruff check .` reports no errors.
 
 ### Implementation Tasks
-- [ ] T021 [US4] Fix any runtime errors resulting from restructuring
+- [x] T021 [US4] Fix any runtime errors resulting from restructuring
 - [ ] T022 [US4] Generate Ruff error report: `uv run .specify/python-tools/check_ruff_errors.py`
 - [ ] T023 [US4] Triage and prioritize Ruff errors: `uv run .specify/python-tools/categorize_ruff_errors.py`
 - [ ] T024 [US4] Attempt automated Ruff fixes: `ruff --fix .`

@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.38",
+        "--browser=chromium",
+        "--headless=true",
+        "--viewport-size="
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/config/mnt/vault/@work-station/Python/FinComp/"
+      ]
+    }
+  }
+}

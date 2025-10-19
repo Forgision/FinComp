@@ -1,8 +1,8 @@
 import json
 
 from app.db.token_db import get_br_symbol, get_symbol, get_token
-from broker.dhan_sandbox.api.baseurl import get_url
-from broker.dhan_sandbox.mapping.transform_data import (
+from app.web.broker.dhan_sandbox.api.baseurl import get_url
+from app.web.broker.dhan_sandbox.mapping.transform_data import (
     map_exchange,
     map_exchange_type,
     map_product_type,

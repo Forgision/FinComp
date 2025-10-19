@@ -1,4 +1,4 @@
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
 from app.utils.logging import logger

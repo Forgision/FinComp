@@ -141,7 +141,7 @@ async def check_session_validity_fastapi(request: Request, db: Session = Depends
     logger.debug("Session validated successfully for FastAPI.")
     return user_data
 
-async def invalidate_session_if_invalid_fastapi(request: Request, db: Session = Depends(get_db)):
+async def invalidate_session_if_invalid(request: Request, db: Session = Depends(get_db)):
     """
     FastAPI dependency to invalidate session if invalid without raising HTTPException.
     """

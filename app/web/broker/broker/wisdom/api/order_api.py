@@ -1,13 +1,13 @@
 import json
 
 from app.db.token_db import get_br_symbol, get_token
-from broker.wisdom.baseurl import INTERACTIVE_URL
-from broker.wisdom.mapping.transform_data import (
+from app.web.broker.wisdom.baseurl import INTERACTIVE_URL
+from app.web.broker.wisdom.mapping.transform_data import (
     map_product_type,
     transform_data,
     transform_modify_order_data,
 )
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.utils.logging import logger
 

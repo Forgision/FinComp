@@ -1,8 +1,5 @@
 import asyncio
-import atexit
 import platform
-import signal
-import sys
 import threading
 
 from app.core.config import settings
@@ -84,16 +81,6 @@ def cleanup_websocket_server():
         _websocket_proxy_instance = None
         _websocket_thread = None
 
-def signal_handler(signum, frame):
-    """Handle SIGINT (Ctrl+C) and SIGTERM signals"""
-    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
-    cleanup_websocket_server()
-    # Use os._exit() for immediate termination across all platforms
-    #TODO: try except is temporary solution, debug the below code and fix it.
-    try:
-        sys.exit(0)
-    except asyncio.exceptions.CancelledError:
-        logger.exception("System exit failed, forcing termination")
 
 def start_websocket_server():
     """
@@ -112,7 +99,7 @@ def start_websocket_server():
             asyncio.set_event_loop(loop)
 
             # Import here to avoid circular imports
-            from app.websocket.server import WebSocketProxy
+            from app.web.websocket.websocket.server import WebSocketProxy
 
             ws_host = settings.WEBSOCKET_HOST
             ws_port = settings.WEBSOCKET_PORT
@@ -134,23 +121,8 @@ def start_websocket_server():
     )
     _websocket_thread.start()
 
-    # Register cleanup handlers
-    atexit.register(cleanup_websocket_server)
-
-    # Register signal handlers for graceful shutdown
-    try:
-        # SIGINT (Ctrl+C) - Available on all platforms
-        signal.signal(signal.SIGINT, signal_handler)
-        signals_registered = ["SIGINT"]
-
-        # SIGTERM - Available on Unix-like systems (Mac, Linux)
-        if hasattr(signal, 'SIGTERM'):
-            signal.signal(signal.SIGTERM, signal_handler)
-            signals_registered.append("SIGTERM")
-
-        logger.info(f"Signal handlers registered: {', '.join(signals_registered)}")
-    except Exception as e:
-        logger.warning(f"Could not register signal handlers: {e}")
+    # The lifespan manager in main.py now handles cleanup.
+    # Signal handlers are removed to avoid conflicts with uvicorn's hot-reloading.
 
     logger.info("WebSocket proxy server thread started")
     return _websocket_thread

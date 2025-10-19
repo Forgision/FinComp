@@ -1,14 +1,14 @@
 import json
 
-from broker.indmoney.api.baseurl import get_url
-from broker.indmoney.mapping.transform_data import (
+from app.web.broker.indmoney.api.baseurl import get_url
+from app.web.broker.indmoney.mapping.transform_data import (
     map_exchange_type,
     map_product_type,
     transform_data,
     transform_modify_order_data,
 )
 from database.token_db import get_br_symbol, get_symbol, get_token
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
 from app.utils.logging import logger

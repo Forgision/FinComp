@@ -4,7 +4,7 @@ from flask import session
 
 from app.db.auth_db import get_auth_token
 from app.db.token_db import get_br_symbol
-from broker.indmoney.api.data import BrokerData
+from app.web.broker.indmoney.api.data import BrokerData
 
 from app.utils.logging import logger
 

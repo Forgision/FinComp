@@ -10,7 +10,7 @@ from app.web.broker.pocketful.mapping.transform_data import (
     transform_modify_order_data,
 )
 from flask import session
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.utils.logging import logger
 
@@ -419,7 +419,7 @@ def get_holdings(auth):
         return holdings_response
 
     # Transform the holdings data into the standard format
-    from broker.pocketful.mapping.order_data import transform_holdings_data
+    from app.web.broker.pocketful.mapping.order_data import transform_holdings_data
 
     # Print debug information about the response
     logger.debug(f"DEBUG - Holdings response type: {type(holdings_response)}")

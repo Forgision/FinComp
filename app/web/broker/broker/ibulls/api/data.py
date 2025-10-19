@@ -6,7 +6,7 @@ from app.db.models.token_db import get_br_symbol
 # from app.db.models.session import db_session
 from app.db.models.auth_db import get_feed_token
 from app.broker.ibulls.database.master_contract_db import SymToken, db_session
-from broker.ibulls.baseurl import MARKET_DATA_URL
+from app.web.broker.ibulls.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 

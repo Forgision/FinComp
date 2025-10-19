@@ -3,10 +3,10 @@ import hashlib
 import json
 import logging
 import threading
+import websocket
 from collections import namedtuple
 
 import requests
-import websocket
 
 logger = logging.getLogger(__name__)
 

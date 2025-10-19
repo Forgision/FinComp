@@ -2,12 +2,12 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from broker.compositedge.baseurl import MARKET_DATA_URL
-from broker.compositedge.database.master_contract_db import SymToken, db_session
+from app.web.broker.compositedge.baseurl import MARKET_DATA_URL
+from app.web.broker.compositedge.database.master_contract_db import SymToken, db_session
 from app.utils.logging import logger
 from app.db.models.token_db import get_br_symbol
 from app.db.models.auth_db import get_feed_token
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):

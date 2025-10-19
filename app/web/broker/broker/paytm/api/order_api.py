@@ -2,12 +2,12 @@ import json
 
 import httpx
 from app.db.token_db import get_token
-from broker.paytm.mapping.transform_data import (
+from app.web.broker.paytm.mapping.transform_data import (
     map_product_type,
     reverse_map_product_type,
     transform_data,
 )
-from utils.httpx_client import get_httpx_client
+from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
 from app.utils.logging import logger

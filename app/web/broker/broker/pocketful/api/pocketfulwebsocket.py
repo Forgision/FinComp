@@ -2,10 +2,10 @@ import json
 import struct
 import threading
 import time
+import websocket
 
 import requests
-import websocket
-from broker.pocketful.api.packet_decoder import (
+from app.web.broker.pocketful.api.packet_decoder import (
     decodeCompactMarketData,
     decodeDetailedMarketData,
     decodeOrderUpdate,

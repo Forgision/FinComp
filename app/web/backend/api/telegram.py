@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from pydantic import BaseModel, Field
 
 from app.core.services.telegram_bot_service import telegram_bot_service
@@ -17,7 +17,7 @@ from app.db.models.telegram_db import (
 )
 from app.utils.logging import get_logger
 
-router = APIRouter(prefix="/telegram", tags=["Telegram"])
+telegram_router = APIRouter(prefix="/telegram", tags=["Telegram"])
 logger = get_logger(__name__)
 
 # Pydantic Models for Telegram API (formerly Flask-RestX models)
@@ -63,7 +63,7 @@ async def get_api_key(x_api_key: Optional[str] = Depends(None), apikey: Optional
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key")
     return api_key
 
-@router.get("/config", summary="Get current bot configuration")
+@telegram_router.get("/config", summary="Get current bot configuration")
 async def get_bot_configuration(api_key: str = Depends(get_api_key)):
     try:
         config = get_bot_config()
@@ -75,7 +75,7 @@ async def get_bot_configuration(api_key: str = Depends(get_api_key)):
         logger.exception("Error getting bot config")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get bot configuration")
 
-@router.post("/config", summary="Update bot configuration")
+@telegram_router.post("/config", summary="Update bot configuration")
 async def update_bot_configuration(config_data: BotConfig, api_key: str = Depends(get_api_key)):
     try:
         config_update = config_data.model_dump(exclude_unset=True)
@@ -91,7 +91,7 @@ async def update_bot_configuration(config_data: BotConfig, api_key: str = Depend
         logger.exception("Error updating bot config")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update bot configuration")
 
-@router.post("/start", summary="Start the Telegram bot")
+@telegram_router.post("/start", summary="Start the Telegram bot")
 async def start_bot(api_key: str = Depends(get_api_key)):
     try:
         config = get_bot_config()
@@ -114,7 +114,7 @@ async def start_bot(api_key: str = Depends(get_api_key)):
         logger.exception("Error starting bot")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to start bot: {str(e)}")
 
-@router.post("/stop", summary="Stop the Telegram bot")
+@telegram_router.post("/stop", summary="Stop the Telegram bot")
 async def stop_bot(api_key: str = Depends(get_api_key)):
     try:
         success, message = await telegram_bot_service.stop_bot()
@@ -128,7 +128,7 @@ async def stop_bot(api_key: str = Depends(get_api_key)):
         logger.exception("Error stopping bot")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to stop bot: {str(e)}")
 
-@router.post("/webhook", summary="Handle Telegram webhook updates")
+@telegram_router.post("/webhook", summary="Handle Telegram webhook updates")
 async def handle_webhook(request: Request):
     try:
         update_data = await request.json()
@@ -143,7 +143,7 @@ async def handle_webhook(request: Request):
         logger.error(f"Error processing webhook: {str(e)}")
         return status.HTTP_200_OK # Still return 200 to avoid Telegram retries
 
-@router.get("/users", summary="Get all linked Telegram users")
+@telegram_router.get("/users", summary="Get all linked Telegram users")
 async def get_telegram_users(api_key: str = Depends(get_api_key), broker: Optional[str] = None, notifications_enabled: Optional[bool] = None):
     try:
         filters = {}
@@ -158,7 +158,7 @@ async def get_telegram_users(api_key: str = Depends(get_api_key), broker: Option
         logger.exception("Error getting telegram users")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get users")
 
-@router.post("/broadcast", summary="Broadcast message to multiple users")
+@telegram_router.post("/broadcast", summary="Broadcast message to multiple users")
 async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(get_api_key)):
     try:
         if not broadcast_data.message:
@@ -183,7 +183,7 @@ async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(ge
         logger.exception("Error broadcasting message")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to broadcast message")
 
-@router.post("/notify", summary="Send notification to a specific user")
+@telegram_router.post("/notify", summary="Send notification to a specific user")
 async def send_notification(notification_data: Notification, api_key: str = Depends(get_api_key)):
     try:
         if not notification_data.username or not notification_data.message:
@@ -210,7 +210,7 @@ async def send_notification(notification_data: Notification, api_key: str = Depe
         logger.exception("Error sending notification")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send notification")
 
-@router.get("/stats", summary="Get bot usage statistics")
+@telegram_router.get("/stats", summary="Get bot usage statistics")
 async def get_telegram_stats(api_key: str = Depends(get_api_key), days: int = 7):
     try:
         stats = await asyncio.to_thread(get_command_stats, days)
@@ -219,8 +219,8 @@ async def get_telegram_stats(api_key: str = Depends(get_api_key), days: int = 7)
         logger.exception("Error getting stats")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get statistics")
 
-@router.get("/preferences", summary="Get user preferences")
-async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), telegram_id: int = Field(..., description="Telegram User ID")):
+@telegram_router.get("/preferences", summary="Get user preferences")
+async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), telegram_id: int = Query(..., description="Telegram User ID")):
     try:
         preferences = await asyncio.to_thread(get_user_preferences, telegram_id)
         return {"status": "success", "data": preferences}
@@ -228,7 +228,7 @@ async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), tel
         logger.exception("Error getting preferences")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to get preferences")
 
-@router.post("/preferences", summary="Update user preferences")
+@telegram_router.post("/preferences", summary="Update user preferences")
 async def update_user_telegram_preferences(preferences_data: UserPreferences, api_key: str = Depends(get_api_key)):
     try:
         if not preferences_data.telegram_id:

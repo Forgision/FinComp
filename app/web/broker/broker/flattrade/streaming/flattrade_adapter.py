@@ -8,12 +8,12 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.broker.flattrade.streaming.flattrade_mapping import FlattradeExchangeMapper
-from app.broker.flattrade.streaming.flattrade_websocket import FlattradeWebSocket
+from .flattrade_mapping import FlattradeExchangeMapper
+from .flattrade_websocket import FlattradeWebSocket
 from app.core.config import settings
 from app.db.models.auth_db import get_auth_token
-from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.websocket.mapping import SymbolMapper
+from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.websocket.mapping import SymbolMapper
 
 
 # Configuration constants

@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from broker.dhan_sandbox.api.baseurl import get_url
+from app.web.broker.dhan_sandbox.api.baseurl import get_url
 from database.token_db import get_br_symbol, get_token
 
 from app.core.config import settings

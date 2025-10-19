@@ -7,11 +7,11 @@ import logging
 import ssl
 import threading
 import time
+import websocket
 from typing import Any, Callable, Dict, Optional
 
 import certifi
 import requests
-import websocket
 
 # Import our minimal implementations
 from . import groww_nats, groww_nkeys, groww_protobuf

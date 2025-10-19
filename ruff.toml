@@ -1,0 +1,2 @@
+# Exclude the .garbage directory from all checks and fixes.
+exclude = [".garbage"]

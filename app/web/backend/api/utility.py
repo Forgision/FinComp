@@ -5,10 +5,10 @@ from app.core.services.analyzer_service import get_analyzer_status, toggle_analy
 from app.core.services.ping_service import get_ping
 from app.utils.logging import get_logger
 
-router = APIRouter(prefix="/utility", tags=["Utility"])
+utility_router = APIRouter(prefix="/utility", tags=["Utility"])
 logger = get_logger(__name__)
 
-@router.post("/analyzer", summary="Get analyzer mode status and statistics")
+@utility_router.post("/analyzer", summary="Get analyzer mode status and statistics")
 async def analyzer_status(analyzer_data: AnalyzerSchema):
     try:
         api_key = analyzer_data.apikey
@@ -25,7 +25,7 @@ async def analyzer_status(analyzer_data: AnalyzerSchema):
         logger.exception("An unexpected error occurred in Analyzer status endpoint.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/analyzer/toggle", summary="Toggle analyzer mode on/off")
+@utility_router.post("/analyzer/toggle", summary="Toggle analyzer mode on/off")
 async def analyzer_toggle(analyzer_data: AnalyzerToggleSchema):
     try:
         api_key = analyzer_data.apikey
@@ -42,7 +42,7 @@ async def analyzer_toggle(analyzer_data: AnalyzerToggleSchema):
         logger.exception("An unexpected error occurred in Analyzer toggle endpoint.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
-@router.post("/ping", summary="Check API connectivity and authentication")
+@utility_router.post("/ping", summary="Check API connectivity and authentication")
 async def ping(ping_data: PingSchema):
     try:
         api_key = ping_data.apikey

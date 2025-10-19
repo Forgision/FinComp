@@ -1,7 +1,7 @@
 import json
 
 from app.db.token_db import get_symbol
-from broker.paytm.mapping.transform_data import map_product_type
+from app.web.broker.paytm.mapping.transform_data import map_product_type
 
 from app.utils.logging import logger
 

@@ -3,7 +3,7 @@ import json
 import urllib.parse
 
 from app.db.token_db import get_br_symbol, get_symbol, get_token
-from broker.kotak.mapping.transform_data import (
+from app.web.broker.kotak.mapping.transform_data import (
     map_exchange,
     map_product_type,
     reverse_map_exchange,

@@ -11,9 +11,9 @@ import ssl
 import struct
 import threading
 import time
+import websocket
 from typing import Dict, List, Optional
 
-import websocket
 
 
 class FyersHSMWebSocket:

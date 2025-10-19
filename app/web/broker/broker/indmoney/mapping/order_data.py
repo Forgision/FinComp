@@ -1,5 +1,5 @@
 from app.db.token_db import get_symbol
-from broker.indmoney.mapping.transform_data import map_exchange
+from app.web.broker.indmoney.mapping.transform_data import map_exchange
 
 from app.utils.logging import logger
 

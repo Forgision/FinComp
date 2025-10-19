@@ -1,9 +1,9 @@
 import json
 import threading
 import time
+import websocket
 from typing import Any, Callable, Dict, Optional
 
-import websocket
 
 from app.utils.logging import logger
 

@@ -172,3 +172,6 @@ source = ["app"]
 show_missing = true
 fail_under = 90
 skip_covered = true
+
+[tool.ruff]
+exclude = [".garbage"]

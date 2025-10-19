@@ -2,7 +2,7 @@ import importlib
 from typing import Dict, Optional, Type
 
 from app.utils.logging import logger
-from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from .base_adapter import BaseBrokerWebSocketAdapter
 
 # Registry of all supported broker adapters
 BROKER_ADAPTERS: Dict[str, Type[BaseBrokerWebSocketAdapter]] = {}
@@ -41,7 +41,7 @@ def create_broker_adapter(broker_name: str) -> Optional[BaseBrokerWebSocketAdapt
     # Try dynamic import if not registered
     try:
         # Try to import from broker-specific directory first
-        module_name = f"broker.{broker_name}.streaming.{broker_name}_adapter"
+        module_name = f"app.web.broker.broker.{broker_name}.streaming.{broker_name}_adapter"
         class_name = f"{broker_name.capitalize()}WebSocketAdapter"
 
         try:
@@ -81,28 +81,28 @@ def create_broker_adapter(broker_name: str) -> Optional[BaseBrokerWebSocketAdapt
     return None
 
 def register_all_adapters():
-    from app.broker.angel.streaming.angel_adapter import AngelWebSocketAdapter
-    from app.broker.compositedge.streaming.compositedge_adapter import (
+    from app.web.broker.broker.angel.streaming.angel_adapter import AngelWebSocketAdapter
+    from app.web.broker.broker.compositedge.streaming.compositedge_adapter import (
         CompositedgeWebSocketAdapter,
     )
-    from app.broker.definedge.streaming.definedge_adapter import (
+    from app.web.broker.broker.definedge.streaming.definedge_adapter import (
         DefinedgeWebSocketAdapter,
     )
-    from app.broker.dhan.streaming.dhan_adapter import DhanWebSocketAdapter
-    from app.broker.fivepaisaxts.streaming.fivepaisaxts_adapter import (
+    from app.web.broker.broker.dhan.streaming.dhan_adapter import DhanWebSocketAdapter
+    from app.web.broker.broker.fivepaisaxts.streaming.fivepaisaxts_adapter import (
         FivepaisaXTSWebSocketAdapter,
     )
-    from app.broker.flattrade.streaming.flattrade_adapter import (
+    from app.web.broker.broker.flattrade.streaming.flattrade_adapter import (
         FlattradeWebSocketAdapter,
     )
-    from app.broker.fyers.streaming.fyers_websocket_adapter import FyersWebSocketAdapter
-    from app.broker.ibulls.streaming.ibulls_adapter import IbullsWebSocketAdapter
-    from app.broker.iifl.streaming.iifl_adapter import IiflWebSocketAdapter
-    from app.broker.kotak.streaming.kotak_adapter import KotakWebSocketAdapter
-    from app.broker.shoonya.streaming.shoonya_adapter import ShoonyaWebSocketAdapter
-    from app.broker.upstox.streaming.upstox_adapter import UpstoxWebSocketAdapter
-    from app.broker.wisdom.streaming.wisdom_adapter import WisdomWebSocketAdapter
-    from app.broker.zerodha.streaming.zerodha_adapter import ZerodhaWebSocketAdapter
+    from app.web.broker.broker.fyers.streaming.fyers_websocket_adapter import FyersWebSocketAdapter
+    from app.web.broker.broker.ibulls.streaming.ibulls_adapter import IbullsWebSocketAdapter
+    from app.web.broker.broker.iifl.streaming.iifl_adapter import IiflWebSocketAdapter
+    from app.web.broker.broker.kotak.streaming.kotak_adapter import KotakWebSocketAdapter
+    from app.web.broker.broker.shoonya.streaming.shoonya_adapter import ShoonyaWebSocketAdapter
+    from app.web.broker.broker.upstox.streaming.upstox_adapter import UpstoxWebSocketAdapter
+    from app.web.broker.broker.wisdom.streaming.wisdom_adapter import WisdomWebSocketAdapter
+    from app.web.broker.broker.zerodha.streaming.zerodha_adapter import ZerodhaWebSocketAdapter
 
     register_adapter("fyers", FyersWebSocketAdapter)
     register_adapter("angel", AngelWebSocketAdapter)

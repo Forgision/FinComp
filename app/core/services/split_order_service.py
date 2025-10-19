@@ -3,12 +3,12 @@ import importlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Optional, Tuple
 
-from database.analyzer_db import async_log_analyzer
-from database.apilog_db import async_log_order
-from database.apilog_db import executor as log_executor
-from database.auth_db import get_auth_token_broker
-from database.settings_db import get_analyze_mode
-from services.telegram_alert_service import telegram_alert_service
+from app.db.models.analyzer_db import async_log_analyzer
+from app.db.models.apilog_db import async_log_order
+from app.db.models.apilog_db import executor as log_executor
+from app.db.models.auth_db import get_auth_token_broker
+from app.db.models.settings_db import get_analyze_mode
+from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
@@ -61,7 +61,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     try:
-        module_path = f'broker.{broker_name}.api.order_api'
+        module_path = f'app.web.broker.{broker_name}.api.order_api'
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -194,7 +194,7 @@ def split_order_with_auth(
 
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode():
-        from services.sandbox_service import sandbox_place_order
+        from app.core.services.sandbox_service import sandbox_place_order
 
         api_key = original_data.get('apikey')
         if not api_key:

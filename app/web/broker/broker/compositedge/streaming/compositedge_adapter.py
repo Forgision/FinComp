@@ -7,11 +7,9 @@ from typing import Any, Dict, List, Optional
 from app.db.models.auth_db import get_auth_token, get_feed_token
 from app.db.models.token_db import get_symbol
 
-# Add parent directory to path to allow imports
-# sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.websocket.mapping import SymbolMapper
-from broker.compositedge.streaming.compositedge_websocket import (
+from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.websocket.mapping import SymbolMapper
+from .compositedge_websocket import (
     CompositedgeWebSocketClient,
 )
 
