@@ -6,7 +6,7 @@
         "-y",
         "@playwright/mcp@0.0.38",
         "--browser=chromium",
-        "--headless=true",
+        "--headless=false",
         "--viewport-size="
       ]
     },
