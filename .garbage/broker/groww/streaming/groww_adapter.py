@@ -458,7 +458,6 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Find matching subscription based on the data
             subscription = None
-            correlation_id = None
 
             # Data from NATS will have symbol, exchange, and mode fields
             if 'symbol' in data and 'exchange' in data:
@@ -506,7 +505,6 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                         if is_index_match or is_regular_match:
                             subscription = sub
-                            correlation_id = cid
                             self.logger.info(f"Matched subscription: {cid}")
                             break
 
@@ -523,7 +521,6 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     for cid, sub in self.subscriptions.items():
                         if str(sub['token']) == str(token) and sub['segment'] == segment and sub['groww_exchange'] == exchange:
                             subscription = sub
-                            correlation_id = cid
                             break
 
             if not subscription:

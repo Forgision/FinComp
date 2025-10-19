@@ -462,7 +462,6 @@ class BrokerData:
 
             # No special handling needed for 10m interval anymore
             # Just use the native 10m interval from the API
-            is_resampling_needed = False
 
             # For intraday, we need to specify both start and end date
             # Convert dates to datetime objects

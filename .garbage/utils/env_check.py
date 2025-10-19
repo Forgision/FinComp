@@ -173,7 +173,7 @@ def load_and_check_env_variables():
 
     # Special validation for broker-specific API key formats
     broker_api_key = os.getenv('BROKER_API_KEY', '')
-    broker_api_secret = os.getenv('BROKER_API_SECRET', '')
+    os.getenv('BROKER_API_SECRET', '')
     redirect_url = os.getenv('REDIRECT_URL', '')
 
     # Extract broker name from redirect URL for validation

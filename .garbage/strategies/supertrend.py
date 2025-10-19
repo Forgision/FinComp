@@ -39,8 +39,8 @@ def Supertrend(df, atr_period, multiplier):
     atr = true_range.ewm(alpha=1/atr_period, min_periods=atr_period).mean()
 
     hl2 = (high + low) / 2
-    final_upperband = upperband = hl2 + (multiplier * atr)
-    final_lowerband = lowerband = hl2 - (multiplier * atr)
+    final_upperband = hl2 + (multiplier * atr)
+    final_lowerband = hl2 - (multiplier * atr)
 
     # Initialize supertrend array with boolean values like original code
     supertrend = [True] * len(df)
@@ -55,12 +55,12 @@ def Supertrend(df, atr_period, multiplier):
         else:
             supertrend[curr] = supertrend[prev]
 
-            if supertrend[curr] == True and final_lowerband.iloc[curr] < final_lowerband.iloc[prev]:
+            if supertrend[curr] and final_lowerband.iloc[curr] < final_lowerband.iloc[prev]:
                 final_lowerband.iat[curr] = final_lowerband.iat[prev]
-            if supertrend[curr] == False and final_upperband.iloc[curr] > final_upperband.iloc[prev]:
+            if not supertrend[curr] and final_upperband.iloc[curr] > final_upperband.iloc[prev]:
                 final_upperband.iat[curr] = final_upperband.iat[prev]
 
-        if supertrend[curr] == True:
+        if supertrend[curr]:
             final_upperband.iat[curr] = np.nan
         else:
             final_lowerband.iat[curr] = np.nan

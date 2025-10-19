@@ -149,7 +149,6 @@ class HoldingsManager:
 
                 if holding:
                     # Update existing holding
-                    old_holding_qty = holding.quantity
 
                     if position.quantity > 0:
                         # Adding to holding (BUY)

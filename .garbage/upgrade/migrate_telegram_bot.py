@@ -169,7 +169,7 @@ class TelegramBotMigration:
         self.create_migration_history_table()
 
         # Check current status
-        status = self.check_migration_status()
+        self.check_migration_status()
 
         try:
             with self.engine.connect() as conn:
@@ -388,7 +388,7 @@ class TelegramBotMigration:
             logger.info(f"  Applied at: {status['applied_at']}")
 
             # Check table existence
-            with self.engine.connect() as conn:
+            with self.engine.connect():
                 tables = ['telegram_users', 'bot_config', 'command_logs',
                          'notification_queue', 'user_preferences']
 

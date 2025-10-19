@@ -490,11 +490,10 @@ class PositionManager:
                 if position.product == 'MIS':
                     # Auto square-off MIS positions at market close
                     # Create a reverse order to square off
-                    action = 'SELL' if position.quantity > 0 else 'BUY'
                     quantity = abs(position.quantity)
 
                     # Use last traded price or average price for square-off
-                    price = float(position.average_price) if position.average_price else 0
+                    float(position.average_price) if position.average_price else 0
 
                     # Update position to closed
                     position.quantity = 0

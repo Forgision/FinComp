@@ -18,7 +18,7 @@ DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16MarketDataFeed
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'MarketDataFeedV3_pb2', globals())
-if _descriptor._USE_C_DESCRIPTORS == False:
+if not _descriptor._USE_C_DESCRIPTORS:
 
   DESCRIPTOR._options = None
   _MARKETINFO_SEGMENTSTATUSENTRY._options = None

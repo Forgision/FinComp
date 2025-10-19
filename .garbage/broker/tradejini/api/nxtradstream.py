@@ -554,7 +554,6 @@ class NxtradStream:
         lObj = {}
         jData = {}
         idx = 3
-        noOfLen = 0
         exchange_info = None
         list = None
         while idx < data_len:
@@ -563,7 +562,6 @@ class NxtradStream:
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
             if spec["key"] == "nLen":
-                noOfLen = framed
                 list = []
             else:
                 lObj[spec["key"]] = framed

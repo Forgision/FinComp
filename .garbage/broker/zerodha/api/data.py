@@ -213,7 +213,7 @@ class BrokerData:
                     raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
                 # Split token to get exchange_token for quotes
-                exchange_token = symbol_info.token.split('::::')[1]
+                symbol_info.token.split('::::')[1]
 
             if(exchange=="NSE_INDEX"):
                 exchange="NSE"
@@ -391,7 +391,7 @@ class BrokerData:
                     raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
                 # Split token to get exchange_token for quotes
-                exchange_token = symbol_info.token.split('::::')[1]
+                symbol_info.token.split('::::')[1]
 
             if(exchange=="NSE_INDEX"):
                 exchange="NSE"

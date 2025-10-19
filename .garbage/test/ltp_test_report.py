@@ -274,7 +274,7 @@ def main():
         print(f"   {exchange}: {count} symbols")
 
     print("\n" + "="*50)
-    proceed = get_user_input("Press Enter to start the test (or Ctrl+C to cancel)...")
+    get_user_input("Press Enter to start the test (or Ctrl+C to cancel)...")
 
     # Statistics tracking
     update_count = 0

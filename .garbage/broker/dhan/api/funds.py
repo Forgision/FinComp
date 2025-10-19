@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 def test_auth_token(auth_token):
     """Test if the auth token is valid by making a simple API call to funds endpoint."""
-    api_key = os.getenv('BROKER_API_KEY')
+    os.getenv('BROKER_API_KEY')
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
@@ -50,7 +50,7 @@ def test_auth_token(auth_token):
 
 def get_margin_data(auth_token):
     """Fetch margin data from Dhan API using the provided auth token."""
-    api_key = os.getenv('BROKER_API_KEY')
+    os.getenv('BROKER_API_KEY')
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()

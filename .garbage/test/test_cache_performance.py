@@ -41,7 +41,7 @@ def test_cache_performance():
         print("1. INITIAL CACHE STATUS")
         print("-" * 50)
 
-        cache = get_cache()
+        get_cache()
         stats = token_db.get_cache_stats()
 
         print(f"Cache loaded: {stats['cache_loaded']}")
@@ -116,7 +116,7 @@ def test_cache_performance():
         for _ in range(3):  # Run 3 rounds
             start = time.time()
             for sym in test_symbols:
-                result = token_db.get_token(sym.symbol, sym.exchange)
+                token_db.get_token(sym.symbol, sym.exchange)
             end = time.time()
             cache_times.append(end - start)
             print(f"  Round {_+1}: {cache_times[-1]:.4f} seconds")

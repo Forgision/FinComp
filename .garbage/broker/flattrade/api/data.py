@@ -80,7 +80,7 @@ class BrokerData:
         """
         try:
             # Convert symbol to broker format and get token
-            br_symbol = get_br_symbol(symbol, exchange)
+            get_br_symbol(symbol, exchange)
             token = get_token(symbol, exchange)
 
             if(exchange=="NSE_INDEX"):
@@ -127,7 +127,7 @@ class BrokerData:
         """
         try:
             # Convert symbol to broker format and get token
-            br_symbol = get_br_symbol(symbol, exchange)
+            get_br_symbol(symbol, exchange)
             token = get_token(symbol, exchange)
 
             if(exchange=="NSE_INDEX"):

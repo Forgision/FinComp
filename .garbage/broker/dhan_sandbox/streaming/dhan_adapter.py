@@ -568,7 +568,7 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 tick["symbol"] = symbol
 
                 # Store Dhan's exchange code
-                dhan_exchange = tick.get("exchange")
+                tick.get("exchange")
 
                 # Get original subscription exchange for topic generation
                 subscription_exchange = exchange

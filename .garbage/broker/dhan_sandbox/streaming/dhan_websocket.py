@@ -1497,7 +1497,7 @@ class DhanWebSocket:
                 feed_code = header[2]  # Single byte
                 exchange_segment = header[3]  # Single byte
                 security_id = struct.unpack('<i', header[4:8])[0]  # Little-endian
-                msg_sequence = struct.unpack('<I', header[8:12])[0]  # Little-endian (ignored)
+                struct.unpack('<I', header[8:12])[0]  # Little-endian (ignored)
                 logger.debug(f"20-level depth header: length={msg_length}, feed_code={feed_code}, exchange={exchange_segment}, token={security_id}")
             except struct.error as e:
                 logger.error(f"Error unpacking 20-level depth header: {e}")

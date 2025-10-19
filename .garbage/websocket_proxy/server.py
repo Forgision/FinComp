@@ -80,7 +80,7 @@ class WebSocketProxy:
             loop = aio.get_running_loop()
 
             # Create the ZMQ listener task
-            zmq_task = loop.create_task(self.zmq_listener())
+            loop.create_task(self.zmq_listener())
 
             # Start WebSocket server
             stop = aio.Future()  # Used to stop the server
@@ -774,7 +774,7 @@ class WebSocketProxy:
                             "mode": mode,
                             "broker": broker_name
                         }
-                        subscription_key = json.dumps(subscription_info)
+                        json.dumps(subscription_info)
                         # Remove any matching subscription (with or without broker info)
                         subscriptions_to_remove = []
                         for sub_key in self.subscriptions[client_id]:

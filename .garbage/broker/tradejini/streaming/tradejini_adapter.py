@@ -71,7 +71,7 @@ class TradejiniWebSocketAdapter(BaseBrokerWebSocketAdapter):
         else:
             # Use provided tokens
             auth_token = auth_data.get('auth_token')
-            feed_token = auth_data.get('feed_token', auth_token)  # Use auth_token if feed_token not provided
+            auth_data.get('feed_token', auth_token)  # Use auth_token if feed_token not provided
             ws_url = auth_data.get('ws_url', 'api.tradejini.com')
 
             if not auth_token:

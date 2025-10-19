@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 def get_api_response(endpoint, auth, method="GET",  payload=''):
     AUTH_TOKEN = auth
-    api_key = os.getenv('BROKER_API_KEY')
+    os.getenv('BROKER_API_KEY')
 
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
@@ -189,7 +189,7 @@ def place_smartorder_api(data: dict, auth: str) -> tuple:
             return None, {"status": "error", "message": error_msg}, None
 
         try:
-            quantity = int(data.get("quantity", "0"))
+            int(data.get("quantity", "0"))
             position_size = int(data.get("position_size", "0"))
         except (ValueError, TypeError) as e:
             error_msg = f"Invalid quantity or position_size: {str(e)}"
@@ -354,7 +354,7 @@ def cancel_order(orderid,auth):
     }
 
     # Prepare the payload
-    payload = json.dumps({
+    json.dumps({
         "appOrderID": orderid,
         "orderUniqueIdentifier": "openalgo"
     })

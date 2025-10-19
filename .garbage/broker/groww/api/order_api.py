@@ -737,7 +737,6 @@ def get_positions(auth):
                         # Get the trading symbol
                         groww_symbol = position.get('trading_symbol', '')
                         openalgo_symbol = groww_symbol
-                        symbol_converted = False
 
                         # Handle symbol conversion for consistency with orderbook
                         # This is primarily for FNO instruments, but we'll check all symbols
@@ -753,7 +752,6 @@ def get_positions(auth):
                             if db_symbol:
                                 openalgo_symbol = db_symbol
                                 logger.info(f"Database: Converted Groww symbol: {groww_symbol} -> {openalgo_symbol}")
-                                symbol_converted = True
                             else:
                                 # Pattern matching fallbacks if database lookup fails
                                 # 1. Try option pattern
@@ -771,7 +769,6 @@ def get_positions(auth):
                                     # Format as OpenAlgo expects: NIFTY15MAY2526650CE
                                     openalgo_symbol = f"{symbol_name}{day}{month_name}{year}{strike}{option_type}"
                                     logger.info(f"Pattern: Converted Groww option symbol: {groww_symbol} -> {openalgo_symbol}")
-                                    symbol_converted = True
                                 else:
                                     # 2. Try futures pattern
                                     future_pattern = re.compile(r'([A-Z]+)(\d{2})(\d{2})(\d{2})(?:FUT)?')
@@ -788,7 +785,6 @@ def get_positions(auth):
                                         # Format as OpenAlgo expects: NIFTY29MAY25FUT
                                         openalgo_symbol = f"{symbol_name}{day}{month_name}{year}FUT"
                                         logger.info(f"Pattern: Converted Groww futures symbol: {groww_symbol} -> {openalgo_symbol}")
-                                        symbol_converted = True
 
                         except Exception as e:
                             logger.error(f"Error converting position symbol: {e}")
@@ -875,7 +871,6 @@ def get_positions(auth):
                             # Get the trading symbol
                             groww_symbol = position.get('trading_symbol', '')
                             openalgo_symbol = groww_symbol
-                            symbol_converted = False
 
                             # Handle FNO symbol conversion
                             if position.get('segment') == 'FNO' or position.get('exchange') == 'NFO':
@@ -893,7 +888,6 @@ def get_positions(auth):
                                     if db_symbol:
                                         openalgo_symbol = db_symbol
                                         logger.info(f"Database: Converted Groww FNO symbol: {groww_symbol} -> {openalgo_symbol}")
-                                        symbol_converted = True
                                     else:
                                         # Fallback to pattern matching if database lookup fails
                                         # For Options: Convert from Groww format to OpenAlgo format
@@ -913,7 +907,6 @@ def get_positions(auth):
                                         # Format as OpenAlgo expects: NIFTY15MAY2526650CE
                                         openalgo_symbol = f"{symbol_name}{day}{month_name}{year}{strike}{option_type}"
                                         logger.info(f"Pattern: Converted Groww option position symbol: {groww_symbol} -> {openalgo_symbol}")
-                                        symbol_converted = True
 
                                     # For Futures: Convert from "NIFTY2551FUT" to "NIFTY29MAY25FUT"
                                     else:
@@ -931,7 +924,6 @@ def get_positions(auth):
                                             # Format as OpenAlgo expects: NIFTY29MAY25FUT
                                             openalgo_symbol = f"{symbol_name}{day}{month_name}{year}FUT"
                                             logger.info(f"Pattern: Converted Groww futures position symbol: {groww_symbol} -> {openalgo_symbol}")
-                                            symbol_converted = True
                                 except Exception as e:
                                     logger.error(f"Error converting position symbol: {e}")
                                     # Fall back to original symbol if conversion fails
@@ -2643,7 +2635,7 @@ def cancel_all_orders_api(data, auth):
                     })
 
         # Prepare success response even if some orders failed
-        response = {
+        {
             'status': 'success',
             'message': f"Successfully cancelled {len(cancelled_orders)} orders. {len(failed_to_cancel)} orders failed.",
             'cancelled_orders': cancelled_orders,

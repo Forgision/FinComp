@@ -344,7 +344,7 @@ class BroadcastMessage(Resource):
                 }), 401)
 
             message = data.get('message')
-            filters = data.get('filters', {})
+            data.get('filters', {})
 
             if not message:
                 return make_response(jsonify({
@@ -399,7 +399,7 @@ class SendNotification(Resource):
 
             username = data.get('username')
             message = data.get('message')
-            priority = data.get('priority', 5)
+            data.get('priority', 5)
 
             if not username or not message:
                 return make_response(jsonify({

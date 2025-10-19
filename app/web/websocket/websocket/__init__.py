@@ -1,6 +1,5 @@
 # websocket_proxy/__init__.py
 
-from app.websocket.broker_factory import register_adapter, register_all_adapters
 
 # __all__ = [
 #     'WebSocketProxy',

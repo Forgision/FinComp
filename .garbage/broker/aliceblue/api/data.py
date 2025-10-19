@@ -972,7 +972,7 @@ class BrokerData:
             # payload['sessionId'] = session_id
 
             # For indices, append ::index to the exchange
-            exchange_str = f"{exchange}::index" if exchange.endswith("IDX") else exchange
+            f"{exchange}::index" if exchange.endswith("IDX") else exchange
 
             # Convert timestamps to milliseconds as required by AliceBlue API
             # Format: Unix timestamp in milliseconds (like 1660128489000)

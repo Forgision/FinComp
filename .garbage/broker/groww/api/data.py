@@ -1489,7 +1489,7 @@ class BrokerData:
         exchange = sym_data['exchange']
 
         # Get token for this symbol
-        token = get_token(symbol, exchange)
+        get_token(symbol, exchange)
 
         # Map OpenAlgo exchange to Groww exchange format
         if exchange == 'NSE':

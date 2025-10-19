@@ -225,7 +225,7 @@ class IPBan(LogBase):
         try:
             # Remove expired bans first
             expired = IPBan.query.filter(
-                IPBan.is_permanent == False,
+                not IPBan.is_permanent,
                 IPBan.expires_at < datetime.utcnow()
             ).all()
 

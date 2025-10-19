@@ -630,6 +630,6 @@ def getKotakOTP(userid,access_token):
     }
     conn.request("POST", "/login/1.0/login/otp/generate", payload, headers)
     res = conn.getresponse()
-    data = res.read()
+    res.read()
 
     return 'success'

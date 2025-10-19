@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.utils.session import check_session_validity_fastapi as get_current_user
 
@@ -22,10 +22,5 @@ async def dashboard(request: Request, current_user: str = Depends(get_current_us
 
     # Placeholder for actual funds data fetching logic
     # This will eventually call services.funds_service.get_funds
-    margin_data = {
-        "availablecash": "100000.00",
-        "collateral": "50000.00",
-        "utiliseddebits": "0.00"
-    }
 
     return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)

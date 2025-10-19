@@ -637,7 +637,7 @@ def webhook(webhook_id):
 
         # Get symbols and trigger prices
         symbols = data.get('stocks', '').split(',')
-        trigger_prices = data.get('trigger_prices', '').split(',')
+        data.get('trigger_prices', '').split(',')
 
         if not symbols:
             logger.error('No symbols received in webhook')

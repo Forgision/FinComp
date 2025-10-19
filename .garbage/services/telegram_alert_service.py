@@ -286,7 +286,7 @@ class TelegramAlertService:
             telegram_id = telegram_user['telegram_id']
 
             # Get telegram bot service
-            bot_service = _get_telegram_bot_service()
+            _get_telegram_bot_service()
 
             # Use thread pool executor for non-blocking execution
             logger.info(f"Queueing alert via thread pool for telegram_id: {telegram_id}")

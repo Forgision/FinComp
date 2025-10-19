@@ -136,7 +136,7 @@ def place_order_api(data,auth):
     # Parse the JSON response
     response_data = response.json()
 
-    if response_data['status'] == True:
+    if response_data['status']:
         orderid = response_data['data']['orderid']
     else:
         orderid = None
@@ -385,7 +385,7 @@ def cancel_all_orders_api(data,auth):
 
     order_book_response = get_order_book(AUTH_TOKEN)
     #logger.info(f"{order_book_response}")
-    if order_book_response['status'] != True:
+    if not order_book_response['status']:
         return [], []  # Return empty lists indicating failure to retrieve the order book
 
     # Filter orders that are in 'open' or 'trigger_pending' state

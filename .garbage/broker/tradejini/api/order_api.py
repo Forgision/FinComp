@@ -686,9 +686,9 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
         logger.info(f"get_open_position - Looking for position: {tradingsymbol} on {exchange}, product: {producttype}")
 
         # Map product type if needed
-        mapped_product = producttype.upper()
+        producttype.upper()
         if producttype in ['MIS', 'CNC', 'NRML']:
-            mapped_product = map_product_type(producttype)
+            map_product_type(producttype)
 
         # Get positions from TradeJini API
         positions_response = get_positions(auth)
@@ -1121,7 +1121,6 @@ def close_all_positions(current_api_key, auth):
               }
     """
     try:
-        AUTH_TOKEN = auth
 
         # Get positions instead of order book
         positions_response = get_positions(auth)

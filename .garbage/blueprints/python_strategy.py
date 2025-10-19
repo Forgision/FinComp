@@ -765,7 +765,7 @@ def new_strategy():
             strategy_id = Path(file.filename).stem + '_' + ist_now.strftime('%Y%m%d%H%M%S')
 
             # Save file
-            filename = secure_filename(file.filename)
+            secure_filename(file.filename)
             file_path = STRATEGIES_DIR / f"{strategy_id}.py"
             STRATEGIES_DIR.mkdir(parents=True, exist_ok=True)
             file.save(str(file_path))
@@ -1317,7 +1317,6 @@ def restore_strategy_states():
 
     restored_count = 0
     error_count = 0
-    cleaned_count = 0
 
     for strategy_id, config in STRATEGY_CONFIGS.items():
         if config.get('is_running') and config.get('pid'):

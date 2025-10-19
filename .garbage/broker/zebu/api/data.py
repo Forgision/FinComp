@@ -71,7 +71,7 @@ class BrokerData:
         """
         try:
             # Convert symbol to broker format and get token
-            br_symbol = get_br_symbol(symbol, exchange)
+            get_br_symbol(symbol, exchange)
             token = get_token(symbol, exchange)
 
             # Convert OpenAlgo exchange to broker exchange for API calls
@@ -119,7 +119,7 @@ class BrokerData:
         """
         try:
             # Convert symbol to broker format and get token
-            br_symbol = get_br_symbol(symbol, exchange)
+            get_br_symbol(symbol, exchange)
             token = get_token(symbol, exchange)
 
             # Convert OpenAlgo exchange to broker exchange for API calls
