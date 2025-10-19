@@ -1,89 +1,50 @@
-# OpenAlgo SpecKit Migration Constitution
-<!-- 
-This document outlines the non-negotiable principles and standards for the OpenAlgo SpecKit Migration project. 
-Adherence to this constitution is mandatory for all contributions.
--->
-
-<!--
-Sync Impact Report:
-- Version: 1.6.0 -> 1.7.0
-- Change: Merged sections "X. Iterative Linting Error Resolution" and "XI. Error Resolution Policy" into a single "X. Linting and Error Resolution Policy" to remove redundancy.
-- Templates requiring updates:
-  - [ ] .specify/templates/plan-template.md
-  - [ ] .specify/templates/spec-template.md
-  - [ ] .specify/templates/tasks-template.md
--->
+# [PROJECT_NAME] Constitution
+<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 
 ## Core Principles
 
-### I. Strict Code Quality
-All code MUST adhere to PEP 8 standards. Automated linting and formatting are enforced through pre-commit hooks using `ruff` for linting and `black` for formatting. Naming conventions are strictly followed: `PascalCase` for classes and Pydantic models, and `snake_case` for functions, methods, and variables.
+### [PRINCIPLE_1_NAME]
+<!-- Example: I. Library-First -->
+[PRINCIPLE_1_DESCRIPTION]
+<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
 
-### II. Comprehensive Testing
-Test-Driven Development (TDD) is non-negotiable. Tests MUST be written before the implementation code. A minimum of 90% code coverage is required for all core business logic. Unittest is the sole testing framework for this project.
+### [PRINCIPLE_2_NAME]
+<!-- Example: II. CLI Interface -->
+[PRINCIPLE_2_DESCRIPTION]
+<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
 
-### III. API Design and Consistency
-All APIs MUST be RESTful. Endpoints should have clear, consistent, and predictable naming schemes. Pydantic models MUST be used for all request and response data validation to ensure type safety and clear contracts.
+### [PRINCIPLE_3_NAME]
+<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
+[PRINCIPLE_3_DESCRIPTION]
+<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
 
-### IV. Performance as a Feature
-Code must be written with performance considerations in mind. Critical code paths and database queries should be benchmarked and optimized. Any feature that introduces a significant performance regression requires explicit justification and approval.
+### [PRINCIPLE_4_NAME]
+<!-- Example: IV. Integration Testing -->
+[PRINCIPLE_4_DESCRIPTION]
+<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
 
-### V. Modular Architecture
-The project MUST adhere to the modular architecture defined in `.specify/memory/structure.md`. The core structure is organized as follows:
-*   `app/core/`: Contains shared components, including Pydantic models (`models/`) for data transfer and business logic (`services/`).
-*   `app/db/`: Manages database interactions, with SQLAlchemy schemas in `models/`.
-*   `app/web/`: Contains all web-facing components, including the main FastAPI application (`main.py`), API endpoints (`backend/`), frontend templates and routes (`frontend/`), WebSocket communication (`websocket/`), and third-party broker integrations (`broker/`).
-*   `app/algo/`: Houses all quantitative trading strategies and algorithms.
-*   `test/`: Contains all tests for the application.
-All new development and refactoring efforts MUST conform to this structure.
+### [PRINCIPLE_5_NAME]
+<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
+[PRINCIPLE_5_DESCRIPTION]
+<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
 
-### VI. Component Interface Definitions
-All components MUST adhere to their defined interfaces to ensure consistency and modularity.
-*   **Broker Interface (`app/web/broker/`):** Integrations MUST implement a common interface for operations such as `connect()`, `place_order()`, `get_order_status()`, `get_positions()`, and `get_funds()`.
-*   **Algorithm Interface (`app/algo/`):** Trading algorithms MUST follow a standard interface with methods for `initialize()`, `handle_data()`, `before_trading_start()`, and `after_trading_end()`.
+## [SECTION_2_NAME]
+<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
 
-### VII. Dependency and Environment Management
-The project MUST use `uv` for managing the Python environment and requires Python version 3.12 or higher. New packages MUST be added using the `uv add` command. All Python scripts and modules MUST be executed using the `uv run` command to ensure they run within the project's managed environment.
+[SECTION_2_CONTENT]
+<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
 
-### VIII. User Experience Consistency
-All user-facing components MUST adhere to a consistent design language and user experience. This includes consistent naming, layout, and interaction patterns across the application. Any new UI components must be reviewed for consistency before implementation.
+## [SECTION_3_NAME]
+<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
 
-### IX. Frontend Technology Stack
-The frontend MUST be built using HTML, JavaScript, and CSS. Server-side rendering MUST be implemented using Jinja2 templates, served via FastAPI. This ensures a clear separation of concerns between the frontend presentation layer and the backend API.
-
-### X. Linting and Error Resolution Policy
-All `ruff` linting errors MUST be resolved using the systematic, iterative workflow defined in `.kilocode/rules/ruff-linting-strategy.md`. This process is non-negotiable for maintaining code quality and codifies our approach to technical debt. The core workflow is as follows:
-
-1.  **Generate Report**: Create a comprehensive error report to establish a baseline for the current state of linting issues.
-    ```bash
-    uv run .specify/python-tools/check_ruff_errors.py
-    ```
-
-2.  **Triage and Prioritize**: Analyze the report to identify and prioritize the most frequent error codes for efficient resolution.
-    ```bash
-    uv run .specify/python-tools/categorize_ruff_errors.py
-    ```
-
-3.  **Automated Fixes**: Always attempt automated correction first. Run the following commands in sequence to apply both safe and unsafe fixes:
-    ```bash
-    # Apply standard, safe fixes
-    ruff --fix .
-    # Apply unsafe fixes (e.g., for unused imports)
-    ruff --fix --unsafe-fixes .
-    ```
-
-4.  **Manual Fixes**: For errors that persist after automated attempts, perform surgical manual fixes. Use targeted tools like `apply_diff` instead of rewriting entire files.
-
-5.  **Validate and Repeat**: After each round of fixes, return to Step 1 to generate a new report and repeat the cycle until no errors remain.
-
-## Development Workflow
-
-### Code Review and Quality Gates
-All code contributions must be submitted via Pull Requests. A PR must be reviewed and approved by at least one other team member before merging. All automated checks (linting, testing, coverage) must pass.
+[SECTION_3_CONTENT]
+<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
 
 ## Governance
+<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-### Amendment Process
-This constitution is the single source of truth for project standards. Any amendments require a formal proposal, review, and approval from the project leads. An approved amendment must include a migration plan for existing code if applicable. All changes will be reflected in the version number.
+[GOVERNANCE_RULES]
+<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
 
-**Version**: 1.7.0 | **Ratified**: 2025-10-17 | **Last Amended**: 2025-10-18
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
