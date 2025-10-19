@@ -48,4 +48,7 @@ docker-compose.yml
 .ruff_cache/
 
 node_modules/
-coverage/
+npm-debug.log
+README.md
+*.log*
+.env*
