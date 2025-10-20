@@ -7,13 +7,18 @@ This project is a reference implementation of a FastAPI-based service, migrated 
 This project is governed by a strict constitution that outlines our core principles for development. All contributions MUST adhere to these standards. Please review the [constitution](.specify/memory/constitution.md) before contributing.
 
 Key principles include:
-- **Strict Code Quality**: Adherence to PEP 8, automated linting, and consistent naming conventions.
-- **Comprehensive Testing**: Non-negotiable Test-Driven Development (TDD) with 90% code coverage.
-- **API Design and Consistency**: RESTful APIs with Pydantic models for validation.
-- **Performance as a Feature**: A focus on writing and benchmarking performant code.
-- **Modular Architecture**: A defined project structure with dependency injection.
-- **User Experience Consistency**: A consistent design language and user experience.
-- **Frontend Technology Stack**: Use of HTML/JS/CSS with Jinja2 for server-side rendering.
+- **Technology Stack**: A Python/FastAPI backend and a JavaScript/CSS frontend.
+- **Strict Project Structure**: Adherence to the structure in `.specify/memory/structure.md`.
+- **API-First Design**: All functionality is exposed through a RESTful API.
+- **Declarative Configuration**: Project configuration is managed through declarative files.
+- **Comprehensive Testing**: All new features or bug fixes must be accompanied by corresponding tests.
+- **Standardized Tooling**: `uv` for environment management and script execution.
+- **Centralized Logging**: Use of the logger from `app.utils.logging`.
+- **Strict Code Quality**: Adherence to PEP 8, `black` formatting, and `ruff` linting.
+- **Comprehensive Unit Testing**: Use of `unittest` framework and high code coverage.
+- **User Experience Consistency**: Adherence to the DaisyUI design system.
+- **Code Documentation**: Docstrings for all public APIs and complex logic.
+- **Static Typing**: Mandatory use of type hints in all new code.
 
 ## Getting Started
 
