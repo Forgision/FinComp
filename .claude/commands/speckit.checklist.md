@@ -108,7 +108,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Acceptance Criteria Quality** (Are success criteria measurable?)
    - **Scenario Coverage** (Are all flows/cases addressed?)
    - **Edge Case Coverage** (Are boundary conditions defined?)
-   - **Non-Functional Requirements** (Performance, Security, Accessibility, etc. - are they specified?)
+   - **Non-Functional Requirements** (Adherence to Constitution principles: Code Quality, Testing, UX Consistency, Python Guidelines, Observability)
    - **Dependencies & Assumptions** (Are they documented and validated?)
    - **Ambiguities & Conflicts** (What needs clarification?)
    

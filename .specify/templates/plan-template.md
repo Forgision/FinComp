@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **I. Code Quality Standards**: All code must adhere to established style guides and best practices.
+- **II. Testing Standards**: Comprehensive testing is mandatory for all features and bug fixes, including unit, integration, and end-to-end tests.
+- **III. User Experience Consistency**: All user-facing components must provide a consistent and intuitive experience, adhering to design system guidelines and accessibility standards.
+- **IV. Python Guideline Adherence**: All Python code must follow PEP 8 style guidelines and common Pythonic idioms, with type hints strongly encouraged.
+- **V. Observability**: Ensure debuggability through text I/O and structured logging.
 
 ## Project Structure
 

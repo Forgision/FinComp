@@ -95,8 +95,9 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 #### D. Constitution Alignment
 
-- Any requirement or plan element conflicting with a MUST principle
-- Missing mandated sections or quality gates from constitution
+- Any requirement or plan element conflicting with a MUST principle as defined in `.specify/memory/constitution.md`.
+- Missing mandated sections or quality gates from the project constitution.
+- Check for adherence to Code Quality Standards, Testing Standards, User Experience Consistency, Python Guideline Adherence, and Observability as defined in the constitution.
 
 #### E. Coverage Gaps
 

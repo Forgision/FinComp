@@ -95,10 +95,13 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Key Entities *(include if feature involves data)*
+### Non-Functional Requirements (Adherence to Project Constitution)
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+- **NFR-001**: All implemented code MUST adhere to the "I. Code Quality Standards" outlined in the project constitution.
+- **NFR-002**: All features MUST be developed with "II. Testing Standards" in mind, ensuring comprehensive test coverage.
+- **NFR-003**: User-facing aspects MUST comply with "III. User Experience Consistency" principles.
+- **NFR-004**: All Python code MUST follow "IV. Python Guideline Adherence" including PEP 8 and type hinting.
+- **NFR-005**: Implemented features MUST incorporate "V. Observability" by ensuring debuggability and structured logging.
 
 ## Success Criteria *(mandatory)*
 
