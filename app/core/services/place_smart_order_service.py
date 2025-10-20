@@ -4,10 +4,10 @@ import time
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.models.analyzer_db import async_log_analyzer
-from app.db.models.apilog_db import async_log_order, executor
-from app.db.models.auth_db import get_auth_token_broker
-from app.db.models.settings_db import get_analyze_mode
+from app.db.schemas.analyzer_db import async_log_analyzer
+from app.db.schemas.apilog_db import async_log_order, executor
+from app.db.schemas.auth_db import get_auth_token_broker
+from app.db.schemas.settings_db import get_analyze_mode
 from app.utils.constants import (
     REQUIRED_SMART_ORDER_FIELDS,
     VALID_ACTIONS,

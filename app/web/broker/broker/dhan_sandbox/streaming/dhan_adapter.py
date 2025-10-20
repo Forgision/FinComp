@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Any, Dict, List
 
-from app.db.models.token_db import get_token
+from app.db.schemas.token_db import get_token
 from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from app.core.config import settings

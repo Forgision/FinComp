@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models.traffic_db import TrafficLog
+from app.db.schemas.traffic_db import TrafficLog
 from app.utils.logging import logger
 from app.web.backend.routes.security import get_logs_db
 

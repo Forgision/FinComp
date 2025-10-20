@@ -14,7 +14,7 @@ from datetime import datetime, time
 
 import pytz
 
-from app.db.models.sandbox_db import (
+from app.db.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
     get_config,

@@ -9,9 +9,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.db.models.session import get_db
-from app.db.models.settings_db import get_security_settings, set_security_settings
-from app.db.models.traffic_db import (
+from app.db.schemas.session import get_db
+from app.db.schemas.settings_db import get_security_settings, set_security_settings
+from app.db.schemas.traffic_db import (
     Error404Tracker,
     InvalidAPIKeyTracker,
     IPBan,

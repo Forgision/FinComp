@@ -16,10 +16,10 @@ import httpx
 import pandas as pd
 import plotly.graph_objects as go
 import telegram.error
-from app.db.models.auth_db import get_username_by_apikey
+from app.db.schemas.auth_db import get_username_by_apikey
 
 # Database imports
-from app.db.models.telegram_db import (
+from app.db.schemas.telegram_db import (
     create_or_update_telegram_user,
     delete_telegram_user,
     get_all_telegram_users,

@@ -20,14 +20,14 @@ from decimal import Decimal
 
 import pytz
 
-from app.db.models.sandbox_db import (
+from app.db.schemas.sandbox_db import (
     SandboxFunds,
     SandboxHoldings,
     SandboxPositions,
     db_session,
     get_config,
 )
-from app.db.models.symbol import SymToken
+from app.db.schemas.symbol import SymToken
 from app.utils.logging import logger
 
 

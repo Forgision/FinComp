@@ -14,8 +14,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models.auth_db import get_api_key_for_tradingview
-from app.db.models.chartink_db import (
+from app.db.schemas.auth_db import get_api_key_for_tradingview
+from app.db.schemas.chartink_db import (
     add_symbol_mapping,
     bulk_add_symbol_mappings,
     create_strategy,
@@ -27,8 +27,8 @@ from app.db.models.chartink_db import (
     get_user_strategies,
     toggle_strategy,
 )
-from app.db.models.session import get_db
-from app.db.models.symbol import enhanced_search_symbols
+from app.db.schemas.session import get_db
+from app.db.schemas.symbol import enhanced_search_symbols
 from app.utils.session import check_session_validity_fastapi
 
 # Rate limiting configuration (FastAPI rate limiting will be handled by slowapi, this is for internal logic)

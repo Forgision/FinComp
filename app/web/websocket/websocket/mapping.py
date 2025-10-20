@@ -1,4 +1,4 @@
-from app.db.models.token_db import get_brexchange, get_token
+from app.db.schemas.token_db import get_brexchange, get_token
 
 
 class ExchangeMapper:

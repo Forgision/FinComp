@@ -3,7 +3,7 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
-from app.db.models.auth_db import get_auth_token, get_feed_token
+from app.db.schemas.auth_db import get_auth_token, get_feed_token
 from .definedge_websocket import DefinedGeWebSocket
 from .definedge_mapping import (
     DefinedgeCapabilityRegistry,

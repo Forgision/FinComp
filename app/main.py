@@ -13,8 +13,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles  # Import StaticFiles
 
 from app.core.config import settings
-from app.db.models.auth_db import init_db as ensure_auth_tables_exists
-from app.db.models.user_db import init_db as ensure_user_tables_exists
+from app.db.schemas.auth_db import init_db as ensure_auth_tables_exists
+from app.db.schemas.user_db import init_db as ensure_user_tables_exists
 from app.utils.logging import logger
 from app.core.services.limiter_service import limiter
 from app.utils.web.socketio import sio

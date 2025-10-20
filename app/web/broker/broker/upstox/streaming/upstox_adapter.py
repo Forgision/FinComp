@@ -3,7 +3,7 @@ import asyncio
 import threading
 from typing import Any, Dict, Optional
 
-from app.db.models.auth_db import get_auth_token
+from app.db.schemas.auth_db import get_auth_token
 from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.web.websocket.websocket.mapping import SymbolMapper
 

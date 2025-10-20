@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.templating import Jinja2Templates
 
 from app.core.services.limiter_service import limiter
-from app.db.models.latency_db import OrderLatency, latency_session
+from app.db.schemas.latency_db import OrderLatency, latency_session
 from app.utils.logging import get_logger
 from app.utils.session import check_session_validity_fastapi
 

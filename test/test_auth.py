@@ -1,9 +1,9 @@
 import unittest
-from app.db.models.session import get_db
+from app.db.schemas.session import get_db
 from fastapi.testclient import TestClient
 
-from app.db.models.auth_db import delete_api_key_by_username, upsert_api_key
-from app.db.models.user_db import add_user, delete_user_by_username
+from app.db.schemas.auth_db import delete_api_key_by_username, upsert_api_key
+from app.db.schemas.user_db import add_user, delete_user_by_username
 from app.main import app  # Import the underlying FastAPI app
 
 

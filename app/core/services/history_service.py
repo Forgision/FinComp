@@ -3,7 +3,7 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
-from app.db.models.auth_db import get_auth_token_broker
+from app.db.schemas.auth_db import get_auth_token_broker
 
 from app.utils.logging import logger
 

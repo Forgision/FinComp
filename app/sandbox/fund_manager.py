@@ -20,13 +20,13 @@ from decimal import Decimal
 
 import pytz
 
-from app.db.models.sandbox_db import (
+from app.db.schemas.sandbox_db import (
     SandboxFunds,
     SandboxHoldings,
     SandboxPositions,
     get_config,
 )
-from app.db.models.session import db_session
+from app.db.schemas.session import db_session
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -333,7 +333,7 @@ class FundManager:
     def calculate_margin_required(self, symbol, exchange, product, quantity, price, action=None):
         """Calculate margin required for a trade based on leverage rules"""
         try:
-            from app.db.models.symbol import SymToken
+            from app.db.schemas.symbol import SymToken
 
             quantity = abs(int(quantity))
             price = Decimal(str(price))

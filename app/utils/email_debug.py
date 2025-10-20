@@ -8,7 +8,7 @@ Use this to troubleshoot email connection issues.
 import smtplib
 import ssl
 
-from app.db.models.settings_db import get_smtp_settings
+from app.db.schemas.settings_db import get_smtp_settings
 
 
 def debug_smtp_connection(db):

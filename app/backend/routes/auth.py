@@ -13,15 +13,15 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.models.auth import SMTPConfig, SMTPDebug, SMTPTest
 from app.core.services import user_service
-from app.db.models.auth_db import (
+from app.db.schemas.auth_db import (
     auth_cache,
     feed_token_cache,
     upsert_api_key,
     upsert_auth,
 )
-from app.db.models.session import get_db
-from app.db.models.settings_db import get_smtp_settings, set_smtp_settings
-from app.db.models.user_db import add_user, find_user_by_email
+from app.db.schemas.session import get_db
+from app.db.schemas.settings_db import get_smtp_settings, set_smtp_settings
+from app.db.schemas.user_db import add_user, find_user_by_email
 from app.utils.auth_utils import mask_api_credential
 from app.utils.email_debug import debug_smtp_connection
 from app.utils.email_utils import send_password_reset_email, send_test_email

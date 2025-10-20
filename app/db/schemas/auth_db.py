@@ -15,8 +15,8 @@ from sqlalchemy.sql import func
 
 # from ..utils.logger import logger
 from app.core.config import settings
-from app.db.models.base import Base
-from app.db.models.session import db_session, engine
+from app.db.schemas.base import Base
+from app.db.schemas.session import db_session, engine
 from app.utils.logging import logger
 
 # Initialize Argon2 hasher
@@ -300,7 +300,7 @@ def verify_api_key(provided_api_key):
 
     from flask import has_request_context
 
-    from app.db.models.traffic_db import InvalidAPIKeyTracker
+    from app.db.schemas.traffic_db import InvalidAPIKeyTracker
     from app.utils.ip_helper import get_real_ip
 
     peppered_key = provided_api_key + PEPPER

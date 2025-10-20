@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.db.models.auth_db import get_auth_token
+from app.db.schemas.auth_db import get_auth_token
 from app.core.services.funds_service import get_funds
 from app.utils.logging import get_logger
 from app.utils.session import check_session_validity_fastapi, get_db

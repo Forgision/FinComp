@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.services.telegram_bot_service import telegram_bot_service
-from app.db.models.session import get_db
-from app.db.models.telegram_db import (
+from app.db.schemas.session import get_db
+from app.db.schemas.telegram_db import (
     delete_telegram_user,
     get_all_telegram_users,
     get_bot_config,

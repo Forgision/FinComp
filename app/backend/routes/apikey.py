@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.db.models.auth_db import get_api_key_for_tradingview, upsert_api_key
-from app.db.models.session import get_db
+from app.db.schemas.auth_db import get_api_key_for_tradingview, upsert_api_key
+from app.db.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.web.security import generate_api_key
 

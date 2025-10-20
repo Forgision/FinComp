@@ -12,7 +12,7 @@ from app.core.config import settings
 
 # from app.utils.security import verify_password # type: ignore
 from app.core.services import user_service  # type: ignore
-from app.db.models.session import get_db
+from app.db.schemas.session import get_db
 from app.utils.auth_utils import (  # type: ignore
     handle_auth_failure,
     handle_auth_success,

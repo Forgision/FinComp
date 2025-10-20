@@ -2,8 +2,8 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.db.models.token_db import get_br_symbol
-from app.db.models.auth_db import get_feed_token
+from app.db.schemas.token_db import get_br_symbol
+from app.db.schemas.auth_db import get_feed_token
 from app.broker.fivepaisaxts.database.master_contract_db import SymToken, db_session
 from app.broker.wisdom.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client

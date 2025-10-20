@@ -5,8 +5,8 @@ Automatically loads symbols into memory cache after successful master contract d
 
 import time
 
-from app.db.models.token_db import load_cache_for_broker
-from app.db.models.token_db_enhanced import get_cache, get_cache_stats
+from app.db.schemas.token_db import load_cache_for_broker
+from app.db.schemas.token_db_enhanced import get_cache, get_cache_stats
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
 
@@ -109,7 +109,7 @@ def clear_cache_on_logout():
     This helps free memory and ensures fresh data on next login
     """
     try:
-        from app.db.models.token_db_enhanced import clear_cache, get_cache_stats
+        from app.db.schemas.token_db_enhanced import clear_cache, get_cache_stats
 
         # Get stats before clearing
         stats = get_cache_stats()
@@ -152,7 +152,7 @@ def get_cache_health() -> dict:
         dict: Cache health metrics
     """
     try:
-        from app.db.models.token_db_enhanced import get_cache_stats
+        from app.db.schemas.token_db_enhanced import get_cache_stats
 
         stats = get_cache_stats()
 

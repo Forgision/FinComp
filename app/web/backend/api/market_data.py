@@ -24,7 +24,7 @@ from app.core.services.intervals_service import get_intervals
 from app.core.services.quotes_service import get_quotes
 from app.core.services.search_service import search_symbols
 from app.core.services.symbol_service import get_symbol_info
-from app.db.models.auth_db import get_auth_token_broker
+from app.db.schemas.auth_db import get_auth_token_broker
 from app.utils.logging import get_logger
 
 market_data_router = APIRouter(

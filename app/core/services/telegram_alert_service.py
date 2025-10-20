@@ -7,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.db.models.auth_db import get_username_by_apikey
-from app.db.models.telegram_db import (
+from app.db.schemas.auth_db import get_username_by_apikey
+from app.db.schemas.telegram_db import (
     add_notification,
     get_all_telegram_users,
     get_telegram_user_by_username,

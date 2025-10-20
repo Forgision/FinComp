@@ -13,7 +13,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.db.models.base import Base
+from app.db.schemas.base import Base
 from app.utils.logging import logger
 
 # Initialize Argon2 hasher

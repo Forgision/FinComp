@@ -2,8 +2,8 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.models.auth_db import get_auth_token_broker
-from app.db.models.settings_db import get_analyze_mode
+from app.db.schemas.auth_db import get_auth_token_broker
+from app.db.schemas.settings_db import get_analyze_mode
 from app.algo.sandbox.order_manager import OrderManager
 from app.utils.logging import logger
 

@@ -8,8 +8,8 @@ from app.web.broker.broker.fivepaisaxts.streaming.fivepaisaxts_websocket import 
     FivepaisaXTSWebSocketClient,
 )
 from app.core.config import settings
-from app.db.models.auth_db import get_auth_token, get_feed_token
-from app.db.models.token_db import get_symbol
+from app.db.schemas.auth_db import get_auth_token, get_feed_token
+from app.db.schemas.token_db import get_symbol
 from app.utils.logging import logger
 from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.web.websocket.websocket.mapping import SymbolMapper

@@ -5,7 +5,7 @@ from typing import Dict, Optional
 import httpx
 import pandas as pd
 import pytz
-from app.db.models.token_db import get_br_symbol, get_token
+from app.db.schemas.token_db import get_br_symbol, get_token
 from app.broker.fivepaisa.mapping.transform_data import (
     map_exchange,
     map_exchange_type,

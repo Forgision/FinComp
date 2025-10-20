@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.db.models.latency_db import OrderLatency
-from app.db.models.session import get_db
+from app.db.schemas.latency_db import OrderLatency
+from app.db.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 from app.utils.web.limiter import limiter

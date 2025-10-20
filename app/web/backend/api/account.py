@@ -19,9 +19,9 @@ from app.core.services.openposition_service import (
 from app.core.services.orderbook_service import get_orderbook
 from app.core.services.positionbook_service import get_positionbook
 from app.core.services.tradebook_service import get_tradebook
-from app.db.models.apilog_db import async_log_order
-from app.db.models.apilog_db import executor as log_executor
-from app.db.models.settings_db import get_analyze_mode
+from app.db.schemas.apilog_db import async_log_order
+from app.db.schemas.apilog_db import executor as log_executor
+from app.db.schemas.settings_db import get_analyze_mode
 from app.utils.logging import logger
 
 account_router = APIRouter()

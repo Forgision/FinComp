@@ -6,9 +6,9 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.responses import RedirectResponse
 
-from app.db.models.auth_db import get_feed_token as db_get_feed_token
-from app.db.models.auth_db import upsert_auth
-from app.db.models.master_contract_status_db import init_broker_status, update_status
+from app.db.schemas.auth_db import get_feed_token as db_get_feed_token
+from app.db.schemas.auth_db import upsert_auth
+from app.db.schemas.master_contract_status_db import init_broker_status, update_status
 
 from .logging import logger
 from .session import set_session_login_time

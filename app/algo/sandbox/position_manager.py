@@ -17,8 +17,8 @@ from decimal import Decimal
 import pytz
 from app.core.services.quotes_service import get_quotes
 
-from app.db.models.auth_db import ApiKeys, decrypt_token
-from app.db.models.sandbox_db import (
+from app.db.schemas.auth_db import ApiKeys, decrypt_token
+from app.db.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxPositions,
     SandboxTrades,
@@ -26,7 +26,7 @@ from app.db.models.sandbox_db import (
     get_config,
     init_db,
 )
-from app.db.models.session import db_session as db
+from app.db.schemas.session import db_session as db
 from app.utils.logging import logger
 
 from .fund_manager import FundManager
