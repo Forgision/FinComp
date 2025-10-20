@@ -17,6 +17,7 @@ from app.core.models.api_schemas import (
     SearchSchema,
     SymbolSchema,
 )
+from app.core.models.error_models import BaseErrorResponse
 from app.core.services.depth_service import get_depth
 from app.core.services.expiry_service import get_expiry_dates
 from app.core.services.history_service import get_history
@@ -86,23 +87,51 @@ def validate_and_adjust_date_range(start_date: str, end_date: str, interval: str
 
 # --- Endpoints ---
 
-@market_data_router.post("/quotes")
+@market_data_router.post("/quotes", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_quotes_endpoint(quotes_data: QuotesSchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get real-time quotes for given symbol"""
+    """
+    Get real-time quotes for a given symbol.
+
+    Args:
+        quotes_data: The request model containing the symbol, exchange, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the real-time quote data.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the quotes.
+    """
     try:
         success, response_data, status_code = await get_quotes(
             symbol=quotes_data.symbol,
             exchange=quotes_data.exchange,
             api_key=quotes_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in quotes endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/history")
+@market_data_router.post("/history", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_history_endpoint(history_data: HistorySchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get historical data for given symbol"""
+    """
+    Get historical data for a given symbol.
+
+    Args:
+        history_data: The request model containing the symbol, exchange, interval, date range, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the historical data.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the historical data.
+    """
     try:
         success, response_data, status_code = await get_history(
             symbol=history_data.symbol,
@@ -112,66 +141,146 @@ async def get_history_endpoint(history_data: HistorySchema, current_user: dict =
             end_date=history_data.end_date,
             api_key=history_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in history endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/depth")
+@market_data_router.post("/depth", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_depth_endpoint(depth_data: DepthSchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get market depth for given symbol"""
+    """
+    Get market depth for a given symbol.
+
+    Args:
+        depth_data: The request model containing the symbol, exchange, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the market depth data.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the market depth.
+    """
     try:
         success, response_data, status_code = await get_depth(
             symbol=depth_data.symbol,
             exchange=depth_data.exchange,
             api_key=depth_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in depth endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/intervals")
+@market_data_router.post("/intervals", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_intervals_endpoint(intervals_data: IntervalsSchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get supported intervals for the broker"""
+    """
+    Get supported intervals for the broker.
+
+    Args:
+        intervals_data: The request model containing the API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the supported intervals.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the intervals.
+    """
     try:
         success, response_data, status_code = await get_intervals(api_key=intervals_data.apikey)
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in intervals endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/symbol")
+@market_data_router.post("/symbol", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_symbol_endpoint(symbol_data: SymbolSchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get symbol information for a given symbol and exchange"""
+    """
+    Get symbol information for a given symbol and exchange.
+
+    Args:
+        symbol_data: The request model containing the symbol, exchange, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the symbol information.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the symbol information.
+    """
     try:
         success, response_data, status_code = await get_symbol_info(
             symbol=symbol_data.symbol,
             exchange=symbol_data.exchange,
             api_key=symbol_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in symbol endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/search")
+@market_data_router.post("/search", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def search_symbols_endpoint(search_data: SearchSchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Search for symbols in the database"""
+    """
+    Search for symbols in the database.
+
+    Args:
+        search_data: The request model containing the search query, exchange, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the search results.
+
+    Raises:
+        HTTPException: If an error occurs during the search.
+    """
     try:
         success, response_data, status_code = await search_symbols(
             query=search_data.query,
             exchange=search_data.exchange,
             api_key=search_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in search endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.post("/expiry")
+@market_data_router.post("/expiry", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = Depends(check_session_validity_fastapi)):
-    """Get expiry dates for F&O symbols (futures or options) for a given underlying symbol"""
+    """
+    Get expiry dates for F&O symbols (futures or options) for a given underlying symbol.
+
+    Args:
+        expiry_data: The request model containing the symbol, exchange, instrument type, and API key.
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON response with the expiry dates.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the expiry dates.
+    """
     try:
         success, response_data, status_code = await get_expiry_dates(
             symbol=expiry_data.symbol,
@@ -179,12 +288,16 @@ async def get_expiry_endpoint(expiry_data: ExpirySchema, current_user: dict = De
             instrumenttype=expiry_data.instrumenttype,
             api_key=expiry_data.apikey
         )
+        if not success:
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return JSONResponse(content=response_data, status_code=status_code)
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error in expiry endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@market_data_router.get("/ticker/{symbol_with_exchange}")
+@market_data_router.get("/ticker/{symbol_with_exchange}", responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def get_ticker_endpoint(
     symbol_with_exchange: str,
     interval: str = Query("D"),
@@ -196,7 +309,30 @@ async def get_ticker_endpoint(
     format: str = Query("json"),
     current_user: dict = Depends(check_session_validity_fastapi)
 ):
-    """Get aggregate bars for a stock over a given date range with specified interval"""
+    """
+    Get aggregate bars for a stock over a given date range with a specified interval.
+
+    This endpoint retrieves historical aggregate data (bars) for a given stock symbol.
+    It supports various intervals and allows specifying a date range. The response
+    format can be either JSON or plain text.
+
+    Args:
+        symbol_with_exchange: The stock symbol, optionally prefixed with the exchange (e.g., "NSE:SBIN"). Defaults to NSE if not provided.
+        interval: The data interval (e.g., "D" for daily).
+        start_date: The start date for the data range (YYYY-MM-DD).
+        end_date: The end date for the data range (YYYY-MM-DD).
+        adjusted: Whether to return adjusted data.
+        sort: The sort order for the data.
+        apikey: The user's API key.
+        format: The response format ("json" or "txt").
+        current_user: The current authenticated user.
+
+    Returns:
+        A JSON or plain text response containing the aggregate bars data.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the data, or if the API key is invalid.
+    """
     response_format = format.lower()
 
     try:
@@ -235,14 +371,14 @@ async def get_ticker_endpoint(
         AUTH_TOKEN, broker = get_auth_token_broker(apikey)
         if AUTH_TOKEN is None:
             if response_format == 'txt':
-                return PlainTextResponse("Invalid openalgo apikey\n", status_code=status.HTTP_403_FORBIDDEN)
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid openalgo apikey")
+                return PlainTextResponse(BaseErrorResponse(message="Invalid openalgo apikey").model_dump_json(), status_code=status.HTTP_403_FORBIDDEN)
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=BaseErrorResponse(message="Invalid openalgo apikey").model_dump())
 
         broker_module = import_broker_module(broker)
         if broker_module is None:
             if response_format == 'txt':
-                return PlainTextResponse("Broker-specific module not found\n", status_code=status.HTTP_404_NOT_FOUND)
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Broker-specific module not found")
+                return PlainTextResponse(BaseErrorResponse(message="Broker-specific module not found").model_dump_json(), status_code=status.HTTP_404_NOT_FOUND)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=BaseErrorResponse(message="Broker-specific module not found").model_dump())
 
         try:
             data_handler = broker_module.BrokerData(AUTH_TOKEN)
@@ -281,11 +417,11 @@ async def get_ticker_endpoint(
         except Exception as e:
             logger.exception(f"Error in broker_module.get_history: {e}")
             if response_format == 'txt':
-                return PlainTextResponse(str(e), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+                return PlainTextResponse(BaseErrorResponse(message=str(e)).model_dump_json(), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=str(e)).model_dump())
 
     except Exception as e:
         logger.exception(f"Unexpected error in ticker endpoint: {e}")
         if response_format == 'txt':
-            return PlainTextResponse('An unexpected error occurred', status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+            return PlainTextResponse(BaseErrorResponse(message="An unexpected error occurred").model_dump_json(), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())

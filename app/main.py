@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.staticfiles import StaticFiles  # Import StaticFiles
+from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.db.schemas.auth_db import init_db as ensure_auth_tables_exists
@@ -40,11 +40,14 @@ from app.web.backend.api.telegram import telegram_router
 from app.web.frontend.routes.traffic import traffic_router
 from app.web.frontend.routes.tv_json import tv_json_router
 from app.web.frontend.routes.websocket import websocket_router
+from app.web.backend.routes.monitoring import monitoring_router
 from app.web.websocket.websocket.fastapi_integration import (
     cleanup_websocket_server,
     start_websocket_server,
 )
 from app.web.websocket.websocket.broker_factory import register_all_adapters
+from app.core.models.error_models import BaseErrorResponse
+from app.web.backend.middleware import CorrelationIdMiddleware
 
 # from app.utils.plugin_loader import load_broker_auth_functions
 
@@ -104,35 +107,14 @@ _app.mount("/static", StaticFiles(directory="app/web/frontend/static"), name="st
 # add templete
 templates.env.globals['url_for'] = _app.url_path_for
 
-# Apply CORS middleware if enabled
-# if settings.CORS_ENABLED:
-#     _app.add_middleware(
-#         CORSMiddleware,
-#         allow_origins=[origin.strip() for origin in settings.CORS_ALLOWED_ORIGINS.split(',')] if settings.CORS_ALLOWED_ORIGINS else [],
-#         allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-#         allow_methods=[method.strip() for method in settings.CORS_ALLOWED_METHODS.split(',')] if settings.CORS_ALLOWED_METHODS else [],
-#         allow_headers=[header.strip() for header in settings.CORS_ALLOWED_HEADERS.split(',')] if settings.CORS_ALLOWED_HEADERS else [],
-#         expose_headers=[header.strip() for header in settings.CORS_EXPOSED_HEADERS.split(',')] if settings.CORS_EXPOSED_HEADERS else [],
-#         max_age=settings.CORS_MAX_AGE,
-#     )
-
 # Apply Session Middleware
+_app.add_middleware(CorrelationIdMiddleware)
 _app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
-
-# # Apply Security Headers middleware
-# _app.add_middleware(SecurityHeadersMiddleware)
-
-# Apply CSRF middleware if enabled
-# if settings.CSRF_ENABLED:
-#     _app.add_middleware(
-#         CSRFMiddleware
-#     )
 
 # Register routers
 _app.include_router(auth_router)
 _app.include_router(broker_router)
 _app.include_router(core_router, tags=["core"])
-# _app.include_router(root_router, tags=["web"])
 _app.include_router(dashboard_router, tags=["dashboard"])
 _app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
 _app.include_router(telegram_router, prefix="/api/v1/telegram", tags=["Telegram"])
@@ -152,11 +134,8 @@ _app.include_router(strategy_router)
 _app.include_router(traffic_router)
 _app.include_router(tv_json_router)
 _app.include_router(websocket_router)
+_app.include_router(monitoring_router)
 register_all_adapters()
-#Following are from app/web/backend/api
-# _app.include_router(account_router, prefix="/api/v1/account", tags=["Account"])
-# _app.include_router(market_data_router, prefix="/api/v1/data", tags=["Market Data"])
-# _app.include_router(utility_router, prefix="/api/v1/utility", tags=["Utility"])
 
 
 @_app.get("/test")
@@ -177,25 +156,18 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
 
 @_app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == 429:
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={
-                'status': 'error',
-                'message': 'Rate limit exceeded. Please try again later.'
-            }
-        )
+    if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        content = BaseErrorResponse(message="Rate limit exceeded. Please try again later.", code="RATE_LIMIT_EXCEEDED").model_dump()
+    else:
+        # Ensure detail is a dictionary for BaseErrorResponse, if it's not already
+        if isinstance(exc.detail, dict):
+            content = exc.detail
+        else:
+            content = BaseErrorResponse(message=exc.detail).model_dump()
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail}
+        content=content
     )
-
-# @app.get("/favicon.ico", include_in_schema=False)
-# async def get_favicon():
-#     return Response(status_code=204)
-
-# @app.get("/config")
-# def get_config():
-#     return settings.model_dump()
 
 app = socketio.ASGIApp(sio, _app)

@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_KEY=${APP_KEY}
+      - APP_HOST_IP=${APP_HOST_IP}
+      - APP_PORT=${APP_PORT}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_TO_FILE=${LOG_TO_FILE}
+      - LOG_DIR=${LOG_DIR}
+      - LOG_RETENTION=${LOG_RETENTION}
+      - DATABASE_URL=${DATABASE_URL}
+      - VIRTUAL_ENV=/usr/local/poetry_env # Consistent with Dockerfile build
+    env_file:
+      - .env
+    # Add a health check to ensure the service is running correctly
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/monitoring/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      # Add other services here if your application depends on them (e.g., database)
+      # db:
+      #   condition: service_healthy
+      -
+
+  # Example for a PostgreSQL database service (uncomment and configure if needed)
+  # db:
+  #   image: postgres:13-alpine
+  #   volumes:
+  #     - pg_data:/var/lib/postgresql/data
+  #   environment:
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #
+# volumes:
+#   pg_data:

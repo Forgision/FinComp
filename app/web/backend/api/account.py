@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-
+from app.core.models.error_models import BaseErrorResponse
 from app.core.models.api_schemas import (
     APIKeySchema,
     FundsResponse,
@@ -32,100 +32,176 @@ async def get_current_user():
     # For this migration, we assume it's available and handles authentication.
     pass
 
-@account_router.post("/funds", response_model=FundsResponse)
+@account_router.post("/funds", response_model=FundsResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def funds_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get account funds and margin details"""
+    """
+    Retrieves the user's account funds and margin details.
+
+    Args:
+        api_key_data: The API key data.
+        current_user: The current authenticated user.
+
+    Returns:
+        The funds and margin details.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the funds.
+    """
     try:
         success, response_data, status_code = await get_funds(api_key=api_key_data.apikey)
         if not success:
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return FundsResponse(**response_data)
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error in funds endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@account_router.post("/orderbook", response_model=OrderbookResponse)
+@account_router.post("/orderbook", response_model=OrderbookResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def orderbook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get order book details"""
+    """
+    Retrieves the user's order book details.
+
+    Args:
+        api_key_data: The API key data.
+        current_user: The current authenticated user.
+
+    Returns:
+        The order book details.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the order book.
+    """
     try:
         success, response_data, status_code = await get_orderbook(api_key=api_key_data.apikey)
         if not success:
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return OrderbookResponse(**response_data)
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error in orderbook endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@account_router.post("/tradebook", response_model=TradebookResponse)
+@account_router.post("/tradebook", response_model=TradebookResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def tradebook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get trade book details"""
+    """
+    Retrieves the user's trade book details.
+
+    Args:
+        api_key_data: The API key data.
+        current_user: The current authenticated user.
+
+    Returns:
+        The trade book details.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the trade book.
+    """
     try:
         success, response_data, status_code = await get_tradebook(api_key=api_key_data.apikey)
         if not success:
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return TradebookResponse(**response_data)
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error in tradebook endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@account_router.post("/positionbook", response_model=PositionbookResponse)
+@account_router.post("/positionbook", response_model=PositionbookResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def positionbook_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get position book details"""
+    """
+    Retrieves the user's position book details.
+
+    Args:
+        api_key_data: The API key data.
+        current_user: The current authenticated user.
+
+    Returns:
+        The position book details.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the position book.
+    """
     try:
         success, response_data, status_code = await get_positionbook(api_key=api_key_data.apikey)
         if not success:
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return PositionbookResponse(**response_data)
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error in positionbook endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@account_router.post("/holdings", response_model=HoldingsResponse)
+@account_router.post("/holdings", response_model=HoldingsResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def holdings_endpoint(
     api_key_data: APIKeySchema,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get holdings details"""
+    """
+    Retrieves the user's holdings details.
+
+    Args:
+        api_key_data: The API key data.
+        current_user: The current authenticated user.
+
+    Returns:
+        The holdings details.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the holdings.
+    """
     try:
         success, response_data, status_code = await get_holdings(api_key=api_key_data.apikey)
         if not success:
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
         return HoldingsResponse(**response_data)
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error in holdings endpoint: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message="An unexpected error occurred").model_dump())
 
-@account_router.post("/openposition", response_model=OpenPositionResponse)
+@account_router.post("/openposition", response_model=OpenPositionResponse, responses={status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": BaseErrorResponse}})
 async def openposition_endpoint(
     open_position_request: OpenPositionRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get quantity of an open position"""
+    """
+    Retrieves the quantity of an open position.
+
+    This endpoint fetches the current quantity for a specified open position.
+    It also includes logic to handle analytics and logging based on the application's mode.
+
+    Args:
+        open_position_request: The request model containing API key and position details.
+        current_user: The current authenticated user.
+
+    Returns:
+        The open position details, including the quantity.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the position, or if an
+                     unexpected server error occurs.
+    """
     try:
         api_key = open_position_request.apikey
-        position_data = open_position_request.dict(exclude_unset=True, exclude={"apikey"})
+        position_data = open_position_request.model_dump(exclude_unset=True, exclude={"apikey"})
 
         success, response_data, status_code = await get_open_position(
             position_data=position_data,
@@ -135,11 +211,11 @@ async def openposition_endpoint(
             if get_analyze_mode():
                 # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
                 # and returns a dict compatible with HTTPException detail
-                error_detail = emit_analyzer_error(open_position_request.dict(), response_data.get("message", "An error occurred"))
-                raise HTTPException(status_code=status_code, detail=error_detail)
+                error_detail = emit_analyzer_error(open_position_request.model_dump(), response_data.get("message", "An error occurred"))
+                raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=error_detail).model_dump())
 
-            log_executor.submit(async_log_order, 'openposition', open_position_request.dict(), response_data)
-            raise HTTPException(status_code=status_code, detail=response_data.get("message", "An error occurred"))
+            log_executor.submit(async_log_order, 'openposition', open_position_request.model_dump(), response_data)
+            raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred")).model_dump())
 
         return OpenPositionResponse(**response_data)
     except HTTPException as e:
@@ -149,8 +225,8 @@ async def openposition_endpoint(
         error_message = 'An unexpected error occurred'
         if get_analyze_mode():
             # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
-            error_detail = emit_analyzer_error(open_position_request.dict(), error_message)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+            error_detail = emit_analyzer_error(open_position_request.model_dump(), error_message)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_detail).model_dump())
 
-        log_executor.submit(async_log_order, 'openposition', open_position_request.dict(), {'status': 'error', 'message': error_message})
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_message)
+        log_executor.submit(async_log_order, 'openposition', open_position_request.model_dump(), {'status': 'error', 'message': error_message})
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_message).model_dump())

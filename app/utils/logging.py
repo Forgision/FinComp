@@ -4,11 +4,14 @@ import os
 import re
 import site
 import sys
+import threading
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from ..core.config import settings
+
+_thread_local = threading.local()
 
 try:
     from colorama import Back as ColoramaBack
@@ -77,6 +80,13 @@ class SensitiveDataFilter(logging.Filter):
             # If filtering fails, don't block the log message
             pass
 
+        return True
+
+
+class CorrelationIdFilter(logging.Filter):
+    """Filter to add correlation ID to log records if available in thread-local storage."""
+    def filter(self, record):
+        record.correlation_id = getattr(_thread_local, 'correlation_id', 'N/A')
         return True
 
 
@@ -462,7 +472,7 @@ def setup_logging():
     )
 
     # Get configuration from environment
-    log_format = '[%(asctime)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
+    log_format = '[%(asctime)s] [%(correlation_id)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
     log_retention = int(settings.LOG_RETENTION)
     log_colors = settings.LOGS_COLORS_ENABLE
 
@@ -476,6 +486,7 @@ def setup_logging():
     # Create filters
     sensitive_filter = SensitiveDataFilter()
     location_filter = LocationInfoFilter()
+    correlation_filter = CorrelationIdFilter()
 
     # Create formatters
     console_formatter = ColoredFormatter(log_format, enable_colors=log_colors)
@@ -486,6 +497,7 @@ def setup_logging():
     console_handler.setFormatter(console_formatter)
     console_handler.addFilter(sensitive_filter)
     console_handler.addFilter(location_filter)
+    console_handler.addFilter(correlation_filter)
     root_logger.addHandler(console_handler)
 
     # File handler (if enabled)
@@ -508,6 +520,7 @@ def setup_logging():
         file_handler.setFormatter(file_formatter)
         file_handler.addFilter(sensitive_filter)
         file_handler.addFilter(location_filter)
+        file_handler.addFilter(correlation_filter)
         root_logger.addHandler(file_handler)
 
     # Suppress noisy third-party loggers
@@ -604,8 +617,7 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         Logger instance configured with the module name and color support
     """
-    # return CallerLoggerAdapter(logging.getLogger(name), {})
-    return logging.getLogger(name)
+    return CallerLoggerAdapter(logging.getLogger(name), {})
 
 # Initialize logging on import
 setup_logging()

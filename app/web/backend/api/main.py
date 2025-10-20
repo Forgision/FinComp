@@ -22,4 +22,9 @@ app.include_router(utility.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to OpenAlgo"}
+    """
+    Root endpoint for the OpenAlgo API.
+
+    Returns:
+        A welcome message.
+    """

@@ -10,6 +10,18 @@ logger = get_logger(__name__)
 
 @utility_router.post("/analyzer", summary="Get analyzer mode status and statistics")
 async def analyzer_status(analyzer_data: AnalyzerSchema):
+    """
+    Get analyzer mode status and statistics.
+
+    Args:
+        analyzer_data: The analyzer data.
+
+    Returns:
+        A dictionary with the analyzer status and statistics.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the status.
+    """
     try:
         api_key = analyzer_data.apikey
         success, response_data, status_code = await get_analyzer_status(
@@ -27,6 +39,18 @@ async def analyzer_status(analyzer_data: AnalyzerSchema):
 
 @utility_router.post("/analyzer/toggle", summary="Toggle analyzer mode on/off")
 async def analyzer_toggle(analyzer_data: AnalyzerToggleSchema):
+    """
+    Toggle analyzer mode on/off.
+
+    Args:
+        analyzer_data: The analyzer toggle data.
+
+    Returns:
+        A dictionary with the result of the toggle operation.
+
+    Raises:
+        HTTPException: If an error occurs during the toggle operation.
+    """
     try:
         api_key = analyzer_data.apikey
         success, response_data, status_code = await toggle_analyzer_mode(
@@ -44,6 +68,18 @@ async def analyzer_toggle(analyzer_data: AnalyzerToggleSchema):
 
 @utility_router.post("/ping", summary="Check API connectivity and authentication")
 async def ping(ping_data: PingSchema):
+    """
+    Check API connectivity and authentication.
+
+    Args:
+        ping_data: The ping data.
+
+    Returns:
+        A dictionary with the result of the ping.
+
+    Raises:
+        HTTPException: If an error occurs during the ping.
+    """
     try:
         api_key = ping_data.apikey
         success, response_data, status_code = await get_ping(api_key=api_key)

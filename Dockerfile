@@ -52,5 +52,5 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # --------------------------------------------------------------------------- #
 
 USER appuser
-EXPOSE 5000
+EXPOSE 8000
 CMD ["/app/start.sh"]

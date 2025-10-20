@@ -43,12 +43,5 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # Run main application with gunicorn using eventlet for WebSocket support
-echo "[OpenAlgo] Starting application on port 5000 with eventlet..."
-exec /app/.venv/bin/gunicorn \
-    --worker-class eventlet \
-    --workers 1 \
-    --bind 0.0.0.0:5000 \
-    --timeout 120 \
-    --graceful-timeout 30 \
-    --log-level warning \
-    app:app
+echo "[OpenAlgo] Starting application on port 8000 with uvicorn..."
+exec /app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000

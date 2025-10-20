@@ -25,7 +25,7 @@
 - [ ] T008 [US1] Refine existing Pydantic models in app/core/models/tradingview_models.py for robustness and validation
 - [ ] T009 [US1] Define standardized Pydantic models for API error responses in app/core/models/error_models.py
 - [ ] T010 [US1] Design new internal data structures for collecting application performance metrics or health checks (if needed) in app/core/models/metrics_models.py
-- [ ] T011 [US1] Review and refine existing API endpoints in app/web/backend/routes/ (e.g., input/output validation, status codes)
+- [ ] T011 [US1] Review and refine existing API endpoints in app/web/backend/api/ (e.g., input/output validation, status codes)
 - [ ] T012 [US1] Implement consistent API error responses across all endpoints using error_models.py
 - [ ] T013 [US1] Detail secure implementation of user authentication and authorization within API contracts in app/web/backend/routes/auth.py (or relevant files)
 - [ ] T014 [US1] Implement unit tests for critical data models in test/unit/app/db/models/test_tradingview_models.py

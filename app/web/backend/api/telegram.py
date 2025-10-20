@@ -65,6 +65,18 @@ async def get_api_key(x_api_key: Optional[str] = Depends(None), apikey: Optional
 
 @telegram_router.get("/config", summary="Get current bot configuration")
 async def get_bot_configuration(api_key: str = Depends(get_api_key)):
+    """
+    Get the current bot configuration.
+
+    Args:
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with the current bot configuration.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the configuration.
+    """
     try:
         config = get_bot_config()
         # Don't expose the full token for security
@@ -77,6 +89,19 @@ async def get_bot_configuration(api_key: str = Depends(get_api_key)):
 
 @telegram_router.post("/config", summary="Update bot configuration")
 async def update_bot_configuration(config_data: BotConfig, api_key: str = Depends(get_api_key)):
+    """
+    Update the bot configuration.
+
+    Args:
+        config_data: The new configuration data.
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with a success message.
+
+    Raises:
+        HTTPException: If an error occurs while updating the configuration.
+    """
     try:
         config_update = config_data.model_dump(exclude_unset=True)
         # Remove apikey from config_update if present
@@ -93,6 +118,18 @@ async def update_bot_configuration(config_data: BotConfig, api_key: str = Depend
 
 @telegram_router.post("/start", summary="Start the Telegram bot")
 async def start_bot(api_key: str = Depends(get_api_key)):
+    """
+    Start the Telegram bot.
+
+    Args:
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with a success message.
+
+    Raises:
+        HTTPException: If an error occurs while starting the bot.
+    """
     try:
         config = get_bot_config()
         if not config.get('bot_token'):
@@ -116,6 +153,18 @@ async def start_bot(api_key: str = Depends(get_api_key)):
 
 @telegram_router.post("/stop", summary="Stop the Telegram bot")
 async def stop_bot(api_key: str = Depends(get_api_key)):
+    """
+    Stop the Telegram bot.
+
+    Args:
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with a success message.
+
+    Raises:
+        HTTPException: If an error occurs while stopping the bot.
+    """
     try:
         success, message = await telegram_bot_service.stop_bot()
         if success:
@@ -130,6 +179,15 @@ async def stop_bot(api_key: str = Depends(get_api_key)):
 
 @telegram_router.post("/webhook", summary="Handle Telegram webhook updates")
 async def handle_webhook(request: Request):
+    """
+    Handle Telegram webhook updates.
+
+    Args:
+        request: The incoming request object.
+
+    Returns:
+        A status code indicating the result of the operation.
+    """
     try:
         update_data = await request.json()
         if not update_data:
@@ -145,6 +203,20 @@ async def handle_webhook(request: Request):
 
 @telegram_router.get("/users", summary="Get all linked Telegram users")
 async def get_telegram_users(api_key: str = Depends(get_api_key), broker: Optional[str] = None, notifications_enabled: Optional[bool] = None):
+    """
+    Get all linked Telegram users.
+
+    Args:
+        api_key: The API key for authentication.
+        broker: An optional broker to filter by.
+        notifications_enabled: An optional flag to filter by.
+
+    Returns:
+        A dictionary with a list of users.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the users.
+    """
     try:
         filters = {}
         if broker:
@@ -160,6 +232,19 @@ async def get_telegram_users(api_key: str = Depends(get_api_key), broker: Option
 
 @telegram_router.post("/broadcast", summary="Broadcast message to multiple users")
 async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(get_api_key)):
+    """
+    Broadcast a message to multiple users.
+
+    Args:
+        broadcast_data: The broadcast data.
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with the result of the broadcast.
+
+    Raises:
+        HTTPException: If an error occurs during the broadcast.
+    """
     try:
         if not broadcast_data.message:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is required")
@@ -185,6 +270,19 @@ async def broadcast_message(broadcast_data: Broadcast, api_key: str = Depends(ge
 
 @telegram_router.post("/notify", summary="Send notification to a specific user")
 async def send_notification(notification_data: Notification, api_key: str = Depends(get_api_key)):
+    """
+    Send a notification to a specific user.
+
+    Args:
+        notification_data: The notification data.
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with a success message.
+
+    Raises:
+        HTTPException: If an error occurs while sending the notification.
+    """
     try:
         if not notification_data.username or not notification_data.message:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username and message are required")
@@ -212,6 +310,19 @@ async def send_notification(notification_data: Notification, api_key: str = Depe
 
 @telegram_router.get("/stats", summary="Get bot usage statistics")
 async def get_telegram_stats(api_key: str = Depends(get_api_key), days: int = 7):
+    """
+    Get bot usage statistics.
+
+    Args:
+        api_key: The API key for authentication.
+        days: The number of days to get stats for.
+
+    Returns:
+        A dictionary with bot usage statistics.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the statistics.
+    """
     try:
         stats = await asyncio.to_thread(get_command_stats, days)
         return {"status": "success", "data": stats}
@@ -221,6 +332,19 @@ async def get_telegram_stats(api_key: str = Depends(get_api_key), days: int = 7)
 
 @telegram_router.get("/preferences", summary="Get user preferences")
 async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), telegram_id: int = Query(..., description="Telegram User ID")):
+    """
+    Get user preferences.
+
+    Args:
+        api_key: The API key for authentication.
+        telegram_id: The user's Telegram ID.
+
+    Returns:
+        A dictionary with the user's preferences.
+
+    Raises:
+        HTTPException: If an error occurs while fetching the preferences.
+    """
     try:
         preferences = await asyncio.to_thread(get_user_preferences, telegram_id)
         return {"status": "success", "data": preferences}
@@ -230,6 +354,19 @@ async def get_user_telegram_preferences(api_key: str = Depends(get_api_key), tel
 
 @telegram_router.post("/preferences", summary="Update user preferences")
 async def update_user_telegram_preferences(preferences_data: UserPreferences, api_key: str = Depends(get_api_key)):
+    """
+    Update user preferences.
+
+    Args:
+        preferences_data: The new preferences data.
+        api_key: The API key for authentication.
+
+    Returns:
+        A dictionary with a success message.
+
+    Raises:
+        HTTPException: If an error occurs while updating the preferences.
+    """
     try:
         if not preferences_data.telegram_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="telegram_id is required")
