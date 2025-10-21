@@ -9,7 +9,7 @@ from app.core.config import settings
 
 from .logging import logger
 
-from app.db.schemas.session import get_db
+from app.core.schemas.session import get_db
 
 
 def get_session_expiry_time():

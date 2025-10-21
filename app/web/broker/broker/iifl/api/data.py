@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 from app.broker.iifl.baseurl import MARKET_DATA_URL
 from app.broker.iifl.database.master_contract_db import SymToken, db_session
-from app.db.schemas.auth_db import get_feed_token
-from app.db.schemas.token_db import get_br_symbol
+from app.core.schemas.auth_db import get_feed_token
+from app.core.schemas.token_db import get_br_symbol
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 

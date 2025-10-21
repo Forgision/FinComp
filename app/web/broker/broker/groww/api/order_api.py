@@ -3,7 +3,7 @@ import re
 import uuid
 from datetime import datetime
 
-from app.db.schemas.token_db import get_br_symbol
+from app.core.schemas.token_db import get_br_symbol
 from app.broker.groww.database.master_contract_db import (
     format_openalgo_to_groww_symbol,
 )
@@ -168,7 +168,7 @@ def direct_get_order_book(auth):
 
                     try:
                         try:
-                            from app.db.schemas.token_db import get_oa_symbol
+                            from app.core.schemas.token_db import get_oa_symbol
                         except ImportError:
                             from ....db.models.token_db import get_oa_symbol # noqa: F401
                         if token:
@@ -747,7 +747,7 @@ def get_positions(auth):
                         try:
                             # Import get_oa_symbol from token_db with fallback paths
                             try:
-                                from app.db.schemas.token_db import get_oa_symbol
+                                from app.core.schemas.token_db import get_oa_symbol
                             except ImportError:
                                 from ....db.models.token_db import get_oa_symbol
 
@@ -881,7 +881,7 @@ def get_positions(auth):
                                 try:
                                     # Import get_oa_symbol with fallback paths
                                     try:
-                                        from app.db.schemas.token_db import get_oa_symbol
+                                        from app.core.schemas.token_db import get_oa_symbol
                                     except ImportError:
                                         from ....db.models.token_db import get_oa_symbol
 
@@ -1616,7 +1616,7 @@ def close_all_positions(token=None, auth=None):
         return {"status": "error", "message": "Authentication token is required"}, 400
 
     try:
-        from app.db.schemas.token_db import get_oa_symbol
+        from app.core.schemas.token_db import get_oa_symbol
     except ImportError:
         from ....db.models.token_db import get_oa_symbol # noqa: F401
     """

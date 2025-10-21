@@ -9,7 +9,7 @@ import zmq
 import zmq.asyncio
 
 from app.core.config import settings
-from app.db.schemas.auth_db import get_broker_name, verify_api_key
+from app.core.schemas.auth_db import get_broker_name, verify_api_key
 from app.utils.logging import highlight_url, logger
 from app.web.websocket.websocket.broker_factory import create_broker_adapter
 from app.web.websocket.websocket.port_check import is_port_in_use
@@ -370,7 +370,7 @@ class WebSocketProxy:
         try:
             from sqlalchemy import text
 
-            from app.db.schemas.session import db_session
+            from app.core.schemas.session import db_session
 
             # Get user's connected broker from database
             # This queries the auth_token table to find the user's active broker

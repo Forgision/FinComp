@@ -8,15 +8,15 @@ from pydantic import BaseModel, EmailStr
 from argon2 import PasswordHasher
 
 from app.core.config import settings
-from app.db.schemas.auth_db import auth_cache, feed_token_cache, upsert_auth
-from app.db.schemas.settings_db import get_smtp_settings, set_smtp_settings
-from app.db.schemas.user_db import (
+from app.core.schemas.auth_db import auth_cache, feed_token_cache, upsert_auth
+from app.core.schemas.settings_db import get_smtp_settings, set_smtp_settings
+from app.core.schemas.user_db import (
     User,
     authenticate_user,
     find_user_by_email,
     find_user_by_username,
 )
-from app.db.schemas.session import get_db
+from app.core.schemas.session import get_db
 from app.utils.email_debug import debug_smtp_connection
 from app.utils.email_utils import send_password_reset_email, send_test_email
 from app.utils.logging import logger
@@ -260,7 +260,7 @@ async def logout(request: Request, db = Depends(get_db)):
             del feed_token_cache[cache_key_feed]
             logger.info(f"Cleared feed token cache for user: {username}")
         try:
-            from app.db.schemas.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:

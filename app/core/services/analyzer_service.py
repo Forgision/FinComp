@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 import pytz
 from sqlalchemy import func
 
-from app.db.schemas.analyzer_db import AnalyzerLog
-from app.db.schemas.session import db_session
-from app.db.schemas.settings_db import get_analyze_mode as get_mode, set_analyze_mode
+from app.core.schemas.analyzer_db import AnalyzerLog
+from app.core.schemas.session import db_session
+from app.core.schemas.settings_db import get_analyze_mode as get_mode, set_analyze_mode
 from app.utils.api_analyzer import get_analyzer_stats
 
 from app.utils.logging import logger

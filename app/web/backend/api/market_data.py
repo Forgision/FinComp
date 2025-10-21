@@ -25,7 +25,7 @@ from app.core.services.intervals_service import get_intervals
 from app.core.services.quotes_service import get_quotes
 from app.core.services.search_service import search_symbols
 from app.core.services.symbol_service import get_symbol_info
-from app.db.schemas.auth_db import get_auth_token_broker
+from app.core.schemas.auth_db import get_auth_token_broker
 from app.utils.logging import logger
 
 market_data_router = APIRouter(
@@ -34,7 +34,6 @@ market_data_router = APIRouter(
     dependencies=[Depends(check_session_validity_fastapi)] # Secure all market data endpoints
 )
 
-logger = get_logger(__name__)
 
 # --- Helper functions for Ticker endpoint (migrated from ticker.py) ---
 

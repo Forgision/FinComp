@@ -8,8 +8,8 @@ import pytz
 from sqlalchemy import Column, DateTime, Integer, Text
 from sqlalchemy.sql import func
 
-from app.db.schemas.base import Base
-from app.db.schemas.session import db_session, engine
+from app.core.schemas.base import Base
+from app.core.schemas.session import db_session, engine
 from app.utils.logging import logger
 
 

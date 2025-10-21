@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.db.schemas.analyzer_db import AnalyzerLog
-from app.db.schemas.session import get_db
+from app.core.schemas.analyzer_db import AnalyzerLog
+from app.core.schemas.session import get_db
 from app.utils.api_analyzer import get_analyzer_stats
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi

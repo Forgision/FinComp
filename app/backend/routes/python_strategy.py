@@ -44,13 +44,13 @@ from fastapi.responses import (
 )
 from sqlalchemy.orm import Session
 
-from app.db.schemas.auth_db import Auth as DBAuth
-from app.db.schemas.master_contract_status_db import (
+from app.core.schemas.auth_db import Auth as DBAuth
+from app.core.schemas.master_contract_status_db import (
     MasterContractStatus as DBMasterContractStatus,
 )
 
 # FastAPI specific imports
-from app.db.schemas.session import get_db
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 
 # Create FastAPI router with /python route

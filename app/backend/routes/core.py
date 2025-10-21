@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.db.schemas.auth_db import upsert_api_key
-from app.db.schemas.session import get_db
-from app.db.schemas.user_db import add_user, find_user_by_username
+from app.core.schemas.auth_db import upsert_api_key
+from app.core.schemas.session import get_db
+from app.core.schemas.user_db import add_user, find_user_by_username
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 from app.utils.web.security import (

@@ -531,8 +531,8 @@ def master_contract_download():
     """Download and process DefinedGe master contracts"""
     try:
         # Import here to avoid circular imports
-        from app.db.schemas.master_contract_status_db import update_status
-        from app.db.schemas.token_db import get_symbol_count
+        from app.core.schemas.master_contract_status_db import update_status
+        from app.core.schemas.token_db import get_symbol_count
 
         from app.utils.web.socketio import socketio
 
@@ -592,7 +592,7 @@ def master_contract_download():
     except Exception as e:
         logger.error(f"Error in DefinedGe master contract download: {e}")
         try:
-            from app.db.schemas.master_contract_status_db import update_status
+            from app.core.schemas.master_contract_status_db import update_status
 
             from app.utils.web.socketio import socketio
             update_status('definedge', 'error', f'Download failed: {str(e)}')

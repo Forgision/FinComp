@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.schemas.auth_db import get_auth_token_broker
+from app.core.schemas.auth_db import get_auth_token_broker
 
 
 def ping_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[str, Any], int]:

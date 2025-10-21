@@ -17,7 +17,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.db.schemas.sandbox_db import get_config
+from app.core.schemas.sandbox_db import get_config
 from app.utils.logging import logger
 
 # Reduce APScheduler logging verbosity

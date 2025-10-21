@@ -23,8 +23,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.config import settings
-from app.db.schemas.base import Base
-from app.db.schemas.session import db_session, engine
+from app.core.schemas.base import Base
+from app.core.schemas.session import db_session, engine
 from app.utils.logging import logger
 
 # Database configuration
@@ -684,7 +684,7 @@ def get_user_credentials(telegram_id: int) -> Optional[Dict]:
 # Helper function to get auth token
 def get_auth_token_by_username(username: str):
     """Helper function to get auth token - imports here to avoid circular imports"""
-    from app.db.schemas.auth_db import get_auth_token
+    from app.core.schemas.auth_db import get_auth_token
     return get_auth_token(username)
 
 

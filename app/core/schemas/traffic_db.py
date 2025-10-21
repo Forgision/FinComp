@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.sql import func
 
 from app.core.config import settings
-from app.db.schemas.settings_db import get_security_settings
+from app.core.schemas.settings_db import get_security_settings
 from app.utils.logging import logger
 
 # Use a separate database for logs

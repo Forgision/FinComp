@@ -1,6 +1,6 @@
 # database/tv_search.py
 
-from app.db.schemas.symbol import SymToken
+from app.core.schemas.symbol import SymToken
 
 
 def search_symbols(symbol,exchange):

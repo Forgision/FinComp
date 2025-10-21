@@ -10,10 +10,10 @@ virtual trading environment instead of the live broker.
 import copy
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.schemas.analyzer_db import async_log_analyzer
-from app.db.schemas.apilog_db import executor
-from app.db.schemas.auth_db import verify_api_key
-from app.db.schemas.settings_db import get_analyze_mode
+from app.core.schemas.analyzer_db import async_log_analyzer
+from app.core.schemas.apilog_db import executor
+from app.core.schemas.auth_db import verify_api_key
+from app.core.schemas.settings_db import get_analyze_mode
 from app.sandbox.fund_manager import get_user_funds
 from app.sandbox.holdings_manager import HoldingsManager
 

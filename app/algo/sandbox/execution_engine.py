@@ -24,7 +24,7 @@ import pytz
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.services.quotes_service import get_quotes
-from app.db.schemas.sandbox_db import (
+from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
     SandboxTrades,
@@ -108,7 +108,7 @@ class ExecutionEngine:
         """
         try:
             # Get any user's API key for fetching quotes
-            from app.db.schemas.auth_db import ApiKeys, decrypt_token
+            from app.core.schemas.auth_db import ApiKeys, decrypt_token
             api_key_obj = ApiKeys.query.first()
 
             if not api_key_obj:
@@ -468,7 +468,7 @@ if __name__ == '__main__':
     logger.info("Starting Sandbox Execution Engine")
 
     # Get check interval from config
-    from app.db.schemas.sandbox_db import init_db
+    from app.core.schemas.sandbox_db import init_db
     init_db()
 
     check_interval = int(get_config('order_check_interval', '5'))

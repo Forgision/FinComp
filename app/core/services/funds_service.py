@@ -2,7 +2,7 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.schemas.auth_db import get_auth_token_broker
+from app.core.schemas.auth_db import get_auth_token_broker
 
 # Initialize logger
 from app.utils.logging import logger
@@ -40,7 +40,7 @@ def get_funds_with_auth(auth_token: str, broker: str, original_data: Dict[str, A
         - Response data (dict)
         - HTTP status code (int)
     """
-    from app.db.schemas.settings_db import get_analyze_mode
+    from app.core.schemas.settings_db import get_analyze_mode
     if get_analyze_mode() and original_data:
         from app.core.services.sandbox_service import sandbox_get_funds
 

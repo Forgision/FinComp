@@ -23,8 +23,8 @@ from app.core.services.websocket_service import (
     unsubscribe_all,
     unsubscribe_from_symbols,
 )
-from app.db.schemas.auth_db import get_api_key_for_tradingview
-from app.db.schemas.session import get_db
+from app.core.schemas.auth_db import get_api_key_for_tradingview
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 
 # Create FastAPI router

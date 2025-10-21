@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from app.web.frontend import templates
 
-from app.db.schemas.auth_db import upsert_api_key
-from app.db.schemas.user_db import add_user, find_user_by_username
+from app.core.schemas.auth_db import upsert_api_key
+from app.core.schemas.user_db import add_user, find_user_by_username
 from app.utils.auth_utils import generate_api_key
 from app.utils.logging import logger
 from app.utils.session import invalidate_session_if_invalid

@@ -12,10 +12,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.schemas.apilog_db import OrderLog
+from app.core.schemas.apilog_db import OrderLog
 
 # Assuming these imports will be available or need to be created/imported from other modules
-from app.db.schemas.session import get_db
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 

@@ -15,9 +15,9 @@ from decimal import Decimal
 
 import pytz
 
-from app.db.schemas.sandbox_db import SandboxOrders, SandboxPositions, SandboxHoldings
-from app.db.schemas.session import db_session
-from app.db.schemas.symbol import SymToken
+from app.core.schemas.sandbox_db import SandboxOrders, SandboxPositions, SandboxHoldings
+from app.core.schemas.session import db_session
+from app.core.schemas.symbol import SymToken
 from app.sandbox.fund_manager import FundManager
 from app.utils.logging import logger
 

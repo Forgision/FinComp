@@ -2,7 +2,7 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
-from app.db.schemas.auth_db import get_auth_token
+from app.core.schemas.auth_db import get_auth_token
 from app.utils.logging import logger
 from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.websocket.mapping import SymbolMapper
@@ -257,7 +257,7 @@ class GrowwWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Get instrument type from database
         instrumenttype = None
         try:
-            from app.db.schemas.symbol import SymToken
+            from app.core.schemas.symbol import SymToken
             sym = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
             if sym:
                 instrumenttype = sym.instrumenttype

@@ -7,7 +7,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.db.schemas.auth_db import get_auth_token
+from app.core.schemas.auth_db import get_auth_token
 from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.web.websocket.websocket.mapping import SymbolMapper
 

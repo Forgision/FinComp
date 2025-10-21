@@ -11,7 +11,7 @@ Manages the execution engine as a daemon thread that:
 import threading
 import time
 
-from app.db.schemas.sandbox_db import get_config
+from app.core.schemas.sandbox_db import get_config
 from app.utils.logging import logger
 
 # Global thread instance

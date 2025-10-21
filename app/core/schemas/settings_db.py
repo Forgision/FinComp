@@ -6,8 +6,8 @@ from cryptography.fernet import Fernet
 from sqlalchemy import Boolean, Column, Integer, String, Text
 
 from app.core.config import settings
-from app.db.schemas.base import Base
-from app.db.schemas.session import db_session, engine
+from app.core.schemas.base import Base
+from app.core.schemas.session import db_session, engine
 from app.utils.logging import logger
 
 

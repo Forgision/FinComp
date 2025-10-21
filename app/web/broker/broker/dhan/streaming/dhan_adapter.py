@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, Optional
 
-from app.db.schemas.auth_db import get_auth_token
+from app.core.schemas.auth_db import get_auth_token
 from .dhan_mapping import (
     DhanCapabilityRegistry,
     DhanExchangeMapper,

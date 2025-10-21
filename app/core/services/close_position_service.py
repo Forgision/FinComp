@@ -3,10 +3,10 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.schemas.analyzer_db import async_log_analyzer
-from app.db.schemas.apilog_db import async_log_order, executor
-from app.db.schemas.auth_db import get_auth_token_broker
-from app.db.schemas.settings_db import get_analyze_mode
+from app.core.schemas.analyzer_db import async_log_analyzer
+from app.core.schemas.apilog_db import async_log_order, executor
+from app.core.schemas.auth_db import get_auth_token_broker
+from app.core.schemas.settings_db import get_analyze_mode
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
 

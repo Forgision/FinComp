@@ -3,7 +3,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.db.schemas.auth_db import get_auth_token, get_feed_token
+from app.core.schemas.auth_db import get_auth_token, get_feed_token
 from .smartWebSocketV2 import SmartWebSocketV2
 from .angel_mapping import (
     AngelCapabilityRegistry,

@@ -135,7 +135,7 @@ async def broker_callback(request: Request, broker: str):
 
         auth_token, feed_token, user_id, error_message = auth_function(access_token)
         if not user:
-            from app.db.schemas.user_db import find_user_by_username
+            from app.core.schemas.user_db import find_user_by_username
             admin_user = find_user_by_username()
             if admin_user:
                 user = admin_user.username

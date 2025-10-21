@@ -1,6 +1,6 @@
 
 from argon2 import PasswordHasher
-from app.db.schemas.auth_db import get_api_key_for_tradingview, upsert_api_key
+from app.core.schemas.auth_db import get_api_key_for_tradingview, upsert_api_key
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.web.frontend import templates

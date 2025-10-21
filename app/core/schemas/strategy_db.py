@@ -4,8 +4,8 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.schemas.base import Base
-from app.db.schemas.session import db_session, engine
+from app.core.schemas.base import Base
+from app.core.schemas.session import db_session, engine
 
 logger = logging.getLogger(__name__)
 

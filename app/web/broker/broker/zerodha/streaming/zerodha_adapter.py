@@ -3,8 +3,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.db.schemas.auth_db import get_auth_token
-from app.db.schemas.token_db import get_token
+from app.core.schemas.auth_db import get_auth_token
+from app.core.schemas.token_db import get_token
 from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from app.core.config import settings

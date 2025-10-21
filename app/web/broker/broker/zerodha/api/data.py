@@ -5,7 +5,7 @@ from datetime import timedelta
 import pandas as pd
 from app.web.broker.zerodha.database.master_contract_db import SymToken, db_session
 
-from app.db.schemas.token_db_enhanced import get_br_symbol
+from app.core.schemas.token_db_enhanced import get_br_symbol
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 

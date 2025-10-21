@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.db.schemas.session import get_db
-from app.db.schemas.symbol import enhanced_search_symbols
+from app.core.schemas.session import get_db
+from app.core.schemas.symbol import enhanced_search_symbols
 from app.utils.logging import logger
 
 search_router = APIRouter(prefix="/search", tags=["Search"])

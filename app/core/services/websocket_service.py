@@ -7,7 +7,7 @@ without dealing with authentication or connection management.
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.db.schemas.auth_db import get_broker_name
+from app.core.schemas.auth_db import get_broker_name
 
 from app.core.config import settings
 from app.utils.logging import logger
