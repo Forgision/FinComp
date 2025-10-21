@@ -93,7 +93,7 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def tearDown(self):
         # Clean up the test user and API key
-        delete_api_key_by_username(self.db, self.username)
+        delete_api_key_by_username(self.username)
         delete_user_by_username(self.username)
         self.db.close()
 

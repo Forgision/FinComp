@@ -1,5 +1,5 @@
 # Ignore stateful content (these will be generated again)
-db/
+# db/
 log/
 
 # Byte-compiled / cache files
@@ -32,7 +32,7 @@ secrets.*
 .git/
 .gitignore
 
-# Docker and CI/CD
+# Docker and CI/CD related files
 Dockerfile
 docker-compose.yml
 .docker/
@@ -42,13 +42,15 @@ docker-compose.yml
 .vscode/
 .idea/
 
-# Project docs (EXPLICITLY INCLUDED)
-!docs/
+# Python specific caches
 .mypy_cache/
 .ruff_cache/
 
+# Node.js specific files (if applicable)
 node_modules/
 npm-debug.log
+
+# Other common ignores
 README.md
 *.log*
-.env*
+*.env*

@@ -4,12 +4,12 @@ from fastapi.testclient import TestClient
 
 from app.db.schemas.auth_db import delete_api_key_by_username, upsert_api_key
 from app.db.schemas.user_db import add_user, delete_user_by_username
-from app.main import app  # Import the underlying FastAPI app
+from app.main import _app as app_fastapi  # Import the underlying FastAPI app
 
 
 class TestAuth(unittest.TestCase):
     def setUp(self):
-        self.client = TestClient(app, follow_redirects=True)
+        self.client = TestClient(app_fastapi, follow_redirects=True)
         self.username = "testuser"
         self.email = "test@example.com"
         self.password = "testpassword"
@@ -17,15 +17,15 @@ class TestAuth(unittest.TestCase):
 
         # Create a test user and API key
         db = next(get_db())
-        add_user(db, self.username, self.email, self.password, True)
+        add_user(self.username, self.email, self.password, True)
         upsert_api_key(self.username, self.api_key)
         db.close()
 
     def tearDown(self):
         # Clean up the test user and API key
         db = next(get_db())
-        delete_api_key_by_username(db, self.username)
-        delete_user_by_username(db, self.username)
+        delete_api_key_by_username(db, user_id=self.username)
+        delete_user_by_username(self.username)
         db.close()
 
     def test_read_main(self):

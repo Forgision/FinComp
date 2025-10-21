@@ -1,10 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from app.broker.kotak.api.auth_api import authenticate_broker
+from app.web.broker.broker.kotak.api.auth_api import authenticate_broker
+
 
 class TestKotakAuthApi(unittest.TestCase):
 
-    @patch('app.broker.kotak.api.auth_api.http.client.HTTPSConnection')
+    @patch('app.web.broker.broker.kotak.api.auth_api.http.client.HTTPSConnection')
     def test_authenticate_broker_success(self, mock_https_connection):
         mock_conn = MagicMock()
         mock_response = MagicMock()
@@ -16,7 +17,7 @@ class TestKotakAuthApi(unittest.TestCase):
         self.assertEqual(auth_string, "test_token:::test_sid:::hsServerId:::access_token")
         self.assertIsNone(error)
 
-    @patch('app.broker.kotak.api.auth_api.http.client.HTTPSConnection')
+    @patch('app.web.broker.broker.kotak.api.auth_api.http.client.HTTPSConnection')
     def test_authenticate_broker_failure(self, mock_https_connection):
         mock_conn = MagicMock()
         mock_response = MagicMock()

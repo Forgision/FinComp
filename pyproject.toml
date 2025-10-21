@@ -175,3 +175,8 @@ skip_covered = true
 
 [tool.ruff]
 exclude = [".garbage"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]

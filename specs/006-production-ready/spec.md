@@ -18,7 +18,7 @@ As a user, I want the application to be stable and responsive, even under varyin
 **Acceptance Scenarios**:
 
 1.  **Given** the application is deployed in a production environment, **When** a typical number of users interact with it, **Then** all core functionalities respond within acceptable timeframes (e.g., API calls under 500ms).
-2.  **Given** the application is under peak load (e.g., X concurrent users), **When** users perform critical operations, **Then** the system remains stable, with no unexpected errors or crashes, and performance degradation is minimal.
+2.  **Given** the application is under peak load (e.g., 100 concurrent users), **When** users perform critical operations, **Then** the system remains stable, with no unexpected errors or crashes, and performance degradation is minimal.
 
 ---
 
@@ -77,11 +77,11 @@ As a developer, I want the codebase to be well-structured, consistent, and easy 
 
 ### Non-Functional Requirements (Adherence to Project Constitution)
 
--   **NFR-001**: All implemented code MUST adhere to the "I. Code Quality Standards" outlined in the project constitution.
--   **NFR-002**: All features MUST be developed with "II. Testing Standards" in mind, ensuring comprehensive test coverage.
--   **NFR-003**: User-facing aspects MUST comply with "III. User Experience Consistency" principles.
--   **NFR-004**: All Python code MUST follow "IV. Python Guideline Adherence" including PEP 8 and type hinting.
--   **NFR-005**: Implemented features MUST incorporate "V. Observability" by ensuring debuggability and structured logging.
+-   **NFR-001**: All implemented code MUST adhere to the "VIII. Strict Code Quality" standards outlined in the project constitution.
+-   **NFR-002**: All features MUST be developed with "V. Comprehensive Testing" in mind, ensuring comprehensive test coverage.
+-   **NFR-003**: User-facing aspects MUST comply with "X. User Experience Consistency" principles.
+-   **NFR-004**: All new Python code MUST use "XII. Static Typing" as defined in the project constitution.
+-   **NFR-005**: Implemented features MUST incorporate "VII. Centralized Logging" by using the `app.utils.logging` module.
 
 ## Success Criteria *(mandatory)*
 

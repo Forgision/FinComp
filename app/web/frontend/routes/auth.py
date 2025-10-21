@@ -44,7 +44,7 @@ class ResetPassword(BaseModel):
     token: str
     password: str
 
-@auth_router.get("/login", response_class=HTMLResponse)
+@auth_router.get("/login", response_class=HTMLResponse, name="login")
 async def login_get(request: Request):
     if find_user_by_username() is None:
         return RedirectResponse(url='/setup', status_code=status.HTTP_302_FOUND)
@@ -58,7 +58,7 @@ async def login_get(request: Request):
 @limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
 async def login_post(request: Request, db = Depends(get_db), username: str = Form(...), password: str = Form(...)):
-    if authenticate_user(db, username, password):
+    if authenticate_user(username, password):
         request.session['user'] = username
         logger.info(f"Login success for user: {username}")
         return JSONResponse(content={'status': 'success'}, status_code=200)

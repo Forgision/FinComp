@@ -1,18 +1,19 @@
 import unittest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
-from app.websocket.server import WebSocketProxy
+from app.web.websocket.websocket.server import WebSocketProxy
+
 
 class TestWebSocketProxy(unittest.TestCase):
 
-    @patch('app.websocket.server.websockets.serve')
-    @patch('app.websocket.server.zmq.asyncio.Context')
+    @patch('app.web.websocket.websocket.server.websockets.serve')
+    @patch('app.web.websocket.websocket.server.zmq.asyncio.Context')
     def setUp(self, mock_zmq_context, mock_websockets_serve):
         self.proxy = WebSocketProxy()
 
-    @patch('app.websocket.server.verify_api_key', return_value="test_user")
-    @patch('app.websocket.server.get_broker_name', return_value="finvasia")
-    @patch('app.websocket.server.create_broker_adapter')
+    @patch('app.web.websocket.websocket.server.verify_api_key', return_value="test_user")
+    @patch('app.web.websocket.websocket.server.get_broker_name', return_value="finvasia")
+    @patch('app.web.websocket.websocket.server.create_broker_adapter')
     def test_authenticate_client_success(self, mock_create_broker_adapter, mock_get_broker_name, mock_verify_api_key):
         mock_adapter = MagicMock()
         mock_adapter.initialize.return_value = {"success": True}

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import json
 import hashlib
 
-from app.broker.finvasia.api.auth_api import sha256_hash, authenticate_broker
+from app.web.broker.broker.finvasia.api.auth_api import sha256_hash, authenticate_broker
 
 class TestAuthAPI(unittest.TestCase):
 
@@ -11,8 +11,8 @@ class TestAuthAPI(unittest.TestCase):
         self.assertEqual(sha256_hash("test"), hashlib.sha256("test".encode('utf-8')).hexdigest())
         self.assertEqual(sha256_hash("password123"), hashlib.sha256("password123".encode('utf-8')).hexdigest())
 
-    @patch('app.broker.finvasia.api.auth_api.settings')
-    @patch('app.broker.finvasia.api.auth_api.get_httpx_client')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.settings')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.get_httpx_client')
     def test_authenticate_broker_success(self, mock_get_httpx_client, mock_settings):
         # Mock settings
         mock_settings.BROKER_API_SECRET = "test_secret"
@@ -53,8 +53,8 @@ class TestAuthAPI(unittest.TestCase):
 
         mock_client.post.assert_called_once_with(expected_url, data=expected_payload_str, headers=expected_headers)
 
-    @patch('app.broker.finvasia.api.auth_api.settings')
-    @patch('app.broker.finvasia.api.auth_api.get_httpx_client')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.settings')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.get_httpx_client')
     def test_authenticate_broker_failure_api_error(self, mock_get_httpx_client, mock_settings):
         # Mock settings
         mock_settings.BROKER_API_SECRET = "test_secret"
@@ -78,8 +78,8 @@ class TestAuthAPI(unittest.TestCase):
         self.assertIsNone(token)
         self.assertEqual(error, "Invalid credentials")
 
-    @patch('app.broker.finvasia.api.auth_api.settings')
-    @patch('app.broker.finvasia.api.auth_api.get_httpx_client')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.settings')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.get_httpx_client')
     def test_authenticate_broker_failure_http_error(self, mock_get_httpx_client, mock_settings):
         # Mock settings
         mock_settings.BROKER_API_SECRET = "test_secret"
@@ -103,8 +103,8 @@ class TestAuthAPI(unittest.TestCase):
         self.assertIsNone(token)
         self.assertEqual(error, "Error: 401, Unauthorized")
 
-    @patch('app.broker.finvasia.api.auth_api.settings')
-    @patch('app.broker.finvasia.api.auth_api.get_httpx_client')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.settings')
+    @patch('app.web.broker.broker.finvasia.api.auth_api.get_httpx_client')
     def test_authenticate_broker_exception_handling(self, mock_get_httpx_client, mock_settings):
         # Mock settings
         mock_settings.BROKER_API_SECRET = "test_secret"

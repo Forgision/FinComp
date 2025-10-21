@@ -1,34 +1,33 @@
-venopenalgo
-.venv/
-.env
-openalgo.db
-*.db-shm
-*.db-wal
-.env
-.flaskenv
-*.pyc
-__pycache__/
-*.pyc
+# Environments
 .venv/
 venv/
-dist/
-*.egg-info/
+env/
+.python-version
 .env*
+
+# Python build artifacts
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# IDE and OS generated files
 .DS_Store
 Thumbs.db
 *.tmp
 *.swp
 .vscode/
 .idea/
-.python-version
-config.ini
-.venvv
 
-#DB Files, CSV Files and Log/Tmp Files
-
-*.egg-info/
+# Database files
 *.db
 *.sqlite
+openalgo.db
+*.db-shm
+*.db-wal
+
+# Log and temporary files
 *.log
 *.tmp
 checkpoint.txt
@@ -37,19 +36,10 @@ checkpoints.json
 # Strategy encryption key
 db/strategy_encryption.key
 
-# CSV Files (except symbols.csv)
+# CSV Files (except symbols.csv and all_symbols.csv)
 *.csv
 !symbols.csv
 !all_symbols.csv
-
-# Environments 
-.env 
-.venv 
-env/ 
-venv/ 
-ENV/ 
-env.bak/ 
-venv.bak/ 
 
 # Node modules
 /node_modules/
@@ -63,13 +53,10 @@ venv.bak/
 # Tailwind CSS output
 # **/output.css
 
-# Added by Kilo Code
+# Added by Kilo Code (and others)
 .git/
 Dockerfile*
 .dockerignore
-*.swp
 coverage/
 .mypy_cache/
 .ruff_cache/
-
-*.env*
