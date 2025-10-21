@@ -3,10 +3,9 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.models.api_schemas import AnalyzerSchema, AnalyzerToggleSchema, PingSchema
 from app.core.services.analyzer_service import get_analyzer_status, toggle_analyzer_mode
 from app.core.services.ping_service import get_ping
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 
 utility_router = APIRouter(prefix="/utility", tags=["Utility"])
-logger = get_logger(__name__)
 
 @utility_router.post("/analyzer", summary="Get analyzer mode status and statistics")
 async def analyzer_status(analyzer_data: AnalyzerSchema):

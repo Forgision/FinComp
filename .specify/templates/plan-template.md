@@ -31,11 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **I. Code Quality Standards**: All code must adhere to established style guides and best practices.
-- **II. Testing Standards**: Comprehensive testing is mandatory for all features and bug fixes, including unit, integration, and end-to-end tests.
-- **III. User Experience Consistency**: All user-facing components must provide a consistent and intuitive experience, adhering to design system guidelines and accessibility standards.
-- **IV. Python Guideline Adherence**: All Python code must follow PEP 8 style guidelines and common Pythonic idioms, with type hints strongly encouraged.
-- **V. Observability**: Ensure debuggability through text I/O and structured logging.
+- **I. Technology Stack**: The project is a hybrid, with a Python/FastAPI backend and a JavaScript/CSS frontend. Development MUST respect the conventions and tooling of both ecosystems.
+- **II. Strict Project Structure**: All development MUST adhere to the directory and file structure defined in `.specify/memory/structure.md`.
+- **III. API-First Design**: All core functionality SHOULD be exposed through the RESTful API first.
+- **IV. Declarative Configuration**: Project configuration is managed through declarative files.
+- **V. Comprehensive Testing**: All new features or bug fixes MUST be accompanied by corresponding tests.
+- **VI. Standardized Tooling**: `uv` MUST be used for all Python environment management and script execution.
+- **VII. Centralized Logging**: All logging MUST use the `logger` method from the `app.utils.logging` module.
+- **VIII. Strict Code Quality**: All Python code MUST adhere to PEP 8, formatted with `black` and linted with `ruff`.
+- **IX. Comprehensive Unit Testing**: All new code MUST be accompanied by unit tests using Python's `pytest` framework.
+- **X. User Experience Consistency**: The user interface MUST adhere to the design system established by DaisyUI.
+- **XI. Code Documentation**: All public APIs, complex functions, and business logic MUST be documented using docstrings.
+- **XII. Static Typing**: All new Python code MUST use type hints for function signatures and variables.
 
 ## Project Structure
 

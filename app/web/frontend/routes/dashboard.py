@@ -5,10 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.db.schemas.auth_db import get_auth_token
 from app.core.services.funds_service import get_funds
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi, get_db
 
-logger = get_logger(__name__)
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 dashboard_router = APIRouter()

@@ -3,10 +3,9 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.db.schemas.auth_db import get_auth_token_broker
-from app.utils.logging import get_logger
 
 # Initialize logger
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """

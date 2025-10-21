@@ -4,10 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.db.schemas.master_contract_status_db import check_if_ready, get_status
 from app.db.schemas.session import get_db
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
-logger = get_logger(__name__)
 
 master_contract_status_router = APIRouter(prefix="/api/master-contract", tags=["Master Contract"])
 

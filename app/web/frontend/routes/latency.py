@@ -9,10 +9,9 @@ from starlette.templating import Jinja2Templates
 
 from app.core.services.limiter_service import limiter
 from app.db.schemas.latency_db import OrderLatency, latency_session
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
-logger = get_logger(__name__)
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 latency_router = APIRouter(prefix="/latency")

@@ -10,11 +10,10 @@ from starlette.templating import Jinja2Templates
 from app.core.services.limiter_service import limiter
 from app.utils.auth_utils import handle_auth_failure, handle_auth_success
 from app.core.config import settings
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
 # Initialize logger and templates
-logger = get_logger(__name__)
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 # Configuration

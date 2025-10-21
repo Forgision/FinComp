@@ -97,11 +97,18 @@
 
 ### Non-Functional Requirements (Adherence to Project Constitution)
 
-- **NFR-001**: All implemented code MUST adhere to the "I. Code Quality Standards" outlined in the project constitution.
-- **NFR-002**: All features MUST be developed with "II. Testing Standards" in mind, ensuring comprehensive test coverage.
-- **NFR-003**: User-facing aspects MUST comply with "III. User Experience Consistency" principles.
-- **NFR-004**: All Python code MUST follow "IV. Python Guideline Adherence" including PEP 8 and type hinting.
-- **NFR-005**: Implemented features MUST incorporate "V. Observability" by ensuring debuggability and structured logging.
+- **NFR-001**: All development MUST respect the conventions and tooling of Python/FastAPI backend and JavaScript/CSS frontend.
+- **NFR-002**: All development MUST adhere to the directory and file structure defined in `.specify/memory/structure.md`.
+- **NFR-003**: All core functionality SHOULD be exposed through the RESTful API first.
+- **NFR-004**: Project configuration is managed through declarative files.
+- **NFR-005**: All new features or bug fixes MUST be accompanied by corresponding tests.
+- **NFR-006**: `uv` MUST be used for all Python environment management and script execution.
+- **NFR-007**: All logging MUST use the `logger` method from the `app.utils.logging` module.
+- **NFR-008**: All Python code MUST adhere to PEP 8, formatted with `black` and linted with `ruff`.
+- **NFR-009**: All new code MUST be accompanied by unit tests using Python's `unittest` framework.
+- **NFR-010**: The user interface MUST adhere to the design system established by DaisyUI.
+- **NFR-011**: All public APIs, complex functions, and business logic MUST be documented using docstrings.
+- **NFR-012**: All new Python code MUST use type hints for function signatures and variables.
 
 ## Success Criteria *(mandatory)*
 

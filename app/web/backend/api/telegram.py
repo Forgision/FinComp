@@ -15,10 +15,9 @@ from app.db.schemas.telegram_db import (
     update_bot_config,
     update_user_preferences,
 )
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 
 telegram_router = APIRouter(prefix="/telegram", tags=["Telegram"])
-logger = get_logger(__name__)
 
 # Pydantic Models for Telegram API (formerly Flask-RestX models)
 class BotConfig(BaseModel):

@@ -12,10 +12,9 @@ from starlette.templating import Jinja2Templates
 
 from app.db.schemas.apilog_db import OrderLog
 from app.db.schemas.session import get_db
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
-logger = get_logger(__name__)
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 log_router = APIRouter(prefix="/logs")

@@ -27,9 +27,8 @@ from app.db.schemas.sandbox_db import (
     get_config,
 )
 from app.db.schemas.session import db_session
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 
 def is_option(symbol, exchange):

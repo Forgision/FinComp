@@ -26,7 +26,7 @@ from app.core.services.quotes_service import get_quotes
 from app.core.services.search_service import search_symbols
 from app.core.services.symbol_service import get_symbol_info
 from app.db.schemas.auth_db import get_auth_token_broker
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 
 market_data_router = APIRouter(
     prefix="/market_data",

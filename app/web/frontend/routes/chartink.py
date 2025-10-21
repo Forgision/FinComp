@@ -23,10 +23,9 @@ from app.db.schemas.chartink_db import (
     get_symbol_mappings,
     get_user_strategies,
 )
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
-logger = get_logger(__name__)
 templates = Jinja2Templates(directory="app/frontend/templates")
 
 WEBHOOK_RATE_LIMIT = settings.WEBHOOK_RATE_LIMIT

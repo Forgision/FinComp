@@ -19,9 +19,8 @@ from app.db.schemas.sandbox_db import SandboxOrders, SandboxPositions, SandboxHo
 from app.db.schemas.session import db_session
 from app.db.schemas.symbol import SymToken
 from app.sandbox.fund_manager import FundManager
-from app.utils.logging import get_logger
+from app.utils.logging import logger
 
-logger = get_logger(__name__)
 
 
 def is_option(symbol, exchange):

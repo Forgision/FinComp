@@ -11,9 +11,8 @@ from app.db.schemas.analyzer_db import AnalyzerLog
 from app.db.schemas.session import db_session
 from app.db.schemas.settings_db import get_analyze_mode as get_mode, set_analyze_mode
 from app.utils.api_analyzer import get_analyzer_stats
-from app.utils.logging import get_logger
 
-logger = get_logger(__name__)
+from app.utils.logging import logger
 
 
 async def get_analyzer_status(analyzer_data: dict, api_key: str):
