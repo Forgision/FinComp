@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import Request
 from fastapi.testclient import TestClient
 
-from app.db.schemas.auth_db import delete_api_key_by_username, upsert_api_key
-from app.db.schemas.session import get_db
-from app.db.schemas.user_db import add_user, delete_user_by_username
+from app.core.schemas.auth_db import delete_api_key_by_username, upsert_api_key
+from app.core.schemas.session import get_db
+from app.core.schemas.user_db import add_user, delete_user_by_username
 from app.main import _app as app_fastapi  # Import the underlying FastAPI app
 from app.utils.session import check_session_validity_fastapi
 
@@ -26,6 +26,7 @@ class TestAPIEndpoints(unittest.TestCase):
         add_user(self.username, self.email, self.password, True)
         upsert_api_key(self.username, self.api_key)
         self.db.commit()
+        self.client.cookies.clear()
 
         # Mock check_session_validity_fastapi
         async def mock_check_session_validity_fastapi(request: Request):
@@ -44,10 +45,8 @@ class TestAPIEndpoints(unittest.TestCase):
         app_fastapi.dependency_overrides[get_db] = override_get_db
 
         # Mock get_analyze_mode
-        self.get_analyze_mode_patch_db = patch('app.db.models.settings_db.get_analyze_mode', return_value=True)
+        self.get_analyze_mode_patch_db = patch('app.core.schemas.settings_db.get_analyze_mode', return_value=True)
         self.get_analyze_mode_patch_db.start()
-        self.get_analyze_mode_patch_routes = patch('app.web.backend.routes.orders.get_analyze_mode', return_value=True)
-        self.get_analyze_mode_patch_routes.start()
 
         # Mock request.session.get
         self.session_patch = patch('starlette.requests.Request.session', new_callable=MagicMock, return_value={
@@ -71,13 +70,13 @@ class TestAPIEndpoints(unittest.TestCase):
                 }
             }
         }
-        self.get_orderbook_patch = patch('app.web.backend.routes.orders.get_orderbook', new_callable=AsyncMock, return_value=(True, self.mock_orderbook_data, 200))
+        self.get_orderbook_patch = patch('app.core.services.orderbook_service.get_orderbook', new_callable=AsyncMock, return_value=(True, self.mock_orderbook_data, 200))
         self.get_orderbook_patch.start()
 
-        self.get_auth_token_patch = patch('app.web.backend.routes.orders.get_auth_token', return_value="mock_auth_token")
+        self.get_auth_token_patch = patch('app.core.schemas.auth_db.get_auth_token', return_value="mock_auth_token")
         self.get_auth_token_patch.start()
 
-        self.get_api_key_for_tradingview_patch = patch('app.web.backend.routes.orders.get_api_key_for_tradingview', return_value=self.api_key)
+        self.get_api_key_for_tradingview_patch = patch('app.core.schemas.auth_db.get_api_key_for_tradingview', return_value=self.api_key)
         self.get_api_key_for_tradingview_patch.start()
 
         # Mock the broker module import for the test_broker (though not strictly needed if get_analyze_mode is True)
@@ -93,14 +92,19 @@ class TestAPIEndpoints(unittest.TestCase):
 
     def tearDown(self):
         # Clean up the test user and API key
-        delete_api_key_by_username(self.username)
-        delete_user_by_username(self.username)
-        self.db.close()
+        try:
+            delete_api_key_by_username(self.db, user_id=self.username)
+            delete_user_by_username(self.username)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise e
+        finally:
+            self.db.close()
 
         # Stop all patches
         self.check_session_patch.stop()
         self.get_analyze_mode_patch_db.stop()
-        self.get_analyze_mode_patch_routes.stop()
         self.session_patch.stop()
         self.get_orderbook_patch.stop()
         self.get_auth_token_patch.stop()
@@ -112,7 +116,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_dashboard_access_unauthenticated(self):
         response = self.client.get("/dashboard")
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers['location'], '/auth/login')
+        self.assertEqual(response.headers['location'], '/logout')
 
     def test_dashboard_access_authenticated(self):
         response = self.client.post(

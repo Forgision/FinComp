@@ -1,4 +1,4 @@
-from database.token_db import get_br_symbol
+from app.core.schemas.token_db import get_br_symbol
 
 def transform_data(data, token):
     """

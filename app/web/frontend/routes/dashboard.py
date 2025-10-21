@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -15,11 +15,11 @@ dashboard_router = APIRouter()
 @dashboard_router.get("/dashboard")
 async def dashboard(request: Request, user: dict = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
     login_username = user
-    AUTH_TOKEN = get_auth_token(db, login_username)
+    AUTH_TOKEN = get_auth_token(login_username)
 
     if AUTH_TOKEN is None:
         logger.warning(f"No auth token found for user {login_username}")
-        return RedirectResponse(url="/logout")
+        return RedirectResponse(url="/logout", status_code=status.HTTP_302_FOUND)
 
     broker = request.session.get("broker")
     if not broker:
@@ -39,12 +39,12 @@ async def dashboard(request: Request, user: dict = Depends(check_session_validit
     if not success:
         logger.error(f"Failed to get funds data: {response.get('message', 'Unknown error')}")
         # Redirect to logout, as it's likely an expired token
-        return RedirectResponse(url="/logout")
+        return RedirectResponse(url="/logout", status_code=status.HTTP_302_FOUND)
 
     margin_data = response.get("data", {})
 
     if not margin_data:
         logger.error(f"Failed to get margin data for user {login_username} - authentication may have expired")
-        return RedirectResponse(url="/logout")
+        return RedirectResponse(url="/logout", status_code=status.HTTP_302_FOUND)
 
     return templates.TemplateResponse("dashboard.html", {"request": request, "margin_data": margin_data})

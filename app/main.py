@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import socketio
 from app.web.frontend import templates
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi_csrf_protect.flexible import CsrfProtect
 from pydantic import BaseModel
@@ -118,11 +118,11 @@ _app.include_router(core_router, tags=["core"])
 _app.include_router(dashboard_router, tags=["dashboard"])
 _app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
 _app.include_router(telegram_router, prefix="/api/v1/telegram", tags=["Telegram"])
-_app.include_router(analyzer_router, tags=["analyzer"])
+_app.include_router(analyzer_router, prefix="/analyzer", tags=["analyzer"])
 _app.include_router(apikey_router, tags=["apikey"])
-_app.include_router(chartink_router, tags=["chartink"])
-_app.include_router(latency_router, tags=["latency"])
-_app.include_router(log_router, tags=["logs"])
+_app.include_router(chartink_router, prefix="/chartink", tags=["chartink"])
+_app.include_router(latency_router, prefix="/latency", tags=["latency"])
+_app.include_router(log_router, prefix="/logs", tags=["logs"])
 _app.include_router(master_contract_status_router)
 _app.include_router(pnltracker_router)
 _app.include_router(python_strategy_router)
@@ -141,6 +141,12 @@ register_all_adapters()
 @_app.get("/test")
 async def test():
     return {"message": "Hello World"}
+
+@_app.get("/")
+async def root(request: Request):
+    if 'user' not in request.session or not request.session.get('logged_in'):
+        return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
 @_app.exception_handler(CsrfProtectError)
 def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError):

@@ -55,8 +55,9 @@ class TestOrderbookService(unittest.TestCase):
         """Test get_orderbook with a valid API key (analyze mode)."""
         api_key = "some_api_key"
 
-        with patch('app.db.models.settings_db.get_analyze_mode', return_value=True) as mock_get_analyze_mode:
-            with patch('app.sandbox.order_manager.OrderManager') as MockOrderManager:
+        with patch('app.core.services.orderbook_service.get_analyze_mode', return_value=True) as mock_get_analyze_mode, \
+             patch('app.core.services.orderbook_service.get_auth_token_broker', return_value=("mock_token", "mock_broker")) as mock_get_auth_token, \
+             patch('app.core.services.orderbook_service.OrderManager') as MockOrderManager:
 
                 mock_order_manager_instance = MockOrderManager.return_value
                 mock_order_manager_instance.get_orderbook.return_value = (True, {
@@ -70,6 +71,7 @@ class TestOrderbookService(unittest.TestCase):
                 success, response, status_code = await get_orderbook(api_key=api_key)
 
                 mock_get_analyze_mode.assert_called_once()
+                mock_get_auth_token.assert_called_once_with(api_key)
                 MockOrderManager.assert_called_once_with(user_id=api_key)
                 mock_order_manager_instance.get_orderbook.assert_called_once()
 

@@ -15,9 +15,6 @@ from app.utils.session import invalidate_session_if_invalid
 
 core_router = APIRouter()
 
-@core_router.get("/")
-async def home(request: Request, _=Depends(invalidate_session_if_invalid)):
-    return templates.TemplateResponse("index.html", {"request": request})
 
 @core_router.get("/download")
 async def download(request: Request, _=Depends(invalidate_session_if_invalid)):

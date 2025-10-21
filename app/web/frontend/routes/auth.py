@@ -44,7 +44,7 @@ class ResetPassword(BaseModel):
     token: str
     password: str
 
-@auth_router.get("/login", response_class=HTMLResponse, name="login")
+@auth_router.get("/login", response_class=HTMLResponse, name="auth.login")
 async def login_get(request: Request):
     if find_user_by_username() is None:
         return RedirectResponse(url='/setup', status_code=status.HTTP_302_FOUND)
@@ -91,7 +91,7 @@ async def broker_login_get(request: Request):
         "broker_name": broker_name
     })
 
-@auth_router.get('/reset-password', response_class=HTMLResponse)
+@auth_router.get('/reset-password', response_class=HTMLResponse, name="auth.reset_password")
 @limiter.limit(settings.RESET_RATE_LIMIT)
 async def reset_password_get(request: Request):
     return templates.TemplateResponse("reset_password.html", {"request": request, "email_sent": False})
@@ -247,7 +247,7 @@ async def debug_smtp(request: Request, user: dict = Depends(check_session_validi
         logger.error(f"SMTP debug error for user {user}: {e}")
         return JSONResponse(content={'success': False, 'message': error_msg, 'details': [f"Unexpected error: {e}"]}, status_code=500)
 
-@auth_router.post('/logout')
+@auth_router.route('/logout', methods=['GET', 'POST'])
 async def logout(request: Request, db = Depends(get_db)):
     if request.session.get('logged_in'):
         username = request.session['user']

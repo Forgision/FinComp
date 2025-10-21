@@ -127,9 +127,9 @@ async def check_session_validity_fastapi(request: Request, db: Session = Depends
             # However, for API routes, HTTPException is appropriate.
             logger.warning("Attempted to redirect from FastAPI dependency, this might not work as expected for non-API routes.")
             raise HTTPException(
-                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+                status_code=status.HTTP_302_FOUND,
                 detail="Redirecting to login",
-                headers={"Location": "/login"}  # Assuming /login is your login page
+                headers={"Location": "/auth/login"}
             )
 
     user_data = request.session.get('user')

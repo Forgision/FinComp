@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 import pandas as pd
-from database.token_db import get_br_symbol, get_token
+from app.core.schemas.token_db import get_br_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
