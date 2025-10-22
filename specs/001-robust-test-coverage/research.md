@@ -1,0 +1,30 @@
+# Research for Robust Test Framework
+
+## Phase 0: Outline & Research
+
+### Research Tasks:
+
+- **Task 1**: Research `pytest` best practices for testing FastAPI applications.
+  - **Decision**: Utilize FastAPI's `TestClient` for making requests without a live server. Organize tests using `conftest.py` for fixtures (e.g., `TestClient`, database setup). Leverage `pytest` fixtures for setup/teardown and test isolation. Use FastAPI's `dependency_overrides` for mocking dependencies within FastAPI. For other mocking, use `unittest.mock` or `pytest-mock`. Handle asynchronous code with `pytest-asyncio`.
+  - **Rationale**: These practices are standard for FastAPI testing, ensuring efficient, isolated, and maintainable tests. `TestClient` and `dependency_overrides` are FastAPI-specific features that streamline testing. Fixtures promote reusability and clear test setup.
+  - **Alternatives considered**: Running a live server for integration tests (rejected due to slower execution and increased complexity). Manual mocking without `dependency_overrides` (rejected due to less integration with FastAPI's dependency injection system).
+
+- **Task 2**: Research strategies for testing real classes vs. mocking in `pytest`.
+  - **Decision**: Prioritize real classes for unit tests when the class is self-contained or its dependencies are simple and easily instantiated. Use mocking for complex or external dependencies (I/O, network, database, external services) to ensure fast, isolated, and robust unit tests. Employ integration tests to verify interactions between real instances of classes and components. Tools: Utilize `pytest-mock` (with the `mocker` fixture) for patching and creating mock objects, and `monkeypatch` for temporarily changing global state or environment variables.
+  - **Rationale**: This balanced approach ensures both the correctness of individual units in isolation (with mocks where necessary) and the proper functioning of integrated components (with real classes). It avoids the pitfalls of over-mocking while maintaining test speed and reliability.
+  - **Alternatives considered**: Exclusive use of real classes (rejected for unit tests due to slow execution, fragility, and difficulty in isolating failures when external dependencies are involved). Excessive mocking (rejected due to lower fidelity, maintenance overhead, and risk of false positives).
+
+- **Task 3**: Research `pytest` fixtures for managing application settings (dev/prod).
+  - **Decision**: Implement a `pytest` fixture-based approach for managing application settings. This involves: 1. A base fixture (`base_app_settings`) providing common settings. 2. Environment-specific fixtures (e.g., `dev_app_settings`, `prod_app_settings`) that override or extend the base settings. 3. A main `app_settings` fixture that dynamically selects the appropriate environment-specific settings based on a `pytest` command-line option (e.g., `--env`). 4. Utilize `pytest_addoption` to define the `--env` command-line option. 5. For sensitive production settings, use environment variables (`os.environ.get`) within the `prod_app_settings` fixture.
+  - **Rationale**: This approach provides a clean, flexible, and robust way to manage different application configurations for testing across various environments (development, production-like, CI/CD). It avoids hardcoding and promotes test isolation by ensuring tests run with the intended settings.
+  - **Alternatives considered**: Using environment variables directly in tests (rejected due to less structure and potential for conflicts). Modifying a global settings object directly (rejected due to lack of test isolation and potential side effects).
+
+- **Task 4**: Research `pytest-cov` for coverage reporting and integration with CI/CD.
+  - **Decision**: Use `pytest-cov` for measuring code coverage. Run `pytest` with `--cov=./your_package` to specify the package(s) for coverage measurement. Generate an HTML report for local review (`--cov-report=html:htmlcov`). Generate an XML (Cobertura) report for CI/CD integration (`--cov-report=xml:coverage.xml`). Integrate into CI/CD pipeline (e.g., GitHub Actions, GitLab CI/CD) to: install `pytest-cov`, run tests with coverage, upload the XML report as an artifact, and optionally integrate with a third-party coverage service (e.g., Codecov) for advanced features.
+  - **Rationale**: `pytest-cov` is the standard and most effective tool for integrating code coverage with `pytest`. Generating both HTML and XML reports caters to both local development and automated CI/CD workflows. CI/CD integration ensures continuous monitoring of coverage and helps enforce the 90% coverage goal.
+  - **Alternatives considered**: Using `coverage.py` directly without `pytest-cov` (rejected due to less seamless integration with `pytest`). Only generating terminal reports (rejected due to lack of detailed visualization and machine-readable format for CI/CD).
+
+- **Task 5**: Research `pytest-httpx` or similar for API endpoint testing.
+  - **Decision**: For mocking HTTP requests made by the application under test, the choice of library depends on the HTTP client used by the application: If the application uses `httpx`, then `pytest-httpx` will be used. If the application uses `requests`, then `requests-mock` or `responses` will be used. For integration tests that require interacting with a real (but controlled) server environment, `pytest-httpserver` can be considered. For recording and replaying HTTP interactions to speed up tests and reduce reliance on external services, `VCR.py` (with `pytest-vcr`) can be used.
+  - **Rationale**: The primary goal is to test API endpoints. Mocking HTTP requests is crucial for unit and isolated integration tests to ensure speed and reliability. The specific mocking library must align with the application's HTTP client. `pytest-httpserver` and `VCR.py` offer solutions for more complex integration scenarios.
+  - **Alternatives considered**: Making actual network requests in all tests (rejected due to slow execution, unreliability, and dependency on external services).

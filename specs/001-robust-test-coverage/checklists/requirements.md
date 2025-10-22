@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Project Restructuring and Validation
+# Specification Quality Checklist: Robust Test Framework
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2025-10-19
-**Feature**: [../spec.md]
+**Created**: 2025-10-22
+**Feature**: specs/001-robust-test-coverage/spec.md
 
 ## Content Quality
 
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- All items passed validation.
+- Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`

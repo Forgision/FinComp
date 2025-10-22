@@ -1,1 +1,0 @@
-No specific research findings are required as all necessary information was available or clarified during the specification phase. The model files were identified at `/config/mnt/vault/@work-station/Python/FinComp/app/core/models/tradingview_models.py`.

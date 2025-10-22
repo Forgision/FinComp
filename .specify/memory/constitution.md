@@ -57,7 +57,7 @@ All logging MUST use the `logger` method from the `app.utils.logging` module. Cr
 All Python code MUST adhere to PEP 8 standards. Code MUST be formatted with `black` and linted with `ruff` before committing.
 
 ### IX. Comprehensive Unit Testing
-All new code MUST be accompanied by unit tests using Python's `unittest` framework. A high level of code coverage is expected and will be enforced.
+All new code MUST be accompanied by unit tests using the `pytest` framework. A high level of code coverage is expected and will be enforced.
 
 ### X. User Experience Consistency
 The user interface MUST adhere to the design system established by DaisyUI to ensure a consistent and intuitive user experience across the application.
