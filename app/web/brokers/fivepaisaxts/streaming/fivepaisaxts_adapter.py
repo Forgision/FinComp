@@ -11,8 +11,8 @@ from app.core.config import settings
 from app.core.schemas.auth_db import get_auth_token, get_feed_token
 from app.core.schemas.token_db import get_symbol
 from app.utils.logging import logger
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.websocket.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 
 from .fivepaisaxts_mapping import (
     FivepaisaXTSCapabilityRegistry,

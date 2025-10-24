@@ -9,8 +9,8 @@ from .definedge_mapping import (
     DefinedgeCapabilityRegistry,
     DefinedgeExchangeMapper,
 )
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.websocket.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 
 
 class MarketDataCache:

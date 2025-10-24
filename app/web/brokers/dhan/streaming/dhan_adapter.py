@@ -13,8 +13,8 @@ from .dhan_mapping import (
     DhanExchangeMapper,
 )
 from .dhan_websocket import DhanWebSocket
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.websocket.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 
 from app.core.config import settings
 from app.utils.logging import logger

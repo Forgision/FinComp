@@ -40,12 +40,12 @@ from app.web.backend.api.telegram import telegram_router
 from app.web.frontend.routes.traffic import traffic_router
 from app.web.frontend.routes.tv_json import tv_json_router
 from app.web.frontend.routes.websocket import websocket_router
-from app.web.backend.routes.monitoring import monitoring_router
-from app.web.websocket.websocket.fastapi_integration import (
+# from app.web.backend.api.monitoring import monitoring_router
+from app.web.websocket.fastapi_integration import (
     cleanup_websocket_server,
     start_websocket_server,
 )
-from app.web.websocket.websocket.broker_factory import register_all_adapters
+from app.web.websocket.broker_factory import register_all_adapters
 from app.core.models.error_models import BaseErrorResponse
 from app.web.backend.middleware import CorrelationIdMiddleware
 
@@ -134,7 +134,7 @@ _app.include_router(strategy_router)
 _app.include_router(traffic_router)
 _app.include_router(tv_json_router)
 _app.include_router(websocket_router)
-_app.include_router(monitoring_router)
+# _app.include_router(monitoring_router)
 register_all_adapters()
 
 

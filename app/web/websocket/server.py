@@ -11,8 +11,8 @@ import zmq.asyncio
 from app.core.config import settings
 from app.core.schemas.auth_db import get_broker_name, verify_api_key
 from app.utils.logging import highlight_url, logger
-from app.web.websocket.websocket.broker_factory import create_broker_adapter
-from app.web.websocket.websocket.port_check import is_port_in_use
+from app.web.websocket.broker_factory import create_broker_adapter
+from app.web.websocket.port_check import is_port_in_use
 
 # Initialize logger
 

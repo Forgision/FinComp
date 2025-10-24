@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional
 from app.core.schemas.auth_db import get_auth_token
 
 # Import base adapter
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.websocket.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 
 from app.utils.logging import logger
 

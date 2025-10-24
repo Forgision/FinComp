@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from app.web.websocket.websocket.server import WebSocketProxy
+from app.web.websocket.server import WebSocketProxy
 
 @pytest.fixture
 def proxy():

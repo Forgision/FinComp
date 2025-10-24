@@ -6,7 +6,7 @@ import threading
 import time
 
 from app.core.schemas.auth_db import get_auth_token
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from app.utils.logging import logger
 

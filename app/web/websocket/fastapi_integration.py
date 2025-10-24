@@ -99,7 +99,7 @@ def start_websocket_server():
             asyncio.set_event_loop(loop)
 
             # Import here to avoid circular imports
-            from app.web.websocket.websocket.server import WebSocketProxy
+            from app.web.websocket.server import WebSocketProxy
 
             ws_host = settings.WEBSOCKET_HOST
             ws_port = settings.WEBSOCKET_PORT

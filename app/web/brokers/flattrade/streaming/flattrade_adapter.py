@@ -12,8 +12,8 @@ from .flattrade_mapping import FlattradeExchangeMapper
 from .flattrade_websocket import FlattradeWebSocket
 from app.core.config import settings
 from app.core.schemas.auth_db import get_auth_token
-from app.web.websocket.websocket.base_adapter import BaseBrokerWebSocketAdapter
-from app.web.websocket.websocket.mapping import SymbolMapper
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.mapping import SymbolMapper
 
 
 # Configuration constants
