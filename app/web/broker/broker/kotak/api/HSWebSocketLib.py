@@ -1,6 +1,6 @@
 import datetime
 import json
-import websocket
+import app.web.websocket
 
 
 from app.utils.logging import logger

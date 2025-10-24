@@ -4,7 +4,7 @@ import os
 import ssl
 import struct
 import time
-import websocket
+import app.web.websocket
 
 import logzero
 from logzero import logger

@@ -4,9 +4,9 @@ def test_iifl_placeholder():
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.web.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
-from app.web.broker.broker.iifl.api.data import BrokerData, get_api_response
-from app.web.broker.broker.iifl.api.order_api import (
+from app.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
+from app.broker.broker.iifl.api.data import BrokerData, get_api_response
+from app.broker.broker.iifl.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -19,7 +19,7 @@ from app.web.broker.broker.iifl.api.order_api import (
     place_order_api,
     place_smartorder_api,
 )
-from app.web.broker.broker.iifl.api.funds import get_margin_data
+from app.broker.broker.iifl.api.funds import get_margin_data
 
 class TestIIFLAuth:
     @pytest.fixture
@@ -121,6 +121,59 @@ class TestIIFLAuth:
 
 class TestIIFLFeedToken:
     @pytest.fixture
+    def mock_httpx_client(self):
+        with patch('app.utils.httpx_client.get_httpx_client') as mock_get_client:
+            mock_client = AsyncMock()
+            mock_get_client.return_value = mock_client
+            yield mock_client
+
+    @pytest.fixture
+    def mock_logger(self):
+        with patch('app.utils.logging.logger', new_callable=MagicMock) as mock_logger:
+            yield mock_logger
+
+    @pytest.mark.asyncio
+    async def test_get_feed_token_success(self, mock_settings, mock_httpx_client, mock_logger):
+        mock_httpx_client.post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"type": "success", "result": {"token": "test_feed_token", "userID": "test_user_id"}}
+        )
+
+        feed_token, user_id, error = get_feed_token()
+
+        mock_httpx_client.post.assert_called_once()
+        assert feed_token == "test_feed_token"
+        assert user_id == "test_user_id"
+        assert error is None
+        mock_logger.info.assert_any_call("Feed Token: test_feed_token")
+
+    @pytest.mark.asyncio
+    async def test_get_feed_token_api_error(self, mock_settings, mock_httpx_client, mock_logger):
+        mock_httpx_client.post.return_value = MagicMock(
+            status_code=400,
+            json=lambda: {"description": "Invalid market credentials"}
+        )
+
+        feed_token, user_id, error = get_feed_token()
+
+        mock_httpx_client.post.assert_called_once()
+        assert feed_token is None
+        assert user_id is None
+        assert "API Error (Feed): Invalid market credentials" in error
+        mock_logger.info.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_feed_token_exception(self, mock_settings, mock_httpx_client, mock_logger):
+        mock_httpx_client.post.side_effect = Exception("Network error for feed token")
+
+        feed_token, user_id, error = get_feed_token()
+
+        mock_httpx_client.post.assert_called_once()
+        assert feed_token is None
+        assert user_id is None
+        assert "An exception occurred: Network error for feed token" in error
+        mock_logger.info.assert_not_called()
+
 class TestIIFLApiResponse:
     @pytest.fixture
     def mock_httpx_client(self):
@@ -326,9 +379,9 @@ class TestIIFLBrokerData:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.web.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
-from app.web.broker.broker.iifl.api.data import BrokerData, get_api_response
-from app.web.broker.broker.iifl.api.data import SymToken, db_session, get_br_symbol
+from app.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
+from app.broker.broker.iifl.api.data import BrokerData, get_api_response
+from app.broker.broker.iifl.api.data import SymToken, db_session, get_br_symbol
 
 
 class TestIIFLAuth:
@@ -554,7 +607,7 @@ class TestIIFLApiResponse:
 
         endpoint = "/test"
         auth = "test_auth_token"
-method = "GET"
+        method = "GET"
         params = {"key": "value"}
         response = get_api_response(endpoint, auth, method, params=params)
 

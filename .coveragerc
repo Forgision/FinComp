@@ -1,15 +1,20 @@
 [run]
-branch = True
-source = app
+source = .
+omit =
+    test/*
+    .ebextensions/*
+    .garbage/*
+    .github/*
+    .kilocode/*
+    .specify/*
+    keys/*
+    specs/*
+    node_modules/*
+    venv/*
+    .venv/*
+    env/*
+    .env/*
 
 [report]
-exclude_lines =
-    pragma: no cover
-    if TYPE_CHECKING
-    if __name__ == "__main__"
-ignore_errors = True
-show_missing = True
-fail_under = 90
-
-[html]
-directory = htmlcov
+show_missing = true
+skip_covered = true

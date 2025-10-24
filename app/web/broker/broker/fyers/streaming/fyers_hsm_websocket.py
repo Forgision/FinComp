@@ -11,7 +11,7 @@ import ssl
 import struct
 import threading
 import time
-import websocket
+import app.web.websocket
 from typing import Dict, List, Optional
 
 

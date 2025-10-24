@@ -5,9 +5,9 @@ import pandas as pd
 from datetime import datetime
 
 # Import the functions and classes to be tested
-from app.web.broker.broker.finvasia.api.auth_api import authenticate_broker, sha256_hash
-from app.web.broker.broker.finvasia.api.data import BrokerData, get_api_response as get_data_api_response
-from app.web.broker.broker.finvasia.api.order_api import (
+from app.broker.broker.finvasia.api.auth_api import authenticate_broker, sha256_hash
+from app.broker.broker.finvasia.api.data import BrokerData, get_api_response as get_data_api_response
+from app.broker.broker.finvasia.api.order_api import (
     get_order_book, get_trade_book, get_positions, get_holdings,
     get_open_position, place_order_api, place_smartorder_api,
     close_all_positions, cancel_order, modify_order, cancel_all_orders_api,

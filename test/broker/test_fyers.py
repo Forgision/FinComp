@@ -5,12 +5,12 @@ import pandas as pd
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
-from app.web.broker.broker.fyers.api.auth_api import authenticate_broker
-from app.web.broker.broker.fyers.api.data import (
+from app.broker.broker.fyers.api.auth_api import authenticate_broker
+from app.broker.broker.fyers.api.data import (
     BrokerData,
     get_api_response as data_get_api_response,
 )
-from app.web.broker.broker.fyers.api.auth_api import authenticate_broker
+from app.broker.broker.fyers.api.auth_api import authenticate_broker
 
 
 # --- Fixtures ---

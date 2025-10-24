@@ -2,11 +2,11 @@ import unittest
 from unittest.mock import patch, MagicMock
 import json
 
-from app.web.broker.broker.dhan.api.auth_api import authenticate_broker
+from app.broker.broker.dhan.api.auth_api import authenticate_broker
 from app.core.config import settings
-from app.web.broker.broker.dhan.api.order_api import get_order_details_api
+from app.broker.broker.dhan.api.order_api import get_order_details_api
 
-class TestDhanIntegration(unittest.TestCase):
+class TestDhanIntegration:
     def setUp(self):
         self.auth_token = "dummy_auth_token"
 

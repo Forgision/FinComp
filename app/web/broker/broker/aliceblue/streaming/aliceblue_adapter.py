@@ -6,7 +6,7 @@ import ssl
 import sys
 import threading
 import time
-import websocket
+import app.web.websocket
 from typing import Any, Dict, List, Optional
 
 from database.auth_db import get_auth_token, get_feed_token

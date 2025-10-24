@@ -8,7 +8,7 @@ import logging
 import ssl
 import threading
 import time
-import websocket
+import app.web.websocket
 
 
 logger = logging.getLogger(__name__)

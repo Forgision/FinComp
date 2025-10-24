@@ -7,7 +7,7 @@ import threading
 import time
 from typing import Any, Callable, Dict, Optional
 
-import websocket
+import app.web.websocket
 from app.utils.logging import logger
 
 

@@ -3,16 +3,16 @@ from unittest.mock import patch, MagicMock
 import json
 import pandas as pd
 
-from app.web.broker.broker.definedge.api.auth_api import authenticate_broker, get_feed_token
-from app.web.broker.broker.definedge.api.data import BrokerData
-from app.web.broker.broker.definedge.api.order_api import (
+from app.broker.broker.definedge.api.auth_api import authenticate_broker, get_feed_token
+from app.broker.broker.definedge.api.data import BrokerData
+from app.broker.broker.definedge.api.order_api import (
     get_order_book, get_trade_book, get_positions, get_holdings,
     get_open_position, place_order_api, place_smartorder_api,
     close_all_positions, cancel_order, modify_order, cancel_all_orders_api
 )
 from app.core.config import settings
 
-class TestDefinedgeIntegration(unittest.TestCase):
+class TestDefinedgeIntegration:
     def setUp(self):
         self.auth_token = "dummy_auth_token"
         self.feed_token = "dummy_feed_token"

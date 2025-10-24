@@ -3,7 +3,7 @@ import json
 import ssl
 import threading
 import time
-import websocket
+import app.web.websocket
 from datetime import datetime, timedelta
 
 

@@ -11,14 +11,14 @@ from app.core.config import settings
 from app.utils.httpx_client import get_httpx_client
 
 # Import the API functions to be tested
-from app.web.broker.broker.groww.api.auth_api import (
+from app.broker.broker.groww.api.auth_api import (
     authenticate_broker,
     generate_totp,
     get_access_token_via_totp,
 )
-from app.web.broker.broker.groww.api.data import BrokerData, get_api_response
-from app.web.broker.broker.groww.api.funds import get_margin_data
-from app.web.broker.broker.groww.api.order_api import (
+from app.broker.broker.groww.api.data import BrokerData, get_api_response
+from app.broker.broker.groww.api.funds import get_margin_data
+from app.broker.broker.groww.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,

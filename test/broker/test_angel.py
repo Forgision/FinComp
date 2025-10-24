@@ -1,24 +1,24 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from app.web.broker.broker.angel.api.auth_api import authenticate_broker
-from app.web.broker.broker.angel.api.data import BrokerData
-from app.web.broker.broker.angel.api.order_api import (
+from app.broker.broker.angel.api.auth_api import authenticate_broker
+from app.broker.broker.angel.api.data import BrokerData
+from app.broker.broker.angel.api.order_api import (
     get_order_book, get_trade_book, get_positions, get_holdings,
     place_order_api, place_smartorder_api, close_all_positions,
     cancel_order, modify_order, cancel_all_orders_api
 )
 import pandas as pd # Import pandas for DataFrame assertions
-# from app.web.broker.broker.angel.api.order_api import place_order_api
+# from app.broker.broker.angel.api.order_api import place_order_api
 
 
-class TestAngelIntegration(unittest.TestCase):
+class TestAngelIntegration:
 
     def setUp(self):
         self.auth_token = "dummy_auth_token"
         self.broker_data = BrokerData(self.auth_token)
 
-    @patch('app.web.broker.broker.angel.api.auth_api.get_httpx_client')
+    @patch('app.broker.broker.angel.api.auth_api.get_httpx_client')
     def test_authenticate_broker_success(self, mock_get_httpx_client):
         mock_client = MagicMock()
         mock_get_httpx_client.return_value = mock_client

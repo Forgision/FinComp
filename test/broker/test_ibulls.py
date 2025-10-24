@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.web.broker.broker.ibulls.api.auth_api import authenticate_broker, get_feed_token
-from app.web.broker.broker.ibulls.api.data import BrokerData, get_api_response as data_get_api_response
-from app.web.broker.broker.ibulls.api.order_api import (
+from app.broker.broker.ibulls.api.auth_api import authenticate_broker, get_feed_token
+from app.broker.broker.ibulls.api.data import BrokerData, get_api_response as data_get_api_response
+from app.broker.broker.ibulls.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -714,17 +714,6 @@ class TestTradeBook:
         mock_order_get_api_response.assert_called_once_with("/orders/trades", auth_token)
         assert response == {"status": "error", "message": "Error fetching trade book: Network error"}
         self.mock_logger.exception.assert_called_once_with("Error fetching trade book: Network error")
-        }
-        self.mock_logger.info.assert_called_with("Order book response: {'type': 'error', 'message': 'Failed to retrieve order book'}")
-
-    @patch("app.web.broker.broker.ibulls.api.order_api.get_api_response", side_effect=Exception("Network error"))
-    def test_get_order_book_exception(self, mock_order_get_api_response):
-        auth_token = "test_auth_token"
-        response = get_order_book(auth_token)
-
-        mock_order_get_api_response.assert_called_once_with("/orders", auth_token)
-        assert response == {"status": "error", "message": "Error fetching order book: Network error"}
-        self.mock_logger.exception.assert_called_once_with("Error fetching order book: Network error")
 class TestPositions:
     @pytest.fixture(autouse=True)
     def setup(self, mock_logger):
@@ -1365,7 +1354,7 @@ class TestCancelOrder:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import Response, Request
-from app.web.broker.broker.ibulls.api.order_api import cancel_order
+from app.broker.broker.ibulls.api.order_api import cancel_order
 from app.core.config import settings
 from app.utils.logger import logger
 

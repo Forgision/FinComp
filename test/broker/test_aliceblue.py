@@ -6,9 +6,9 @@ import pandas as pd
 import pytz
 
 # Assuming the path to your authenticate_broker function
-from app.web.broker.broker.aliceblue.api.auth_api import authenticate_broker
-from app.web.broker.broker.aliceblue.api.data import BrokerData
-from app.web.broker.broker.aliceblue.api.order_api import place_order_api, cancel_order, modify_order, get_order_book, get_trade_book, get_positions, get_holdings
+from app.broker.broker.aliceblue.api.auth_api import authenticate_broker
+from app.broker.broker.aliceblue.api.data import BrokerData
+from app.broker.broker.aliceblue.api.order_api import place_order_api, cancel_order, modify_order, get_order_book, get_trade_book, get_positions, get_holdings
 
 class TestAliceBlueAuth(unittest.TestCase):
 

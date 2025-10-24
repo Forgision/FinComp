@@ -7,7 +7,7 @@ import logging
 import ssl
 import threading
 import time
-import websocket
+import app.web.websocket
 from typing import Any, Callable, Dict, Optional
 
 import certifi

@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 import threading
-import websocket
+import app.web.websocket
 from collections import namedtuple
 
 import requests

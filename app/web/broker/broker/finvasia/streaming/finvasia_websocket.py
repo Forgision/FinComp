@@ -1,7 +1,7 @@
 import json
 import threading
 import time
-import websocket
+import app.web.websocket
 from typing import Any, Callable, Dict, Optional
 
 

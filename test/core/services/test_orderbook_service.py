@@ -2,7 +2,7 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from app.core.services.orderbook_service import get_orderbook
+from core.services.orderbook_service import get_orderbook
 
 
 class TestOrderbookService(unittest.TestCase):
