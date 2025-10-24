@@ -14,13 +14,13 @@ from app.core.schemas.analyzer_db import async_log_analyzer
 from app.core.schemas.apilog_db import executor
 from app.core.schemas.auth_db import verify_api_key
 from app.core.schemas.settings_db import get_analyze_mode
-from app.sandbox.fund_manager import get_user_funds
-from app.sandbox.holdings_manager import HoldingsManager
+from app.algo.sandbox.fund_manager import get_user_funds
+from app.algo.sandbox.holdings_manager import HoldingsManager
 
 # Import sandbox managers
-from app.sandbox.order_manager import OrderManager
-from app.sandbox.position_manager import PositionManager
-from app.sandbox.squareoff_thread import (
+from app.algo.sandbox.order_manager import OrderManager
+from app.algo.sandbox.position_manager import PositionManager
+from app.algo.sandbox.squareoff_thread import (
     get_squareoff_scheduler_status,
     reload_squareoff_schedule,
 )

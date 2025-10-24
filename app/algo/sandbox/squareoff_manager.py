@@ -20,7 +20,7 @@ from app.core.schemas.sandbox_db import (
     get_config,
     init_db,
 )
-from app.sandbox.position_manager import PositionManager
+from app.algo.sandbox.position_manager import PositionManager
 from app.utils.logging import logger
 
 

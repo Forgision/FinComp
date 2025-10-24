@@ -30,7 +30,7 @@ class ExecutionEngineThread(threading.Thread):
 
     def run(self):
         """Main thread loop"""
-        from app.sandbox.execution_engine import ExecutionEngine
+        from app.algo.sandbox.execution_engine import ExecutionEngine
 
         logger.info("Sandbox Execution Engine thread started")
         engine = ExecutionEngine()

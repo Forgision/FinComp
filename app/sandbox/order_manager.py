@@ -18,7 +18,7 @@ import pytz
 from app.core.schemas.sandbox_db import SandboxOrders, SandboxPositions, SandboxHoldings
 from app.core.schemas.session import db_session
 from app.core.schemas.symbol import SymToken
-from app.sandbox.fund_manager import FundManager
+from app.algo.sandbox.fund_manager import FundManager
 from app.utils.logging import logger
 
 
@@ -108,7 +108,7 @@ class OrderManager:
             if product == 'MIS':
                 from datetime import time
 
-                from app.sandbox.squareoff_manager import SquareOffManager
+                from app.algo.sandbox.squareoff_manager import SquareOffManager
 
                 som = SquareOffManager()
                 square_off_time = som.square_off_times.get(exchange)
@@ -204,7 +204,7 @@ class OrderManager:
             if price_type == 'MARKET':
                 # For MARKET orders, fetch current LTP for margin calculation
                 try:
-                    from app.sandbox.execution_engine import ExecutionEngine
+                    from app.algo.sandbox.execution_engine import ExecutionEngine
                     engine = ExecutionEngine()
                     quote = engine._fetch_quote(symbol, exchange)
                     if quote and quote.get('ltp'):
@@ -422,7 +422,7 @@ class OrderManager:
             # Execute MARKET orders immediately
             if price_type == 'MARKET':
                 try:
-                    from app.sandbox.execution_engine import ExecutionEngine
+                    from app.algo.sandbox.execution_engine import ExecutionEngine
                     engine = ExecutionEngine()
 
                     # Fetch current quote
@@ -599,7 +599,7 @@ class OrderManager:
                         if not order.price:
                             # If price is not set (old MARKET orders), fetch current LTP
                             try:
-                                from app.sandbox.execution_engine import ExecutionEngine
+                                from app.algo.sandbox.execution_engine import ExecutionEngine
                                 engine = ExecutionEngine()
                                 quote = engine._fetch_quote(order.symbol, order.exchange)
                                 if quote and quote.get('ltp'):

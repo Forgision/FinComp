@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.schemas.session import get_db
 from app.core.schemas.settings_db import get_analyze_mode, set_analyze_mode
-from app.sandbox.execution_thread import start_execution_engine, stop_execution_engine
+from app.algo.sandbox.execution_thread import start_execution_engine, stop_execution_engine
 from app.utils.logging import logger
 
 settings_router = APIRouter(

@@ -31,7 +31,7 @@ from app.core.schemas.sandbox_db import (
     db_session,
     get_config,
 )
-from app.sandbox.fund_manager import FundManager
+from app.algo.sandbox.fund_manager import FundManager
 from app.utils.logging import logger
 
 
