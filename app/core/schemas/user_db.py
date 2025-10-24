@@ -125,6 +125,7 @@ def authenticate_user(username, password):
         if user and user.check_password(password):
             username_cache[cache_key] = user  # Cache the User object
             return True
+        username_cache[cache_key] = None # Cache the None value
         return False
 
 def find_user_by_email(email):
