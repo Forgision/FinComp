@@ -1,4 +1,3 @@
-import pytest
 
 def test_example_unit_test():
     """A basic example unit test."""

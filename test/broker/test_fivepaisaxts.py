@@ -1,14 +1,13 @@
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.broker.broker.fivepaisaxts.api.auth_api import (
+from app.web.brokers.fivepaisaxts.api.auth_api import (
     authenticate_broker,
     get_feed_token,
 )
-from app.broker.broker.fivepaisaxts.api.data import BrokerData, get_api_response
-from app.broker.broker.fivepaisaxts.api.order_api import (
+from app.web.brokers.fivepaisaxts.api.data import BrokerData, get_api_response
+from app.web.brokers.fivepaisaxts.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,

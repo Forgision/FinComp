@@ -113,7 +113,7 @@ async def update_config(request: Request, db: Session = Depends(get_db)):
             # If starting_capital was updated, update all user funds immediately
             if config_key == 'starting_capital':
                 try:
-                    # from database.sandbox_db import SandboxFunds, db_session
+                    # from app.core.schemas.sandbox_db import SandboxFunds, db_session
                     # from decimal import Decimal
 
                     new_capital = Decimal(str(config_value))

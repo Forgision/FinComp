@@ -1,24 +1,21 @@
 import json
-import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pandas as pd
 import pytest
 import pytz
-from app.core.config import settings
-from app.utils.httpx_client import get_httpx_client
 
 # Import the API functions to be tested
-from app.broker.broker.groww.api.auth_api import (
+from app.web.brokers.groww.api.auth_api import (
     authenticate_broker,
     generate_totp,
     get_access_token_via_totp,
 )
-from app.broker.broker.groww.api.data import BrokerData, get_api_response
-from app.broker.broker.groww.api.funds import get_margin_data
-from app.broker.broker.groww.api.order_api import (
+from app.web.brokers.groww.api.data import BrokerData
+from app.web.brokers.groww.api.funds import get_margin_data
+from app.web.brokers.groww.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -27,12 +24,9 @@ from app.broker.broker.groww.api.order_api import (
     direct_place_order_api,
     get_holdings,
     get_open_position,
-    get_order_book,
     get_order_trades,
     get_positions,
     get_trade_book,
-    modify_order,
-    place_order_api,
     place_smartorder_api,
 )
 

@@ -1,18 +1,16 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
 import json
 import pandas as pd
 from datetime import datetime, timedelta
 
-from app.broker.broker.flattrade.api.auth_api import authenticate_broker, authenticate_broker_oauth, sha256_hash
-from app.broker.broker.flattrade.api.data import BrokerData, get_api_response
-from app.broker.broker.flattrade.api.order_api import (
+from app.web.brokers.flattrade.api.auth_api import authenticate_broker, authenticate_broker_oauth, sha256_hash
+from app.web.brokers.flattrade.api.data import BrokerData, get_api_response
+from app.web.brokers.flattrade.api.order_api import (
     place_order_api, cancel_order, modify_order, close_all_positions,
     place_smartorder_api, cancel_all_orders_api, get_order_book, get_trade_book,
     get_positions, get_holdings, get_open_position
 )
-from app.core.config import settings
 
 # Mock settings for testing
 @pytest.fixture(autouse=True)

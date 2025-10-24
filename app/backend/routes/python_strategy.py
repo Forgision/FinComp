@@ -229,7 +229,7 @@ def save_env_variables(strategy_id: str, regular_vars: Dict[str, str], secure_va
             os.chmod(SECURE_ENV_FILE, 0o600)
 
 def get_active_broker(db: Session):
-    """Get the active broker from database (last logged in user's broker)"""
+    """Get the active broker from app.core.schemas (last logged in user's broker)"""
     try:
         # Get the most recent auth entry (last logged in user)
         auth_obj = db.query(DBAuth).filter_by(is_revoked=False).order_by(DBAuth.id.desc()).first()
@@ -246,7 +246,7 @@ def check_master_contract_ready(db: Session, request: Request, skip_on_startup: 
         # First try to get broker from session (if available)
         broker = request.session.get('broker') if hasattr(request, 'session') else None
 
-        # If no session broker, try to get from database (for app restart scenarios)
+        # If no session broker, try to get from app.core.schemas (for app restart scenarios)
         if not broker:
             broker = get_active_broker(db)
 

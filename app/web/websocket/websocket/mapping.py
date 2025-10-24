@@ -39,7 +39,7 @@ class SymbolMapper:
             dict: Token data with 'token' and 'brexchange' or None if not found
         """
         try:
-            # Get token from database
+            # Get token from app.core.schemas
             token = get_token(symbol, exchange)
             brexchange = get_brexchange(symbol, exchange)
 

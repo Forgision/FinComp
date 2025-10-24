@@ -1,4 +1,4 @@
-from app.db.traffic_db import logs_session
+from app.core.schemas.traffic_db import logs_session
 
 
 class TrafficLoggerMiddleware:
@@ -28,7 +28,7 @@ class TrafficLoggerMiddleware:
 def init_traffic_logging(app):
     """Initialize traffic logging middleware"""
     # Initialize the logs database
-    from database.traffic_db import init_logs_db
+    from app.core.schemas.traffic_db import init_logs_db
     init_logs_db()
 
     # Add middleware

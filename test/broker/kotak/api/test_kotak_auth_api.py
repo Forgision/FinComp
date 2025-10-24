@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from app.broker.broker.kotak.api.auth_api import authenticate_broker
+from app.web.brokers.kotak.api.auth_api import authenticate_broker
 
 
 class TestKotakAuthApi(unittest.TestCase):

@@ -759,7 +759,7 @@ async def webhook(webhook_id: str, request: Request, db: Session = Depends(get_d
         if not mapping:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'No mapping found for symbol {data["symbol"]}')
 
-        # Get API key from database
+        # Get API key from app.core.schemas
         api_key = get_api_key_for_tradingview(db, strategy.user_id)
         if not api_key:
             logger.error(f'No API key found for user {strategy.user_id}')

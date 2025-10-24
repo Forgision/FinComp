@@ -259,7 +259,7 @@ class Error404Tracker(LogBase):
             if IPBan.is_ip_banned(ip_address):
                 return False
 
-            # Get security settings from database
+            # Get security settings from app.core.schemas
             security_settings = get_security_settings()
             threshold_404 = security_settings['404_threshold']
             ban_duration_404 = security_settings['404_ban_duration']
@@ -359,7 +359,7 @@ class InvalidAPIKeyTracker(LogBase):
             if IPBan.is_ip_banned(ip_address):
                 return False
 
-            # Get security settings from database
+            # Get security settings from app.core.schemas
             security_settings = get_security_settings()
             threshold_api = security_settings['api_threshold']
             ban_duration_api = security_settings['api_ban_duration']
@@ -444,7 +444,7 @@ class InvalidAPIKeyTracker(LogBase):
 
 def init_logs_db():
     """Initialize the logs database"""
-    # Extract directory from database URL and create if it doesn't exist
+    # Extract directory from app.core.schemas URL and create if it doesn't exist
     db_path = LOGS_DATABASE_URL.replace('sqlite:///', '')
     db_dir = os.path.dirname(db_path)
     if db_dir:

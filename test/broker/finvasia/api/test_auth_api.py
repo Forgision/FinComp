@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import json
 import hashlib
 
-from app.broker.broker.finvasia.api.auth_api import sha256_hash, authenticate_broker
+from app.web.brokers.finvasia.api.auth_api import sha256_hash, authenticate_broker
 
 class TestAuthAPI(unittest.TestCase):
 

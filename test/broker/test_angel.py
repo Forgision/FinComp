@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from app.broker.broker.angel.api.auth_api import authenticate_broker
-from app.broker.broker.angel.api.data import BrokerData
-from app.broker.broker.angel.api.order_api import (
+from app.web.brokers.angel.api.auth_api import authenticate_broker
+from app.web.brokers.angel.api.data import BrokerData
+from app.web.brokers.angel.api.order_api import (
     get_order_book, get_trade_book, get_positions, get_holdings,
     place_order_api, place_smartorder_api, close_all_positions,
     cancel_order, modify_order, cancel_all_orders_api
 )
 import pandas as pd # Import pandas for DataFrame assertions
-# from app.broker.broker.angel.api.order_api import place_order_api
+# from app.web.brokers.angel.api.order_api import place_order_api
 
 
 class TestAngelIntegration:

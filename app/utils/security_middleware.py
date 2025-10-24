@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 
-from database.traffic_db import IPBan
+from app.core.schemas.traffic_db import IPBan
 from flask import abort, jsonify
 from app.utils.ip_helper import get_real_ip, get_real_ip_from_environ
 

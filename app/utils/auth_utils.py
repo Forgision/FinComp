@@ -58,7 +58,7 @@ def async_master_contract_download(broker):
 
         # Try to get the symbol count from the database
         try:
-            from database.token_db import get_symbol_count
+            from app.core.schemas.token_db import get_symbol_count
             total_symbols = get_symbol_count()
         except Exception:
             total_symbols = None
@@ -69,7 +69,7 @@ def async_master_contract_download(broker):
 
         # Load symbols into memory cache after successful download
         try:
-            from database.master_contract_cache_hook import (
+            from app.core.schemas.master_contract_cache_hook import (
                 hook_into_master_contract_download,
             )
             logger.info(f"Loading symbols into memory cache for broker: {broker}")
@@ -142,7 +142,7 @@ def get_feed_token(request: Request):
     if 'FEED_TOKEN' in request.session:
         return request.session['FEED_TOKEN']
 
-    # If not in session but user is logged in, try to get from database
+    # If not in session but user is logged in, try to get from app.core.schemas
     if 'logged_in' in request.session and request.session['logged_in'] and 'user_session_key' in request.session:
         return db_get_feed_token(request.session['user_session_key'])
 

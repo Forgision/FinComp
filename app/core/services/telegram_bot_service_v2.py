@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # Database imports
-from app.db.telegram_db import (
+from app.core.schemas.telegram_db import (
     create_or_update_telegram_user,
     delete_telegram_user,
     get_bot_config,

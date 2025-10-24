@@ -1,36 +1,19 @@
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import json
-from datetime import datetime, timedelta
-import pandas as pd
+from datetime import datetime
 from pytz import timezone
 from unittest.mock import ANY
 
-IST = timezone('Asia/Kolkata')
-
-from app.broker.broker.indmoney.api.auth_api import authenticate_broker
-from app.broker.broker.indmoney.api.data import BrokerData, get_api_response as get_data_api_response
-from app.broker.broker.indmoney.api.funds import get_margin_data, DEFAULT_MARGIN_RESPONSE
-from app.broker.broker.indmoney.api.order_api import (
+from app.web.brokers.indmoney.api.auth_api import authenticate_broker
+from app.web.brokers.indmoney.api.data import BrokerData, get_api_response as get_data_api_response
+from app.web.brokers.indmoney.api.funds import get_margin_data, DEFAULT_MARGIN_RESPONSE
+from app.web.brokers.indmoney.api.order_api import (
     get_api_response as get_order_api_response,
-    get_order_book,
-    get_trade_book,
-    get_positions,
-    get_holdings,
-    get_open_position,
-    place_order_api,
-    place_smartorder_api,
-    close_all_positions,
-    cancel_order,
-    modify_order,
-    cancel_all_orders_api
+    get_positions
 )
-from app.core.config import settings
-from app.utils.httpx_client import get_httpx_client
-from app.utils.logging import logger
-from app.core.schemas.token_db import get_token, get_br_symbol, get_symbol
-from app.broker.broker.indmoney.api.baseurl import get_url
-from app.broker.broker.indmoney.mapping.transform_data import transform_data, transform_modify_order_data, map_exchange_type, map_product_type
+
+IST = timezone('Asia/Kolkata')
 
 
 # Fixtures for common mocks
@@ -570,7 +553,7 @@ class TestIndmoneyFunds:
 
         assert result == DEFAULT_MARGIN_RESPONSE
         self.mock_httpx_client.get.assert_called_once()
-        self.mock_logger.error.assert_called_with(f"Failed to parse API response: Invalid JSON")
+        self.mock_logger.error.assert_called_with("Failed to parse API response: Invalid JSON")
         self.mock_logger.debug.assert_called_with(f"Response content: {invalid_json_text[:500]}...")
 
     @pytest.mark.asyncio

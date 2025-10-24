@@ -81,7 +81,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 
         # Clear symbol cache
         try:
-            from app.db.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:

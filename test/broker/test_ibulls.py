@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.broker.broker.ibulls.api.auth_api import authenticate_broker, get_feed_token
-from app.broker.broker.ibulls.api.data import BrokerData, get_api_response as data_get_api_response
-from app.broker.broker.ibulls.api.order_api import (
+from app.web.brokers.ibulls.api.auth_api import authenticate_broker, get_feed_token
+from app.web.brokers.ibulls.api.data import BrokerData, get_api_response as data_get_api_response
+from app.web.brokers.ibulls.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -1354,7 +1354,7 @@ class TestCancelOrder:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import Response, Request
-from app.broker.broker.ibulls.api.order_api import cancel_order
+from app.web.brokers.ibulls.api.order_api import cancel_order
 from app.core.config import settings
 from app.utils.logger import logger
 

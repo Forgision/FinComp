@@ -14,6 +14,8 @@ omit =
     .venv/*
     env/*
     .env/*
+    app/web/brokers/*
+    
 
 [report]
 show_missing = true

@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.web.websocket.websocket.server import WebSocketProxy
 

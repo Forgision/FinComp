@@ -661,7 +661,7 @@ async def webhook(webhook_id: str, request: Request, db: Session = Depends(get_d
 
         mapping_dict = {m.chartink_symbol: m for m in mappings}
 
-        # Get API key from database
+        # Get API key from app.core.schemas
         api_key = get_api_key_for_tradingview(db, strategy.user_id)
         if not api_key:
             logger.error(f'No API key found for user {strategy.user_id}')

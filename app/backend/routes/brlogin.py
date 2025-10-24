@@ -286,7 +286,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
         # Validate authentication by testing funds API before proceeding
         if auth_token:
             # Import the funds function to test authentication
-            from app.web.broker.dhan.api.funds import test_auth_token
+            from app.web.brokers.dhan.api.funds import test_auth_token
             is_valid, validation_error = test_auth_token(auth_token)
 
             if not is_valid:
@@ -423,7 +423,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
             api_secret = settings.BROKER_API_SECRET
 
             # Import the step1 function to trigger OTP
-            from app.web.broker.definedge.api.auth_api import login_step1
+            from app.web.brokers.definedge.api.auth_api import login_step1
 
             try:
                 step1_response = await login_step1(api_token, api_secret)
@@ -451,7 +451,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
                 api_token = settings.BROKER_API_KEY
                 api_secret = settings.BROKER_API_SECRET
 
-                from app.web.broker.definedge.api.auth_api import login_step1
+                from app.web.brokers.definedge.api.auth_api import login_step1
 
                 try:
                     step1_response = await login_step1(api_token, api_secret)
@@ -481,7 +481,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
                 api_secret = settings.BROKER_API_SECRET
 
                 # Use authenticate_broker for OTP verification
-                from app.web.broker.definedge.api.auth_api import authenticate_broker
+                from app.web.brokers.definedge.api.auth_api import authenticate_broker
 
                 try:
                     # Call authenticate_broker with OTP token and code
@@ -520,7 +520,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
             # For Compositedge, handle missing session user
             if broker == 'compositedge' and 'user' not in request.session:
                 # Get the admin user from the database
-                from app.db.user_db import find_user_by_username
+                from app.core.schemas.user_db import find_user_by_username
                 admin_user = await find_user_by_username()
                 if admin_user:
                     # Use the admin user's username

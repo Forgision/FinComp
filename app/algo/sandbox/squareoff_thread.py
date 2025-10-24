@@ -40,7 +40,7 @@ def _schedule_square_off_jobs(scheduler):
 
     som = SquareOffManager()
 
-    # Get configured times from database
+    # Get configured times from app.core.schemas
     square_off_configs = {
         'NSE_BSE': get_config('nse_bse_square_off_time', '15:15'),
         'CDS_BCD': get_config('cds_bcd_square_off_time', '16:45'),

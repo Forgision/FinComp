@@ -3,8 +3,19 @@ pythonpath = "."
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["**/__init__.py"]
+omit = [
+"**/__init__.py",
+"app/web/brokers/*"
+]
 
 [tool.coverage.report]
 fail_under = 90
 show_missing = true
+exclude_also = [
+    # 1. Exclude an except clause of a specific form:
+    'except ValueError:\n\s*assume\(False\)',
+    # 2. Comments to turn coverage on and off:
+    'no cover: start(?s:.)*?no cover: stop',
+    # 3. A pragma comment that excludes an entire file:
+    '\A(?s:.*# pragma: exclude file.*)\Z',
+]

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from app.db.user_db import User
+from app.core.schemas.user_db import User
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 

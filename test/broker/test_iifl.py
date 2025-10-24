@@ -4,9 +4,9 @@ def test_iifl_placeholder():
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
-from app.broker.broker.iifl.api.data import BrokerData, get_api_response
-from app.broker.broker.iifl.api.order_api import (
+from app.web.brokers.iifl.api.auth_api import authenticate_broker, get_feed_token
+from app.web.brokers.iifl.api.data import BrokerData, get_api_response
+from app.web.brokers.iifl.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -19,7 +19,7 @@ from app.broker.broker.iifl.api.order_api import (
     place_order_api,
     place_smartorder_api,
 )
-from app.broker.broker.iifl.api.funds import get_margin_data
+from app.web.brokers.iifl.api.funds import get_margin_data
 
 class TestIIFLAuth:
     @pytest.fixture
@@ -377,11 +377,7 @@ class TestIIFLBrokerData:
         mock_logger.info.assert_not_called()
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.broker.broker.iifl.api.auth_api import authenticate_broker, get_feed_token
-from app.broker.broker.iifl.api.data import BrokerData, get_api_response
-from app.broker.broker.iifl.api.data import SymToken, db_session, get_br_symbol
 
 
 class TestIIFLAuth:
@@ -653,7 +649,7 @@ class TestIIFLApiResponse:
             get_api_response(endpoint, auth, method, payload)
 
         assert "API request failed: Network Error" in str(excinfo.value)
-        mock_logger.error.assert_called_with(f"API request failed: Network Error")
+        mock_logger.error.assert_called_with("API request failed: Network Error")
 
 
 class TestIIFLBrokerData_GetInstrumentToken:

@@ -65,7 +65,7 @@ def get_tradebook_with_auth(auth_token: str, broker: str, original_data: Dict[st
     """
     # If in analyze mode AND we have original_data (API call), route to sandbox
     # If original_data is None (internal call), use live broker
-    from database.settings_db import get_analyze_mode
+    from app.core.schemas.settings_db import get_analyze_mode
     if get_analyze_mode() and original_data:
         from services.sandbox_service import sandbox_get_tradebook
 

@@ -359,7 +359,7 @@ class WebSocketProxy:
 
     async def get_user_broker_configuration(self, user_id):
         """
-        Get the broker configuration for a specific user from database
+        Get the broker configuration for a specific user from app.core.schemas
 
         Args:
             user_id: User ID to get broker configuration for
@@ -372,7 +372,7 @@ class WebSocketProxy:
 
             from app.core.schemas.session import db_session
 
-            # Get user's connected broker from database
+            # Get user's connected broker from app.core.schemas
             # This queries the auth_token table to find the user's active broker
             query = text("""
                 SELECT broker FROM auth_token
@@ -385,7 +385,7 @@ class WebSocketProxy:
 
             if result and result.broker:
                 broker_name = result.broker
-                logger.info(f"Found broker '{broker_name}' for user {user_id} from database")
+                logger.info(f"Found broker '{broker_name}' for user {user_id} from app.core.schemas")
             else:
                 # Fallback to environment variable
                 valid_brokers = settings.VALID_BROKERS.split(',')

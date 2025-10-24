@@ -1,16 +1,13 @@
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
-from app.broker.broker.fyers.api.auth_api import authenticate_broker
-from app.broker.broker.fyers.api.data import (
+from app.web.brokers.fyers.api.auth_api import authenticate_broker
+from app.web.brokers.fyers.api.data import (
     BrokerData,
-    get_api_response as data_get_api_response,
 )
-from app.broker.broker.fyers.api.auth_api import authenticate_broker
 
 
 # --- Fixtures ---

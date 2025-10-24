@@ -3,9 +3,9 @@ from unittest.mock import patch, MagicMock
 import json
 import pandas as pd
 
-from app.broker.broker.definedge.api.auth_api import authenticate_broker, get_feed_token
-from app.broker.broker.definedge.api.data import BrokerData
-from app.broker.broker.definedge.api.order_api import (
+from app.web.brokers.definedge.api.auth_api import authenticate_broker, get_feed_token
+from app.web.brokers.definedge.api.data import BrokerData
+from app.web.brokers.definedge.api.order_api import (
     get_order_book, get_trade_book, get_positions, get_holdings,
     get_open_position, place_order_api, place_smartorder_api,
     close_all_positions, cancel_order, modify_order, cancel_all_orders_api

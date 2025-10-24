@@ -4,10 +4,10 @@ import time
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.db.analyzer_db import async_log_analyzer
-from app.db.apilog_db import async_log_order, executor
-from app.db.auth_db import get_auth_token_broker
-from app.db.settings_db import get_analyze_mode
+from app.core.schemas.analyzer_db import async_log_analyzer
+from app.core.schemas.apilog_db import async_log_order, executor
+from app.core.schemas.auth_db import get_auth_token_broker
+from app.core.schemas.settings_db import get_analyze_mode
 from services.telegram_alert_service import telegram_alert_service
 
 from app.utils.constants import (

@@ -1,13 +1,12 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-import pytz
 from app.core.config import settings
-from app.broker.broker.fivepaisa.api.auth_api import authenticate_broker
-from app.broker.broker.fivepaisa.api.data import BrokerData, get_api_response, map_interval
-from app.broker.broker.fivepaisa.api.order_api import (
+from app.web.brokers.fivepaisa.api.auth_api import authenticate_broker
+from app.web.brokers.fivepaisa.api.data import BrokerData, get_api_response, map_interval
+from app.web.brokers.fivepaisa.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
