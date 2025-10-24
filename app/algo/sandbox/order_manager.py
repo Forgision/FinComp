@@ -103,7 +103,7 @@ class OrderManager:
                 }, 400
 
             # Validate lot size for F&O
-            if exchange in ['NFO', 'BFO', 'CDS', 'BCD', 'MCX', 'NCDEX']:
+            if exchange in ['NFO', 'BFO', 'CDS', 'BCD', 'MCX', 'NCDEX'] and symbol_obj.lotsize is not None:
                 lot_size = symbol_obj.lotsize or 1
                 if quantity % lot_size != 0:
                     return False, {
@@ -500,7 +500,7 @@ class OrderManager:
                     symbol=order.symbol,
                     exchange=order.exchange
                 ).first()
-                if symbol_obj and order.exchange in ['NFO', 'BFO', 'CDS', 'BCD', 'MCX', 'NCDEX']:
+                if symbol_obj and order.exchange in ['NFO', 'BFO', 'CDS', 'BCD', 'MCX', 'NCDEX'] and symbol_obj.lotsize is not None:
                     lot_size = symbol_obj.lotsize or 1
                     if new_quantity % lot_size != 0:
                         return False, {
