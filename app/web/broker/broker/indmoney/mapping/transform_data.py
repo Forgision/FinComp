@@ -2,9 +2,9 @@
 #Mapping Indmoney API Parameters https://api.indstocks.com/
 from flask import session
 
-from app.db.auth_db import get_auth_token
-from app.db.token_db import get_br_symbol
-from app.web.broker.indmoney.api.data import BrokerData
+from app.core.schemas.auth_db import get_auth_token
+from app.core.schemas.token_db import get_br_symbol
+from ..api.data import BrokerData
 
 from app.utils.logging import logger
 

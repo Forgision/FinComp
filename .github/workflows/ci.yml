@@ -42,3 +42,19 @@ jobs:
       - name: Run Mypy checks
         run: |
           uv run mypy .
+
+      - name: Run tests with pytest and coverage
+        run: |
+          uv run pytest --cov=app --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-xml
+          path: coverage.xml
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-html
+          path: htmlcov

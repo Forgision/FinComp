@@ -1,20 +1,20 @@
 import json
 
-from app.web.broker.indmoney.api.baseurl import get_url
-from app.web.broker.indmoney.mapping.transform_data import (
+from .baseurl import get_url
+from ..mapping.transform_data import (
     map_exchange_type,
     map_product_type,
     transform_data,
     transform_modify_order_data,
 )
-from database.token_db import get_br_symbol, get_symbol, get_token
+from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings
 from app.utils.logging import logger
 
 
-def get_api_response(endpoint, auth, method="GET", payload=''):
+async def get_api_response(endpoint, auth, method="GET", payload=''):
 
     AUTH_TOKEN = auth
 
@@ -31,11 +31,11 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
 
     try:
         if method == "GET":
-            response = client.get(url, headers=headers)
+            response = await client.get(url, headers=headers)
         elif method == "POST":
-            response = client.post(url, headers=headers, content=payload)
+            response = await client.post(url, headers=headers, content=payload)
         else:
-            response = client.request(method, url, headers=headers, content=payload)
+            response = await client.request(method, url, headers=headers, content=payload)
 
         # Add status attribute for compatibility with existing codebase
         response.status = response.status_code
@@ -175,7 +175,7 @@ def get_open_position(tradingsymbol, exchange, product, auth):
 
     return net_qty
 
-def place_order_api(data,auth):
+async def place_order_api(data,auth):
     AUTH_TOKEN = auth
     BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
@@ -200,7 +200,7 @@ def place_order_api(data,auth):
     client = get_httpx_client()
 
     url = get_url("/order")
-    res = client.post(url, headers=headers, content=payload)
+    res = await client.post(url, headers=headers, content=payload)
     # Add status attribute for compatibility with existing codebase
     res.status = res.status_code
 
@@ -414,7 +414,7 @@ def close_all_positions(current_api_key,auth):
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
 
 
-def cancel_order(orderid,auth):
+async def cancel_order(orderid,auth):
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
 
@@ -436,7 +436,7 @@ def cancel_order(orderid,auth):
 
     # Make the POST request to cancel order using httpx
     url = get_url("/order/cancel")
-    res = client.post(url, headers=headers, content=json.dumps(payload))
+    res = await client.post(url, headers=headers, content=json.dumps(payload))
 
     # Add status attribute for compatibility with existing codebase
     res.status = res.status_code
@@ -459,7 +459,7 @@ def cancel_order(orderid,auth):
         return {"status": "error", "message": error_msg}, res.status
 
 
-def modify_order(data,auth):
+async def modify_order(data,auth):
 
 
 
@@ -489,7 +489,7 @@ def modify_order(data,auth):
     url = get_url("/order/modify")
 
     # Make the POST request using httpx
-    res = client.post(url, headers=headers, content=payload)
+    res = await client.post(url, headers=headers, content=payload)
 
     # Add status attribute for compatibility with existing codebase
     res.status = res.status_code
@@ -510,7 +510,7 @@ def modify_order(data,auth):
         return {"status": "error", "message": error_msg}, res.status
 
 
-def cancel_all_orders_api(data,auth):
+async def cancel_all_orders_api(data,auth):
     # Get the order book
     AUTH_TOKEN = auth
     order_book_response = get_order_book(AUTH_TOKEN)

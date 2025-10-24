@@ -1,7 +1,7 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Zerodha Broking Parameters https://kite.trade/docs/connect/v3/
 
-from database.token_db import get_br_symbol, get_token
+from app.core.schemas.token_db import get_br_symbol, get_token
 
 
 def transform_data(data):

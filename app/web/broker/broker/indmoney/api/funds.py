@@ -2,7 +2,7 @@
 
 import json
 
-from app.web.broker.indmoney.api.baseurl import get_url
+from .baseurl import get_url
 
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger

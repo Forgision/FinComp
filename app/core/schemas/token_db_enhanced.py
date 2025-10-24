@@ -94,7 +94,7 @@ class BrokerSymbolCache:
         This is called once after master contract download
         """
         try:
-            from database.symbol import SymToken
+            from app.core.schemas.symbol import SymToken
 
             start_time = time.time()
             logger.info(f"Loading all symbols for broker: {broker}")

@@ -1,9 +1,3 @@
-import unittest
-
-
-class TestUpstox(unittest.TestCase):
-    def test_example(self):
-        self.assertTrue(True)
-
-if __name__ == '__main__':
-    unittest.main()
+def test_upstox_placeholder():
+    # TODO: Implement actual tests for Upstox broker integration.
+    assert True

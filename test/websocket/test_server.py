@@ -1,45 +1,36 @@
-import unittest
+import pytest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.web.websocket.websocket.server import WebSocketProxy
 
+@pytest.fixture
+def proxy():
+    return WebSocketProxy()
 
-class TestWebSocketProxy(unittest.TestCase):
+@pytest.mark.asyncio
+@patch('app.web.websocket.websocket.server.verify_api_key', return_value="test_user")
+@patch('app.web.websocket.websocket.server.get_broker_name', return_value="finvasia")
+@patch('app.web.websocket.websocket.server.create_broker_adapter')
+async def test_authenticate_client_success(mock_create_broker_adapter, mock_get_broker_name, mock_verify_api_key, proxy):
+    mock_adapter = MagicMock()
+    mock_adapter.initialize.return_value = {"success": True}
+    mock_adapter.connect.return_value = {"success": True}
+    mock_create_broker_adapter.return_value = mock_adapter
 
-    @patch('app.web.websocket.websocket.server.websockets.serve')
-    @patch('app.web.websocket.websocket.server.zmq.asyncio.Context')
-    def setUp(self, mock_zmq_context, mock_websockets_serve):
-        self.proxy = WebSocketProxy()
+    client_id = 12345
+    proxy.clients[client_id] = AsyncMock()
 
-    @patch('app.web.websocket.websocket.server.verify_api_key', return_value="test_user")
-    @patch('app.web.websocket.websocket.server.get_broker_name', return_value="finvasia")
-    @patch('app.web.websocket.websocket.server.create_broker_adapter')
-    def test_authenticate_client_success(self, mock_create_broker_adapter, mock_get_broker_name, mock_verify_api_key):
-        mock_adapter = MagicMock()
-        mock_adapter.initialize.return_value = {"success": True}
-        mock_adapter.connect.return_value = {"success": True}
-        mock_create_broker_adapter.return_value = mock_adapter
-        
-        client_id = 12345
-        self.proxy.clients[client_id] = AsyncMock()
-        
-        async def run_test():
-            await self.proxy.authenticate_client(client_id, {"api_key": "test_api_key"})
-            self.proxy.clients[client_id].send.assert_called_once()
-            # Further assertions can be made on the content of the sent message
+    await proxy.authenticate_client(client_id, {"api_key": "test_api_key"})
+    assert proxy.clients[client_id].send.call_count == 1
+    # Further assertions can be made on the content of the sent message
 
-        asyncio.run(run_test())
 
-    def test_process_client_message_invalid_json(self):
-        client_id = 12345
-        self.proxy.clients[client_id] = AsyncMock()
-        
-        async def run_test():
-            await self.proxy.process_client_message(client_id, "invalid json")
-            self.proxy.clients[client_id].send.assert_called_once()
-            # Assert that an error message was sent
+@pytest.mark.asyncio
+async def test_process_client_message_invalid_json(proxy):
+    client_id = 12345
+    proxy.clients[client_id] = AsyncMock()
 
-        asyncio.run(run_test())
+    await proxy.process_client_message(client_id, "invalid json")
+    assert proxy.clients[client_id].send.call_count == 1
+    # Assert that an error message was sent
 
-if __name__ == '__main__':
-    unittest.main()

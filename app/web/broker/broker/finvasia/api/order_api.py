@@ -44,7 +44,10 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
         raise
 
 def get_order_book(auth):
-    return get_api_response("/v1/orderBook", auth, method="POST")
+    response = get_api_response("/v1/orderBook", auth, method="POST")
+    if isinstance(response, dict) and response.get('stat') == 'Not_Ok':
+        return []
+    return response
 
 def get_trade_book(auth):
     return get_api_response("/v1/tradeBook", auth, method="POST")

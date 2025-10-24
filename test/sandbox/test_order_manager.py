@@ -1,9 +1,6 @@
-import unittest
+import pytest
 
 
-class TestOrderManager(unittest.TestCase):
+class TestOrderManager:
     def test_example(self):
-        self.assertTrue(True)
-
-if __name__ == '__main__':
-    unittest.main()
+        assert True

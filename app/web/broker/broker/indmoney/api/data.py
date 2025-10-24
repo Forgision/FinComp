@@ -2,14 +2,14 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.db.token_db import get_token
-from app.web.broker.indmoney.api.baseurl import get_url
+from app.core.schemas.token_db import get_token
+from .baseurl import get_url
 
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-def get_api_response(endpoint, auth, method="GET", params=None):
+async def get_api_response(endpoint, auth, method="GET", params=None):
     AUTH_TOKEN = auth
 
     if not AUTH_TOKEN:
@@ -43,11 +43,11 @@ def get_api_response(endpoint, auth, method="GET", params=None):
 
     try:
         if method == "GET":
-            res = client.get(url, headers=headers, params=params)
+            res = await client.get(url, headers=headers, params=params)
         elif method == "POST":
-            res = client.post(url, headers=headers, json=params)
+            res = await client.post(url, headers=headers, json=params)
         else:
-            res = client.request(method, url, headers=headers, params=params)
+            res = await client.request(method, url, headers=headers, params=params)
 
         logger.info(f"Request completed. Status code: {res.status_code}")
         logger.info(f"Actual request URL: {res.url}")

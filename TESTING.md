@@ -69,3 +69,46 @@ uv run pytest
 ## 6. Test Coverage
 
 While not yet enforced, the goal is to maintain a high level of test coverage. We will be integrating a coverage tool (like `pytest-cov`) into our CI pipeline in the future to measure and report on this. All new code should strive for a minimum of 80% test coverage.
+
+## 7. Handling Flaky Tests
+
+Flaky tests are tests that occasionally pass and occasionally fail without any code changes. They are a significant source of frustration and can undermine confidence in the test suite. This section outlines the process for identifying, fixing, and quarantining flaky tests.
+
+### a. Identification
+
+- **CI/CD Monitoring**: Flaky tests are often identified through inconsistent failures in the CI/CD pipeline. Tools that track test history can help pinpoint frequently failing tests.
+- **Local Reproduction**: Developers should attempt to reproduce flaky test failures locally multiple times.
+
+### b. Fixing Flaky Tests
+
+- **Isolate the Flakiness**: Determine the root cause of the flakiness. Common causes include:
+    - **Race Conditions**: Tests that depend on the order of execution or timing.
+    - **External Dependencies**: Tests that rely on external services or resources that are not consistently available or return variable data.
+    - **Improper Teardown**: Tests that leave behind state that affects subsequent tests.
+    - **Randomness**: Tests that use random data without proper seeding.
+- **Stabilize the Test**: Implement changes to make the test deterministic:
+    - Use mocks or stubs for external dependencies.
+    - Ensure proper setup and teardown to isolate test runs.
+    - Use fixed seeds for random number generators.
+    - Avoid relying on specific execution order of tests.
+
+### c. Quarantining Flaky Tests
+
+If a flaky test cannot be immediately fixed, it should be quarantined to prevent it from blocking the CI/CD pipeline and eroding developer confidence. Quarantined tests should be:
+
+- **Marked**: Use `pytest.mark.flaky` (if using `pytest-rerunfailures` or similar plugin) or `pytest.mark.skip` with a clear reason and a link to an issue.
+- **Tracked**: Create an issue in the project's issue tracker to track the flaky test and prioritize its fix.
+- **Run Separately (Optional)**: In some cases, flaky tests might be run on a less frequent schedule or in a dedicated pipeline to monitor their behavior without impacting the main CI/CD flow.
+
+**Example of marking a flaky test:**
+
+```python
+import pytest
+
+@pytest.mark.flaky(reruns=5, reruns_delay=2)
+def test_flaky_function():
+    # Test logic that might sometimes fail
+    assert some_flaky_operation()
+```
+
+**Note**: The goal is always to fix flaky tests, not to permanently quarantine them. Quarantining is a temporary measure to maintain productivity while a fix is being developed.

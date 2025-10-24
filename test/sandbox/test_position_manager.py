@@ -1,9 +1,6 @@
-import unittest
+import pytest
 
 
-class TestPositionManager(unittest.TestCase):
+class TestPositionManager:
     def test_example(self):
-        self.assertTrue(True)
-
-if __name__ == '__main__':
-    unittest.main()
+        assert True

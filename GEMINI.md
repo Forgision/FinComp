@@ -49,3 +49,12 @@ The application will be available at `http://0.0.0.0:5000`.
 *   **JavaScript Dependencies:** JavaScript development dependencies are managed using `package.json`.
 *   **API:** The application provides a RESTful API with a unified structure across different brokers.
 *   **Security:** The application includes security features like Content Security Policy (CSP), CORS protection, and CSRF protection.
+
+### Frontend Files
+
+The frontend assets are organized as follows:
+
+*   **HTML Templates:** Located in `app/web/frontend/templates/`. These are Jinja2 templates rendered by Flask.
+*   **CSS Files:** Source CSS is in `src/css/styles.css`. The compiled output is `static/css/main.css`. Additional CSS files for specific components (e.g., `python-editor.css`, `tradingview.css`) are located in `app/web/frontend/static/css/`.
+*   **JavaScript Files:** Located in `app/web/frontend/static/js/`. These include application logic, theme management, and third-party libraries.
+*   **Image & Favicon Files:** Located in `app/web/frontend/static/favicon/` and `app/web/frontend/static/images/`.

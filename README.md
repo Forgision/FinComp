@@ -37,10 +37,18 @@ Key principles include:
    uv venv
    uv pip install -r requirements.txt
    ```
-3. Run the application:
-   ```bash
-   uv run uvicorn app.main:app --reload
-   ```
+
+### Running Tests
+
+To run the test suite locally, use `uv run pytest`:
+
+```bash
+uv run pytest
+```
+
+This command will execute all tests, display pass/fail results, and generate a coverage report.
+
+To view the HTML coverage report, open `htmlcov/index.html` in your web browser after running the tests.
 
 ### Minimum Hardware Requirements
 

@@ -1,4 +1,15 @@
 [run]
-omit =
-    test/*
-    */__init__.py
+branch = True
+source = app
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING
+    if __name__ == "__main__"
+ignore_errors = True
+show_missing = True
+fail_under = 90
+
+[html]
+directory = htmlcov

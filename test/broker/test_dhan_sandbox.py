@@ -1,9 +1,3 @@
-import unittest
-
-
-class TestDhanSandbox(unittest.TestCase):
-    def test_example(self):
-        self.assertTrue(True)
-
-if __name__ == '__main__':
-    unittest.main()
+def test_dhan_sandbox_placeholder():
+    # TODO: Implement actual tests for Dhan Sandbox broker integration.
+    assert True
