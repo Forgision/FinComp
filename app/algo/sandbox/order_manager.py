@@ -68,6 +68,9 @@ class OrderManager:
             tuple: (success: bool, response: dict, status_code: int)
         """
         try:
+            # Initialize existing_position to None to avoid unbound variable errors
+            existing_position = None
+
             # Validate order data
             is_valid, validation_msg = self._validate_order(order_data)
             if not is_valid:
@@ -569,7 +572,7 @@ class OrderManager:
             order.update_timestamp = datetime.now(pytz.timezone('Asia/Kolkata'))
 
             # Release blocked margin using the exact amount that was blocked
-            if hasattr(order, 'margin_blocked') and order.margin_blocked and order.margin_blocked > 0:
+            if hasattr(order, 'margin_blocked') and order.margin_blocked is not None and order.margin_blocked > 0:
                 self.fund_manager.release_margin(
                     order.margin_blocked, 0,
                     f"Order cancelled: {orderid}"
