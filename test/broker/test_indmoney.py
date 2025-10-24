@@ -714,3 +714,17 @@ class TestIndmoneyOrderAPI:
         mock_get_api_response.assert_called_once_with("/portfolio/positions", self.auth_token)
         assert result == []
         mock_logger.error.assert_called_once_with(f"Exception in get_positions: {test_exception}")
+
+    @patch('app.web.broker.broker.indmoney.api.order_api.get_api_response')
+    @patch('app.web.broker.broker.indmoney.api.order_api.logger')
+    def test_get_positions_api_error_response(self, mock_logger, mock_get_api_response):
+        """Test that get_positions handles an API error response dictionary."""
+        error_response = {'status': 'error', 'message': 'Failed to fetch positions'}
+        mock_get_api_response.return_value = error_response
+
+        result = get_positions(self.auth_token)
+
+        mock_get_api_response.assert_called_once_with("/portfolio/positions", self.auth_token)
+        assert result == error_response
+        mock_logger.error.assert_not_called() # The error is already logged by get_api_response, get_positions just returns it.
+        mock_logger.warning.assert_not_called()
