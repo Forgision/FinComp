@@ -325,7 +325,7 @@ class OrderManager:
                 # CNC SELL doesn't need margin (selling owned shares)
 
             if should_block_margin:
-                if actual_margin_to_block > 0:
+                if actual_margin_to_block is not None and actual_margin_to_block > 0:
                     # Check and block margin only for new exposure
                     can_trade, margin_check_msg = self.fund_manager.check_margin_available(actual_margin_to_block)
                     if not can_trade:
