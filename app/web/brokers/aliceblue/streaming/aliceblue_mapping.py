@@ -4,7 +4,7 @@ AliceBlue-specific mapping and capability configurations for WebSocket streaming
 
 from typing import Dict, List, Set
 
-from websocket_proxy.mapping import BrokerCapabilityRegistry, ExchangeMapper
+from app.web.websocket.mapping import BrokerCapabilityRegistry, ExchangeMapper
 
 
 class AliceBlueFeedType:

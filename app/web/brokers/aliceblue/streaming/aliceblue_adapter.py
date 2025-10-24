@@ -1,3 +1,4 @@
+import websocket
 import hashlib
 import json
 import logging
@@ -18,7 +19,7 @@ from .aliceblue_client import Aliceblue
 # Add parent directory to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
+from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from .aliceblue_mapping import (
     AliceBlueCapabilityRegistry,

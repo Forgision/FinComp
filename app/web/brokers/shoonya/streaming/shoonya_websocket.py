@@ -5,6 +5,7 @@ Handles connection to Shoonya's market data streaming API
 import json
 import threading
 import time
+import websocket
 from typing import Any, Callable, Dict, Optional
 
 from app.utils.logging import logger

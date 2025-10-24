@@ -1,3 +1,4 @@
+import websocket
 import enum
 import hashlib
 import json

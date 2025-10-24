@@ -1,7 +1,7 @@
 import datetime
 import json
 
-
+import websocket
 from app.utils.logging import logger
 
 # from neo_api_client.logger import logger

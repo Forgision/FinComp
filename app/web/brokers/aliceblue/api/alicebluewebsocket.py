@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.utils.logging import logger
-
+import websocket
 
 class AliceBlueWebSocket:
     """

@@ -1,3 +1,4 @@
+import websocket
 import json
 import ssl
 import threading

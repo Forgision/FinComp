@@ -6,6 +6,7 @@ import json
 import logging
 import threading
 import time
+import websocket
 from typing import Any, Callable, Dict, Optional
 
 

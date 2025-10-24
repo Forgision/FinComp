@@ -9,6 +9,7 @@ import platform
 import struct
 import threading
 import time
+import websocket
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 

@@ -5,7 +5,7 @@ import sys
 import threading
 import zlib
 from datetime import datetime
-
+import websocket
 from app.utils.logging import logger
 
 CURRENT_VERSION = 1
