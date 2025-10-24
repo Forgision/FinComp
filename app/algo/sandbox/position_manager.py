@@ -26,7 +26,7 @@ from app.core.schemas.sandbox_db import (
     get_config,
     init_db,
 )
-from app.core.schemas.session import db_session as db
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 
 from .fund_manager import FundManager
@@ -180,6 +180,7 @@ class PositionManager:
 
     def _update_positions_mtm(self, positions):
         """Update MTM for all positions with live quotes"""
+        db = next(get_db())
         try:
             if not positions:
                 return
@@ -226,14 +227,15 @@ class PositionManager:
                             position.quantity
                         )
 
-            db_session.commit()
+            db.commit()
 
         except Exception as e:
-            db_session.rollback()
+            db.rollback()
             logger.error(f"Error updating positions MTM: {e}")
 
     def _update_single_position_mtm(self, position):
         """Update MTM for a single position"""
+        db = next(get_db())
         try:
             # Skip MTM update for closed positions (quantity = 0)
             # They already have realized P&L stored from when position was closed
@@ -255,10 +257,10 @@ class PositionManager:
                         ltp,
                         position.quantity
                     )
-                    db_session.commit()
+                    db.commit()
 
         except Exception as e:
-            db_session.rollback()
+            db.rollback()
             logger.error(f"Error updating position MTM for {position.symbol}: {e}")
 
     def _calculate_position_pnl(self, quantity, avg_price, ltp):
@@ -471,6 +473,7 @@ class PositionManager:
 
         This should be called at session expiry time (e.g., 3:00 AM IST)
         """
+        db = next(get_db())
         try:
             import os
             from datetime import date
@@ -496,7 +499,7 @@ class PositionManager:
                     # Update position to closed
                     position.quantity = 0
                     position.pnl = float(position.realized_pnl)
-                    db.session.commit()
+                    db.commit()
 
                     logger.info(f"Auto squared-off MIS position: {position.symbol} qty: {quantity}")
 
@@ -529,12 +532,12 @@ class PositionManager:
                             average_price=position.average_price,
                             settlement_date=date.today()
                         )
-                        db.session.add(holdings)
+                        db.add(holdings)
 
                     # Clear the CNC position
                     position.quantity = 0
                     position.pnl = float(position.realized_pnl)
-                    db.session.commit()
+                    db.commit()
 
                     logger.info(f"Moved CNC position to holdings: {position.symbol} qty: {position.quantity}")
 
@@ -548,7 +551,7 @@ class PositionManager:
 
         except Exception as e:
             logger.error(f"Error in EOD settlement: {e}")
-            db.session.rollback()
+            db.rollback()
             return False, {
                 'status': 'error',
                 'message': f'Error in EOD settlement: {str(e)}',

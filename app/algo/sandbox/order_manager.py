@@ -21,6 +21,7 @@ from app.core.schemas.sandbox_db import (
     SandboxPositions,
     db_session,
 )
+from app.core.schemas.session import get_db
 from app.core.schemas.symbol import SymToken
 from app.utils.logging import logger
 
@@ -67,6 +68,7 @@ class OrderManager:
         Returns:
             tuple: (success: bool, response: dict, status_code: int)
         """
+        db = next(get_db())
         try:
             # Initialize existing_position to None to avoid unbound variable errors
             existing_position = None
@@ -382,8 +384,8 @@ class OrderManager:
                     order_timestamp=datetime.now(pytz.timezone('Asia/Kolkata'))
                 )
 
-                db_session.add(order)
-                db_session.commit()
+                db.add(order)
+                db.commit()
 
                 logger.info(f"Order rejected: {orderid} - {symbol} {action} {quantity} - Reason: {cnc_sell_rejection_reason}")
 
@@ -419,8 +421,8 @@ class OrderManager:
                 order_timestamp=datetime.now(pytz.timezone('Asia/Kolkata'))
             )
 
-            db_session.add(order)
-            db_session.commit()
+            db.add(order)
+            db.commit()
 
             logger.info(f"Order placed: {orderid} - {symbol} {action} {quantity} @ {price_type}")
 
@@ -449,7 +451,7 @@ class OrderManager:
             }, 200
 
         except Exception as e:
-            db_session.rollback()
+            db.rollback()
             logger.error(f"Error placing order: {e}")
             return False, {
                 'status': 'error',
@@ -468,6 +470,7 @@ class OrderManager:
         Returns:
             tuple: (success: bool, response: dict, status_code: int)
         """
+        db = next(get_db())
         try:
             # Get existing order
             order = SandboxOrders.query.filter_by(
@@ -516,7 +519,7 @@ class OrderManager:
 
             order.update_timestamp = datetime.now(pytz.timezone('Asia/Kolkata'))
 
-            db_session.commit()
+            db.commit()
 
             logger.info(f"Order modified: {orderid}")
 
@@ -528,7 +531,7 @@ class OrderManager:
             }, 200
 
         except Exception as e:
-            db_session.rollback()
+            db.rollback()
             logger.error(f"Error modifying order {orderid}: {e}")
             return False, {
                 'status': 'error',
@@ -546,6 +549,7 @@ class OrderManager:
         Returns:
             tuple: (success: bool, response: dict, status_code: int)
         """
+        db = next(get_db())
         try:
             # Get existing order
             order = SandboxOrders.query.filter_by(
@@ -633,7 +637,7 @@ class OrderManager:
                     else:
                         logger.info(f"No margin to release for cancelled order {orderid} ({order.action} {order.product})")
 
-            db_session.commit()
+            db.commit()
 
             logger.info(f"Order cancelled: {orderid}")
 
@@ -645,7 +649,7 @@ class OrderManager:
             }, 200
 
         except Exception as e:
-            db_session.rollback()
+            db.rollback()
             logger.error(f"Error cancelling order {orderid}: {e}")
             return False, {
                 'status': 'error',
