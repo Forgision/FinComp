@@ -337,7 +337,11 @@ class FundManager:
             price = Decimal(str(price))
 
             # Get symbol info to determine instrument type
-            symbol_obj = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
+            from app.core.schemas.session import get_db
+            from sqlalchemy import select
+            db = next(get_db())
+            stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+            symbol_obj = db.execute(stmt).scalars().first()
 
             if not symbol_obj:
                 logger.error(f"Symbol {symbol} not found on {exchange}")
