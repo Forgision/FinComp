@@ -15,14 +15,14 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytz
-from app.core.services.quotes_service import get_quotes
+from sqlalchemy import select
 
+from app.core.services.quotes_service import get_quotes
 from app.core.schemas.auth_db import ApiKeys, decrypt_token
 from app.core.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxPositions,
     SandboxTrades,
-    db_session,
     get_config,
     init_db,
 )
@@ -52,6 +52,7 @@ class PositionManager:
         Returns:
             tuple: (success: bool, response: dict, status_code: int)
         """
+        db = next(get_db())
         try:
             import os
             from datetime import datetime, time, timedelta
@@ -78,14 +79,14 @@ class PositionManager:
                 last_session_expiry = datetime.combine(today, session_expiry_time)
 
             # Get all positions (including zero quantity ones from current session)
-            positions_query = SandboxPositions.query.filter(
+            stmt = select(SandboxPositions).filter(
                 SandboxPositions.user_id == self.user_id
             )
 
             # Check if we need to filter positions based on product type
             # If position was created before last session expiry and it's not NRML,
             # it should have been settled
-            all_positions = positions_query.all()
+            all_positions = db.execute(stmt).scalars().all()
             positions = []
 
             for position in all_positions:
@@ -149,13 +150,15 @@ class PositionManager:
 
     def get_position_for_symbol(self, symbol, exchange, product):
         """Get position for a specific symbol"""
+        db = next(get_db())
         try:
-            position = SandboxPositions.query.filter_by(
+            stmt = select(SandboxPositions).filter_by(
                 user_id=self.user_id,
                 symbol=symbol,
                 exchange=exchange,
                 product=product
-            ).first()
+            )
+            position = db.execute(stmt).scalars().first()
 
             if not position:
                 return None
@@ -307,9 +310,11 @@ class PositionManager:
 
     def _fetch_quote(self, symbol, exchange):
         """Fetch real-time quote for a symbol using API key"""
+        db = next(get_db())
         try:
             # Get any user's API key for fetching quotes
-            api_key_obj = ApiKeys.query.first()
+            stmt = select(ApiKeys)
+            api_key_obj = db.execute(stmt).scalars().first()
 
             if not api_key_obj:
                 logger.warning("No API keys found for fetching quotes")
@@ -340,13 +345,15 @@ class PositionManager:
         Close a position (square-off)
         Creates a reverse order to close the position
         """
+        db = next(get_db())
         try:
-            position = SandboxPositions.query.filter_by(
+            stmt = select(SandboxPositions).filter_by(
                 user_id=self.user_id,
                 symbol=symbol,
                 exchange=exchange,
                 product=product
-            ).first()
+            )
+            position = db.execute(stmt).scalars().first()
 
             if not position:
                 return False, {
@@ -396,6 +403,7 @@ class PositionManager:
 
     def get_tradebook(self):
         """Get all executed trades for the user for current session only"""
+        db = next(get_db())
         try:
             import os
             from datetime import datetime, time, timedelta
@@ -422,12 +430,13 @@ class PositionManager:
                 # Session started today at expiry time
                 session_start = datetime.combine(today, session_expiry_time)
 
-            trades = SandboxTrades.query.filter(
+            stmt = select(SandboxTrades).filter(
                 SandboxTrades.user_id == self.user_id,
                 SandboxTrades.trade_timestamp >= session_start
             ).order_by(
                 SandboxTrades.trade_timestamp.desc()
-            ).all()
+            )
+            trades = db.execute(stmt).scalars().all()
 
             tradebook = []
             for trade in trades:
@@ -483,7 +492,8 @@ class PositionManager:
             logger.info(f"Processing session settlement at {session_expiry_str}")
 
             # Get all open positions
-            positions = SandboxPositions.query.filter_by(user_id=self.user_id).all()
+            stmt = select(SandboxPositions).filter_by(user_id=self.user_id)
+            positions = db.execute(stmt).scalars().all()
 
             for position in positions:
                 if position.quantity == 0:
@@ -508,11 +518,12 @@ class PositionManager:
                     # CNC sell positions are already closed (no short delivery allowed)
 
                     # Check if holdings exist
-                    holdings = SandboxHoldings.query.filter_by(
+                    holdings_stmt = select(SandboxHoldings).filter_by(
                         user_id=self.user_id,
                         symbol=position.symbol,
                         exchange=position.exchange
-                    ).first()
+                    )
+                    holdings = db.execute(holdings_stmt).scalars().first()
 
                     if holdings:
                         # Update existing holdings
@@ -561,9 +572,11 @@ class PositionManager:
 
 def update_all_positions_mtm():
     """Background task to update MTM for all positions"""
+    db = next(get_db())
     try:
         # Get all unique users with positions
-        positions = SandboxPositions.query.all()
+        stmt = select(SandboxPositions)
+        positions = db.execute(stmt).scalars().all()
 
         if not positions:
             logger.debug("No positions to update")
@@ -589,9 +602,11 @@ def process_all_users_settlement():
     - Auto squares-off any remaining MIS positions
     - NRML positions carry forward
     """
+    db = next(get_db())
     try:
         # Get all unique users with positions
-        positions = SandboxPositions.query.all()
+        stmt = select(SandboxPositions)
+        positions = db.execute(stmt).scalars().all()
 
         if not positions:
             logger.info("No positions to settle")
@@ -627,15 +642,17 @@ def catchup_missed_settlements():
 
     Checks for CNC positions older than 1 day and settles them to holdings.
     """
+    db = next(get_db())
     try:
         ist = pytz.timezone('Asia/Kolkata')
         today = datetime.now(ist).date()
         cutoff_time = datetime.combine(today, datetime.min.time())
 
-        cnc_positions = SandboxPositions.query.filter_by(product='CNC').filter(
+        stmt = select(SandboxPositions).filter_by(product='CNC').filter(
             SandboxPositions.quantity != 0,
             SandboxPositions.created_at < cutoff_time
-        ).all()
+        )
+        cnc_positions = db.execute(stmt).scalars().all()
 
         if not cnc_positions:
             logger.info("No CNC positions for catch-up settlement")

@@ -5,7 +5,7 @@ import pandas as pd
 from app.core.schemas.token_db import get_br_symbol
 # from app.core.schemas.session import db_session
 from app.core.schemas.auth_db import get_feed_token
-from app.broker.ibulls.database.master_contract_db import SymToken, db_session
+from app.web.brokers.ibulls.database.master_contract_db import SymToken, db_session
 from app.web.brokers.ibulls.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger

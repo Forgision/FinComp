@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import pytz
+from sqlalchemy import func, select
 
 from app.utils.logging import logger
 
@@ -94,7 +95,7 @@ class BrokerSymbolCache:
         This is called once after master contract download
         """
         try:
-            from app.core.schemas.symbol import SymToken
+            from app.core.schemas.symbol import SymToken, db_session
 
             start_time = time.time()
             logger.info(f"Loading all symbols for broker: {broker}")
@@ -103,7 +104,8 @@ class BrokerSymbolCache:
             self.clear_cache()
 
             # Query all symbols from app.core.schemas
-            symbols = SymToken.query.all()
+            stmt = select(SymToken)
+            symbols = db_session.execute(stmt).scalars().all()
 
             if not symbols:
                 logger.warning(f"No symbols found in database for broker: {broker}")
@@ -430,8 +432,9 @@ def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
 def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for token by symbol and exchange"""
     try:
-        from app.core.schemas.symbol import SymToken
-        sym_token = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+        sym_token = db_session.execute(stmt).scalars().first()
         if sym_token:
             return sym_token.token
         else:
@@ -443,8 +446,9 @@ def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
     """Query database for symbol by token and exchange"""
     try:
-        from app.core.schemas.symbol import SymToken
-        sym_token = SymToken.query.filter_by(token=token, exchange=exchange).first()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter_by(token=token, exchange=exchange)
+        sym_token = db_session.execute(stmt).scalars().first()
         if sym_token:
             return sym_token.symbol
         else:
@@ -456,8 +460,9 @@ def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
 def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker symbol"""
     try:
-        from app.core.schemas.symbol import SymToken
-        sym_token = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+        sym_token = db_session.execute(stmt).scalars().first()
         if sym_token:
             return sym_token.brsymbol
         else:
@@ -469,8 +474,9 @@ def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
     """Query database for OpenAlgo symbol"""
     try:
-        from app.core.schemas.symbol import SymToken
-        sym_token = SymToken.query.filter_by(brsymbol=brsymbol, exchange=exchange).first()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter_by(brsymbol=brsymbol, exchange=exchange)
+        sym_token = db_session.execute(stmt).scalars().first()
         if sym_token:
             return sym_token.symbol
         else:
@@ -482,8 +488,9 @@ def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
 def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker exchange"""
     try:
-        from app.core.schemas.symbol import SymToken
-        sym_token = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+        sym_token = db_session.execute(stmt).scalars().first()
         if sym_token:
             return sym_token.brexchange
         else:
@@ -495,8 +502,9 @@ def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_symbol_count() -> int:
     """Get the total count of symbols in the database"""
     try:
-        from app.core.schemas.symbol import SymToken
-        count = SymToken.query.count()
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(func.count(SymToken.id))
+        count = db_session.execute(stmt).scalar_one()
         return count
     except Exception as e:
         logger.error(f"Error while counting symbols: {e}")
@@ -574,12 +582,12 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
 
     # Fallback to database search
     try:
-        from app.core.schemas.symbol import SymToken
-        query_obj = SymToken.query.filter(SymToken.symbol.like(f'%{query}%'))
+        from app.core.schemas.symbol import SymToken, db_session
+        stmt = select(SymToken).filter(SymToken.symbol.like(f'%{query}%'))
         if exchange:
-            query_obj = query_obj.filter_by(exchange=exchange)
+            stmt = stmt.filter_by(exchange=exchange)
 
-        results = query_obj.limit(limit).all()
+        results = db_session.execute(stmt).scalars().limit(limit).all()
         return [
             {
                 'symbol': r.symbol,

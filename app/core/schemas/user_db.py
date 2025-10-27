@@ -5,11 +5,11 @@ import pyotp
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from cachetools import (
-    TTLCache,  # type: ignore # Library stubs not installed for "cachetools"
+    TTLCache,
 )
-from sqlalchemy import Boolean, Column, Integer, String, create_engine
+from sqlalchemy import Boolean, Integer, String, create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import Mapped, mapped_column, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
@@ -43,19 +43,18 @@ else:
         pool_timeout=10
     )
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base.query = db_session.query_property()
 
 # Define a cache for the usernames with a max size and a 30-second TTL
 username_cache = TTLCache(maxsize=1024, ttl=30)
 
-class User(Base):   # type: ignore # Invalid base class "Base"
+class User(Base):
     __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False)
-    email = Column(String(120), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)  # Increased length for Argon2 hash
-    totp_secret = Column(String(32), nullable=False)  # For TOTP-based password reset
-    is_admin = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    totp_secret: Mapped[str] = mapped_column(String(32), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def set_password(self, password):
         """Hash password using Argon2 with pepper"""

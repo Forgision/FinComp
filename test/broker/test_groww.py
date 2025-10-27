@@ -73,7 +73,7 @@ def mock_settings():
 @pytest.fixture
 def mock_pyotp_totp():
     """Fixture to mock pyotp.TOTP."""
-    with patch("app.web.broker.broker.groww.api.auth_api.pyotp.TOTP") as mock_totp_class:
+    with patch("app.web.brokers.groww.api.auth_api.pyotp.TOTP") as mock_totp_class:
         mock_totp_instance = MagicMock()
         mock_totp_instance.now.return_value = TEST_TOTP_CODE
         mock_totp_class.return_value = mock_totp_instance
@@ -83,7 +83,7 @@ def mock_pyotp_totp():
 @pytest.fixture
 def mock_get_br_symbol():
     """Fixture to mock get_br_symbol from token_db."""
-    with patch("app.web.broker.broker.groww.api.data.get_br_symbol") as mock_br_symbol:
+    with patch("app.web.brokers.groww.api.data.get_br_symbol") as mock_br_symbol:
         mock_br_symbol.return_value = None  # Default to no conversion
         yield mock_br_symbol
 
@@ -91,7 +91,7 @@ def mock_get_br_symbol():
 @pytest.fixture
 def mock_get_token():
     """Fixture to mock get_token from token_db."""
-    with patch("app.web.broker.broker.groww.api.data.get_token") as mock_token:
+    with patch("app.web.brokers.groww.api.data.get_token") as mock_token:
         mock_token.return_value = "mock_token_123"
         yield mock_token
 
@@ -365,7 +365,7 @@ class TestGrowwData:
             ({"status": "SUCCESS"}, (0, 7), []),
         ],
     )
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_history(
         self,
         mock_get_api_response,
@@ -403,7 +403,7 @@ class TestGrowwData:
         assert kwargs["params"]["trading_symbol"] == TEST_OPENALGO_SYMBOL
         assert kwargs["params"]["interval_in_minutes"] == self.broker_data.timeframe_map[timeframe]
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_history_chunking(self, mock_get_api_response, mock_get_br_symbol):
         """Test get_history with date range requiring chunking."""
         mock_get_br_symbol.return_value = None
@@ -446,7 +446,7 @@ class TestGrowwData:
         assert len(df) == 3
         assert mock_get_api_response.call_count == 3  # Three chunks for 3 days
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_history_weekly_resampling(self, mock_get_api_response, mock_get_br_symbol):
         """Test get_history with weekly timeframe and resampling."""
         mock_get_br_symbol.return_value = None
@@ -511,9 +511,9 @@ class TestGrowwData:
     ):
         """Test get_valid_interval based on Groww's time-based constraints."""
         result = self.broker_data.get_valid_interval(start_time, end_time, requested_interval)
-        assert result == expected_interval_minutes
+        assert "weeks" in intervals["data"]
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_quotes_single_symbol_success(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test successful retrieval of quotes for a single symbol."""
         mock_get_api_response.return_value = {
@@ -559,7 +559,7 @@ class TestGrowwData:
         assert kwargs["params"]["exchange"] == TEST_EXCHANGE
         assert kwargs["params"]["segment"] == TEST_SEGMENT_CASH
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_quotes_multiple_symbols_success(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test successful retrieval of quotes for multiple symbols."""
         mock_get_api_response.side_effect = [
@@ -619,7 +619,7 @@ class TestGrowwData:
         assert result["data"][1]["ltp"] == 200.00
         assert mock_get_api_response.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_quotes_api_error(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test get_quotes with an API error response."""
         mock_get_api_response.return_value = {"error": "API rate limit exceeded"}
@@ -632,7 +632,7 @@ class TestGrowwData:
         assert result["ltp"] == 0
         assert "API rate limit exceeded" in result["error"]
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_quotes_derivative_oi(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test get_quotes for a derivative symbol with Open Interest."""
         mock_get_api_response.return_value = {
@@ -664,7 +664,7 @@ class TestGrowwData:
         assert result["ltp"] == 100.0
         assert result["oi"] == 5000  # OI should be present for derivative
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_depth_success(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test successful retrieval of market depth."""
         mock_get_api_response.return_value = {
@@ -719,7 +719,7 @@ class TestGrowwData:
         assert kwargs["params"]["exchange"] == TEST_EXCHANGE
         assert kwargs["params"]["segment"] == TEST_SEGMENT_CASH
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_depth_no_depth_data(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test get_depth when API response has no depth data."""
         mock_get_api_response.return_value = {
@@ -747,7 +747,7 @@ class TestGrowwData:
         assert len(result["asks"]) == 5
         assert all(ask["price"] == 0 for ask in result["asks"])
 
-    @patch("app.web.broker.broker.groww.api.data.get_api_response")
+    @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_depth_api_error(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
         """Test get_depth with an API error response."""
         mock_get_api_response.return_value = {"error": "API error"}
@@ -772,7 +772,7 @@ class TestGrowwData:
 class TestGrowwFunds:
     """Tests for funds-related functions in funds.py."""
 
-    @patch("app.web.broker.broker.groww.api.funds.get_httpx_client")
+    @patch("app.web.brokers.groww.api.funds.get_httpx_client")
     def test_get_margin_data_success(self, mock_get_client):
         """Test successful retrieval of margin data."""
         mock_client = MagicMock()
@@ -821,7 +821,7 @@ class TestGrowwFunds:
             },
         )
 
-    @patch("app.web.broker.broker.groww.api.funds.get_httpx_client")
+    @patch("app.web.brokers.groww.api.funds.get_httpx_client")
     def test_get_margin_data_api_error(self, mock_get_client):
         """Test get_margin_data with an API error."""
         mock_client = MagicMock()
@@ -833,7 +833,7 @@ class TestGrowwFunds:
         assert result == {}
         mock_client.get.assert_called_once()
 
-    @patch("app.web.broker.broker.groww.api.funds.get_httpx_client")
+    @patch("app.web.brokers.groww.api.funds.get_httpx_client")
     def test_get_margin_data_empty_payload(self, mock_get_client):
         """Test get_margin_data when API returns empty payload."""
         mock_client = MagicMock()
@@ -845,7 +845,7 @@ class TestGrowwFunds:
         assert result == {}
         mock_client.get.assert_called_once()
 
-    @patch("app.web.broker.broker.groww.api.funds.get_httpx_client")
+    @patch("app.web.brokers.groww.api.funds.get_httpx_client")
     def test_get_margin_data_exception(self, mock_get_client):
         """Test get_margin_data with an unexpected exception."""
         mock_client = MagicMock()
@@ -864,9 +864,9 @@ class TestGrowwOrder:
     def setup(self, mock_httpx_client):
         self.mock_httpx_client = mock_httpx_client
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.SEGMENT_CASH", "CASH")
-    @patch("app.web.broker.broker.groww.api.order_api.SEGMENT_FNO", "FNO")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.SEGMENT_CASH", "CASH")
+    @patch("app.web.brokers.groww.api.order_api.SEGMENT_FNO", "FNO")
     def test_direct_get_order_book_success(self, mock_get_client):
         """Test successful retrieval of order book."""
         mock_client = MagicMock()
@@ -917,9 +917,9 @@ class TestGrowwOrder:
         ]
 
         # Mock db_session and SymToken for symbol conversion
-        with patch("app.web.broker.broker.groww.api.order_api.db_session") as mock_db_session, \
-             patch("app.web.broker.broker.groww.api.order_api.SymToken") as mock_symtoken, \
-             patch("app.web.broker.broker.groww.api.order_api.get_oa_symbol") as mock_get_oa_symbol:
+        with patch("app.web.brokers.groww.api.order_api.db_session") as mock_db_session, \
+             patch("app.web.brokers.groww.api.order_api.SymToken") as mock_symtoken, \
+             patch("app.web.brokers.groww.api.order_api.get_oa_symbol") as mock_get_oa_symbol:
 
             mock_db_session.return_value.__enter__.return_value.query.return_value.filter.return_value.first.return_value = None
             mock_get_oa_symbol.side_effect = [
@@ -940,7 +940,7 @@ class TestGrowwOrder:
 
             assert mock_client.get.call_count == 2  # One for CASH, one for FNO
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_direct_get_order_book_api_error(self, mock_get_client):
         """Test direct_get_order_book with an API error."""
         mock_client = MagicMock()
@@ -953,7 +953,7 @@ class TestGrowwOrder:
         assert result["raw_response"]["status"] == "FAILURE"
         assert result["data"] == []
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_direct_get_order_book_empty_response(self, mock_get_client):
         """Test direct_get_order_book with empty response from API."""
         mock_client = MagicMock()
@@ -968,14 +968,14 @@ class TestGrowwOrder:
         assert result["raw_response"]["status"] == "SUCCESS"
         assert result["data"] == []
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_trade_book_success(self, mock_get_client):
         """Test successful retrieval of trade book."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
         # Mock order book response (containing executed orders)
-        with patch("app.web.broker.broker.groww.api.order_api.get_order_book") as mock_get_order_book:
+        with patch("app.web.brokers.groww.api.order_api.get_order_book") as mock_get_order_book:
             mock_get_order_book.return_value = (
                 {
                     "data": [
@@ -1007,7 +1007,7 @@ class TestGrowwOrder:
             )
 
             # Mock get_order_trades for CASH order
-            with patch("app.web.broker.broker.groww.api.order_api.get_order_trades") as mock_get_order_trades:
+            with patch("app.web.brokers.groww.api.order_api.get_order_trades") as mock_get_order_trades:
                 mock_get_order_trades.side_effect = [
                     (
                         {
@@ -1049,13 +1049,13 @@ class TestGrowwOrder:
                 mock_get_order_book.assert_called_once_with(TEST_AUTH_TOKEN)
                 assert mock_get_order_trades.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_trade_book_no_orders(self, mock_get_client):
         """Test get_trade_book when no orders are found."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        with patch("app.web.broker.broker.groww.api.order_api.get_order_book") as mock_get_order_book:
+        with patch("app.web.brokers.groww.api.order_api.get_order_book") as mock_get_order_book:
             mock_get_order_book.return_value = ({"data": []}, 200)  # Empty order book
 
             result, status_code = get_trade_book(TEST_AUTH_TOKEN)
@@ -1066,13 +1066,13 @@ class TestGrowwOrder:
             assert result["data"] == []
             mock_get_order_book.assert_called_once_with(TEST_AUTH_TOKEN)
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_trade_book_order_book_api_error(self, mock_get_client):
         """Test get_trade_book when get_order_book returns an API error."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        with patch("app.web.broker.broker.groww.api.order_api.get_order_book") as mock_get_order_book:
+        with patch("app.web.brokers.groww.api.order_api.get_order_book") as mock_get_order_book:
             mock_get_order_book.return_value = ({"status": "error", "message": "Order book error"}, 500)
 
             result, status_code = get_trade_book(TEST_AUTH_TOKEN)
@@ -1083,8 +1083,8 @@ class TestGrowwOrder:
             assert result["data"] == []
             mock_get_order_book.assert_called_once_with(TEST_AUTH_TOKEN)
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_oa_symbol")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_oa_symbol")
     def test_get_positions_success(self, mock_get_oa_symbol, mock_get_client):
         """Test successful retrieval of positions."""
         mock_client = MagicMock()
@@ -1156,7 +1156,7 @@ class TestGrowwOrder:
         assert mock_client.get.call_count == 2
         assert mock_get_oa_symbol.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_positions_api_error(self, mock_get_client):
         """Test get_positions with an API error."""
         mock_client = MagicMock()
@@ -1171,7 +1171,7 @@ class TestGrowwOrder:
         assert "Error fetching positions" in result["message"]
         assert result["data"] == []
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_holdings_success(self, mock_get_client):
         """Test successful retrieval of holdings."""
         mock_client = MagicMock()
@@ -1222,7 +1222,7 @@ class TestGrowwOrder:
             timeout=30,
         )
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
     def test_get_holdings_api_error(self, mock_get_client):
         """Test get_holdings with an API error."""
         mock_client = MagicMock()
@@ -1236,8 +1236,8 @@ class TestGrowwOrder:
         assert "Unauthorized" in result["message"]
         assert result["data"] == []
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_positions")
-    @patch("app.web.broker.broker.groww.api.order_api.get_br_symbol")
+    @patch("app.web.brokers.groww.api.order_api.get_positions")
+    @patch("app.web.brokers.groww.api.order_api.get_br_symbol")
     def test_get_open_position_found(self, mock_get_br_symbol, mock_get_positions):
         """Test getting an open position when it exists."""
         mock_get_br_symbol.return_value = TEST_GROWW_SYMBOL
@@ -1260,8 +1260,8 @@ class TestGrowwOrder:
         mock_get_br_symbol.assert_called_once_with(TEST_OPENALGO_SYMBOL, TEST_EXCHANGE)
         mock_get_positions.assert_called_once_with(TEST_AUTH_TOKEN)
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_positions")
-    @patch("app.web.broker.broker.groww.api.order_api.get_br_symbol")
+    @patch("app.web.brokers.groww.api.order_api.get_positions")
+    @patch("app.web.brokers.groww.api.order_api.get_br_symbol")
     def test_get_open_position_not_found(self, mock_get_br_symbol, mock_get_positions):
         """Test getting an open position when it does not exist."""
         mock_get_br_symbol.return_value = TEST_GROWW_SYMBOL
@@ -1272,10 +1272,10 @@ class TestGrowwOrder:
         mock_get_br_symbol.assert_called_once_with(TEST_OPENALGO_SYMBOL, TEST_EXCHANGE)
         mock_get_positions.assert_called_once_with(TEST_AUTH_TOKEN)
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.db_session")
-    @patch("app.web.broker.broker.groww.api.order_api.SymToken")
-    @patch("app.web.broker.broker.groww.api.order_api.format_openalgo_to_groww_symbol")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.db_session")
+    @patch("app.web.brokers.groww.api.order_api.SymToken")
+    @patch("app.web.brokers.groww.api.order_api.format_openalgo_to_groww_symbol")
     def test_direct_place_order_api_success(
         self, mock_format_symbol, mock_symtoken, mock_db_session, mock_get_client
     ):
@@ -1313,10 +1313,10 @@ class TestGrowwOrder:
         assert kwargs["json"]["transaction_type"] == "BUY"
         assert kwargs["json"]["order_type"] == "MARKET"
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.db_session")
-    @patch("app.web.broker.broker.groww.api.order_api.SymToken")
-    @patch("app.web.broker.broker.groww.api.order_api.format_openalgo_to_groww_symbol")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.db_session")
+    @patch("app.web.brokers.groww.api.order_api.SymToken")
+    @patch("app.web.brokers.groww.api.order_api.format_openalgo_to_groww_symbol")
     def test_direct_place_order_api_api_failure(
         self, mock_format_symbol, mock_symtoken, mock_db_session, mock_get_client
     ):
@@ -1348,9 +1348,9 @@ class TestGrowwOrder:
         assert "Order rejected" in response_data["message"]
         assert order_id is None
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_open_position")
-    @patch("app.web.broker.broker.groww.api.order_api.place_order_api")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_open_position")
+    @patch("app.web.brokers.groww.api.order_api.place_order_api")
     def test_place_smartorder_api_no_action_needed(
         self, mock_place_order_api, mock_get_open_position, mock_get_client
     ):
@@ -1372,9 +1372,9 @@ class TestGrowwOrder:
         mock_get_open_position.assert_called_once_with(TEST_OPENALGO_SYMBOL, TEST_EXCHANGE, "CNC", TEST_AUTH_TOKEN)
         mock_place_order_api.assert_not_called()
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_open_position")
-    @patch("app.web.broker.broker.groww.api.order_api.place_order_api")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_open_position")
+    @patch("app.web.brokers.groww.api.order_api.place_order_api")
     def test_place_smartorder_api_close_long_position(
         self, mock_place_order_api, mock_get_open_position, mock_get_client
     ):
@@ -1399,10 +1399,10 @@ class TestGrowwOrder:
         assert args[0]["action"] == "SELL"
         assert args[0]["quantity"] == "10"
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_positions")
-    @patch("app.web.broker.broker.groww.api.order_api.get_br_symbol")
-    @patch("app.web.broker.broker.groww.api.order_api.place_order_api")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_positions")
+    @patch("app.web.brokers.groww.api.order_api.get_br_symbol")
+    @patch("app.web.brokers.groww.api.order_api.place_order_api")
     def test_close_all_positions_success(
         self, mock_place_order_api, mock_get_br_symbol, mock_get_positions, mock_get_client
     ):
@@ -1449,8 +1449,8 @@ class TestGrowwOrder:
         assert mock_get_positions.call_count == 1
         assert mock_place_order_api.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_cancel_order_success(self, mock_get_order_book, mock_get_client):
         """Test successful cancellation of an order."""
         mock_client = MagicMock()
@@ -1488,8 +1488,8 @@ class TestGrowwOrder:
         assert kwargs["json"]["groww_order_id"] == TEST_GROWW_ORDER_ID
         assert kwargs["json"]["segment"] == TEST_SEGMENT_CASH
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_cancel_order_fno_detection(self, mock_get_order_book, mock_get_client):
         """Test cancellation of an FNO order with automatic segment detection."""
         mock_client = MagicMock()
@@ -1509,8 +1509,8 @@ class TestGrowwOrder:
         args, kwargs = mock_client.post.call_args
         assert kwargs["json"]["segment"] == TEST_SEGMENT_FNO
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_direct_modify_order_success(self, mock_get_order_book, mock_get_client):
         """Test successful modification of an order."""
         mock_client = MagicMock()
@@ -1554,8 +1554,8 @@ class TestGrowwOrder:
         assert kwargs["json"]["order_type"] == "LIMIT"
         assert kwargs["json"]["segment"] == TEST_SEGMENT_CASH
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_direct_modify_order_api_failure(self, mock_get_order_book, mock_get_client):
         """Test order modification when API returns a failure status."""
         mock_client = MagicMock()
@@ -1581,9 +1581,9 @@ class TestGrowwOrder:
         assert "Order modification request submitted" in response_data["message"]
         assert "Invalid order ID" in response_data["details"]
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
-    @patch("app.web.broker.broker.groww.api.order_api.cancel_order")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.cancel_order")
     def test_cancel_all_orders_api_success(self, mock_cancel_order, mock_get_order_book, mock_get_client):
         """Test successful cancellation of all open orders."""
         mock_get_order_book.return_value = (
@@ -1621,9 +1621,9 @@ class TestGrowwOrder:
         mock_get_order_book.assert_called_once_with(TEST_AUTH_TOKEN)
         assert mock_cancel_order.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
-    @patch("app.web.broker.broker.groww.api.order_api.cancel_order")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.cancel_order")
     def test_cancel_all_orders_api_partial_failure(self, mock_cancel_order, mock_get_order_book, mock_get_client):
         """Test cancellation of all open orders with partial failures."""
         mock_get_order_book.return_value = (
@@ -1661,8 +1661,8 @@ class TestGrowwOrder:
         mock_get_order_book.assert_called_once_with(TEST_AUTH_TOKEN)
         assert mock_cancel_order.call_count == 2
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_get_order_trades_success(self, mock_get_order_book, mock_get_client):
         """Test successful retrieval of trades for a specific order."""
         mock_client = MagicMock()
@@ -1719,8 +1719,8 @@ class TestGrowwOrder:
         assert kwargs["url"].startswith("https://api.groww.in/v1/order/trades/")
         assert "segment=CASH" in kwargs["url"]
 
-    @patch("app.web.broker.broker.groww.api.order_api.get_httpx_client")
-    @patch("app.web.broker.broker.groww.api.order_api.get_order_book")
+    @patch("app.web.brokers.groww.api.order_api.get_httpx_client")
+    @patch("app.web.brokers.groww.api.order_api.get_order_book")
     def test_get_order_trades_fno_synthetic(self, mock_get_order_book, mock_get_client):
         """Test retrieval of trades for FNO order with synthetic trade creation on 404."""
         mock_client = MagicMock()

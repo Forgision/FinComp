@@ -1,9 +1,11 @@
 # database/sandbox_db.py
+from datetime import datetime, date
+from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import (
     DECIMAL,
     CheckConstraint,
-    Column,
     Date,
     DateTime,
     Index,
@@ -11,7 +13,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    select,
 )
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.core.schemas.base import Base
@@ -23,26 +27,26 @@ class SandboxOrders(Base):
     """Sandbox orders table - all virtual orders"""
     __tablename__ = 'sandbox_orders'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    orderid = Column(String(50), unique=True, nullable=False, index=True)
-    user_id = Column(String(50), nullable=False, index=True)
-    strategy = Column(String(100), nullable=True)
-    symbol = Column(String(50), nullable=False, index=True)
-    exchange = Column(String(20), nullable=False, index=True)
-    action = Column(String(10), nullable=False)  # BUY or SELL
-    quantity = Column(Integer, nullable=False)
-    price = Column(DECIMAL(10, 2), nullable=True)  # Null for market orders
-    trigger_price = Column(DECIMAL(10, 2), nullable=True)  # For SL and SL-M orders
-    price_type = Column(String(20), nullable=False)  # MARKET, LIMIT, SL, SL-M
-    product = Column(String(20), nullable=False)  # CNC, NRML, MIS
-    order_status = Column(String(20), nullable=False, default='open', index=True)  # open, complete, cancelled, rejected
-    average_price = Column(DECIMAL(10, 2), nullable=True)  # Filled price
-    filled_quantity = Column(Integer, default=0)  # Always 0 or quantity (no partial fills)
-    pending_quantity = Column(Integer, nullable=False)  # Remaining quantity
-    rejection_reason = Column(Text, nullable=True)
-    margin_blocked = Column(DECIMAL(10, 2), nullable=True, default=0.00)  # Margin blocked at order placement
-    order_timestamp = Column(DateTime, nullable=False, default=func.now())
-    update_timestamp = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    orderid: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    strategy: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    symbol: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    exchange: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(10), nullable=False)  # BUY or SELL
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True)  # Null for market orders
+    trigger_price: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True)  # For SL and SL-M orders
+    price_type: Mapped[str] = mapped_column(String(20), nullable=False)  # MARKET, LIMIT, SL, SL-M
+    product: Mapped[str] = mapped_column(String(20), nullable=False)  # CNC, NRML, MIS
+    order_status: Mapped[str] = mapped_column(String(20), nullable=False, default='open', index=True)  # open, complete, cancelled, rejected
+    average_price: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True)  # Filled price
+    filled_quantity: Mapped[int] = mapped_column(Integer, default=0)  # Always 0 or quantity (no partial fills)
+    pending_quantity: Mapped[int] = mapped_column(Integer, nullable=False)  # Remaining quantity
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    margin_blocked: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True, default=0.00)  # Margin blocked at order placement
+    order_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    update_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         Index('idx_user_status', 'user_id', 'order_status'),
@@ -58,18 +62,18 @@ class SandboxTrades(Base):
     """Sandbox trades table - executed trades"""
     __tablename__ = 'sandbox_trades'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tradeid = Column(String(50), unique=True, nullable=False, index=True)
-    orderid = Column(String(50), nullable=False, index=True)
-    user_id = Column(String(50), nullable=False, index=True)
-    symbol = Column(String(50), nullable=False, index=True)
-    exchange = Column(String(20), nullable=False, index=True)
-    action = Column(String(10), nullable=False)  # BUY or SELL
-    quantity = Column(Integer, nullable=False)
-    price = Column(DECIMAL(10, 2), nullable=False)  # Execution price
-    product = Column(String(20), nullable=False)  # CNC, NRML, MIS
-    strategy = Column(String(100), nullable=True)
-    trade_timestamp = Column(DateTime, nullable=False, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tradeid: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    orderid: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    symbol: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    exchange: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(10), nullable=False)  # BUY or SELL
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)  # Execution price
+    product: Mapped[str] = mapped_column(String(20), nullable=False)  # CNC, NRML, MIS
+    strategy: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    trade_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
 
     __table_args__ = (
         Index('idx_user_symbol', 'user_id', 'symbol'),
@@ -81,23 +85,23 @@ class SandboxPositions(Base):
     """Sandbox positions table - open positions"""
     __tablename__ = 'sandbox_positions'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String(50), nullable=False, index=True)
-    symbol = Column(String(50), nullable=False, index=True)
-    exchange = Column(String(20), nullable=False, index=True)
-    product = Column(String(20), nullable=False)  # CNC, NRML, MIS
-    quantity = Column(Integer, nullable=False)  # Net quantity (can be negative for short)
-    average_price = Column(DECIMAL(10, 2), nullable=False)  # Average entry price
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    symbol: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    exchange: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    product: Mapped[str] = mapped_column(String(20), nullable=False)  # CNC, NRML, MIS
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)  # Net quantity (can be negative for short)
+    average_price: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)  # Average entry price
 
     # MTM tracking
-    ltp = Column(DECIMAL(10, 2), nullable=True)  # Last traded price
-    pnl = Column(DECIMAL(10, 2), default=0.00)  # Current P&L (unrealized for open, realized for closed)
-    pnl_percent = Column(DECIMAL(10, 4), default=0.00)  # P&L percentage
-    accumulated_realized_pnl = Column(DECIMAL(10, 2), default=0.00)  # Accumulated realized P&L for the day
+    ltp: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True)  # Last traded price
+    pnl: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), default=0.00)  # Current P&L (unrealized for open, realized for closed)
+    pnl_percent: Mapped[Decimal] = mapped_column(DECIMAL(10, 4), default=0.00)  # P&L percentage
+    accumulated_realized_pnl: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), default=0.00)  # Accumulated realized P&L for the day
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         UniqueConstraint('user_id', 'symbol', 'exchange', 'product', name='unique_position'),
@@ -109,24 +113,24 @@ class SandboxHoldings(Base):
     """Sandbox holdings table - T+1 settled CNC positions"""
     __tablename__ = 'sandbox_holdings'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String(50), nullable=False, index=True)
-    symbol = Column(String(50), nullable=False, index=True)
-    exchange = Column(String(20), nullable=False, index=True)
-    quantity = Column(Integer, nullable=False)  # Total holdings quantity
-    average_price = Column(DECIMAL(10, 2), nullable=False)  # Average buy price
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    symbol: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    exchange: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)  # Total holdings quantity
+    average_price: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)  # Average buy price
 
     # MTM tracking
-    ltp = Column(DECIMAL(10, 2), nullable=True)  # Last traded price
-    pnl = Column(DECIMAL(10, 2), default=0.00)  # Unrealized P&L
-    pnl_percent = Column(DECIMAL(10, 4), default=0.00)  # P&L percentage
+    ltp: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2), nullable=True)  # Last traded price
+    pnl: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), default=0.00)  # Unrealized P&L
+    pnl_percent: Mapped[Decimal] = mapped_column(DECIMAL(10, 4), default=0.00)  # P&L percentage
 
     # Settlement tracking
-    settlement_date = Column(Date, nullable=False)  # Date when position was settled to holdings
+    settlement_date: Mapped[date] = mapped_column(Date, nullable=False)  # Date when position was settled to holdings
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         UniqueConstraint('user_id', 'symbol', 'exchange', name='unique_holding'),
@@ -137,37 +141,37 @@ class SandboxFunds(Base):
     """Sandbox funds table - simulated capital and margin tracking"""
     __tablename__ = 'sandbox_funds'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String(50), unique=True, nullable=False, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
 
     # Fund balances
-    total_capital = Column(DECIMAL(15, 2), default=10000000.00)  # ₹1 Crore starting capital
-    available_balance = Column(DECIMAL(15, 2), default=10000000.00)  # Available for trading
-    used_margin = Column(DECIMAL(15, 2), default=0.00)  # Margin blocked in positions
+    total_capital: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=10000000.00)  # ₹1 Crore starting capital
+    available_balance: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=10000000.00)  # Available for trading
+    used_margin: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=0.00)  # Margin blocked in positions
 
     # P&L tracking
-    realized_pnl = Column(DECIMAL(15, 2), default=0.00)  # Realized profit/loss from closed positions
-    unrealized_pnl = Column(DECIMAL(15, 2), default=0.00)  # Unrealized P&L from open positions
-    total_pnl = Column(DECIMAL(15, 2), default=0.00)  # Total P&L (realized + unrealized)
+    realized_pnl: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=0.00)  # Realized profit/loss from closed positions
+    unrealized_pnl: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=0.00)  # Unrealized P&L from open positions
+    total_pnl: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=0.00)  # Total P&L (realized + unrealized)
 
     # Reset tracking
-    last_reset_date = Column(DateTime, nullable=False, default=func.now())
-    reset_count = Column(Integer, default=0)  # Number of times reset has occurred
+    last_reset_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    reset_count: Mapped[int] = mapped_column(Integer, default=0)  # Number of times reset has occurred
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
 
 class SandboxConfig(Base):
     """Sandbox configuration table - all configurable settings"""
     __tablename__ = 'sandbox_config'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    config_key = Column(String(100), unique=True, nullable=False, index=True)
-    config_value = Column(Text, nullable=False)
-    description = Column(Text, nullable=True)
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    config_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    config_value: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
 
 def init_db():
@@ -279,7 +283,7 @@ def init_default_config():
 
     for config in default_configs:
         try:
-            existing = SandboxConfig.query.filter_by(config_key=config['config_key']).first()
+            existing = db_session.execute(select(SandboxConfig).filter_by(config_key=config['config_key'])).scalar_one_or_none()
             if not existing:
                 config_obj = SandboxConfig(**config)
                 db_session.add(config_obj)
@@ -296,7 +300,7 @@ def init_default_config():
 def get_config(config_key, default=None):
     """Get configuration value by key"""
     try:
-        config = SandboxConfig.query.filter_by(config_key=config_key).first()
+        config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
         if config:
             return config.config_value
         return default
@@ -308,7 +312,7 @@ def get_config(config_key, default=None):
 def set_config(config_key, config_value, description=None):
     """Set configuration value"""
     try:
-        config = SandboxConfig.query.filter_by(config_key=config_key).first()
+        config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
         if config:
             config.config_value = str(config_value)
             if description:
@@ -332,7 +336,7 @@ def set_config(config_key, config_value, description=None):
 def get_all_configs():
     """Get all configuration values"""
     try:
-        configs = SandboxConfig.query.all()
+        configs = db_session.execute(select(SandboxConfig)).scalars().all()
         return {config.config_key: {
             'value': config.config_value,
             'description': config.description

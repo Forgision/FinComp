@@ -14,6 +14,7 @@ EXCHANGE_BSE = "BSE"
 # Segment types
 SEGMENT_CASH = "CASH"
 SEGMENT_FNO = "FNO"
+SEGMENT_CURRENCY = "CURRENCY"
 
 
 # Product types

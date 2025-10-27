@@ -5,7 +5,7 @@ import csv
 import json
 
 import pandas as pd
-from app.broker.iifl.baseurl import MARKET_DATA_URL
+from app.web.brokers.iifl.baseurl import MARKET_DATA_URL
 from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker

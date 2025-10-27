@@ -345,7 +345,7 @@ class BrokerData:
                     # Log first few lines of CSV for debugging
                     csv_lines = csv_data.split('\n')[:5]
                     logger.debug(f"Debug - First few lines of CSV: {csv_lines}")
-                    logger.debug(f"Debug - Total lines in CSV: {len(csv_data.split('\n'))}")
+                    logger.debug(f"Debug - Total lines in CSV: {len(csv_data.splitlines())}")
                     logger.debug(f"Debug - Timeframe: {timeframe}, Interval: {interval}")
 
                     # Parse CSV data

@@ -43,7 +43,7 @@ def mock_httpx_client():
 @pytest.fixture
 def mock_auth_token_db():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.api.auth_api.get_feed_token"
+        "app.web.brokers.fivepaisaxts.api.auth_api.get_feed_token"
     ) as mock_get_feed_token:
         yield mock_get_feed_token
 
@@ -51,7 +51,7 @@ def mock_auth_token_db():
 @pytest.fixture
 def mock_token_db():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.api.order_api.get_token"
+        "app.web.brokers.fivepaisaxts.api.order_api.get_token"
     ) as mock_get_token:
         yield mock_get_token
 
@@ -59,7 +59,7 @@ def mock_token_db():
 @pytest.fixture
 def mock_get_br_symbol():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.api.order_api.get_br_symbol"
+        "app.web.brokers.fivepaisaxts.api.order_api.get_br_symbol"
     ) as mock_get_br_symbol:
         mock_get_br_symbol.return_value = "BR_SYMBOL"
         yield mock_get_br_symbol
@@ -68,7 +68,7 @@ def mock_get_br_symbol():
 @pytest.fixture
 def mock_transform_data():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.mapping.transform_data.transform_data"
+        "app.web.brokers.fivepaisaxts.mapping.transform_data.transform_data"
     ) as mock_transform:
         mock_transform.return_value = {"transformed": "data"}
         yield mock_transform
@@ -77,7 +77,7 @@ def mock_transform_data():
 @pytest.fixture
 def mock_transform_modify_order_data():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.mapping.transform_data.transform_modify_order_data"
+        "app.web.brokers.fivepaisaxts.mapping.transform_data.transform_modify_order_data"
     ) as mock_transform:
         mock_transform.return_value = {"transformed_modify": "data"}
         yield mock_transform
@@ -86,7 +86,7 @@ def mock_transform_modify_order_data():
 @pytest.fixture
 def mock_map_product_type():
     with patch(
-        "app.web.broker.broker.fivepaisaxts.mapping.transform_data.map_product_type"
+        "app.web.brokers.fivepaisaxts.mapping.transform_data.map_product_type"
     ) as mock_map:
         mock_map.return_value = "MAPPED_PRODUCT_TYPE"
         yield mock_map
@@ -228,7 +228,7 @@ class TestFivepaisaXTSData:
         mock_session.query.return_value = mock_query
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.db_session",
+            "app.web.brokers.fivepaisaxts.api.data.db_session",
             return_value=mock_session,
         ):
             broker_data = BrokerData("mock_auth_token")
@@ -260,7 +260,7 @@ class TestFivepaisaXTSData:
         mock_session.query.return_value = mock_query
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.db_session",
+            "app.web.brokers.fivepaisaxts.api.data.db_session",
             return_value=mock_session,
         ):
             broker_data = BrokerData("mock_auth_token")
@@ -279,7 +279,7 @@ class TestFivepaisaXTSData:
         }
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.get_api_response",
+            "app.web.brokers.fivepaisaxts.api.data.get_api_response",
             new=mock_get_api_response,
         ):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
@@ -301,8 +301,8 @@ class TestFivepaisaXTSData:
             ]
         )
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data):
+        with patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token), \
+             patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
             quotes = broker_data.get_quotes("TEST", "NSE")
 
@@ -324,8 +324,8 @@ class TestFivepaisaXTSData:
         mock_get_instrument_token = MagicMock(return_value=(mock_symbol_info, 1))
         mock_fetch_market_data = MagicMock(return_value=None)
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data):
+        with patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token), \
+             patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
             with pytest.raises(Exception) as excinfo:
                 broker_data.get_quotes("TEST", "NSE")
@@ -335,7 +335,7 @@ class TestFivepaisaXTSData:
     async def test_broker_data_get_quotes_exception(self, mock_get_br_symbol):
         mock_get_instrument_token = MagicMock(side_effect=Exception("Token error"))
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token):
+        with patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._get_instrument_token", new=mock_get_instrument_token):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
             with pytest.raises(Exception) as excinfo:
                 broker_data.get_quotes("TEST", "NSE")
@@ -354,8 +354,8 @@ class TestFivepaisaXTSData:
             }
         )
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.db_session", new=mock_db_session), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.get_api_response", new=mock_get_api_response):
+        with patch("app.web.brokers.fivepaisaxts.api.data.db_session", new=mock_db_session), \
+             patch("app.web.brokers.fivepaisaxts.api.data.get_api_response", new=mock_get_api_response):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
             df = broker_data.get_history("TEST", "NSE", "1D", "2023-01-01", "2023-01-02")
 
@@ -375,8 +375,8 @@ class TestFivepaisaXTSData:
             return_value={"type": "success", "result": {"dataReponse": ""}}
         )
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.db_session", new=mock_db_session), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.get_api_response", new=mock_get_api_response):
+        with patch("app.web.brokers.fivepaisaxts.api.data.db_session", new=mock_db_session), \
+             patch("app.web.brokers.fivepaisaxts.api.data.get_api_response", new=mock_get_api_response):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
             df = broker_data.get_history("TEST", "NSE", "1D", "2023-01-01", "2023-01-02")
             assert df.empty
@@ -424,9 +424,9 @@ class TestFivepaisaXTSData:
             ]
         )
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.db_session", new=mock_db_session), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
+        with patch("app.web.brokers.fivepaisaxts.api.data.db_session", new=mock_db_session), \
+             patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
+             patch("app.web.brokers.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
 
             broker_data = BrokerData("mock_auth_token", user_id="mock_user_id")
             depth = broker_data.get_market_depth("TEST", "NSE")
@@ -447,9 +447,9 @@ class TestFivepaisaXTSData:
 
         mock_fetch_market_data = MagicMock(side_effect=[None, {"OpenInterest": 500}])
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.db_session", new=mock_db_session), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
+        with patch("app.web.brokers.fivepaisaxts.api.data.db_session", new=mock_db_session), \
+             patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
+             patch("app.web.brokers.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
 
             broker_data = BrokerData("mock_auth_token", user_id="mock_user_id")
             with pytest.raises(Exception) as excinfo:
@@ -484,9 +484,9 @@ class TestFivepaisaXTSData:
             ]
         )
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.data.db_session", new=mock_db_session), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
-             patch("app.web.broker.broker.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
+        with patch("app.web.brokers.fivepaisaxts.api.data.db_session", new=mock_db_session), \
+             patch("app.web.brokers.fivepaisaxts.api.data.BrokerData._fetch_market_data", new=mock_fetch_market_data), \
+             patch("app.web.brokers.fivepaisaxts.api.data.get_feed_token", return_value=("mock_feed_token", "mock_user_id", None)):
 
             broker_data = BrokerData("mock_auth_token", user_id="mock_user_id")
             depth = broker_data.get_depth("TEST", "NSE")
@@ -554,7 +554,7 @@ class TestFivepaisaXTSOrder:
     @pytest.mark.asyncio
     async def test_get_open_position_success(self, mock_get_br_symbol):
         mock_get_br_symbol.return_value = "TESTBR"
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_positions") as mock_get_positions:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_positions") as mock_get_positions:
             mock_get_positions.return_value = {
                 "status": True,
                 "data": [
@@ -567,7 +567,7 @@ class TestFivepaisaXTSOrder:
     @pytest.mark.asyncio
     async def test_get_open_position_no_match(self, mock_get_br_symbol):
         mock_get_br_symbol.return_value = "NOMATCH"
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_positions") as mock_get_positions:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_positions") as mock_get_positions:
             mock_get_positions.return_value = {
                 "status": True,
                 "data": [
@@ -583,8 +583,8 @@ class TestFivepaisaXTSOrder:
         mock_httpx_client.post.return_value.json.return_value = {"type": "success", "result": {"AppOrderID": "ORDER123"}}
         mock_httpx_client.post.return_value.text = '{"type": "success", "result": {"AppOrderID": "ORDER123"}}'
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.transform_data", return_value={"transformed": "data"}):
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.transform_data", return_value={"transformed": "data"}):
             data = {"symbol": "TEST", "exchange": "NSE", "productType": "CNC", "orderType": "MARKET"}
             response, response_data, orderid = place_order_api(data, "mock_auth")
 
@@ -615,8 +615,8 @@ class TestFivepaisaXTSOrder:
         mock_httpx_client.post.return_value.json.return_value = {"type": "error", "message": "Invalid order"}
         mock_httpx_client.post.return_value.text = '{"type": "error", "message": "Invalid order"}'
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.transform_data", return_value={"transformed": "data"}):
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.transform_data", return_value={"transformed": "data"}):
             data = {"symbol": "TEST", "exchange": "NSE", "productType": "CNC", "orderType": "MARKET"}
             response, response_data, orderid = place_order_api(data, "mock_auth")
 
@@ -626,8 +626,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_no_position_no_quantity(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="0"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api") as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="0"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api") as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 0, "quantity": "0"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res is None
@@ -637,8 +637,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_no_position_with_quantity(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="0"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="0"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 0, "quantity": "10", "action": "BUY"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res == "res"
@@ -648,8 +648,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_square_off_positive_position(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="10"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="10"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 0, "quantity": "0"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res == "res"
@@ -661,8 +661,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_square_off_negative_position(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="-10"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="-10"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 0, "quantity": "0"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res == "res"
@@ -674,8 +674,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_increase_positive_position(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="5"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="5"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 15, "quantity": "0"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res == "res"
@@ -687,8 +687,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_place_smartorder_api_reduce_positive_position(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_open_position", return_value="15"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_open_position", return_value="15"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             data = {"symbol": "TEST", "exchange": "NSE", "product": "CNC", "position_size": 5, "quantity": "0"}
             res, response, orderid = place_smartorder_api(data, "mock_auth")
             assert res == "res"
@@ -700,7 +700,7 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_close_all_positions_no_open_positions(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_positions", return_value={"type": "success", "result": {"positionList": []}}):
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_positions", return_value={"type": "success", "result": {"positionList": []}}):
             response, status = close_all_positions("mock_api_key", "mock_auth")
             assert response["message"] == "No Open Positions Found"
             assert status == 200
@@ -716,8 +716,8 @@ class TestFivepaisaXTSOrder:
                 ]
             }
         }
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_positions", return_value=mock_positions), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_positions", return_value=mock_positions), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.place_order_api", return_value=("res", {"type": "success"}, "id")) as mock_place_order_api:
             response, status = close_all_positions("mock_api_key", "mock_auth")
             assert response["message"] == "All Open Positions SquaredOff"
             assert status == 200
@@ -752,9 +752,9 @@ class TestFivepaisaXTSOrder:
         mock_httpx_client.put.return_value.status_code = 200
         mock_httpx_client.put.return_value.text = '{"status": "true", "data": {"orderid": "MODIFIED123"}}'
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_br_symbol", return_value="TESTBR"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.transform_modify_order_data", return_value={"modified": "data"}):
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.get_br_symbol", return_value="TESTBR"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.transform_modify_order_data", return_value={"modified": "data"}):
             data = {"symbol": "TEST", "exchange": "NSE"}
             response, status = modify_order(data, "mock_auth")
             assert response["status"] == "success"
@@ -767,9 +767,9 @@ class TestFivepaisaXTSOrder:
         mock_httpx_client.put.return_value.status_code = 400
         mock_httpx_client.put.return_value.text = '{"status": "false", "message": "Failed to modify"}'
 
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_br_symbol", return_value="TESTBR"), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.transform_modify_order_data", return_value={"modified": "data"}):
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_token", return_value="mock_token"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.get_br_symbol", return_value="TESTBR"), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.transform_modify_order_data", return_value={"modified": "data"}):
             data = {"symbol": "TEST", "exchange": "NSE"}
             response, status = modify_order(data, "mock_auth")
             assert response["status"] == "error"
@@ -785,8 +785,8 @@ class TestFivepaisaXTSOrder:
                 {"AppOrderID": "3", "OrderStatus": "Filled"},
             ]
         }
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.cancel_order", side_effect=[
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.cancel_order", side_effect=[
                  ({"status": "success", "orderid": "1"}, 200),
                  ({"status": "success", "orderid": "2"}, 200),
              ]) as mock_cancel_order:
@@ -804,8 +804,8 @@ class TestFivepaisaXTSOrder:
                 {"AppOrderID": "2", "OrderStatus": "Trigger Pending"},
             ]
         }
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.cancel_order", side_effect=[
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.cancel_order", side_effect=[
                  ({"status": "success", "orderid": "1"}, 200),
                  ({"status": "error", "message": "failed"}, 400),
              ]) as mock_cancel_order:
@@ -822,8 +822,8 @@ class TestFivepaisaXTSOrder:
                 {"AppOrderID": "3", "OrderStatus": "Filled"},
             ]
         }
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.cancel_order") as mock_cancel_order:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_order_book", return_value=mock_order_book), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.cancel_order") as mock_cancel_order:
             canceled, failed = cancel_all_orders_api({}, "mock_auth")
             assert canceled == []
             assert failed == []
@@ -831,8 +831,8 @@ class TestFivepaisaXTSOrder:
 
     @pytest.mark.asyncio
     async def test_cancel_all_orders_api_get_order_book_failure(self):
-        with patch("app.web.broker.broker.fivepaisaxts.api.order_api.get_order_book", return_value={"type": "error"}), \
-             patch("app.web.broker.broker.fivepaisaxts.api.order_api.cancel_order") as mock_cancel_order:
+        with patch("app.web.brokers.fivepaisaxts.api.order_api.get_order_book", return_value={"type": "error"}), \
+             patch("app.web.brokers.fivepaisaxts.api.order_api.cancel_order") as mock_cancel_order:
             canceled, failed = cancel_all_orders_api({}, "mock_auth")
             assert canceled == []
             assert failed == []
@@ -847,7 +847,7 @@ class TestFivepaisaXTSOrder:
         }
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.get_api_response",
+            "app.web.brokers.fivepaisaxts.api.data.get_api_response",
             new=mock_get_api_response,
         ):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
@@ -866,7 +866,7 @@ class TestFivepaisaXTSOrder:
         }
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.get_api_response",
+            "app.web.brokers.fivepaisaxts.api.data.get_api_response",
             new=mock_get_api_response,
         ):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")
@@ -881,7 +881,7 @@ class TestFivepaisaXTSOrder:
         mock_get_api_response = MagicMock(side_effect=Exception("Data fetch error"))
 
         with patch(
-            "app.web.broker.broker.fivepaisaxts.api.data.get_api_response",
+            "app.web.brokers.fivepaisaxts.api.data.get_api_response",
             new=mock_get_api_response,
         ):
             broker_data = BrokerData("mock_auth_token", feed_token="mock_feed_token")

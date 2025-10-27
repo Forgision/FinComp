@@ -1,7 +1,6 @@
 from typing import List
 
 from sqlalchemy import (
-    Column,
     Float,
     Index,
     Integer,
@@ -10,9 +9,9 @@ from sqlalchemy import (
     and_,
     create_engine,
     or_,
+    select,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
@@ -36,23 +35,24 @@ else:
         pool_timeout=10
     )
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base = declarative_base()
-Base.query = db_session.query_property()
+
+class Base(DeclarativeBase):
+    pass
 
 class SymToken(Base):
     __tablename__ = 'symtoken'
-    id = Column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol = Column(String, nullable=False, index=True)
-    brsymbol = Column(String, nullable=False, index=True)
-    name = Column(String)
-    exchange = Column(String, index=True)
-    brexchange = Column(String, index=True)
-    token = Column(String, index=True)
-    expiry = Column(String)
-    strike = Column(Float)
-    lotsize = Column(Integer)
-    instrumenttype = Column(String)
-    tick_size = Column(Float)
+    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
+    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String)
+    exchange: Mapped[str] = mapped_column(String, index=True)
+    brexchange: Mapped[str] = mapped_column(String, index=True)
+    token: Mapped[str] = mapped_column(String, index=True)
+    expiry: Mapped[str] = mapped_column(String)
+    strike: Mapped[float] = mapped_column(Float)
+    lotsize: Mapped[int] = mapped_column(Integer)
+    instrumenttype: Mapped[str] = mapped_column(String)
+    tick_size: Mapped[float] = mapped_column(Float)
 
     # Composite indices for improved search performance
     __table_args__ = (
@@ -78,11 +78,11 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
         terms = [term.strip().upper() for term in query.split() if term.strip()]
 
         # Base query
-        base_query = SymToken.query
+        stmt = select(SymToken)
 
         # If exchange is specified, filter by it
         if exchange:
-            base_query = base_query.filter(SymToken.exchange == exchange)
+            stmt = stmt.filter(SymToken.exchange == exchange)
 
         # Create conditions for each term
         all_conditions = []
@@ -108,12 +108,10 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
 
         # Combine all conditions with AND
         if all_conditions:
-            final_query = base_query.filter(and_(*all_conditions))
-        else:
-            final_query = base_query
+            stmt = stmt.filter(and_(*all_conditions))
 
         # Execute query - no limit to show all matching results
-        results = final_query.all()
+        results = db_session.execute(stmt).scalars().all()
         return results
 
     except Exception as e:

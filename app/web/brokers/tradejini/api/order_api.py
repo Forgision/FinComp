@@ -1258,7 +1258,7 @@ def cancel_order(orderid, auth):
                 }
             }, 200
         elif response["s"] == "no-data":
-            error_msg = f"Order cancellation failed: {response["msg"]}"
+            error_msg = f'Order cancellation failed: {response["msg"]}'
             logger.error(f"cancel_order - {error_msg}")
             return {"stat": "Not_Ok", "data": {"msg": error_msg}}, 400
         else:
@@ -1427,7 +1427,7 @@ def modify_order(data, auth):
                 }
             }, 200
         elif response["s"] == "no-data":
-            error_msg = f"Order modification failed: {response["msg"]}"
+            error_msg = f'Order modification failed: {response["msg"]}'
             logger.error(f"modify_order - {error_msg}")
             return {"stat": "Not_Ok", "data": {"msg": error_msg}}, 400
         else:

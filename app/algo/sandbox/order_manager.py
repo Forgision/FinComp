@@ -19,7 +19,6 @@ from app.core.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxOrders,
     SandboxPositions,
-    db_session,
 )
 from app.core.schemas.session import get_db
 from app.core.schemas.symbol import SymToken

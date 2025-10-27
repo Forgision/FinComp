@@ -6,7 +6,7 @@ import httpx
 import pandas as pd
 import pytz
 from app.core.schemas.token_db import get_br_symbol, get_token
-from app.broker.fivepaisa.mapping.transform_data import (
+from app.web.brokers.fivepaisa.mapping.transform_data import (
     map_exchange,
     map_exchange_type,
 )
@@ -17,7 +17,10 @@ from app.utils.logging import logger
 
 # Retrieve the BROKER_API_KEY environment variable
 broker_api_key = settings.BROKER_API_KEY
-api_key, user_id, client_id = broker_api_key.split(':::')
+if broker_api_key and len(broker_api_key.split(':::')) == 3:
+    api_key, user_id, client_id = broker_api_key.split(':::')
+else:
+    api_key, user_id, client_id = None, None, None
 
 # Base URL for 5Paisa API
 BASE_URL = settings.FIVEPAISA_BASE_URL

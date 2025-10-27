@@ -663,6 +663,7 @@ class TestOrderBook:
         assert response == {
             "type": "error",
             "message": "Failed to retrieve order book"
+        }
 class TestTradeBook:
     @pytest.fixture(autouse=True)
     def setup(self, mock_logger):
@@ -968,7 +969,7 @@ class TestPlaceOrderAPI:
         assert called_payload["InstrumentToken"] == "12345"
 
         assert response == {"AppOrderID": "12345", "OrderNo": "67890", "status": "success"}
-        self.mock_logger.info.assert_called_with(f"Order placed successfully: AppOrderID=12345, OrderNo=67890")
+        self.mock_logger.info.assert_called_with("Order placed successfully: AppOrderID=12345, OrderNo=67890")
 
     @patch("app.web.broker.broker.ibulls.api.order_api.order_get_api_response")
     @patch("app.web.broker.broker.ibulls.api.order_api.get_br_symbol")
@@ -1091,7 +1092,7 @@ class TestPlaceSmartOrderAPI:
         assert called_payload["InstrumentToken"] == "12345"
 
         assert response == {"AppOrderID": "12345", "OrderNo": "67890", "status": "success"}
-        self.mock_logger.info.assert_called_with(f"Smart order placed successfully: AppOrderID=12345, OrderNo=67890")
+        self.mock_logger.info.assert_called_with("Smart order placed successfully: AppOrderID=12345, OrderNo=67890")
 
     @patch("app.web.broker.broker.ibulls.api.order_api.order_get_api_response")
     @patch("app.web.broker.broker.ibulls.api.order_api.get_br_symbol")
@@ -1352,11 +1353,7 @@ class TestCancelOrder:
         self.mock_httpx_client.request.assert_called_once_with("DELETE", "http://ibulls.interactive.url/orders/123", headers={'authorization': 'test_auth_token', 'Content-Type': 'application/json'}, json='')
         assert response == {"type": "success", "data": "delete_data"}
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import Response, Request
-from app.web.brokers.ibulls.api.order_api import cancel_order
-from app.core.config import settings
-from app.utils.logger import logger
+from unittest.mock import patch
 
 class TestCancelOrder:
     @pytest.fixture

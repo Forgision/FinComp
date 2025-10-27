@@ -9,9 +9,8 @@ from app.web.brokers.aliceblue.api.data import BrokerData
 from app.web.brokers.aliceblue.api.order_api import place_order_api, cancel_order, modify_order, get_order_book, get_trade_book, get_positions, get_holdings
 
 class TestAliceBlueAuth(unittest.TestCase):
-
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.settings')
+    @patch('app.web.brokers.aliceblue.api.auth_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.auth_api.settings')
     def test_authenticate_broker_success(self, mock_settings, mock_get_httpx_client):
         # Configure mock settings
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -35,8 +34,8 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.settings')
+    @patch('app.web.brokers.aliceblue.api.auth_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.auth_api.settings')
     def test_authenticate_broker_api_error(self, mock_settings, mock_get_httpx_client):
         # Configure mock settings
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -60,8 +59,8 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.settings')
+    @patch('app.web.brokers.aliceblue.api.auth_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.auth_api.settings')
     def test_authenticate_broker_http_error(self, mock_settings, mock_get_httpx_client):
         # Configure mock settings
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -81,7 +80,7 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.settings')
+    @patch('app.web.brokers.aliceblue.api.auth_api.settings')
     def test_authenticate_broker_missing_api_keys(self, mock_settings):
         # Configure mock settings to simulate missing API keys
         mock_settings.BROKER_API_KEY = None
@@ -94,8 +93,8 @@ class TestAliceBlueAuth(unittest.TestCase):
         self.assertIsNone(session_id)
         self.assertIn("API keys not set", error)
 
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.auth_api.settings')
+    @patch('app.web.brokers.aliceblue.api.auth_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.auth_api.settings')
     def test_authenticate_broker_json_decode_error(self, mock_settings, mock_get_httpx_client):
         # Configure mock settings
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -119,9 +118,9 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.AliceBlueWebSocket')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData._auto_detect_exchange')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.AliceBlueWebSocket')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData._auto_detect_exchange')
     def test_get_quotes_websocket_success_single_string_symbol(self, mock_auto_detect_exchange, MockAliceBlueWebSocket, mock_get_token):
         # Setup mocks
         mock_auto_detect_exchange.return_value = 'NSE'
@@ -164,9 +163,9 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_websocket_instance.get_quote.assert_called_once()
         mock_websocket_instance.unsubscribe.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.AliceBlueWebSocket')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData._auto_detect_exchange')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.AliceBlueWebSocket')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData._auto_detect_exchange')
     def test_get_quotes_websocket_no_data(self, mock_auto_detect_exchange, MockAliceBlueWebSocket, mock_get_token):
         # Setup mocks
         mock_auto_detect_exchange.return_value = 'NSE'
@@ -201,10 +200,10 @@ class TestAliceBlueAuth(unittest.TestCase):
 
         mock_websocket_instance.unsubscribe.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData.get_websocket') # Patch the instance method
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData.get_websocket') # Patch the instance method
     def test_get_quotes_rest_api_fallback_success(self, mock_get_websocket, mock_settings, mock_get_httpx_client, mock_get_token):
         # Setup mocks for REST API fallback
         mock_settings.BROKER_API_SECRET = "mock_user_id"
@@ -249,10 +248,10 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_httpx_client.post.assert_called_once()
         mock_get_token.assert_called_once_with('RELIANCE', 'NSE')
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData.get_websocket') # Patch the instance method
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData.get_websocket') # Patch the instance method
     def test_get_quotes_rest_api_fallback_error(self, mock_get_websocket, mock_settings, mock_get_httpx_client, mock_get_token):
         # Setup mocks for REST API fallback
         mock_settings.BROKER_API_SECRET = "mock_user_id"
@@ -286,9 +285,9 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_httpx_client.post.assert_called_once()
         # mock_get_token.assert_called_once_with('INVALID', 'NSE') # Temporarily commented out for investigation
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.AliceBlueWebSocket')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData._auto_detect_exchange')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.AliceBlueWebSocket')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData._auto_detect_exchange')
     def test_get_market_depth_websocket_success(self, mock_auto_detect_exchange, MockAliceBlueWebSocket, mock_get_token):
         # Setup mocks
         mock_auto_detect_exchange.return_value = 'NSE'
@@ -328,9 +327,9 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_websocket_instance.get_market_depth.assert_called_once()
         mock_websocket_instance.unsubscribe.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.AliceBlueWebSocket')
-    @patch('app.web.broker.broker.aliceblue.api.data.BrokerData._auto_detect_exchange')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.AliceBlueWebSocket')
+    @patch('app.web.brokers.aliceblue.api.data.BrokerData._auto_detect_exchange')
     def test_get_market_depth_websocket_no_data(self, mock_auto_detect_exchange, MockAliceBlueWebSocket, mock_get_token):
         # Setup mocks
         mock_auto_detect_exchange.return_value = 'NSE'
@@ -353,10 +352,10 @@ class TestAliceBlueAuth(unittest.TestCase):
         # Assertions - should return empty data
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {})
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.pd')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.pd')
     def test_get_history_success(self, mock_pd, mock_settings, mock_get_httpx_client, mock_get_token):
         mock_get_token.return_value = '12345'
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -407,10 +406,10 @@ class TestAliceBlueAuth(unittest.TestCase):
         self.assertEqual(mock_pd.DataFrame.call_count, 2)
         self.assertEqual(result_df, mock_df_instance)
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.pd')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.pd')
     def test_get_history_no_token(self, mock_pd, mock_settings, mock_get_httpx_client, mock_get_token):
         mock_get_token.return_value = None
 
@@ -426,10 +425,10 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_get_token.assert_called_once_with(symbol, exchange)
         mock_get_httpx_client.assert_not_called()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.pd')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.pd')
     def test_get_history_api_error(self, mock_pd, mock_settings, mock_get_httpx_client, mock_get_token):
         mock_get_token.return_value = '12345'
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -456,10 +455,10 @@ class TestAliceBlueAuth(unittest.TestCase):
         mock_httpx_client.post.assert_called_once()
         mock_pd.DataFrame.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.data.get_token')
-    @patch('app.web.broker.broker.aliceblue.api.data.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.data.settings')
-    @patch('app.web.broker.broker.aliceblue.api.data.pd')
+    @patch('app.web.brokers.aliceblue.api.data.get_token')
+    @patch('app.web.brokers.aliceblue.api.data.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.data.settings')
+    @patch('app.web.brokers.aliceblue.api.data.pd')
     def test_get_history_unsupported_timeframe(self, mock_pd, mock_settings, mock_get_httpx_client, mock_get_token):
         mock_get_token.return_value = '12345'
         mock_settings.BROKER_API_KEY = "mock_api_key"
@@ -483,9 +482,9 @@ class TestAliceBlueAuth(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_data')
     def test_place_order_api_success(self, mock_transform_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_data.return_value = {"transformed": "data"}
@@ -509,9 +508,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_data')
     def test_place_order_api_failure(self, mock_transform_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_data.return_value = {"transformed": "data"}
@@ -535,9 +534,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_data')
     def test_place_order_api_http_error(self, mock_transform_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_data.return_value = {"transformed": "data"}
@@ -557,9 +556,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_data')
     def test_place_order_api_general_exception(self, mock_transform_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_data.return_value = {"transformed": "data"}
@@ -578,9 +577,9 @@ if __name__ == '__main__':
         mock_transform_data.assert_called_once_with(data)
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_order_book')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_order_book')
     def test_cancel_order_success(self, mock_get_order_book, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_get_order_book.return_value = [
@@ -605,9 +604,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_order_book')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_order_book')
     def test_cancel_order_api_failure(self, mock_get_order_book, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_get_order_book.return_value = [
@@ -632,9 +631,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_order_book')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_order_book')
     def test_cancel_order_http_error(self, mock_get_order_book, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_get_order_book.return_value = [
@@ -655,9 +654,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_order_book')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_order_book')
     def test_cancel_order_general_exception(self, mock_get_order_book, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_get_order_book.return_value = [
@@ -678,9 +677,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_order_book')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_order_book')
     def test_cancel_order_order_not_found_in_book(self, mock_get_order_book, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_get_order_book.return_value = [
@@ -698,9 +697,9 @@ if __name__ == '__main__':
         self.assertIn("General error", response["message"]) # Since no order found, it will raise an exception in the original code
         mock_get_order_book.assert_called_once_with(auth_token)
         mock_httpx_client.post.assert_not_called()
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_modify_order_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_modify_order_data')
     def test_modify_order_success(self, mock_transform_modify_order_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_modify_order_data.return_value = {"transformed": "modify_data"}
@@ -723,9 +722,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_modify_order_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_modify_order_data')
     def test_modify_order_api_failure(self, mock_transform_modify_order_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_modify_order_data.return_value = {"transformed": "modify_data"}
@@ -748,9 +747,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_modify_order_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_modify_order_data')
     def test_modify_order_http_error(self, mock_transform_modify_order_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_modify_order_data.return_value = {"transformed": "modify_data"}
@@ -769,9 +768,9 @@ if __name__ == '__main__':
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_httpx_client')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.settings')
-    @patch('app.web.broker.broker.aliceblue.api.order_api.transform_modify_order_data')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_httpx_client')
+    @patch('app.web.brokers.aliceblue.api.order_api.settings')
+    @patch('app.web.brokers.aliceblue.api.order_api.transform_modify_order_data')
     def test_modify_order_general_exception(self, mock_transform_modify_order_data, mock_settings, mock_get_httpx_client):
         mock_settings.BROKER_API_SECRET = "mock_api_secret"
         mock_transform_modify_order_data.return_value = {"transformed": "modify_data"}
@@ -789,7 +788,7 @@ if __name__ == '__main__':
         mock_transform_modify_order_data.assert_called_once_with(data)
         mock_get_httpx_client.assert_called_once()
         mock_httpx_client.post.assert_called_once()
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_order_book_success(self, mock_get_api_response):
         mock_get_api_response.return_value = [
             {"Nstordno": "12345", "Trsym": "TCS", "Exchange": "NSE", "Status": "open"}
@@ -801,7 +800,7 @@ if __name__ == '__main__':
         self.assertEqual(result[0]["Nstordno"], "12345")
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchOrderBook", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_order_book_empty(self, mock_get_api_response):
         mock_get_api_response.return_value = []
         auth_token = "mock_auth_token"
@@ -810,7 +809,7 @@ if __name__ == '__main__':
         self.assertEqual(len(result), 0)
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchOrderBook", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_order_book_api_error(self, mock_get_api_response):
         mock_get_api_response.return_value = {"stat": "Not_Ok", "emsg": "API error"}
         auth_token = "mock_auth_token"
@@ -818,7 +817,7 @@ if __name__ == '__main__':
         self.assertIsInstance(result, dict)
         self.assertEqual(result["stat"], "Not_Ok")
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchOrderBook", auth_token)
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_trade_book_success(self, mock_get_api_response):
         mock_get_api_response.return_value = [
             {"Trsym": "TCS", "Exchange": "NSE", "Qty": 10, "TrdTim": "10:30:00"}
@@ -830,7 +829,7 @@ if __name__ == '__main__':
         self.assertEqual(result[0]["Trsym"], "TCS")
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchTradeBook", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_trade_book_empty(self, mock_get_api_response):
         mock_get_api_response.return_value = []
         auth_token = "mock_auth_token"
@@ -839,7 +838,7 @@ if __name__ == '__main__':
         self.assertEqual(len(result), 0)
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchTradeBook", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_trade_book_api_error(self, mock_get_api_response):
         mock_get_api_response.return_value = {"stat": "Not_Ok", "emsg": "API error"}
         auth_token = "mock_auth_token"
@@ -847,7 +846,7 @@ if __name__ == '__main__':
         self.assertIsInstance(result, dict)
         self.assertEqual(result["stat"], "Not_Ok")
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/placeOrder/fetchTradeBook", auth_token)
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_positions_success(self, mock_get_api_response):
         mock_get_api_response.return_value = [
             {"Tsym": "TCS", "Exchange": "NSE", "Pcode": "MIS", "Netqty": 10}
@@ -864,7 +863,7 @@ if __name__ == '__main__':
             payload=json.dumps({"ret": "NET"})
         )
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_positions_empty(self, mock_get_api_response):
         mock_get_api_response.return_value = []
         auth_token = "mock_auth_token"
@@ -878,7 +877,7 @@ if __name__ == '__main__':
             payload=json.dumps({"ret": "NET"})
         )
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_positions_api_error(self, mock_get_api_response):
         mock_get_api_response.return_value = {"stat": "Not_Ok", "emsg": "API error"}
         auth_token = "mock_auth_token"
@@ -891,7 +890,7 @@ if __name__ == '__main__':
             "POST",
             payload=json.dumps({"ret": "NET"})
         )
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_holdings_success(self, mock_get_api_response):
         mock_get_api_response.return_value = [
             {"ScripName": "TCS", "ISIN": "INE467B01029", "Quantity": 5}
@@ -903,7 +902,7 @@ if __name__ == '__main__':
         self.assertEqual(result[0]["ScripName"], "TCS")
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/positionAndHoldings/holdings", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_holdings_empty(self, mock_get_api_response):
         mock_get_api_response.return_value = []
         auth_token = "mock_auth_token"
@@ -912,7 +911,7 @@ if __name__ == '__main__':
         self.assertEqual(len(result), 0)
         mock_get_api_response.assert_called_once_with("/rest/AliceBlueAPIService/api/positionAndHoldings/holdings", auth_token)
 
-    @patch('app.web.broker.broker.aliceblue.api.order_api.get_api_response')
+    @patch('app.web.brokers.aliceblue.api.order_api.get_api_response')
     def test_get_holdings_api_error(self, mock_get_api_response):
         mock_get_api_response.return_value = {"stat": "Not_Ok", "emsg": "API error"}
         auth_token = "mock_auth_token"

@@ -1,7 +1,8 @@
 import logging
+from typing import List
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from .base import Base
@@ -13,20 +14,20 @@ class ChartinkStrategy(Base):
     """Model for Chartink strategies"""
     __tablename__ = 'chartink_strategies'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)
-    webhook_id = Column(String(36), unique=True, nullable=False)  # UUID
-    user_id = Column(String(255), nullable=False)  # Added user_id field
-    is_active = Column(Boolean, default=True)
-    is_intraday = Column(Boolean, default=True)
-    start_time = Column(String(5))  # HH:MM format
-    end_time = Column(String(5))  # HH:MM format
-    squareoff_time = Column(String(5))  # HH:MM format
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    webhook_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)  # UUID
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False)  # Added user_id field
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_intraday: Mapped[bool] = mapped_column(Boolean, default=True)
+    start_time: Mapped[str] = mapped_column(String(5))  # HH:MM format
+    end_time: Mapped[str] = mapped_column(String(5))  # HH:MM format
+    squareoff_time: Mapped[str] = mapped_column(String(5))  # HH:MM format
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    symbol_mappings = relationship("ChartinkSymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
+    symbol_mappings: Mapped[List["ChartinkSymbolMapping"]] = relationship("ChartinkSymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
 
     def as_dict(self):
        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -35,17 +36,17 @@ class ChartinkSymbolMapping(Base):
     """Model for symbol mappings in Chartink strategies"""
     __tablename__ = 'chartink_symbol_mappings'
 
-    id = Column(Integer, primary_key=True)
-    strategy_id = Column(Integer, ForeignKey('chartink_strategies.id'), nullable=False)
-    chartink_symbol = Column(String(50), nullable=False)
-    exchange = Column(String(10), nullable=False)
-    quantity = Column(Integer, nullable=False)
-    product_type = Column(String(10), nullable=False)  # MIS/CNC
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy_id: Mapped[int] = mapped_column(Integer, ForeignKey('chartink_strategies.id'), nullable=False)
+    chartink_symbol: Mapped[str] = mapped_column(String(50), nullable=False)
+    exchange: Mapped[str] = mapped_column(String(10), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_type: Mapped[str] = mapped_column(String(10), nullable=False)  # MIS/CNC
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    strategy = relationship("ChartinkStrategy", back_populates="symbol_mappings")
+    strategy: Mapped["ChartinkStrategy"] = relationship("ChartinkStrategy", back_populates="symbol_mappings")
 
     def as_dict(self):
        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -78,7 +79,7 @@ def create_strategy(name, webhook_id, user_id, is_intraday=True, start_time=None
 def get_strategy(strategy_id):
     """Get strategy by ID"""
     try:
-        return ChartinkStrategy.query.get(strategy_id)
+        return db_session.get(ChartinkStrategy, strategy_id)
     except Exception as e:
         logger.error(f"Error getting strategy {strategy_id}: {str(e)}")
         return None
@@ -86,7 +87,8 @@ def get_strategy(strategy_id):
 def get_strategy_by_webhook_id(webhook_id):
     """Get strategy by webhook ID"""
     try:
-        return ChartinkStrategy.query.filter_by(webhook_id=webhook_id).first()
+        stmt = select(ChartinkStrategy).filter_by(webhook_id=webhook_id)
+        return db_session.execute(stmt).scalars().first()
     except Exception as e:
         logger.error(f"Error getting strategy by webhook ID {webhook_id}: {str(e)}")
         return None
@@ -94,7 +96,8 @@ def get_strategy_by_webhook_id(webhook_id):
 def get_all_strategies():
     """Get all strategies"""
     try:
-        return ChartinkStrategy.query.all()
+        stmt = select(ChartinkStrategy)
+        return db_session.execute(stmt).scalars().all()
     except Exception as e:
         logger.error(f"Error getting all strategies: {str(e)}")
         return []
@@ -102,7 +105,8 @@ def get_all_strategies():
 def get_user_strategies(user_id):
     """Get all strategies for a user"""
     try:
-        return ChartinkStrategy.query.filter_by(user_id=user_id).all()
+        stmt = select(ChartinkStrategy).filter_by(user_id=user_id)
+        return db_session.execute(stmt).scalars().all()
     except Exception as e:
         logger.error(f"Error getting strategies for user {user_id}: {str(e)}")
         return []
@@ -110,7 +114,7 @@ def get_user_strategies(user_id):
 def delete_strategy(strategy_id):
     """Delete a strategy"""
     try:
-        strategy = ChartinkStrategy.query.get(strategy_id)
+        strategy = db_session.get(ChartinkStrategy, strategy_id)
         if strategy:
             db_session.delete(strategy)
             db_session.commit()
@@ -124,7 +128,7 @@ def delete_strategy(strategy_id):
 def toggle_strategy(strategy_id):
     """Toggle strategy active status"""
     try:
-        strategy = ChartinkStrategy.query.get(strategy_id)
+        strategy = db_session.get(ChartinkStrategy, strategy_id)
         if strategy:
             strategy.is_active = not strategy.is_active
             db_session.commit()
@@ -138,7 +142,7 @@ def toggle_strategy(strategy_id):
 def update_strategy_times(strategy_id, start_time=None, end_time=None, squareoff_time=None):
     """Update strategy trading times"""
     try:
-        strategy = ChartinkStrategy.query.get(strategy_id)
+        strategy = db_session.get(ChartinkStrategy, strategy_id)
         if strategy:
             if start_time is not None:
                 strategy.start_time = start_time
@@ -194,7 +198,8 @@ def bulk_add_symbol_mappings(strategy_id, mappings):
 def get_symbol_mappings(strategy_id):
     """Get all symbol mappings for a strategy"""
     try:
-        return ChartinkSymbolMapping.query.filter_by(strategy_id=strategy_id).all()
+        stmt = select(ChartinkSymbolMapping).filter_by(strategy_id=strategy_id)
+        return db_session.execute(stmt).scalars().all()
     except Exception as e:
         logger.error(f"Error getting symbol mappings for strategy {strategy_id}: {str(e)}")
         return []
@@ -202,7 +207,7 @@ def get_symbol_mappings(strategy_id):
 def delete_symbol_mapping(mapping_id):
     """Delete a symbol mapping"""
     try:
-        mapping = ChartinkSymbolMapping.query.get(mapping_id)
+        mapping = db_session.get(ChartinkSymbolMapping, mapping_id)
         if mapping:
             db_session.delete(mapping)
             db_session.commit()

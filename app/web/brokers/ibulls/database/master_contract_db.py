@@ -5,7 +5,7 @@ import json
 import os
 
 import pandas as pd
-from app.broker.ibulls.baseurl import MARKET_DATA_URL
+from app.web.brokers.ibulls.baseurl import MARKET_DATA_URL
 from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker

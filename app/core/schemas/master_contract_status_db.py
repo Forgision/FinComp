@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, DateTime, String, select
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
 from .session import db_session as SessionLocal
@@ -12,12 +13,12 @@ logger = logging.getLogger(__name__)
 class MasterContractStatus(Base):
     __tablename__ = 'master_contract_status'
 
-    broker = Column(String, primary_key=True)
-    status = Column(String, default='pending')  # pending, downloading, success, error
-    message = Column(String)
-    last_updated = Column(DateTime, default=datetime.now)
-    total_symbols = Column(String, default='0')
-    is_ready = Column(Boolean, default=False)
+    broker: Mapped[str] = mapped_column(String, primary_key=True)
+    status: Mapped[str] = mapped_column(String, default='pending')
+    message: Mapped[str] = mapped_column(String)
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    total_symbols: Mapped[str] = mapped_column(String, default='0')
+    is_ready: Mapped[bool] = mapped_column(Boolean, default=False)
 
 # Create table if it doesn't exist
 def init_db():
@@ -29,7 +30,8 @@ def init_broker_status(broker):
     session = SessionLocal()
     try:
         # Check if status already exists
-        existing = session.query(MasterContractStatus).filter_by(broker=broker).first()
+        stmt = select(MasterContractStatus).filter_by(broker=broker)
+        existing = session.execute(stmt).scalars().first()
 
         if existing:
             # Update existing status
@@ -61,7 +63,8 @@ def update_status(broker, status, message, total_symbols=None):
     """Update the download status for a broker"""
     session = SessionLocal()
     try:
-        broker_status = session.query(MasterContractStatus).filter_by(broker=broker).first()
+        stmt = select(MasterContractStatus).filter_by(broker=broker)
+        broker_status = session.execute(stmt).scalars().first()
 
         if broker_status:
             broker_status.status = status
@@ -96,7 +99,8 @@ def get_status(broker):
     """Get the current status for a broker"""
     session = SessionLocal()
     try:
-        status = session.query(MasterContractStatus).filter_by(broker=broker).first()
+        stmt = select(MasterContractStatus).filter_by(broker=broker)
+        status = session.execute(stmt).scalars().first()
 
         if status:
             return {
@@ -133,7 +137,8 @@ def check_if_ready(broker):
     """Check if master contracts are ready for a broker"""
     session = SessionLocal()
     try:
-        status = session.query(MasterContractStatus).filter_by(broker=broker).first()
+        stmt = select(MasterContractStatus).filter_by(broker=broker)
+        status = session.execute(stmt).scalars().first()
         return status.is_ready if status else False
     except Exception as e:
         logger.error(f"Error checking if ready for {broker}: {str(e)}")

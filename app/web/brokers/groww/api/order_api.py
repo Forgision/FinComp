@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime
 
 from app.core.schemas.token_db import get_br_symbol
-from app.broker.groww.database.master_contract_db import (
+from app.web.brokers.groww.database.master_contract_db import (
     format_openalgo_to_groww_symbol,
 )
-from app.broker.groww.mapping.transform_data import (
+from app.web.brokers.groww.mapping.transform_data import (
     # Constants
     EXCHANGE_NSE,
     ORDER_TYPE_LIMIT,

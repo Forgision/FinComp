@@ -4,8 +4,8 @@ from decimal import Decimal
 from datetime import datetime
 import pytz
 
-from sandbox.fund_manager import FundManager, is_option, is_future
-from core.schemas.sandbox_db import SandboxFunds
+from app.sandbox.fund_manager import FundManager, is_option, is_future
+from app.core.schemas.sandbox_db import SandboxFunds
 
 class TestFundManager:
 
