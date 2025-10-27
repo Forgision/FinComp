@@ -10,7 +10,10 @@ from cachetools import (
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 # from ..utils.logger import logger
@@ -85,23 +88,23 @@ feed_token_cache = TTLCache(maxsize=1024, ttl=get_session_based_cache_ttl())
 broker_cache = TTLCache(maxsize=1024, ttl=3000)
 
 
-class Auth(Base):   # type: ignore # Invalid base class "Base"
+class Auth(Base):
     __tablename__ = 'auth'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), unique=True, nullable=False)
-    auth = Column(Text, nullable=False)
-    feed_token = Column(Text, nullable=True)  # Make it nullable as not all brokers will provide this
-    broker = Column(String(20), nullable=False)
-    user_id = Column(String(255), nullable=True)  # Add user_id column
-    is_revoked = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    auth: Mapped[str] = mapped_column(Text, nullable=False)
+    feed_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    broker: Mapped[str] = mapped_column(String(20), nullable=False)
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
-class ApiKeys(Base):   # type: ignore # Invalid base class "Base"
+class ApiKeys(Base):
     __tablename__ = 'api_keys'
-    id = Column(Integer, primary_key=True)
-    user_id = Column(String, nullable=False, unique=True)
-    api_key_hash = Column(Text, nullable=False)  # For verification
-    api_key_encrypted = Column(Text, nullable=False)  # For retrieval
-    created_at = Column(DateTime(timezone=True), default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    api_key_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), default=func.now())
 
 def init_db():
     logger.info("Initializing Auth DB")

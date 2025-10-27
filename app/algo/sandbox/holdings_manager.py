@@ -44,7 +44,7 @@ class HoldingsManager:
         """
         try:
             # Get all holdings, excluding zero-quantity holdings
-            holdings = SandboxHoldings.query.filter_by(user_id=self.user_id).filter(
+            holdings = db_session.query(SandboxHoldings).filter_by(user_id=self.user_id).filter(
                 SandboxHoldings.quantity != 0
             ).all()
 
@@ -115,7 +115,7 @@ class HoldingsManager:
             settlement_cutoff = datetime.combine(today, datetime.min.time())
 
             # Get all CNC positions from yesterday or earlier
-            cnc_positions = SandboxPositions.query.filter_by(
+            cnc_positions = db_session.query(SandboxPositions).filter_by(
                 user_id=self.user_id,
                 product='CNC'
             ).filter(
@@ -140,7 +140,7 @@ class HoldingsManager:
                 fund_manager = FundManager(self.user_id)
 
                 # Check if holding already exists
-                holding = SandboxHoldings.query.filter_by(
+                holding = db_session.query(SandboxHoldings).filter_by(
                     user_id=self.user_id,
                     symbol=position.symbol,
                     exchange=position.exchange
@@ -303,7 +303,7 @@ class HoldingsManager:
         """Fetch real-time quote for a symbol using API key"""
         try:
             # Get any user's API key for fetching quotes
-            api_key_obj = ApiKeys.query.first()
+            api_key_obj = db_session.query(ApiKeys).first()
 
             if not api_key_obj:
                 logger.warning("No API keys found for fetching quotes")
@@ -337,7 +337,7 @@ def process_all_t1_settlements():
         today = datetime.now(ist).date()
         settlement_cutoff = datetime.combine(today, datetime.min.time())
 
-        positions = SandboxPositions.query.filter_by(product='CNC').filter(
+        positions = db_session.query(SandboxPositions).filter_by(product='CNC').filter(
             SandboxPositions.created_at < settlement_cutoff
         ).all()
 

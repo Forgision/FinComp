@@ -56,7 +56,7 @@ class FundManager:
         """Initialize funds for a new user"""
         try:
             # Check if user already has funds
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 # Create new fund account
@@ -87,7 +87,7 @@ class FundManager:
     def get_funds(self):
         """Get current fund status for user"""
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 # Initialize funds if not exists
@@ -95,7 +95,10 @@ class FundManager:
                 if not success:
                     return None
 
-                funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+                funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+
+            if not funds:
+                return None
 
             # Check if reset is needed
             self._check_and_reset_funds(funds)
@@ -166,8 +169,8 @@ class FundManager:
             db_session.commit()
 
             # Clear all positions and holdings
-            SandboxPositions.query.filter_by(user_id=self.user_id).delete()
-            SandboxHoldings.query.filter_by(user_id=self.user_id).delete()
+            db_session.query(SandboxPositions).filter_by(user_id=self.user_id).delete()
+            db_session.query(SandboxHoldings).filter_by(user_id=self.user_id).delete()
             db_session.commit()
 
             logger.info(f"Funds reset successfully for user {self.user_id} (Reset #{funds.reset_count})")
@@ -179,7 +182,7 @@ class FundManager:
     def check_margin_available(self, required_margin):
         """Check if user has sufficient margin available"""
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -199,7 +202,7 @@ class FundManager:
     def block_margin(self, amount, description=""):
         """Block margin for a trade"""
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -226,7 +229,7 @@ class FundManager:
     def release_margin(self, amount, realized_pnl=0, description=""):
         """Release blocked margin and update P&L"""
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -260,7 +263,7 @@ class FundManager:
         (the money is now represented in holdings value, not available cash)
         """
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -287,7 +290,7 @@ class FundManager:
         Increases available_balance when holdings are sold
         """
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -310,7 +313,7 @@ class FundManager:
     def update_unrealized_pnl(self, unrealized_pnl):
         """Update unrealized P&L from open positions"""
         try:
-            funds = SandboxFunds.query.filter_by(user_id=self.user_id).first()
+            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -420,7 +423,7 @@ def reset_all_user_funds():
         logger.info("=== AUTO-RESET: Starting scheduled fund reset for all users ===")
 
         # Get all unique user IDs from funds table
-        all_funds = SandboxFunds.query.all()
+        all_funds = db_session.query(SandboxFunds).all()
 
         if not all_funds:
             logger.info("No user funds to reset")

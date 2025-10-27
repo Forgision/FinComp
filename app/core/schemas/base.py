@@ -1,6 +1,6 @@
 # app/db/base.py
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -28,5 +28,6 @@ else:
     )
 
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 Base.query = db_session.query_property()

@@ -93,7 +93,7 @@ class OrderManager:
             strategy = order_data.get('strategy', '')
 
             # Get symbol info for lot size validation
-            symbol_obj = SymToken.query.filter_by(symbol=symbol, exchange=exchange).first()
+            symbol_obj = db_session.query(SymToken).filter_by(symbol=symbol, exchange=exchange).first()
             if not symbol_obj:
                 return False, {
                     'status': 'error',
@@ -143,7 +143,7 @@ class OrderManager:
 
                     if is_blocked:
                         # Check if this order will reduce/close an existing OPEN position
-                        existing_position = SandboxPositions.query.filter_by(
+                        existing_position = db_session.query(SandboxPositions).filter_by(
                             user_id=self.user_id,
                             symbol=symbol,
                             exchange=exchange,
@@ -176,7 +176,7 @@ class OrderManager:
                 if product == 'CNC':
                     # CNC SELL orders require existing long positions or holdings
                     # Check existing position
-                    existing_position = SandboxPositions.query.filter_by(
+                    existing_position = db_session.query(SandboxPositions).filter_by(
                         user_id=self.user_id,
                         symbol=symbol,
                         exchange=exchange,
@@ -184,7 +184,7 @@ class OrderManager:
                     ).first()
 
                     # Check holdings (T+1 settled positions)
-                    existing_holdings = SandboxHoldings.query.filter_by(
+                    existing_holdings = db_session.query(SandboxHoldings).filter_by(
                         user_id=self.user_id,
                         symbol=symbol,
                         exchange=exchange
@@ -270,7 +270,7 @@ class OrderManager:
                 }, 400
 
             # Check if this order will close/reduce/reverse an existing position
-            existing_position = SandboxPositions.query.filter_by(
+            existing_position = db_session.query(SandboxPositions).filter_by(
                 user_id=self.user_id,
                 symbol=symbol,
                 exchange=exchange,
@@ -472,7 +472,7 @@ class OrderManager:
         db = next(get_db())
         try:
             # Get existing order
-            order = SandboxOrders.query.filter_by(
+            order = db_session.query(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
             ).first()
@@ -495,7 +495,7 @@ class OrderManager:
             if 'quantity' in new_data:
                 new_quantity = int(new_data['quantity'])
                 # Validate lot size
-                symbol_obj = SymToken.query.filter_by(
+                symbol_obj = db_session.query(SymToken).filter_by(
                     symbol=order.symbol,
                     exchange=order.exchange
                 ).first()
@@ -551,7 +551,7 @@ class OrderManager:
         db = next(get_db())
         try:
             # Get existing order
-            order = SandboxOrders.query.filter_by(
+            order = db_session.query(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
             ).first()
@@ -585,7 +585,7 @@ class OrderManager:
                 # Fallback for old orders without margin_blocked field
                 # Need to recalculate margin that was blocked based on order parameters
                 # Get symbol info to determine if margin was blocked for this order
-                symbol_obj = SymToken.query.filter_by(
+                symbol_obj = db_session.query(SymToken).filter_by(
                     symbol=order.symbol,
                     exchange=order.exchange
                 ).first()
@@ -684,7 +684,7 @@ class OrderManager:
                 # Session started today at expiry time
                 session_start = datetime.combine(today, session_expiry_time)
 
-            orders = SandboxOrders.query.filter(
+            orders = db_session.query(SandboxOrders).filter(
                 SandboxOrders.user_id == self.user_id,
                 SandboxOrders.order_timestamp >= session_start
             ).order_by(
@@ -735,7 +735,7 @@ class OrderManager:
     def get_order_status(self, orderid):
         """Get status of a specific order"""
         try:
-            order = SandboxOrders.query.filter_by(
+            order = db_session.query(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
             ).first()
@@ -844,7 +844,7 @@ class OrderManager:
 
         # Get the count of orders for today to generate sequence number
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_orders = SandboxOrders.query.filter(
+        today_orders = db_session.query(SandboxOrders).filter(
             SandboxOrders.user_id == self.user_id,
             SandboxOrders.order_timestamp >= today_start
         ).count()

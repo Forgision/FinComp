@@ -508,7 +508,7 @@ class PositionManager:
 
                     # Update position to closed
                     position.quantity = 0
-                    position.pnl = float(position.realized_pnl)
+                    position.pnl = position.accumulated_realized_pnl
                     db.commit()
 
                     logger.info(f"Auto squared-off MIS position: {position.symbol} qty: {quantity}")
@@ -547,7 +547,7 @@ class PositionManager:
 
                     # Clear the CNC position
                     position.quantity = 0
-                    position.pnl = float(position.realized_pnl)
+                    position.pnl = position.accumulated_realized_pnl
                     db.commit()
 
                     logger.info(f"Moved CNC position to holdings: {position.symbol} qty: {position.quantity}")

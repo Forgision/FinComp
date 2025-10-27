@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import (
     Float,
@@ -7,37 +7,14 @@ from sqlalchemy import (
     Sequence,
     String,
     and_,
-    create_engine,
     or_,
     select,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, scoped_session, sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.config import settings
+from app.core.schemas.base import Base
+from app.core.schemas.session import db_session, engine
 from app.utils.logging import logger
-
-DATABASE_URL = settings.DATABASE_URL
-# Conditionally create engine based on DB type
-if DATABASE_URL and 'sqlite' in DATABASE_URL:
-    # SQLite: Use NullPool to prevent connection pool exhaustion
-    engine = create_engine(
-        DATABASE_URL,
-        poolclass=NullPool,
-        connect_args={'check_same_thread': False}
-    )
-else:
-    # For other databases like PostgreSQL, use connection pooling
-    engine = create_engine(
-        DATABASE_URL,
-        pool_size=50,
-        max_overflow=100,
-        pool_timeout=10
-    )
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-
-class Base(DeclarativeBase):
-    pass
 
 class SymToken(Base):
     __tablename__ = 'symtoken'

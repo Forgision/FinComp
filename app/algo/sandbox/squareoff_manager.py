@@ -17,6 +17,7 @@ import pytz
 from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
+    db_session,
     get_config,
     init_db,
 )
@@ -64,7 +65,7 @@ class SquareOffManager:
             self._cancel_open_mis_orders(current_time)
 
             # Step 2: Get all open MIS positions (quantity != 0)
-            mis_positions = SandboxPositions.query.filter_by(product='MIS')\
+            mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
                 .filter(SandboxPositions.quantity != 0).all()
 
             if not mis_positions:
@@ -101,7 +102,7 @@ class SquareOffManager:
             from sandbox.order_manager import OrderManager
 
             # Get all open MIS orders
-            open_orders = SandboxOrders.query.filter_by(
+            open_orders = db_session.query(SandboxOrders).filter_by(
                 product='MIS',
                 order_status='open'
             ).all()
@@ -175,7 +176,7 @@ class SquareOffManager:
     def force_square_off_all_mis(self):
         """Force square-off all MIS positions immediately"""
         try:
-            mis_positions = SandboxPositions.query.filter_by(product='MIS')\
+            mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
                 .filter(SandboxPositions.quantity != 0).all()
 
             if not mis_positions:

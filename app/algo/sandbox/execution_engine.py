@@ -51,7 +51,7 @@ class ExecutionEngine:
         """
         try:
             # Get all pending orders
-            pending_orders = SandboxOrders.query.filter_by(order_status='open').all()
+            pending_orders = db_session.query(SandboxOrders).filter_by(order_status='open').all()
 
             if not pending_orders:
                 logger.debug("No pending orders to process")
@@ -109,7 +109,7 @@ class ExecutionEngine:
         try:
             # Get any user's API key for fetching quotes
             from app.core.schemas.auth_db import ApiKeys, decrypt_token
-            api_key_obj = ApiKeys.query.first()
+            api_key_obj = db_session.query(ApiKeys).first()
 
             if not api_key_obj:
                 logger.warning("No API keys found for fetching quotes")
@@ -274,7 +274,7 @@ class ExecutionEngine:
             fund_manager = FundManager(order.user_id)
 
             # Check if position exists
-            position = SandboxPositions.query.filter_by(
+            position = db_session.query(SandboxPositions).filter_by(
                 user_id=order.user_id,
                 symbol=order.symbol,
                 exchange=order.exchange,
