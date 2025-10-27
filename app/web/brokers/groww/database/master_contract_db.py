@@ -3,6 +3,7 @@
 from io import StringIO
 from os import listdir, makedirs, path, remove, rmdir
 import pandas as pd
+import re
 from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -222,7 +223,7 @@ def format_groww_to_openalgo_symbol(groww_symbol, exchange):
 
     if not groww_symbol:
         return groww_symbol
-
+    clean_symbol = groww_symbol
     # Handle special cases for NFO
     if exchange == 'NFO':
         # Remove any extra whitespace and convert to uppercase
@@ -489,7 +490,7 @@ def process_groww_data(output_path):
             'strike_price': float,  # Convert to numeric later
             'tick_size': float,  # Convert to numeric later
         }
-        df = pd.read_csv(file_path, low_memory=False, dtype=dtype_dict)
+        df = pd.read_csv(file_path, low_memory=False, dtype=str)
 
         logger.info(f"Loaded {len(df)} instruments from CSV file")
         logger.info("CSV columns: {")

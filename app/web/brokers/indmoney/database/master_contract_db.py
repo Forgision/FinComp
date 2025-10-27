@@ -105,7 +105,7 @@ def copy_from_dataframe(df):
                 # Use a separate transaction for each chunk with retry logic
                 try:
                     # Insert chunk
-                    db_session.bulk_insert_mappings(SymToken, chunk)
+                    db_session.bulk_insert_mappings(SymToken.__mapper__, chunk)
                     db_session.commit()  # Commit each chunk immediately
 
                     total_inserted += len(chunk)
@@ -121,7 +121,7 @@ def copy_from_dataframe(df):
                     # Retry once for this chunk
                     try:
                         time.sleep(0.1)  # Brief pause before retry
-                        db_session.bulk_insert_mappings(SymToken, chunk)
+                        db_session.bulk_insert_mappings(SymToken.__mapper__, chunk)
                         db_session.commit()
                         total_inserted += len(chunk)
                     except Exception as retry_error:
@@ -147,7 +147,7 @@ def download_csv_indmoney_data(output_path):
     # Since Indmoney might have multiple users, we need to get the first valid one
     try:
         from app.core.schemas.auth_db import Auth
-        auth_obj = Auth.query.filter_by(broker='indmoney', is_revoked=False).first()
+        auth_obj = db_session.query(Auth).filter_by(broker='indmoney', is_revoked=False).first()
         if auth_obj:
             from app.core.schemas.auth_db import decrypt_token
             auth_token = decrypt_token(auth_obj.auth)

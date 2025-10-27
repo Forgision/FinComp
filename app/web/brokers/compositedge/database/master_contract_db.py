@@ -12,7 +12,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from app.core.config import settings
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio  # Import SocketIO
+from app.utils.web.socketio import sio  # Import SocketIO
 
 DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
@@ -62,7 +62,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -484,12 +484,12 @@ def master_contract_download():
 
         delete_compositedge_temp_data(output_path)
 
-        return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
+        return sio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
 
 
     except Exception as e:
         logger.info(f"{e}")
-        return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
+        return sio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
 
 
 

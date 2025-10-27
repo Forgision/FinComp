@@ -18,7 +18,7 @@ from app.utils.constants import (
     VALID_PRODUCT_TYPES,
 )
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 # Initialize logger
 
@@ -49,7 +49,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'basketorder')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -66,6 +66,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = None
     try:
         module_path = f'broker.{broker_name}.api.order_api'
         broker_module = importlib.import_module(module_path)
@@ -137,7 +138,7 @@ def place_single_order(
 
         if res.status == 200:
             # Emit order event for toast notification
-            socketio.emit('order_event', {
+            sio.emit('order_event', {
                 'symbol': order_data['symbol'],
                 'action': order_data['action'],
                 'orderid': order_id,
@@ -198,7 +199,7 @@ def process_basket_order_with_auth(
     api_key = basket_data.get('apikey')
 
     # If in analyze mode, route each order to sandbox
-    if get_analyze_mode():
+    if get_analyze_mode() is True:
         from services.sandbox_service import sandbox_place_order
 
         analyze_results = []
@@ -226,11 +227,16 @@ def process_basket_order_with_auth(
                 continue
 
             # Place order in sandbox
-            success, response, status_code = sandbox_place_order(
-                order_with_auth,
-                api_key,
-                {'apikey': api_key, 'order_type': 'basket'}
-            )
+            if api_key:
+                success, response, status_code = sandbox_place_order(
+                    order_with_auth,
+                    api_key,
+                    {'apikey': api_key, 'order_type': 'basket'}
+                )
+            else:
+                success = False
+                response = {"status": "error", "message": "API key is missing"}
+                status_code = 400
 
             if success:
                 analyze_results.append({
@@ -261,7 +267,7 @@ def process_basket_order_with_auth(
         log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'basketorder')
 
         # Emit socket event for toast notification
-        socketio.emit('analyzer_update', {
+        sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
@@ -378,8 +384,15 @@ def place_basket_order(
         # Add API key to basket data
         basket_data['apikey'] = api_key
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

@@ -64,7 +64,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -245,8 +245,18 @@ def process_kotak_nfo_csv(path):
     return tokensymbols
 
 def get_kotak_master_filepaths():
-    login_username = find_user_by_username().username
+    login_username = settings.API_CLIENT
+    if not login_username:
+        logger.error("API_CLIENT not set in settings.")
+        socketio.emit('master_contract_download', {'status': 'error', 'message': 'API_CLIENT not set in settings.'})
+        return {}
+
     auth_token = get_auth_token(login_username)
+    if not auth_token:
+        logger.error(f"Auth token not found for user: {login_username}")
+        socketio.emit('master_contract_download', {'status': 'error', 'message': f'Auth token not found for user: {login_username}'})
+        return {}
+
     access_token_parts = auth_token.split(":::")
     access_token = access_token_parts[3]
     conn = http.client.HTTPSConnection("gw-napi.kotaksecurities.com")

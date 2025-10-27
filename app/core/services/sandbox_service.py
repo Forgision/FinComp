@@ -27,12 +27,12 @@ from app.algo.sandbox.squareoff_thread import (
 from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 
 def is_sandbox_mode() -> bool:
     """Check if sandbox/analyzer mode is enabled"""
-    return get_analyze_mode()
+    return get_analyze_mode() is True
 
 
 def get_user_id_from_apikey(api_key: str) -> Optional[str]:
@@ -104,7 +104,7 @@ def sandbox_place_order(
         executor.submit(async_log_analyzer, log_request, response, 'placeorder')
 
         # Emit socket event
-        socketio.emit('analyzer_update', {
+        sio.emit('analyzer_update', {
             'request': log_request,
             'response': response
         })
@@ -159,7 +159,7 @@ def sandbox_modify_order(
         log_request['api_type'] = 'modifyorder'
 
         executor.submit(async_log_analyzer, log_request, response, 'modifyorder')
-        socketio.emit('analyzer_update', {'request': log_request, 'response': response})
+        sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code
 
@@ -199,7 +199,7 @@ def sandbox_cancel_order(
         log_request['api_type'] = 'cancelorder'
 
         executor.submit(async_log_analyzer, log_request, response, 'cancelorder')
-        socketio.emit('analyzer_update', {'request': log_request, 'response': response})
+        sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code
 
@@ -601,7 +601,7 @@ def sandbox_cancel_all_orders(
             return False, orderbook_response, status_code
 
         orders = orderbook_response.get('data', {}).get('orders', [])
-        open_orders = [order for order in orders if order.get('order_status') in ['open', 'pending', 'trigger_pending']]
+        open_orders = [order for order in orders if isinstance(order, dict) and order.get('order_status') in ['open', 'pending', 'trigger_pending']]
 
         if not open_orders:
             return True, {

@@ -11,7 +11,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 
 from app.core.config import settings
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 
 def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
@@ -41,7 +41,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'openposition')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -74,7 +74,7 @@ def get_open_position_with_auth(
         request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for real position data
-    if get_analyze_mode():
+    if get_analyze_mode() is True:
         from services.sandbox_service import sandbox_get_positions
 
         api_key = original_data.get('apikey')
@@ -116,7 +116,7 @@ def get_open_position_with_auth(
         analyzer_request = request_data.copy()
         analyzer_request['api_type'] = 'openposition'
         log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'openposition')
-        socketio.emit('analyzer_update', {'request': analyzer_request, 'response': response_data})
+        sio.emit('analyzer_update', {'request': analyzer_request, 'response': response_data})
 
         return True, response_data, 200
 
@@ -217,8 +217,15 @@ def get_open_position(
         # Add API key to position data
         position_data['apikey'] = api_key
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

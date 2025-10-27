@@ -9,7 +9,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.tradebook_service import get_tradebook
 
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 
 def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
@@ -39,7 +39,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'orderstatus')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -74,10 +74,10 @@ def get_order_status_with_auth(
     # Log the mode and order details
     is_analyze_mode = get_analyze_mode()
     orderid = status_data.get('orderid')
-    logger.info(f"[OrderStatus] Processing order status request - Mode: {'ANALYZE' if is_analyze_mode else 'LIVE'}, OrderID: {orderid}, Broker: {broker}")
+    logger.info(f"[OrderStatus] Processing order status request - Mode: {'ANALYZE' if is_analyze_mode is True else 'LIVE'}, OrderID: {orderid}, Broker: {broker}")
 
     # In analyze mode, route to sandbox for real order status
-    if is_analyze_mode and orderid:
+    if is_analyze_mode is True and orderid:
         from app.core.services.sandbox_service import sandbox_get_order_status
 
         logger.info(f"[OrderStatus] Routing to sandbox for order ID {orderid} in analyzer mode")
@@ -114,12 +114,12 @@ def get_order_status_with_auth(
             'status': 'error',
             'message': orderbook_response.get('message', 'Failed to fetch orderbook')
         }
-        if is_analyze_mode:
+        if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
             log_executor.submit(async_log_analyzer, request_data, error_response, 'orderstatus')
             # Emit socket event
-            socketio.emit('analyzer_update', {
+            sio.emit('analyzer_update', {
                 'request': request_data,
                 'response': error_response
             })
@@ -157,12 +157,12 @@ def get_order_status_with_auth(
             'status': 'error',
             'message': f'Order {status_data["orderid"]} not found'
         }
-        if is_analyze_mode:
+        if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
             log_executor.submit(async_log_analyzer, request_data, error_response, 'orderstatus')
             # Emit socket event
-            socketio.emit('analyzer_update', {
+            sio.emit('analyzer_update', {
                 'request': request_data,
                 'response': error_response
             })
@@ -228,7 +228,7 @@ def get_order_status_with_auth(
     }
 
     # Add mode indicator for analyze mode
-    if is_analyze_mode:
+    if is_analyze_mode is True:
         response_data['mode'] = 'analyze'
         logger.info(f"[OrderStatus] ANALYZE mode - Preparing response for OrderID {orderid} with status: {order_found.get('order_status')}")
 
@@ -241,7 +241,7 @@ def get_order_status_with_auth(
         logger.debug("[OrderStatus] Logged to analyzer database")
 
         # Emit socket event for toast notification
-        socketio.emit('analyzer_update', {
+        sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
@@ -285,8 +285,15 @@ def get_order_status(
         # Add API key to status data
         status_data['apikey'] = api_key
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

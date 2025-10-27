@@ -16,7 +16,7 @@ from app.utils.constants import (
     VALID_PRODUCT_TYPES,
 )
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 from .telegram_alert_service import telegram_alert_service
 
@@ -50,7 +50,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     executor.submit(async_log_analyzer, analyzer_request, error_response, 'placesmartorder')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -142,15 +142,15 @@ def place_smart_order_with_auth(
     # Validate order data
     is_valid, error_message = validate_smart_order(order_data)
     if not is_valid:
-        if get_analyze_mode():
-            return False, emit_analyzer_error(original_data, error_message), 400
-        error_response = {'status': 'error', 'message': error_message}
+        if get_analyze_mode() is True:
+            return False, emit_analyzer_error(original_data, error_message or "Validation failed"), 400
+        error_response = {'status': 'error', 'message': error_message or "Validation failed"}
         executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
         return False, error_response, 400
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode():
-        from app.web.services.sandbox_service import sandbox_place_smart_order
+    if get_analyze_mode() is True:
+        from app.core.services.sandbox_service import sandbox_place_smart_order
 
         api_key = original_data.get('apikey')
         if not api_key:
@@ -171,7 +171,7 @@ def place_smart_order_with_auth(
         executor.submit(async_log_analyzer, analyzer_request, response_data, 'placesmartorder')
 
         # Emit socket event for toast notification
-        socketio.emit('analyzer_update', {
+        sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
@@ -203,7 +203,7 @@ def place_smart_order_with_auth(
             executor.submit(async_log_order, 'placesmartorder', order_request_data, order_response_data)
 
             # Emit notification for matched positions
-            socketio.emit('order_notification', {
+            sio.emit('order_notification', {
                 'symbol': order_data.get('symbol'),
                 'status': 'info',
                 'message': ' Positions Already Matched. No Action needed.'
@@ -218,7 +218,7 @@ def place_smart_order_with_auth(
             executor.submit(async_log_order, 'placesmartorder', order_request_data, order_response_data)
             # Send Telegram alert
             telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
-            socketio.emit('order_event', {
+            sio.emit('order_event', {
                 'symbol': order_data.get('symbol'),
                 'action': order_data.get('action'),
                 'orderid': order_id,
@@ -291,8 +291,15 @@ def place_smart_order(
         # Add API key to order data
         order_data['apikey'] = api_key
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

@@ -98,7 +98,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -188,7 +188,7 @@ def process_fyers_nse_csv(path):
     logger.info("Processing Fyers NSE CSV Data")
     file_path = f'{path}/NSE_CM.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
 
     # Assigning headers to the DataFrame
@@ -239,7 +239,7 @@ def process_fyers_bse_csv(path):
     logger.info("Processing Fyers BSE CSV Data")
     file_path = f'{path}/BSE_CM.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
     # Assigning headers to the DataFrame
     df.columns = headers
@@ -287,7 +287,7 @@ def process_fyers_nfo_csv(path):
     logger.info("Processing Fyers NFO CSV Data")
     file_path = f'{path}/NSE_FO.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
     df['token'] = df['Fytoken']
     df['name'] = df['Symbol Details']
@@ -335,7 +335,7 @@ def process_fyers_cds_csv(path):
     logger.info("Processing Fyers CDS CSV Data")
     file_path = f'{path}/NSE_CD.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
     df['token'] = df['Fytoken']
     df['name'] = df['Symbol Details']
@@ -383,7 +383,7 @@ def process_fyers_bfo_csv(path):
     logger.info("Processing Fyers BFO CSV Data")
     file_path = f'{path}/BSE_FO.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
     df['token'] = df['Fytoken']
     df['name'] = df['Symbol Details']
@@ -430,7 +430,7 @@ def process_fyers_mcx_csv(path):
     logger.info("Processing Fyers MCX CSV Data")
     file_path = f'{path}/MCX_COM.csv'
 
-    df = pd.read_csv(file_path, names=headers, dtype=data_types)
+    df = pd.read_csv(file_path, names=headers, dtype=str)
 
     df['token'] = df['Fytoken']
     df['name'] = df['Symbol Details']

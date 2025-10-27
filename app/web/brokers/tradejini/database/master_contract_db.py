@@ -6,14 +6,9 @@ import pandas as pd
 from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
-
+from app.utils.web.socketio import sio as socketio
 from app.core.config import settings
 from app.utils.logging import logger
-
-try:
-    from app.utils.web.socketio import socketio  # Import SocketIO
-except ImportError:
-    socketio = None
 
 # Create a shared httpx client for connection pooling
 client = httpx.Client(timeout=30.0)
@@ -75,7 +70,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -372,26 +367,11 @@ def process_scrip_data(scrip_data, group_info):
                     # Check if this is a common index symbol
                     if openalgo_exchange == 'BSE_INDEX':
                         # Handle BSE indices
-                        if item['symbol'].upper() in COMMON_INDEX_MAP[openalgo_exchange]['common']:
+                        if item['symbol'].upper() in COMMON_INDEX_MAP[openalgo_exchange]:
                             # Use common symbol format for main indices
                             record = {
                                 'symbol': item['symbol'].upper(),  # Use uppercase symbol
                                 'brsymbol': item['id'],  # Use dispName as brsymbol
-                                'name': item.get('symbol', item['dispName']),  # Use symbol field if available
-                                'exchange': openalgo_exchange,
-                                'brexchange': raw_exchange,
-                                'token': str(item['excToken']),
-                                'expiry': '',
-                                'strike': 0,
-                                'lotsize': 1,
-                                'instrumenttype': 'INDEX',
-                                'tick_size': 0.05
-                            }
-                        elif item['symbol'].upper() in COMMON_INDEX_MAP[openalgo_exchange]['sectoral']:
-                            # Use sectoral index format
-                            record = {
-                                'symbol': item['symbol'].upper(),  # Use uppercase symbol
-                                'brsymbol': COMMON_INDEX_MAP[openalgo_exchange]['sectoral'][item['symbol'].upper()],  # Use mapped brsymbol
                                 'name': item.get('symbol', item['dispName']),  # Use symbol field if available
                                 'exchange': openalgo_exchange,
                                 'brexchange': raw_exchange,

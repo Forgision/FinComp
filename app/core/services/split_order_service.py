@@ -11,7 +11,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 # Maximum number of orders allowed
 MAX_ORDERS = 100
@@ -43,7 +43,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'splitorder')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -94,7 +94,7 @@ def place_single_order(
 
         if res.status == 200:
             # Emit order event for toast notification with batch info
-            socketio.emit('order_event', {
+            sio.emit('order_event', {
                 'symbol': order_data['symbol'],
                 'action': order_data['action'],
                 'orderid': order_id,
@@ -164,7 +164,7 @@ def split_order_with_auth(
         total_quantity = int(split_data['quantity'])
         if split_size <= 0:
             error_message = 'Split size must be greater than 0'
-            if get_analyze_mode():
+            if get_analyze_mode() is True:
                 return False, emit_analyzer_error(original_data, error_message), 400
             error_response = {'status': 'error', 'message': error_message}
             log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
@@ -178,7 +178,7 @@ def split_order_with_auth(
         total_orders = num_full_orders + (1 if remaining_qty > 0 else 0)
         if total_orders > MAX_ORDERS:
             error_message = f'Total number of orders would exceed maximum limit of {MAX_ORDERS}'
-            if get_analyze_mode():
+            if get_analyze_mode() is True:
                 return False, emit_analyzer_error(original_data, error_message), 400
             error_response = {'status': 'error', 'message': error_message}
             log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
@@ -186,14 +186,14 @@ def split_order_with_auth(
 
     except ValueError:
         error_message = 'Invalid quantity or split size'
-        if get_analyze_mode():
+        if get_analyze_mode() is True:
             return False, emit_analyzer_error(original_data, error_message), 400
         error_response = {'status': 'error', 'message': error_message}
         log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
         return False, error_response, 400
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode():
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         api_key = original_data.get('apikey')
@@ -273,7 +273,7 @@ def split_order_with_auth(
         log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'splitorder')
 
         # Emit socket event for toast notification
-        socketio.emit('analyzer_update', {
+        sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
@@ -383,8 +383,15 @@ def split_order(
         # Add API key to split data
         split_data['apikey'] = api_key
 
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

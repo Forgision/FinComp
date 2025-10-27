@@ -73,7 +73,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -166,8 +166,8 @@ def process_flattrade_nse_data(output_path):
         df = df.rename(columns=column_mapping)
 
         # Fill NaN values in required fields
-        df['name'] = df['name'].fillna('')
-        df['brsymbol'] = df['brsymbol'].fillna('')
+    df['name'] = df['name'].fillna(df['brsymbol'])
+    df['name'] = df['name'].fillna('')
         df['token'] = df['token'].fillna('').astype(str)
 
         # Remove rows where brsymbol is empty (required field)
@@ -270,6 +270,7 @@ def process_flattrade_nfo_data(output_path):
     df['tick_size'] = 0.05  # Default tick size for NFO
 
     # Add missing columns to ensure DataFrame matches the database structure
+    df['name'] = df['name'].fillna(df['brsymbol'])
     df['expiry'] = df['expiry'].fillna('')  # Fill expiry with empty strings if missing
     df['strike'] = df['strike'].fillna('-1')  # Fill strike with -1 if missing
 

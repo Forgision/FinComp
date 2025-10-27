@@ -11,7 +11,7 @@ from app.web.backend.schemas.order_schemas import OrderData
 from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
@@ -59,7 +59,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     executor.submit(async_log_analyzer, analyzer_request, error_response, 'placeorder')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -92,7 +92,7 @@ def place_order_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode():
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         # Get API key from original data
@@ -132,7 +132,7 @@ def place_order_with_auth(
         return False, error_response, 500
 
     if res.status == 200:
-        socketio.emit('order_event', {
+        sio.emit('order_event', {
             'symbol': order_data['symbol'],
             'action': order_data['action'],
             'orderid': order_id,
@@ -187,8 +187,15 @@ def place_order(
 
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

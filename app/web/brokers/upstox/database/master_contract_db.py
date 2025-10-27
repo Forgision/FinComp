@@ -62,7 +62,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -81,8 +81,8 @@ def download_and_unzip_upstox_data(url, input_path, output_path):
     with open(input_path, 'wb') as f:
         f.write(response.content)
     logger.info("Decompressing the JSON file")
-    with gzip.open(input_path, 'rb') as f_in:
-        with open(output_path, 'wb') as f_out:
+    with gzip.open(input_path, 'rt', encoding='utf-8') as f_in:
+        with open(output_path, 'w', encoding='utf-8') as f_out:
             shutil.copyfileobj(f_in, f_out)
 
 

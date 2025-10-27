@@ -78,7 +78,7 @@ def copy_from_dataframe(df):
                         valid_records.append(record)
 
             if valid_records:
-                db_session.bulk_insert_mappings(SymToken, valid_records)
+                db_session.bulk_insert_mappings(SymToken.__mapper__, valid_records)
                 db_session.commit()
                 logger.info(f"Bulk insert completed successfully with {len(valid_records)} new records.")
 

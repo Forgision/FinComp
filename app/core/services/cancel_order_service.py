@@ -10,7 +10,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 # Initialize logger
 
@@ -41,7 +41,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     executor.submit(async_log_analyzer, analyzer_request, error_response, 'cancelorder')
 
     # Emit socket event
-    socketio.emit('analyzer_update', {
+    sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
@@ -58,6 +58,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = None
     try:
         module_path = f'broker.{broker_name}.api.order_api'
         broker_module = importlib.import_module(module_path)
@@ -92,7 +93,7 @@ def cancel_order_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode():
+    if get_analyze_mode() is True:
         from services.sandbox_service import sandbox_cancel_order
 
         # Get API key from original data
@@ -132,7 +133,7 @@ def cancel_order_with_auth(
         return False, error_response, 500
 
     if status_code == 200:
-        socketio.emit('cancel_order_event', {
+        sio.emit('cancel_order_event', {
             'status': response_message.get('status'),
             'orderid': orderid,
             'mode': 'live'
@@ -189,8 +190,15 @@ def cancel_order(
 
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(api_key)
+        if not auth_details or len(auth_details) < 2:
+            error_response = {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }
+            return False, error_response, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             error_response = {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'

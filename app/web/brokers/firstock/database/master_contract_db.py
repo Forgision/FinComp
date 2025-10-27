@@ -54,7 +54,7 @@ def copy_from_dataframe(df):
 
     try:
         if filtered_data_dict:
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -97,9 +97,6 @@ def download_firstock_data(output_path):
 
                 # Make request using shared httpx client
                 response = client.get(url, timeout=30)
-
-                # Add status attribute for compatibility
-                response.status = response.status_code
 
                 if response.status_code == 200:
                     file_path = f'{output_path}/{exchange}_symbols.csv'

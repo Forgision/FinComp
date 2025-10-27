@@ -1,5 +1,6 @@
 import io
 import os
+import httpx
 
 #database/master_contract_db.py
 import pandas as pd
@@ -61,7 +62,7 @@ def copy_from_dataframe(df):
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
-            db_session.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
             db_session.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
@@ -83,7 +84,7 @@ def download_csv_zerodha_data(output_path):
         pd.DataFrame: DataFrame containing the downloaded instrument data
     """
     try:
-        login_username = settings.LOGIN_USERNAME
+        login_username = settings.API_CLIENT
         AUTH_TOKEN = get_auth_token(login_username)
 
         # Get the shared httpx client with connection pooling
@@ -111,12 +112,11 @@ def download_csv_zerodha_data(output_path):
 
         return df
 
-    except Exception as e:
+    except httpx.HTTPStatusError as e:
         error_message = str(e)
         try:
-            if hasattr(e, 'response') and e.response is not None:
-                error_detail = e.response.json()
-                error_message = error_detail.get('message', str(e))
+            error_detail = e.response.json()
+            error_message = error_detail.get('message', str(e))
         except Exception:
             pass
 

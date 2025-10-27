@@ -8,7 +8,7 @@ import time
 from app.core.schemas.token_db import load_cache_for_broker
 from app.core.schemas.token_db_enhanced import get_cache, get_cache_stats
 from app.utils.logging import logger
-from app.utils.web.socketio import socketio
+from app.utils.web.socketio import sio
 
 
 def load_symbols_to_cache(broker: str) -> bool:
@@ -39,7 +39,7 @@ def load_symbols_to_cache(broker: str) -> bool:
             )
 
             # Emit success event to frontend
-            socketio.emit('cache_loaded', {
+            sio.emit('cache_loaded', {
                 'status': 'success',
                 'broker': broker,
                 'total_symbols': stats['total_symbols'],
@@ -52,7 +52,7 @@ def load_symbols_to_cache(broker: str) -> bool:
             logger.error(f"Failed to load symbols into cache for broker: {broker}")
 
             # Emit error event to frontend
-            socketio.emit('cache_loaded', {
+            sio.emit('cache_loaded', {
                 'status': 'error',
                 'broker': broker,
                 'message': 'Failed to load symbols into cache'
@@ -64,7 +64,7 @@ def load_symbols_to_cache(broker: str) -> bool:
         logger.error(f"Error loading symbols to cache: {e}")
 
         # Emit error event to frontend
-        socketio.emit('cache_loaded', {
+        sio.emit('cache_loaded', {
             'status': 'error',
             'broker': broker,
             'message': str(e)
@@ -92,8 +92,11 @@ def hook_into_master_contract_download(broker: str):
             from app.web.backend.routes.python_strategy import (
                 restore_strategies_after_login,
             )
+            from app.core.schemas.session import get_db
+
+            db = next(get_db())
             logger.info("Attempting to restore Python strategies after master contract download")
-            success, message = restore_strategies_after_login()
+            success, message = restore_strategies_after_login(db, None)
             logger.info(f"Python strategy restoration result: {message}")
         except ImportError:
             logger.debug("Python strategy module not available")
