@@ -1,10 +1,11 @@
 # database/settings_db.py
 
 import base64
+from typing import Optional
 
 from cryptography.fernet import Fernet
-from sqlalchemy import Boolean, Column, Integer, String, Text
-from sqlalchemy.orm import Session
+from sqlalchemy import Boolean, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from app.core.config import settings
 from app.core.schemas.base import Base
@@ -14,50 +15,61 @@ from app.utils.logging import logger
 
 class Settings(Base):
     __tablename__ = 'settings'
-    id = Column(Integer, primary_key=True)
-    analyze_mode = Column(Boolean, default=False)  # Default to Live Mode
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    analyze_mode: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # SMTP Configuration
-    smtp_server = Column(String(255), nullable=True)
-    smtp_port = Column(Integer, nullable=True)
-    smtp_username = Column(String(255), nullable=True)
-    smtp_password_encrypted = Column(Text, nullable=True)  # Encrypted SMTP password
-    smtp_use_tls = Column(Boolean, default=True)
-    smtp_from_email = Column(String(255), nullable=True)
-    smtp_helo_hostname = Column(String(255), nullable=True)  # HELO/EHLO hostname
+    smtp_server: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    smtp_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    smtp_username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    smtp_password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    smtp_use_tls: Mapped[bool] = mapped_column(Boolean, default=True)
+    smtp_from_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    smtp_helo_hostname: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Security Settings
-    security_404_threshold = Column(Integer, default=20)  # 404 errors per day before ban
-    security_404_ban_duration = Column(Integer, default=24)  # Ban duration in hours
-    security_api_threshold = Column(Integer, default=10)  # Invalid API attempts before ban
-    security_api_ban_duration = Column(Integer, default=48)  # Ban duration in hours
-    security_repeat_offender_limit = Column(Integer, default=3)  # Bans before permanent ban
+    security_404_threshold: Mapped[int] = mapped_column(Integer, default=20)
+    security_404_ban_duration: Mapped[int] = mapped_column(Integer, default=24)
+    security_api_threshold: Mapped[int] = mapped_column(Integer, default=10)
+    security_api_ban_duration: Mapped[int] = mapped_column(Integer, default=48)
+    security_repeat_offender_limit: Mapped[int] = mapped_column(Integer, default=3)
 
-    def __init__(self, analyze_mode: bool = False):
+    def __init__(self, analyze_mode: bool = False,
+                 security_404_threshold: int = 20,
+                 security_404_ban_duration: int = 24,
+                 security_api_threshold: int = 10,
+                 security_api_ban_duration: int = 48,
+                 security_repeat_offender_limit: int = 3):
         self.analyze_mode = analyze_mode
+        self.security_404_threshold = security_404_threshold
+        self.security_404_ban_duration = security_404_ban_duration
+        self.security_api_threshold = security_api_threshold
+        self.security_api_ban_duration = security_api_ban_duration
+        self.security_repeat_offender_limit = security_repeat_offender_limit
+
 
 def init_db():
     """Initialize the settings database"""
     logger.info("Initializing Settings DB")
 
-    # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
 
-    # Create default settings only if no settings exist
     if not db_session.query(Settings).first():
         logger.info("Creating default settings (Live Mode)")
         default_settings = Settings(analyze_mode=False)
         db_session.add(default_settings)
         db_session.commit()
 
+
 def get_analyze_mode(db: Session):
     """Get current analyze mode setting"""
     settings = db.query(Settings).first()
     if not settings:
-        settings = Settings(analyze_mode=False)  # Default to Live Mode
+        settings = Settings(analyze_mode=False)
         db.add(settings)
         db.commit()
     return settings.analyze_mode
+
 
 def set_analyze_mode(mode: bool):
     """Set analyze mode setting"""
@@ -69,13 +81,13 @@ def set_analyze_mode(mode: bool):
         settings_instance.analyze_mode = mode
     db_session.commit()
 
+
 def _get_encryption_key():
     """Get or create encryption key for SMTP password"""
-    # Use API_KEY_PEPPER as the base for encryption key
     pepper = settings.API_KEY_PEPPER
-    # Create a stable key from the pepper
     key = base64.urlsafe_b64encode(pepper.ljust(32)[:32].encode())
     return key
+
 
 def _encrypt_password(password: str) -> str | None:
     """Encrypt SMTP password"""
@@ -86,6 +98,7 @@ def _encrypt_password(password: str) -> str | None:
     encrypted = f.encrypt(password.encode())
     return encrypted.decode()
 
+
 def _decrypt_password(encrypted_password: str) -> str | None:
     """Decrypt SMTP password"""
     if not encrypted_password:
@@ -95,21 +108,27 @@ def _decrypt_password(encrypted_password: str) -> str | None:
     decrypted = f.decrypt(encrypted_password.encode())
     return decrypted.decode()
 
+
 def get_smtp_settings(db: Session) -> dict | None:
     """Get SMTP configuration"""
-    settings = db.query(Settings).first()
-    if not settings:
+    settings_instance = db.query(Settings).first()
+    if not settings_instance:
         return None
 
+    decrypted_password = None
+    if settings_instance.smtp_password_encrypted:
+        decrypted_password = _decrypt_password(settings_instance.smtp_password_encrypted)
+
     return {
-        'smtp_server': settings.smtp_server,
-        'smtp_port': settings.smtp_port,
-        'smtp_username': settings.smtp_username,
-        'smtp_password': _decrypt_password(settings.smtp_password_encrypted) if settings.smtp_password_encrypted else None,
-        'smtp_use_tls': settings.smtp_use_tls,
-        'smtp_from_email': settings.smtp_from_email,
-        'smtp_helo_hostname': settings.smtp_helo_hostname
+        'smtp_server': settings_instance.smtp_server,
+        'smtp_port': settings_instance.smtp_port,
+        'smtp_username': settings_instance.smtp_username,
+        'smtp_password': decrypted_password,
+        'smtp_use_tls': settings_instance.smtp_use_tls,
+        'smtp_from_email': settings_instance.smtp_from_email,
+        'smtp_helo_hostname': settings_instance.smtp_helo_hostname
     }
+
 
 def set_smtp_settings(db: Session, smtp_server=None, smtp_port=None, smtp_username=None,
                      smtp_password=None, smtp_use_tls=True, smtp_from_email=None, smtp_helo_hostname=None):
@@ -137,11 +156,11 @@ def set_smtp_settings(db: Session, smtp_server=None, smtp_port=None, smtp_userna
     db.commit()
     logger.info("SMTP settings updated successfully")
 
+
 def get_security_settings():
     """Get security configuration"""
     settings = db_session.query(Settings).first()
     if not settings:
-        # Create with defaults
         settings = Settings(
             analyze_mode=False,
             security_404_threshold=20,
@@ -160,6 +179,7 @@ def get_security_settings():
         'api_ban_duration': settings.security_api_ban_duration or 48,
         'repeat_offender_limit': settings.security_repeat_offender_limit or 3
     }
+
 
 def set_security_settings(threshold_404=None, ban_duration_404=None,
                          threshold_api=None, ban_duration_api=None,
