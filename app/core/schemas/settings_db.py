@@ -4,6 +4,7 @@ import base64
 
 from cryptography.fernet import Fernet
 from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.schemas.base import Base
@@ -32,6 +33,9 @@ class Settings(Base):
     security_api_ban_duration = Column(Integer, default=48)  # Ban duration in hours
     security_repeat_offender_limit = Column(Integer, default=3)  # Bans before permanent ban
 
+    def __init__(self, analyze_mode: bool = False):
+        self.analyze_mode = analyze_mode
+
 def init_db():
     """Initialize the settings database"""
     logger.info("Initializing Settings DB")
@@ -57,12 +61,12 @@ def get_analyze_mode():
 
 def set_analyze_mode(mode: bool):
     """Set analyze mode setting"""
-    settings = db_session.query(Settings).first()
-    if not settings:
-        settings = Settings(analyze_mode=mode)
-        db_session.add(settings)
+    settings_instance = db_session.query(Settings).first()
+    if not settings_instance:
+        settings_instance = Settings(analyze_mode=mode)
+        db_session.add(settings_instance)
     else:
-        settings.analyze_mode = mode
+        settings_instance.analyze_mode = mode
     db_session.commit()
 
 def _get_encryption_key():
@@ -73,7 +77,7 @@ def _get_encryption_key():
     key = base64.urlsafe_b64encode(pepper.ljust(32)[:32].encode())
     return key
 
-def _encrypt_password(password: str) -> str:
+def _encrypt_password(password: str) -> str | None:
     """Encrypt SMTP password"""
     if not password:
         return None
@@ -82,7 +86,7 @@ def _encrypt_password(password: str) -> str:
     encrypted = f.encrypt(password.encode())
     return encrypted.decode()
 
-def _decrypt_password(encrypted_password: str) -> str:
+def _decrypt_password(encrypted_password: str) -> str | None:
     """Decrypt SMTP password"""
     if not encrypted_password:
         return None
@@ -91,7 +95,7 @@ def _decrypt_password(encrypted_password: str) -> str:
     decrypted = f.decrypt(encrypted_password.encode())
     return decrypted.decode()
 
-def get_smtp_settings(db: db_session):
+def get_smtp_settings(db: Session) -> dict | None:
     """Get SMTP configuration"""
     settings = db.query(Settings).first()
     if not settings:
@@ -107,28 +111,28 @@ def get_smtp_settings(db: db_session):
         'smtp_helo_hostname': settings.smtp_helo_hostname
     }
 
-def set_smtp_settings(db: db_session, smtp_server=None, smtp_port=None, smtp_username=None,
+def set_smtp_settings(db: Session, smtp_server=None, smtp_port=None, smtp_username=None,
                      smtp_password=None, smtp_use_tls=True, smtp_from_email=None, smtp_helo_hostname=None):
     """Set SMTP configuration"""
-    settings = db.query(Settings).first()
-    if not settings:
-        settings = Settings(analyze_mode=False)
-        db.add(settings)
+    settings_instance = db.query(Settings).first()
+    if not settings_instance:
+        settings_instance = Settings(analyze_mode=False)
+        db.add(settings_instance)
 
     if smtp_server is not None:
-        settings.smtp_server = smtp_server
+        settings_instance.smtp_server = smtp_server
     if smtp_port is not None:
-        settings.smtp_port = smtp_port
+        settings_instance.smtp_port = smtp_port
     if smtp_username is not None:
-        settings.smtp_username = smtp_username
+        settings_instance.smtp_username = smtp_username
     if smtp_password is not None:
-        settings.smtp_password_encrypted = _encrypt_password(smtp_password)
+        settings_instance.smtp_password_encrypted = _encrypt_password(smtp_password)
     if smtp_use_tls is not None:
-        settings.smtp_use_tls = smtp_use_tls
+        settings_instance.smtp_use_tls = smtp_use_tls
     if smtp_from_email is not None:
-        settings.smtp_from_email = smtp_from_email
+        settings_instance.smtp_from_email = smtp_from_email
     if smtp_helo_hostname is not None:
-        settings.smtp_helo_hostname = smtp_helo_hostname
+        settings_instance.smtp_helo_hostname = smtp_helo_hostname
 
     db.commit()
     logger.info("SMTP settings updated successfully")
