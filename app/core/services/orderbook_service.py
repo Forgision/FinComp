@@ -76,7 +76,7 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Error importing broker modules: {error}")
         return None
 
-async def get_orderbook_with_auth(auth_token: str, broker: str, original_data: Dict[str, Any] = None) -> Tuple[bool, Dict[str, Any], int]:
+async def get_orderbook_with_auth(db, auth_token: str, broker: str, original_data: Dict[str, Any] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get order book details using provided auth token.
 
@@ -93,7 +93,7 @@ async def get_orderbook_with_auth(auth_token: str, broker: str, original_data: D
     """
     # If in analyze mode AND we have original_data (API call), route to sandbox
     # If original_data is None (internal call), use live broker
-    if get_analyze_mode() and original_data:
+    if get_analyze_mode(db) and original_data:
         api_key = original_data.get('apikey')
         if not api_key:
             return False, {
@@ -147,6 +147,7 @@ async def get_orderbook_with_auth(auth_token: str, broker: str, original_data: D
         }, 500
 
 async def get_orderbook(
+    db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     broker: Optional[str] = None
@@ -168,18 +169,18 @@ async def get_orderbook(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
+        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'
             }, 403
         original_data = {'apikey': api_key}
-        return await get_orderbook_with_auth(AUTH_TOKEN, broker_name, original_data)
+        return await get_orderbook_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return await get_orderbook_with_auth(auth_token, broker, None)
+        return await get_orderbook_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:

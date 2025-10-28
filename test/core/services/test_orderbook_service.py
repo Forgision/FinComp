@@ -35,8 +35,9 @@ async def test_get_orderbook_success_with_auth_token(mock_broker_module):
     """Test get_orderbook with a valid auth_token."""
     auth_token = "some_auth_token"
     broker = "test_broker"
+    db = Mock()
 
-    success, response, status_code = await get_orderbook(auth_token=auth_token, broker=broker)
+    success, response, status_code = await get_orderbook(db, auth_token=auth_token, broker=broker)
 
     assert success
     assert status_code == 200
@@ -55,6 +56,7 @@ async def test_get_orderbook_success_with_auth_token(mock_broker_module):
 async def test_get_orderbook_success_with_api_key():
     """Test get_orderbook with a valid API key (analyze mode)."""
     api_key = "some_api_key"
+    db = Mock()
 
     with patch('app.core.services.orderbook_service.get_analyze_mode', return_value=True) as mock_get_analyze_mode, \
          patch('app.core.services.orderbook_service.get_auth_token_broker', return_value=("mock_token", "mock_broker")) as mock_get_auth_token, \
@@ -70,11 +72,11 @@ async def test_get_orderbook_success_with_api_key():
                 }
             }, 200)
 
-            success, response, status_code = await get_orderbook(api_key=api_key)
+            success, response, status_code = await get_orderbook(db, api_key=api_key)
 
             # Assertions
             mock_get_analyze_mode.assert_called_once()
-            mock_get_auth_token.assert_called_once_with(api_key)
+            mock_get_auth_token.assert_called_once_with(db, api_key)
             MockOrderManager.assert_called_once_with(user_id=api_key)
             mock_order_manager_instance.get_orderbook.assert_called_once()
 
@@ -88,7 +90,8 @@ async def test_get_orderbook_success_with_api_key():
 @pytest.mark.anyio
 async def test_get_orderbook_no_auth_or_api_key():
     """Test get_orderbook without auth_token or api_key."""
-    success, response, status_code = await get_orderbook()
+    db = Mock()
+    success, response, status_code = await get_orderbook(db)
 
     assert not success
     assert status_code == 400
@@ -98,8 +101,9 @@ async def test_get_orderbook_no_auth_or_api_key():
 @pytest.mark.anyio
 async def test_get_orderbook_broker_module_not_found():
     """Test get_orderbook when broker module cannot be imported."""
+    db = Mock()
     with patch('app.core.services.orderbook_service.import_broker_module', return_value=None):
-        success, response, status_code = await get_orderbook(auth_token="token", broker="non_existent_broker")
+        success, response, status_code = await get_orderbook(db, auth_token="token", broker="non_existent_broker")
 
         assert not success
         assert status_code == 404

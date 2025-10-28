@@ -59,7 +59,7 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Error importing broker modules: {error}")
         return None
 
-def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str, Any] = None) -> Tuple[bool, Dict[str, Any], int]:
+def get_holdings_with_auth(db, auth_token: str, broker: str, original_data: Dict[str, Any] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get holdings details using provided auth token.
 
@@ -77,7 +77,7 @@ def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str
     # If in analyze mode AND we have original_data (API call), route to sandbox
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
-    if get_analyze_mode() and original_data:
+    if get_analyze_mode(db) and original_data:
         from services.sandbox_service import sandbox_get_holdings
 
         api_key = original_data.get('apikey')
@@ -132,6 +132,7 @@ def get_holdings_with_auth(auth_token: str, broker: str, original_data: Dict[str
         }, 500
 
 def get_holdings(
+    db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     broker: Optional[str] = None
@@ -153,18 +154,18 @@ def get_holdings(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
+        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'
             }, 403
         original_data = {'apikey': api_key}
-        return get_holdings_with_auth(AUTH_TOKEN, broker_name, original_data)
+        return get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_holdings_with_auth(auth_token, broker, None)
+        return get_holdings_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:

@@ -297,7 +297,7 @@ def get_api_key_for_tradingview(user_id):
         logger.error(f"Error while querying the database for API key: {e}")
         return None
 
-def verify_api_key(provided_api_key):
+def verify_api_key(db, provided_api_key):
     """Verify an API key using Argon2"""
     import hashlib
 
@@ -309,7 +309,7 @@ def verify_api_key(provided_api_key):
     peppered_key = provided_api_key + PEPPER
     try:
         # Query all API keys
-        api_keys = db_session.query(ApiKeys).all()
+        api_keys = db.query(ApiKeys).all()
 
         # Try to verify against each stored hash
         for api_key_obj in api_keys:
@@ -342,22 +342,22 @@ def verify_api_key(provided_api_key):
         logger.error(f"Error verifying API key: {e}")
         return None
 
-def get_username_by_apikey(provided_api_key):
+def get_username_by_apikey(db, provided_api_key):
     """Get username for a given API key"""
-    return verify_api_key(provided_api_key)
+    return verify_api_key(db, provided_api_key)
 
-def get_broker_name(provided_api_key):
+def get_broker_name(db, provided_api_key):
     """Get only the broker name for a valid API key with caching"""
     # Check if broker name is in cache
     if provided_api_key in broker_cache:
         return broker_cache[provided_api_key]
 
     # Not in cache, need to look it up
-    user_id = verify_api_key(provided_api_key)
+    user_id = verify_api_key(db, provided_api_key)
 
     if user_id:
         try:
-            auth_obj = db_session.query(Auth).filter_by(name=user_id).first()
+            auth_obj = db.query(Auth).filter_by(name=user_id).first()
             if auth_obj and not auth_obj.is_revoked:
                 # Cache the broker name
                 broker_cache[provided_api_key] = auth_obj.broker
@@ -370,13 +370,13 @@ def get_broker_name(provided_api_key):
             return None
     return None
 
-def get_auth_token_broker(provided_api_key, include_feed_token=False):
+def get_auth_token_broker(db, provided_api_key, include_feed_token=False):
     """Get auth token, feed token (optional) and broker for a valid API key"""
     user_id = verify_api_key(provided_api_key)
 
     if user_id:
         try:
-            auth_obj = db_session.query(Auth).filter_by(name=user_id).first()
+            auth_obj = db.query(Auth).filter_by(name=user_id).first()
             if auth_obj and not auth_obj.is_revoked:
                 decrypted_token = decrypt_token(auth_obj.auth)
                 if include_feed_token:

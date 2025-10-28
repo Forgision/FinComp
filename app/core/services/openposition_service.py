@@ -49,6 +49,7 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     return error_response
 
 def get_open_position_with_auth(
+    db,
     position_data: Dict[str, Any],
     auth_token: str,
     broker: str,
@@ -74,7 +75,7 @@ def get_open_position_with_auth(
         request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for real position data
-    if get_analyze_mode() is True:
+    if get_analyze_mode(db) is True:
         from services.sandbox_service import sandbox_get_positions
 
         api_key = original_data.get('apikey')
@@ -187,6 +188,7 @@ def get_open_position_with_auth(
         return False, error_response, 500
 
 def get_open_position(
+    db,
     position_data: Dict[str, Any],
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -217,7 +219,7 @@ def get_open_position(
         # Add API key to position data
         position_data['apikey'] = api_key
 
-        auth_details = get_auth_token_broker(api_key)
+        auth_details = get_auth_token_broker(db, api_key)
         if not auth_details or len(auth_details) < 2:
             error_response = {
                 'status': 'error',
@@ -233,11 +235,11 @@ def get_open_position(
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return get_open_position_with_auth(position_data, AUTH_TOKEN, broker_name, original_data)
+        return get_open_position_with_auth(db, position_data, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_open_position_with_auth(position_data, auth_token, broker, original_data)
+        return get_open_position_with_auth(db, position_data, auth_token, broker, original_data)
 
     # Case 3: Invalid parameters
     else:

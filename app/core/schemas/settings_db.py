@@ -50,13 +50,13 @@ def init_db():
         db_session.add(default_settings)
         db_session.commit()
 
-def get_analyze_mode():
+def get_analyze_mode(db: Session):
     """Get current analyze mode setting"""
-    settings = db_session.query(Settings).first()
+    settings = db.query(Settings).first()
     if not settings:
         settings = Settings(analyze_mode=False)  # Default to Live Mode
-        db_session.add(settings)
-        db_session.commit()
+        db.add(settings)
+        db.commit()
     return settings.analyze_mode
 
 def set_analyze_mode(mode: bool):
