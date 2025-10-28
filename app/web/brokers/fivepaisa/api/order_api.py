@@ -24,7 +24,10 @@ BASE_URL = "https://Openapi.5paisa.com"
 # Retrieve the BROKER_API_KEY and BROKER_API_SECRET environment variables
 broker_api_key = settings.BROKER_API_KEY
 api_secret = settings.BROKER_API_SECRET
-api_key, user_id, client_id = broker_api_key.split(':::')
+if ':::' in broker_api_key:
+    api_key, user_id, client_id = broker_api_key.split(':::')
+else:
+    api_key, user_id, client_id = broker_api_key, None, None
 
 json_data = {
     "head": {

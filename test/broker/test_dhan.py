@@ -258,227 +258,227 @@ def test_place_order_api_json_decode_error(self, mock_get_httpx_client, mock_tra
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_no_action_needed(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 10
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "10", "quantity": "0"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    mock_get_open_position.return_value = 10
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "10", "quantity": "0"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertIsNone(res)
-self.assertEqual(response_data['message'], "No action needed. Position size matches current position")
-self.assertIsNone(order_id)
-mock_place_order_api.assert_not_called()
+    self.assertIsNone(res)
+    self.assertEqual(response_data['message'], "No action needed. Position size matches current position")
+    self.assertIsNone(order_id)
+    mock_place_order_api.assert_not_called()
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_buy_new_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 0
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 0
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "5"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "5"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_sell_new_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 0
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 0
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "-5", "action": "SELL", "quantity": "5"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "-5", "action": "SELL", "quantity": "5"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_increase_long_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 5
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 5
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "10", "action": "BUY", "quantity": "5"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "10", "action": "BUY", "quantity": "5"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_decrease_long_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 10
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 10
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "SELL", "quantity": "5"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "SELL", "quantity": "5"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "5")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_square_off_long_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 10
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 10
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "0", "action": "SELL", "quantity": "10"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "0", "action": "SELL", "quantity": "10"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_square_off_short_position(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = -10
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = -10
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "0", "action": "BUY", "quantity": "10"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "0", "action": "BUY", "quantity": "10"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_reverse_long_to_short(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 5
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = 5
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "-5", "action": "SELL", "quantity": "10"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "-5", "action": "SELL", "quantity": "10"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_reverse_short_to_long(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = -5
-mock_response = MagicMock()
-mock_response.status_code = 200
-mock_response.text = json.dumps({"orderId": "123"})
-mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
+    mock_get_open_position.return_value = -5
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps({"orderId": "123"})
+    mock_place_order_api.return_value = (mock_response, {"orderId": "123"}, "123")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "10"}
-res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "10"}
+    res, response_data, order_id = place_smartorder_api(order_data, self.auth_token)
 
-self.assertEqual(order_id, "123")
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
+    self.assertEqual(order_id, "123")
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], "10")
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_open_position')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_place_smartorder_api_exception_in_place_order(self, mock_place_order_api, mock_get_open_position):
-mock_get_open_position.return_value = 0
-mock_place_order_api.side_effect = Exception("Order placement failed")
+    mock_get_open_position.return_value = 0
+    mock_place_order_api.side_effect = Exception("Order placement failed")
 
-order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "5"}
-with self.assertRaisesRegex(Exception, "Order placement failed"):
-    place_smartorder_api(order_data, self.auth_token)
+    order_data = {"symbol": "SYMBOL", "exchange": "NSE", "product": "CNC", "position_size": "5", "action": "BUY", "quantity": "5"}
+    with self.assertRaisesRegex(Exception, "Order placement failed"):
+        place_smartorder_api(order_data, self.auth_token)
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_positions')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_close_all_positions_api_long_position(self, mock_place_order_api, mock_get_positions):
-mock_get_positions.return_value = ([{'symbol': 'SYMBOL1', 'quantity': 10}], None)
-mock_place_order_api.return_value = (MagicMock(status_code=200), {}, "123")
+    mock_get_positions.return_value = ([{'symbol': 'SYMBOL1', 'quantity': 10}], None)
+    mock_place_order_api.return_value = (MagicMock(status_code=200), {}, "123")
 
-res, data = close_all_positions_api(self.auth_token)
+    res, data = close_all_positions_api(self.auth_token)
 
-self.assertEqual(res.status_code, 200)
-self.assertEqual(data['message'], "All positions closed successfully.")
-mock_get_positions.assert_called_once()
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], 10)
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
+    self.assertEqual(res.status_code, 200)
+    self.assertEqual(data['message'], "All positions closed successfully.")
+    mock_get_positions.assert_called_once()
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], 10)
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "SELL")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_positions')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_close_all_positions_api_short_position(self, mock_place_order_api, mock_get_positions):
-mock_get_positions.return_value = ([{'symbol': 'SYMBOL2', 'quantity': -5}], None)
-mock_place_order_api.return_value = (MagicMock(status_code=200), {}, "123")
+    mock_get_positions.return_value = ([{'symbol': 'SYMBOL2', 'quantity': -5}], None)
+    mock_place_order_api.return_value = (MagicMock(status_code=200), {}, "123")
 
-res, data = close_all_positions_api(self.auth_token)
+    res, data = close_all_positions_api(self.auth_token)
 
-self.assertEqual(res.status_code, 200)
-self.assertEqual(data['message'], "All positions closed successfully.")
-mock_get_positions.assert_called_once()
-mock_place_order_api.assert_called_once()
-self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], 5)
-self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
+    self.assertEqual(res.status_code, 200)
+    self.assertEqual(data['message'], "All positions closed successfully.")
+    mock_get_positions.assert_called_once()
+    mock_place_order_api.assert_called_once()
+    self.assertEqual(mock_place_order_api.call_args[0][0]["quantity"], 5)
+    self.assertEqual(mock_place_order_api.call_args[0][0]["action"], "BUY")
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_positions')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_close_all_positions_api_no_positions(self, mock_place_order_api, mock_get_positions):
-mock_get_positions.return_value = ([], None)
+    mock_get_positions.return_value = ([], None)
 
-res, data = close_all_positions_api(self.auth_token)
+    res, data = close_all_positions_api(self.auth_token)
 
-self.assertIsNone(res)
-self.assertEqual(data['message'], "No positions to close.")
-mock_get_positions.assert_called_once()
-mock_place_order_api.assert_not_called()
+    self.assertIsNone(res)
+    self.assertEqual(data['message'], "No positions to close.")
+    mock_get_positions.assert_called_once()
+    mock_place_order_api.assert_not_called()
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_positions')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_close_all_positions_api_get_positions_error(self, mock_place_order_api, mock_get_positions):
-mock_get_positions.return_value = (None, {"error": "Failed to get positions"})
+    mock_get_positions.return_value = (None, {"error": "Failed to get positions"})
 
-res, data = close_all_positions_api(self.auth_token)
+    res, data = close_all_positions_api(self.auth_token)
 
-self.assertIsNone(res)
-self.assertEqual(data['error'], "Failed to get positions")
-mock_get_positions.assert_called_once()
-mock_place_order_api.assert_not_called()
+    self.assertIsNone(res)
+    self.assertEqual(data['error'], "Failed to get positions")
+    mock_get_positions.assert_called_once()
+    mock_place_order_api.assert_not_called()
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_positions')
 @patch('app.web.broker.broker.dhan.api.order_api.place_order_api')
 def test_close_all_positions_api_place_order_error(self, mock_place_order_api, mock_get_positions):
-mock_get_positions.return_value = ([{'symbol': 'SYMBOL1', 'quantity': 10}], None)
-mock_place_order_api.return_value = (MagicMock(status_code=400), {"error": "Order failed"}, None)
+    mock_get_positions.return_value = ([{'symbol': 'SYMBOL1', 'quantity': 10}], None)
+    mock_place_order_api.return_value = (MagicMock(status_code=400), {"error": "Order failed"}, None)
 
-res, data = close_all_positions_api(self.auth_token)
+    res, data = close_all_positions_api(self.auth_token)
 
-self.assertEqual(res.status_code, 400)
-self.assertEqual(data['error'], "Order failed")
-mock_get_positions.assert_called_once()
-mock_place_order_api.assert_called_once()
+    self.assertEqual(res.status_code, 400)
+    self.assertEqual(data['error'], "Order failed")
+    mock_get_positions.assert_called_once()
+    mock_place_order_api.assert_called_once()
 
 @patch('app.web.broker.broker.dhan.api.order_api.get_token')
 @patch('app.web.broker.broker.dhan.api.order_api.transform_data')

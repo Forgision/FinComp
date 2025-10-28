@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 import requests
-from sqlalchemy import Column, Float, Index, Integer, Sequence, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
+                            scoped_session, sessionmaker)
 
 from app.core.config import settings
 from app.utils.logging import logger
@@ -15,24 +15,32 @@ from app.utils.web.socketio import socketio
 DATABASE_URL = settings.DATABASE_URL
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base = declarative_base()
-Base.query = db_session.query_property()
+
+class Base(DeclarativeBase):
+    pass
 
 class SymToken(Base):
     __tablename__ = 'symtoken'
-    id = Column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol = Column(String, nullable=False, index=True)
-    brsymbol = Column(String, nullable=False, index=True)
-    name = Column(String)
-    exchange = Column(String, index=True)
-    brexchange = Column(String, index=True)
-    token = Column(String, index=True)
-    expiry = Column(String)
-    strike = Column(Float)
-    lotsize = Column(Integer)
-    instrumenttype = Column(String)
-    tick_size = Column(Float)
+    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
+    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=True)
+    exchange: Mapped[str] = mapped_column(String, index=True)
+    brexchange: Mapped[str] = mapped_column(String, index=True)
+    token: Mapped[str] = mapped_column(String, index=True)
+    expiry: Mapped[str] = mapped_column(String, nullable=True)
+    strike: Mapped[float] = mapped_column(Float, nullable=True)
+    lotsize: Mapped[int] = mapped_column(Integer, nullable=True)
+    instrumenttype: Mapped[str] = mapped_column(String, nullable=True)
+    tick_size: Mapped[float] = mapped_column(Float, nullable=True)
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
+
+def get_db():
+    db = db_session()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def init_db():
     logger.info("Initializing Master Contract DB")
@@ -40,8 +48,8 @@ def init_db():
 
 def delete_symtoken_table():
     logger.info("Deleting Symtoken Table")
-    SymToken.query.delete()
-    db_session.commit()
+    db.query(SymToken).delete()
+    db.commit()
 
 def copy_from_dataframe(df):
     logger.info("Performing Bulk Insert")
@@ -50,14 +58,14 @@ def copy_from_dataframe(df):
     filtered_data_dict = [row for row in data_dict if (row['token'], row['exchange']) not in existing_token_exchange]
     try:
         if filtered_data_dict:
-            db_session.bulk_insert_mappings(SymToken.__mapper__, filtered_data_dict)
-            db_session.commit()
+            db.bulk_insert_mappings(SymToken, filtered_data_dict)
+            db.commit()
             logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
         else:
             logger.info("No new records to insert.")
     except Exception as e:
         logger.error(f"Error during bulk insert: {e}")
-        db_session.rollback()
+        db.rollback()
 
 finvasia_urls = {
     "NSE": "https://api.finvasia.com/NSE_symbols.txt.zip",

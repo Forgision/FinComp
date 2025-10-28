@@ -82,6 +82,24 @@ def get_positions(auth):
 def get_holdings(auth):
     return get_api_response("/v2/holdings",auth)
 
+def get_order_details_api(orderid, auth):
+    AUTH_TOKEN = auth
+    headers = {
+        'access-token': AUTH_TOKEN,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+    client = get_httpx_client()
+    url = get_url(f"/v2/orders/{orderid}")
+    res = client.get(url, headers=headers)
+    res.status = res.status_code
+    try:
+        response_data = json.loads(res.text)
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON response: {e}")
+        return res, {"error": "Invalid JSON response"}
+    return res, response_data
+
 def get_open_position(tradingsymbol, exchange, product, auth):
 
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition

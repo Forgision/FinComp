@@ -2,9 +2,9 @@
 
 import os
 import pandas as pd
-from sqlalchemy import Column, Float, Integer, Sequence, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy import Float, Integer, Sequence, String, create_engine
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
+                            scoped_session, sessionmaker)
 
 from app.core.config import settings
 from app.utils.httpx_client import get_httpx_client
@@ -14,23 +14,31 @@ DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-Base = declarative_base()
-Base.query = db_session.query_property()
+
+class Base(DeclarativeBase):
+    pass
 
 class SymToken(Base):
     __tablename__ = 'symtoken'
-    id = Column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol = Column(String, nullable=False, index=True)  # Single column index
-    brsymbol = Column(String, nullable=False, index=True)  # Single column index
-    name = Column(String)
-    exchange = Column(String, index=True)  # Include this column in a composite index
-    brexchange = Column(String, index=True)
-    token = Column(String, index=True)  # Indexed for performance
-    expiry = Column(String)
-    strike = Column(Float)
-    lotsize = Column(Integer)
-    instrumenttype = Column(String)
-    tick_size = Column(Float)
+    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
+    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=True)
+    exchange: Mapped[str] = mapped_column(String, index=True)
+    brexchange: Mapped[str] = mapped_column(String, index=True)
+    token: Mapped[str] = mapped_column(String, index=True)
+    expiry: Mapped[str] = mapped_column(String, nullable=True)
+    strike: Mapped[float] = mapped_column(Float, nullable=True)
+    lotsize: Mapped[int] = mapped_column(Integer, nullable=True)
+    instrumenttype: Mapped[str] = mapped_column(String, nullable=True)
+    tick_size: Mapped[float] = mapped_column(Float, nullable=True)
+
+def get_db():
+    db = db_session()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -39,11 +47,11 @@ def delete_symtoken_table():
     """Delete all records from symtoken table"""
     try:
         db_session.query(SymToken).delete()
-        db_session.commit()
+        db.commit()
         logger.info("All records deleted from symtoken table")
     except Exception as e:
         logger.error(f"Error deleting symtoken table: {e}")
-        db_session.rollback()
+        db.rollback()
 
 def copy_from_dataframe(df):
     """Copy dataframe to database"""

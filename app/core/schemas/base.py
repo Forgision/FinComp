@@ -30,4 +30,3 @@ else:
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
-Base.query = db_session.query_property()

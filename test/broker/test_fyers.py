@@ -57,7 +57,7 @@ def mock_get_br_symbol():
 def mock_data_get_api_response():
     """Fixture to mock the get_api_response function in data.py."""
     with patch(
-        "app.web.broker.broker.fyers.api.data.get_api_response"
+        "app.web.broker.broker.fyers.api.data.get_api_response", new_callable=AsyncMock
     ) as mock_get_api_response_obj:
         yield mock_get_api_response_obj
 
@@ -182,7 +182,7 @@ class TestFyersAuth:
 def mock_order_get_api_response():
     """Fixture to mock the get_api_response function in order_api.py."""
     with patch(
-        "app.web.broker.broker.fyers.api.order_api.get_api_response"
+        "app.web.broker.broker.fyers.api.order_api.get_api_response", new_callable=AsyncMock
     ) as mock_get_api_response_obj:
         yield mock_get_api_response_obj
 
@@ -254,7 +254,7 @@ class TestFyersData:
             ],
         }
         broker_data = BrokerData("mock_auth_token")
-        quotes = broker_data.get_quotes("SBIN", "NSE")
+        quotes = await broker_data.get_quotes("SBIN", "NSE")
 
         assert quotes["ltp"] == 100.5
         assert quotes["bid"] == 100.0
@@ -277,7 +277,7 @@ class TestFyersData:
             Exception,
             match="Error fetching quotes: Error from Fyers API: Invalid symbol",
         ):
-            broker_data.get_quotes("INVALID", "NSE")
+            await broker_data.get_quotes("INVALID", "NSE")
         mock_get_br_symbol.assert_called_once_with("INVALID", "NSE")
         mock_data_get_api_response.assert_called_once()
 
@@ -290,7 +290,7 @@ class TestFyersData:
         broker_data = BrokerData("mock_auth_token")
 
         with pytest.raises(Exception, match="Error fetching quotes: Network issue"):
-            broker_data.get_quotes("SBIN", "NSE")
+            await broker_data.get_quotes("SBIN", "NSE")
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_called_once()
 
@@ -306,7 +306,7 @@ class TestFyersData:
             ],  # Mock epoch timestamp for 2023-03-15
         }
         broker_data = BrokerData("mock_auth_token")
-        df = broker_data.get_history("SBIN", "NSE", "D", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-03-15", "2023-03-15")
 
         assert not df.empty
         assert len(df) == 1
@@ -327,7 +327,7 @@ class TestFyersData:
             "candles": [[1678886400, 100, 101, 99, 100.5, 50000]],
         }
         broker_data = BrokerData("mock_auth_token")
-        df = broker_data.get_history("SBIN", "NSE", "5m", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history("SBIN", "NSE", "5m", "2023-03-15", "2023-03-15")
 
         assert not df.empty
         assert len(df) == 1
@@ -344,7 +344,7 @@ class TestFyersData:
         broker_data = BrokerData("mock_auth_token")
 
         with pytest.raises(Exception, match="Unsupported timeframe"):
-            broker_data.get_history("SBIN", "NSE", "W", "2023-01-01", "2023-01-31")
+            await broker_data.get_history("SBIN", "NSE", "W", "2023-01-01", "2023-01-31")
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_not_called()
 
@@ -359,7 +359,7 @@ class TestFyersData:
         }
         broker_data = BrokerData("mock_auth_token")
 
-        df = broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
+        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
         assert df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_called_once()
@@ -372,7 +372,7 @@ class TestFyersData:
         mock_data_get_api_response.return_value = {"s": "ok", "candles": []}
         broker_data = BrokerData("mock_auth_token")
 
-        df = broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
+        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
         assert df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_called_once()
@@ -388,7 +388,7 @@ class TestFyersData:
             "candles": [[1678886400, 100, 105, 99, 103, 100000, 50000]],  # With OI
         }
         broker_data = BrokerData("mock_auth_token")
-        df = broker_data.get_history("NIFTY", "NFO", "D", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history("NIFTY", "NFO", "D", "2023-03-15", "2023-03-15")
 
         assert not df.empty
         assert "oi" in df.columns
@@ -407,7 +407,7 @@ class TestFyersData:
             "candles": [[pd.Timestamp.now().timestamp(), 100, 101, 99, 100.5, 50000]],
         }
         broker_data = BrokerData("mock_auth_token")
-        df = broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", future_date)
+        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", future_date)
 
         assert not df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
@@ -438,7 +438,7 @@ class TestFyersData:
             },
         }
         broker_data = BrokerData("mock_auth_token")
-        depth = broker_data.get_depth("SBIN", "NSE")
+        depth = await broker_data.get_depth("SBIN", "NSE")
 
         assert depth["ltp"] == 100.5
         assert depth["bids"][0]["price"] == 100.0
@@ -462,7 +462,7 @@ class TestFyersData:
             Exception,
             match="Error fetching market depth: Error from Fyers API: Invalid symbol",
         ):
-            broker_data.get_depth("INVALID", "NSE")
+            await broker_data.get_depth("INVALID", "NSE")
         mock_get_br_symbol.assert_called_once_with("INVALID", "NSE")
         mock_data_get_api_response.assert_called_once()
 
@@ -474,7 +474,7 @@ class TestFyersData:
         mock_data_get_api_response.return_value = {"s": "ok", "d": {}}
         broker_data = BrokerData("mock_auth_token")
 
-        depth = broker_data.get_depth("SBIN", "NSE")
+        depth = await broker_data.get_depth("SBIN", "NSE")
         assert depth == {}
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_called_once()
@@ -489,7 +489,7 @@ class TestFyersOrder:
             "s": "ok",
             "orderBook": [{"id": "123", "symbol": "NSE:SBIN-EQ", "status": "OPEN"}],
         }
-        response = get_order_book("mock_auth_token")
+        response = await get_order_book("mock_auth_token")
         assert response["s"] == "ok"
         assert len(response["orderBook"]) == 1
         assert response["orderBook"][0]["id"] == "123"
@@ -504,7 +504,7 @@ class TestFyersOrder:
             "s": "error",
             "message": "Failed to fetch orders",
         }
-        response = get_order_book("mock_auth_token")
+        response = await get_order_book("mock_auth_token")
         assert response["s"] == "error"
         assert "Failed to fetch orders" in response["message"]
         mock_order_get_api_response.assert_called_once_with(
@@ -518,7 +518,7 @@ class TestFyersOrder:
             "s": "ok",
             "tradeBook": [{"id": "456", "symbol": "NSE:SBIN-EQ", "qty": 10}],
         }
-        response = get_trade_book("mock_auth_token")
+        response = await get_trade_book("mock_auth_token")
         assert response["s"] == "ok"
         assert len(response["tradeBook"]) == 1
         assert response["tradeBook"][0]["id"] == "456"
@@ -533,7 +533,7 @@ class TestFyersOrder:
             "s": "ok",
             "netPositions": [{"symbol": "NSE:SBIN-EQ", "netQty": 50}],
         }
-        response = get_positions("mock_auth_token")
+        response = await get_positions("mock_auth_token")
         assert response["s"] == "ok"
         assert len(response["netPositions"]) == 1
         assert response["netPositions"][0]["netQty"] == 50
@@ -548,7 +548,7 @@ class TestFyersOrder:
             "s": "ok",
             "holdings": [{"symbol": "NSE:SBIN-EQ", "qty": 100}],
         }
-        response = get_holdings("mock_auth_token")
+        response = await get_holdings("mock_auth_token")
         assert response["s"] == "ok"
         assert len(response["holdings"]) == 1
         assert response["holdings"][0]["qty"] == 100
@@ -571,7 +571,7 @@ class TestFyersOrder:
                 {"symbol": "NSE:RELIANCE-EQ", "productType": "CNC", "netQty": 30},
             ],
         }
-        net_qty = get_open_position("SBIN", "NSE", "CNC", "mock_auth_token")
+        net_qty = await get_open_position("SBIN", "NSE", "CNC", "mock_auth_token")
         assert net_qty == 25
         mock_get_br_symbol_order.assert_called_once_with("SBIN", "NSE")
         mock_order_get_api_response.assert_called_once_with(
@@ -593,7 +593,7 @@ class TestFyersOrder:
                 {"symbol": "NSE:RELIANCE-EQ", "productType": "CNC", "netQty": 30}
             ],
         }
-        net_qty = get_open_position("SBIN", "NSE", "CNC", "mock_auth_token")
+        net_qty = await get_open_position("SBIN", "NSE", "CNC", "mock_auth_token")
         assert net_qty == "0"
         mock_get_br_symbol_order.assert_called_once_with("SBIN", "NSE")
         mock_order_get_api_response.assert_called_once_with(
