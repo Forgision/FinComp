@@ -726,7 +726,7 @@ def unschedule_strategy(strategy_id: str):
 
     logger.info(f"Unscheduled strategy {strategy_id}")
 
-def restore_strategies_after_login(db: Session, request: Request):
+def restore_strategies_after_login(db: Session, request: Request | None = None):
     """Called after successful login to restore strategies that were waiting"""
     logger.info("Checking for strategies to restore after login...")
 
