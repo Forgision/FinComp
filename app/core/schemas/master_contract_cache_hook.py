@@ -11,7 +11,7 @@ from app.utils.logging import logger
 from app.utils.web.socketio import sio
 
 
-def load_symbols_to_cache(broker: str) -> bool:
+async def load_symbols_to_cache(broker: str) -> bool:
     """
     Load all symbols into memory cache after master contract download
     This function is called automatically when master contract download completes
@@ -39,7 +39,7 @@ def load_symbols_to_cache(broker: str) -> bool:
             )
 
             # Emit success event to frontend
-            sio.emit('cache_loaded', {
+            await sio.emit('cache_loaded', {
                 'status': 'success',
                 'broker': broker,
                 'total_symbols': stats['total_symbols'],
@@ -52,7 +52,7 @@ def load_symbols_to_cache(broker: str) -> bool:
             logger.error(f"Failed to load symbols into cache for broker: {broker}")
 
             # Emit error event to frontend
-            sio.emit('cache_loaded', {
+            await sio.emit('cache_loaded', {
                 'status': 'error',
                 'broker': broker,
                 'message': 'Failed to load symbols into cache'
@@ -64,7 +64,7 @@ def load_symbols_to_cache(broker: str) -> bool:
         logger.error(f"Error loading symbols to cache: {e}")
 
         # Emit error event to frontend
-        sio.emit('cache_loaded', {
+        await sio.emit('cache_loaded', {
             'status': 'error',
             'broker': broker,
             'message': str(e)
@@ -72,7 +72,7 @@ def load_symbols_to_cache(broker: str) -> bool:
 
         return False
 
-def hook_into_master_contract_download(broker: str):
+async def hook_into_master_contract_download(broker: str):
     """
     Hook function to be called after master contract download completes
     This should be integrated into the existing master contract download flow
@@ -85,7 +85,7 @@ def hook_into_master_contract_download(broker: str):
         time.sleep(0.5)
 
         # Load symbols into cache
-        load_symbols_to_cache(broker)
+        await load_symbols_to_cache(broker)
 
         # After successful master contract download, restore Python strategies
         try:
@@ -126,7 +126,7 @@ def clear_cache_on_logout():
     except Exception as e:
         logger.error(f"Error clearing cache on logout: {e}")
 
-def refresh_cache_if_needed(broker: str):
+async def refresh_cache_if_needed(broker: str):
     """
     Check if cache needs refresh and reload if necessary
     Called periodically or on-demand
@@ -140,7 +140,7 @@ def refresh_cache_if_needed(broker: str):
         # Check if cache is valid
         if not cache.is_cache_valid():
             logger.info(f"Cache expired or invalid for broker: {broker}. Reloading...")
-            load_symbols_to_cache(broker)
+            await load_symbols_to_cache(broker)
         else:
             logger.debug(f"Cache is still valid for broker: {broker}")
 
