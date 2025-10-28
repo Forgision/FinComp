@@ -372,7 +372,7 @@ def get_broker_name(db, provided_api_key):
 
 def get_auth_token_broker(db, provided_api_key, include_feed_token=False):
     """Get auth token, feed token (optional) and broker for a valid API key"""
-    user_id = verify_api_key(provided_api_key)
+    user_id = verify_api_key(db, provided_api_key)
 
     if user_id:
         try:
