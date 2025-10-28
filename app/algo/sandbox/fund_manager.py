@@ -226,7 +226,7 @@ class FundManager:
             logger.error(f"Error blocking margin for user {self.user_id}: {e}")
             return False, f"Error blocking margin: {str(e)}"
 
-    def release_margin(self, amount, realized_pnl=0, description=""):
+    def release_margin(self, amount, realized_pnl: Decimal = Decimal('0'), description=""):
         """Release blocked margin and update P&L"""
         try:
             funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
