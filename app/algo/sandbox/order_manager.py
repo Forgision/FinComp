@@ -19,6 +19,7 @@ from app.core.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxOrders,
     SandboxPositions,
+    db_session,
 )
 from app.core.schemas.session import get_db
 from app.core.schemas.symbol import SymToken
@@ -577,7 +578,7 @@ class OrderManager:
             # Release blocked margin using the exact amount that was blocked
             if hasattr(order, 'margin_blocked') and order.margin_blocked is not None and order.margin_blocked > 0:
                 self.fund_manager.release_margin(
-                    order.margin_blocked, 0,
+                    order.margin_blocked, Decimal('0'),
                     f"Order cancelled: {orderid}"
                 )
                 logger.info(f"Released margin ₹{order.margin_blocked} for cancelled order {orderid}")
@@ -629,7 +630,7 @@ class OrderManager:
                             )
                             if margin_blocked:
                                 self.fund_manager.release_margin(
-                                    margin_blocked, 0,
+                                    margin_blocked, Decimal('0'),
                                     f"Order cancelled: {orderid}"
                                 )
                                 logger.info(f"Released calculated margin ₹{margin_blocked} for cancelled order {orderid}")
