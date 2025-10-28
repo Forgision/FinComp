@@ -5,12 +5,13 @@ from typing import Any, Dict, List
 
 import pandas as pd
 from requests.exceptions import HTTPError, Timeout
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.utils.logging import logger
 
 
-from app.core.schemas.session import db_session
+from app.core.schemas.session import get_db
 from app.core.schemas.symbol import SymToken
 from app.core.schemas.token_db import get_br_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
@@ -41,39 +42,37 @@ class BrokerData:
         Auto-detect exchange for a symbol by looking up its instrumenttype in database
         Returns the appropriate exchange based on instrumenttype
         """
+        db = next(get_db())
         try:
             # Query database for the symbol
-            with db_session() as session:
-                # First try to find any matching symbol
-                results = session.query(SymToken).filter(
-                    SymToken.symbol == symbol
-                ).all()
+            stmt = select(SymToken).filter(SymToken.symbol == symbol)
+            results = db.scalars(stmt).all()
 
-                if results:
-                    for result in results:
-                        # Check instrumenttype to determine exchange
-                        if result.instrumenttype:
-                            instrument_type = result.instrumenttype.upper()
-                            # If instrumenttype contains INDEX, use it as exchange
-                            if 'INDEX' in instrument_type:
-                                # instrumenttype like NSE_INDEX, BSE_INDEX, MCX_INDEX
-                                return result.instrumenttype
-                            else:
-                                # For other types, use the exchange field
-                                return result.exchange
+            if results:
+                for result in results:
+                    # Check instrumenttype to determine exchange
+                    if result.instrumenttype:
+                        instrument_type = result.instrumenttype.upper()
+                        # If instrumenttype contains INDEX, use it as exchange
+                        if 'INDEX' in instrument_type:
+                            # instrumenttype like NSE_INDEX, BSE_INDEX, MCX_INDEX
+                            return result.instrumenttype
+                        else:
+                            # For other types, use the exchange field
+                            return result.exchange
 
-                    # If no instrumenttype, return the exchange of first match
-                    return results[0].exchange
+                # If no instrumenttype, return the exchange of first match
+                return results[0].exchange
 
-                # If not found, make educated guess based on symbol pattern
-                if symbol.endswith('FUT'):
-                    return 'NFO'
-                elif symbol.endswith('CE') or symbol.endswith('PE'):
-                    return 'NFO'
-                elif 'USDINR' in symbol.upper() or 'EURINR' in symbol.upper():
-                    return 'CDS'
-                else:
-                    return 'NSE'  # Default to NSE
+            # If not found, make educated guess based on symbol pattern
+            if symbol.endswith('FUT'):
+                return 'NFO'
+            elif symbol.endswith('CE') or symbol.endswith('PE'):
+                return 'NFO'
+            elif 'USDINR' in symbol.upper() or 'EURINR' in symbol.upper():
+                return 'CDS'
+            else:
+                return 'NSE'  # Default to NSE
 
         except Exception as e:
             logger.error(f"Error in auto-detecting exchange: {str(e)}")

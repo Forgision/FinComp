@@ -3,11 +3,10 @@ from datetime import datetime
 import os
 import pandas as pd
 import requests
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
 
-from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 
 try:
@@ -18,9 +17,6 @@ except ImportError:
 
 
 # Database setup
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
 
@@ -46,21 +42,18 @@ class SymToken(Base):
 
 def init_db():
     """Initialize the database and create tables"""
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-
-    # Create database directory if it doesn't exist
-    db_path = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
-    if db_path and not os.path.exists(db_path):
-        os.makedirs(db_path)
-
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
@@ -167,8 +160,8 @@ def process_flattrade_nse_data(output_path):
         df = df.rename(columns=column_mapping)
 
         # Fill NaN values in required fields
-    df['name'] = df['name'].fillna(df['brsymbol'])
-    df['name'] = df['name'].fillna('')
+        df['name'] = df['name'].fillna(df['brsymbol'])
+        df['name'] = df['name'].fillna('')
         df['token'] = df['token'].fillna('').astype(str)
 
         # Remove rows where brsymbol is empty (required field)

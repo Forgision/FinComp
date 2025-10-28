@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from app.web.frontend import templates
 
 from app.core.schemas.auth_db import upsert_api_key
-from app.core.schemas.user_db import add_user, find_user_by_username
+from app.core.schemas.user_db import add_user, find_admin_user
 from app.utils.auth_utils import generate_api_key
 from app.utils.logging import logger
 from app.utils.session import invalidate_session_if_invalid
@@ -26,7 +26,7 @@ async def faq(request: Request, _=Depends(invalidate_session_if_invalid)):
 
 @core_router.get("/setup")
 async def setup_form(request: Request):
-    if find_user_by_username() is not None:
+    if find_admin_user() is not None:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("setup.html", {"request": request})
 
@@ -37,7 +37,7 @@ async def setup_submit(
     email: str = Form(...),
     password: str = Form(...)
 ):
-    if find_user_by_username() is not None:
+    if find_admin_user() is not None:
         return RedirectResponse(url="/login", status_code=303)
 
     user = add_user(username, email, password, is_admin=True)

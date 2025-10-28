@@ -3,9 +3,11 @@ import urllib.parse
 from datetime import timedelta
 
 import pandas as pd
-from app.web.brokers.zerodha.database.master_contract_db import SymToken, db_session
+from sqlalchemy import select
+from app.web.brokers.zerodha.database.master_contract_db import SymToken
 
 from app.core.schemas.token_db_enhanced import get_br_symbol
+from app.core.schemas.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
@@ -194,23 +196,24 @@ class BrokerData:
         Returns:
             dict: Quote data with required fields
         """
+        db = next(get_db())
         try:
             # Convert symbol to broker format
             br_symbol = get_br_symbol(symbol, exchange)
             logger.debug(f"Fetching quotes for {exchange}:{br_symbol}")
 
             # Get exchange_token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            stmt = select(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            )
+            symbol_info = db.scalars(stmt).first()
 
-                if not symbol_info:
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            if not symbol_info:
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-                # Split token to get exchange_token for quotes
-                _ = symbol_info.token.split('::::') # Unused[1]
+            # Split token to get exchange_token for quotes
+            _ = symbol_info.token.split('::::') # Unused[1]
 
             if(exchange=="NSE_INDEX"):
                 exchange="NSE"
@@ -259,6 +262,7 @@ class BrokerData:
         Returns:
             pd.DataFrame: Historical data with OHLCV
         """
+        db = next(get_db())
         try:
             # Convert timeframe to Zerodha format
             resolution = self.timeframe_map.get(timeframe)
@@ -270,21 +274,22 @@ class BrokerData:
             br_symbol = get_br_symbol(symbol, exchange)
 
             # Get the token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            stmt = select(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            )
+            symbol_info = db.scalars(stmt).first()
 
-                if not symbol_info:
-                    all_symbols = session.query(SymToken).filter(
-                        SymToken.exchange == exchange
-                    ).all()
-                    logger.debug(f"All matching symbols in DB: {[(s.symbol, s.brsymbol, s.exchange, s.brexchange, s.token) for s in all_symbols]}")
-                    raise Exception(f"Could not find instrument token for {exchange}:{symbol}")
+            if not symbol_info:
+                all_symbols_stmt = select(SymToken).filter(
+                    SymToken.exchange == exchange
+                )
+                all_symbols = db.scalars(all_symbols_stmt).all()
+                logger.debug(f"All matching symbols in DB: {[(s.symbol, s.brsymbol, s.exchange, s.brexchange, s.token) for s in all_symbols]}")
+                raise Exception(f"Could not find instrument token for {exchange}:{symbol}")
 
-                # Split token to get instrument_token for historical data
-                instrument_token = symbol_info.token.split('::::')[0]
+            # Split token to get instrument_token for historical data
+            instrument_token = symbol_info.token.split('::::')[0]
 
             if(exchange=="NSE_INDEX"):
                 exchange="NSE"
@@ -372,23 +377,24 @@ class BrokerData:
         Returns:
             dict: Market depth data
         """
+        db = next(get_db())
         try:
             # Convert symbol to broker format
             br_symbol = get_br_symbol(symbol, exchange)
             logger.debug(f"Fetching market depth for {exchange}:{br_symbol}")
 
             # Get exchange_token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            stmt = select(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            )
+            symbol_info = db.scalars(stmt).first()
 
-                if not symbol_info:
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            if not symbol_info:
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-                # Split token to get exchange_token for quotes
-                _ = symbol_info.token.split('::::') # Unused[1]
+            # Split token to get exchange_token for quotes
+            _ = symbol_info.token.split('::::') # Unused[1]
 
             if(exchange=="NSE_INDEX"):
                 exchange="NSE"

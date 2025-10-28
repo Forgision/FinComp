@@ -14,12 +14,12 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytz
+from sqlalchemy import func, select
 
 from app.core.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxOrders,
     SandboxPositions,
-    db_session,
 )
 from app.core.schemas.session import get_db
 from app.core.schemas.symbol import SymToken
@@ -94,7 +94,8 @@ class OrderManager:
             strategy = order_data.get('strategy', '')
 
             # Get symbol info for lot size validation
-            symbol_obj = db_session.query(SymToken).filter_by(symbol=symbol, exchange=exchange).first()
+            stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+            symbol_obj = db.scalars(stmt).first()
             if not symbol_obj:
                 return False, {
                     'status': 'error',
@@ -144,12 +145,13 @@ class OrderManager:
 
                     if is_blocked:
                         # Check if this order will reduce/close an existing OPEN position
-                        existing_position = db_session.query(SandboxPositions).filter_by(
+                        stmt = select(SandboxPositions).filter_by(
                             user_id=self.user_id,
                             symbol=symbol,
                             exchange=exchange,
                             product=product
-                        ).filter(SandboxPositions.quantity != 0).first()
+                        ).filter(SandboxPositions.quantity != 0)
+                        existing_position = db.scalars(stmt).first()
 
                         # Allow if reducing existing position
                         # BUY reduces short position (negative qty), SELL reduces long position (positive qty)
@@ -177,19 +179,21 @@ class OrderManager:
                 if product == 'CNC':
                     # CNC SELL orders require existing long positions or holdings
                     # Check existing position
-                    existing_position = db_session.query(SandboxPositions).filter_by(
+                    stmt = select(SandboxPositions).filter_by(
                         user_id=self.user_id,
                         symbol=symbol,
                         exchange=exchange,
                         product=product
-                    ).first()
+                    )
+                    existing_position = db.scalars(stmt).first()
 
                     # Check holdings (T+1 settled positions)
-                    existing_holdings = db_session.query(SandboxHoldings).filter_by(
+                    stmt = select(SandboxHoldings).filter_by(
                         user_id=self.user_id,
                         symbol=symbol,
                         exchange=exchange
-                    ).first()
+                    )
+                    existing_holdings = db.scalars(stmt).first()
 
                     # Calculate total available quantity
                     position_qty = existing_position.quantity if existing_position and existing_position.quantity > 0 else 0
@@ -271,12 +275,13 @@ class OrderManager:
                 }, 400
 
             # Check if this order will close/reduce/reverse an existing position
-            existing_position = db_session.query(SandboxPositions).filter_by(
+            stmt = select(SandboxPositions).filter_by(
                 user_id=self.user_id,
                 symbol=symbol,
                 exchange=exchange,
                 product=product
-            ).first()
+            )
+            existing_position = db.scalars(stmt).first()
 
             # Calculate margin to block based on position impact
             actual_margin_to_block = margin_required
@@ -355,7 +360,7 @@ class OrderManager:
                 logger.info(f"No margin blocking required for {symbol} {action} {product} (CNC SELL of owned shares)")
 
             # Generate unique order ID
-            orderid = self._generate_order_id()
+            orderid = self._generate_order_id(db)
 
             # Check if order should be rejected (CNC SELL validation failed)
             if cnc_sell_rejection_reason:
@@ -473,10 +478,11 @@ class OrderManager:
         db = next(get_db())
         try:
             # Get existing order
-            order = db_session.query(SandboxOrders).filter_by(
+            stmt = select(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
-            ).first()
+            )
+            order = db.scalars(stmt).first()
 
             if not order:
                 return False, {
@@ -496,10 +502,11 @@ class OrderManager:
             if 'quantity' in new_data:
                 new_quantity = int(new_data['quantity'])
                 # Validate lot size
-                symbol_obj = db_session.query(SymToken).filter_by(
+                stmt = select(SymToken).filter_by(
                     symbol=order.symbol,
                     exchange=order.exchange
-                ).first()
+                )
+                symbol_obj = db.scalars(stmt).first()
                 if symbol_obj and order.exchange in ['NFO', 'BFO', 'CDS', 'BCD', 'MCX', 'NCDEX'] and symbol_obj.lotsize is not None:
                     lot_size = symbol_obj.lotsize or 1
                     if new_quantity % lot_size != 0:
@@ -552,10 +559,11 @@ class OrderManager:
         db = next(get_db())
         try:
             # Get existing order
-            order = db_session.query(SandboxOrders).filter_by(
+            stmt = select(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
-            ).first()
+            )
+            order = db.scalars(stmt).first()
 
             if not order:
                 return False, {
@@ -586,10 +594,11 @@ class OrderManager:
                 # Fallback for old orders without margin_blocked field
                 # Need to recalculate margin that was blocked based on order parameters
                 # Get symbol info to determine if margin was blocked for this order
-                symbol_obj = db_session.query(SymToken).filter_by(
+                stmt = select(SymToken).filter_by(
                     symbol=order.symbol,
                     exchange=order.exchange
-                ).first()
+                )
+                symbol_obj = db.scalars(stmt).first()
 
                 if symbol_obj:
                     # Determine if this order would have had margin blocked
@@ -626,7 +635,7 @@ class OrderManager:
                         if order_price > 0:
                             margin_blocked, _ = self.fund_manager.calculate_margin_required(
                                 order.symbol, order.exchange, order.product,
-                                order.quantity, order_price, order.action
+                                order.quantity, order.price, order.action
                             )
                             if margin_blocked:
                                 self.fund_manager.release_margin(
@@ -659,6 +668,7 @@ class OrderManager:
 
     def get_orderbook(self):
         """Get all orders for the user for current session only"""
+        db = next(get_db())
         try:
             import os
             from datetime import datetime, time, timedelta
@@ -685,12 +695,13 @@ class OrderManager:
                 # Session started today at expiry time
                 session_start = datetime.combine(today, session_expiry_time)
 
-            orders = db_session.query(SandboxOrders).filter(
+            stmt = select(SandboxOrders).filter(
                 SandboxOrders.user_id == self.user_id,
                 SandboxOrders.order_timestamp >= session_start
             ).order_by(
                 SandboxOrders.order_timestamp.desc()
-            ).all()
+            )
+            orders = db.scalars(stmt).all()
 
             orderbook = []
             for order in orders:
@@ -735,11 +746,13 @@ class OrderManager:
 
     def get_order_status(self, orderid):
         """Get status of a specific order"""
+        db = next(get_db())
         try:
-            order = db_session.query(SandboxOrders).filter_by(
+            stmt = select(SandboxOrders).filter_by(
                 orderid=orderid,
                 user_id=self.user_id
-            ).first()
+            )
+            order = db.scalars(stmt).first()
 
             if not order:
                 return False, {
@@ -835,7 +848,7 @@ class OrderManager:
 
         return True, 'Validation passed'
 
-    def _generate_order_id(self):
+    def _generate_order_id(self, db):
         """
         Generate unique order ID in format: YYMMDD + 8-digit sequence
         Example: 25100100000001 (Year 2025, Oct 1st, sequence 00000001)
@@ -845,10 +858,11 @@ class OrderManager:
 
         # Get the count of orders for today to generate sequence number
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_orders = db_session.query(SandboxOrders).filter(
+        stmt = select(func.count(SandboxOrders.id)).filter(
             SandboxOrders.user_id == self.user_id,
             SandboxOrders.order_timestamp >= today_start
-        ).count()
+        )
+        today_orders = db.execute(stmt).scalar_one()
 
         # Sequence is orders count + 1, padded to 8 digits
         sequence = str(today_orders + 1).zfill(8)

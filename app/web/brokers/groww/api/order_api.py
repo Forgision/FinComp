@@ -3,6 +3,7 @@ import re
 import uuid
 from datetime import datetime
 
+from sqlalchemy import select
 from app.core.schemas.token_db import get_br_symbol
 from app.web.brokers.groww.database.master_contract_db import (
     format_openalgo_to_groww_symbol,
@@ -29,6 +30,7 @@ from app.web.brokers.groww.mapping.transform_data import (
 
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
+from app.core.schemas.session import get_db
 
 # API Endpoints
 GROWW_BASE_URL = 'https://api.groww.in'
@@ -48,6 +50,7 @@ def direct_get_order_book(auth):
     Returns:
         dict: Order book data with combined orders from all segments
     """
+    db = next(get_db())
     try:
         # Prepare the API client and headers
         client = get_httpx_client()
@@ -186,18 +189,17 @@ def direct_get_order_book(auth):
                         try:
                             from app.web.brokers.groww.database.master_contract_db import (
                                 SymToken,
-                                db_session,
                             )
-                            with db_session() as session:
-                                record = session.query(SymToken).filter(
-                                    SymToken.brsymbol == groww_symbol,
-                                    SymToken.exchange == 'NFO'
-                                ).first()
+                            stmt = select(SymToken).filter(
+                                SymToken.brsymbol == groww_symbol,
+                                SymToken.exchange == 'NFO'
+                            )
+                            record = db.scalars(stmt).first()
 
-                                if record and record.symbol:
-                                    order['symbol'] = record.symbol
-                                    logger.info(f"Converted NFO symbol by lookup: {groww_symbol} -> {record.symbol}")
-                                    symbol_converted = True
+                            if record and record.symbol:
+                                order['symbol'] = record.symbol
+                                logger.info(f"Converted NFO symbol by lookup: {groww_symbol} -> {record.symbol}")
+                                symbol_converted = True
                         except Exception as e:
                             logger.error(f"Error converting symbol by database: {e}")
 
@@ -1182,6 +1184,7 @@ def direct_place_order_api(data, auth):
     Returns:
         tuple: (response object, response data, order id)
     """
+    db = next(get_db())
     try:
         # Import the shared httpx client
         from app.utils.httpx_client import get_httpx_client
@@ -1197,12 +1200,11 @@ def direct_place_order_api(data, auth):
         # First, try to look up the broker symbol (brsymbol) directly from the database
         from app.broker.groww.database.master_contract_db import (
             SymToken,
-            db_session,
         )
 
         # Look up the symbol in the database
-        with db_session() as session:
-            db_record = session.query(SymToken).filter_by(symbol=original_symbol, exchange=original_exchange).first()
+        stmt = select(SymToken).filter_by(symbol=original_symbol, exchange=original_exchange)
+        db_record = db.scalars(stmt).first()
 
         if db_record and db_record.brsymbol:
             # Use the broker symbol from the database if found

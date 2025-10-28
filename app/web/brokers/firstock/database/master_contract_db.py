@@ -2,19 +2,13 @@ from datetime import datetime
 
 import pandas as pd
 from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
-from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
-                            scoped_session, sessionmaker)
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 import os
 
-from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
-
-# Database setup
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 class Base(DeclarativeBase):
     pass
@@ -39,23 +33,19 @@ class SymToken(Base):
     # Define a composite index on symbol and exchange columns
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
-def get_db():
-    db = db_session()
-    try:
-        yield db
-    finally:
-        db.close()
-
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     data_dict = df.to_dict(orient='records')
     existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}

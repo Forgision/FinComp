@@ -1,9 +1,9 @@
 import json
 
+from app.core.schemas.session import get_db
 from app.core.schemas.token_db import get_oa_symbol
 from app.web.brokers.groww.database.master_contract_db import (
     SymToken,
-    db_session,
     format_groww_to_openalgo_symbol,
 )
 
@@ -22,7 +22,7 @@ def map_order_data(order_data):
     """
     logger.info("Starting map_order_data function")
     logger.debug(f"Order data type: {type(order_data)}")
-
+    db = next(get_db())
     # Initialize empty result
     mapped_orders = []
 
@@ -102,8 +102,7 @@ def map_order_data(order_data):
         # Look up in database as fallback
         if openalgo_symbol == broker_symbol and ' ' in broker_symbol:
             try:
-                with db_session() as session:
-                    db_record = session.query(SymToken).filter_by(brsymbol=broker_symbol, brexchange=exchange).first()
+                db_record = db.query(SymToken).filter_by(brsymbol=broker_symbol, brexchange=exchange).first()
                 if db_record and db_record.symbol:
                     openalgo_symbol = db_record.symbol
                     logger.info(f"Found symbol in database: {broker_symbol} -> {openalgo_symbol}")
@@ -266,7 +265,7 @@ def transform_order_data(orders):
     """
     logger.info("Starting transform_order_data function")
     logger.debug(f"Input order data type: {type(orders)}")
-
+    db = next(get_db())
     # If we get a list directly, these are already mapped orders from map_order_data
     if isinstance(orders, list):
         logger.info(f"Received {len(orders)} pre-mapped orders")
@@ -341,14 +340,13 @@ def transform_order_data(orders):
 
             # If token lookup failed or token wasn't available, try by broker symbol
             if symbol == broker_symbol and broker_symbol:
-                with db_session() as session:
-                    record = session.query(SymToken).filter(
-                        SymToken.brsymbol == broker_symbol,
-                        SymToken.exchange == exchange
-                    ).first()
-                    if record and record.symbol:
-                        symbol = record.symbol
-                        logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
+                record = db.query(SymToken).filter(
+                    SymToken.brsymbol == broker_symbol,
+                    SymToken.exchange == exchange
+                ).first()
+                if record and record.symbol:
+                    symbol = record.symbol
+                    logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
         except Exception as e:
             logger.error(f"Error looking up OpenAlgo symbol from app.core.schemas: {e}")
             # Fall back to the original symbol
@@ -454,16 +452,15 @@ def transform_order_data(orders):
                     continue
 
             # Last resort - try looking up the broker symbol directly from app.core.schemas
-            with db_session() as session:
-                # Look for this symbol as a broker symbol (brsymbol) in the database
-                record = session.query(SymToken).filter(
-                    SymToken.brsymbol == symbol,
-                    SymToken.exchange == order.get('exchange', 'NSE')
-                ).first()
+            # Look for this symbol as a broker symbol (brsymbol) in the database
+            record = db.query(SymToken).filter(
+                SymToken.brsymbol == symbol,
+                SymToken.exchange == order.get('exchange', 'NSE')
+            ).first()
 
-                if record and record.symbol:
-                    order['symbol'] = record.symbol
-                    logger.info(f"Final db lookup: {symbol} -> {record.symbol}")
+            if record and record.symbol:
+                order['symbol'] = record.symbol
+                logger.info(f"Final db lookup: {symbol} -> {record.symbol}")
 
     return transformed_orders
 
@@ -496,7 +493,7 @@ def map_position_data(position_data):
     return map_order_data(position_data)
 def transform_positions_data(positions_data):
     logger.info(f"Transform positions received type: {type(positions_data)}, length: {len(positions_data) if isinstance(positions_data, list) else 'not a list'}")
-
+    db = next(get_db())
     # Handle empty input
     if not positions_data:
         logger.warning("Positions data is empty")
@@ -551,14 +548,13 @@ def transform_positions_data(positions_data):
 
             # If token lookup failed or token wasn't available, try by broker symbol
             if symbol == broker_symbol and broker_symbol:
-                with db_session() as session:
-                    record = session.query(SymToken).filter(
-                        SymToken.brsymbol == broker_symbol,
-                        SymToken.exchange == exchange
-                    ).first()
-                    if record and record.symbol:
-                        symbol = record.symbol
-                        logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
+                record = db.query(SymToken).filter(
+                    SymToken.brsymbol == broker_symbol,
+                    SymToken.exchange == exchange
+                ).first()
+                if record and record.symbol:
+                    symbol = record.symbol
+                    logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
         except Exception as e:
             logger.error(f"Error looking up OpenAlgo symbol from app.core.schemas: {e}")
             # Fall back to the original symbol

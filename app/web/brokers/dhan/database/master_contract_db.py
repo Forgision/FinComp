@@ -4,18 +4,14 @@ import os
 
 import pandas as pd
 import requests
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
-from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
-                            scoped_session, sessionmaker)
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 
-DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
-
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 class Base(DeclarativeBase):
     pass
@@ -38,23 +34,20 @@ class SymToken(Base):
     # Define a composite index on symbol and exchange columns
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
-def get_db():
-    db = db_session()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def init_db():
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    db = next(get_db())
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
@@ -247,7 +240,7 @@ def master_contract_download():
         delete_symtoken_table()
         token_df = process_dhan_csv(output_path)
         copy_from_dataframe(token_df)
-        delete_dhan_temp_data(output_path)
+        delete_dhan_temp_.pydata(output_path)
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
 
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
@@ -262,4 +255,6 @@ def master_contract_download():
 
 
 def search_symbols(symbol, exchange):
-    return SymToken.query.filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()
+    db = next(get_db())
+    stmt = select(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange)
+    return db.scalars(stmt).all()

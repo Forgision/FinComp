@@ -5,18 +5,15 @@ from pathlib import Path
 
 import pandas as pd
 import requests
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 
-# Database setup
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+
 class Base(DeclarativeBase):
     pass
 
@@ -41,21 +38,24 @@ class SymToken(Base):
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
 
     # Retrieve existing token-exchange combinations to filter them out from the insert
-    existing_token_exchange = {(result.token, result.exchange) for result in db_session.query(SymToken.token, SymToken.exchange).all()}
+    existing_token_exchange = {(result.token, result.exchange) for result in db.query(SymToken.token, SymToken.exchange).all()}
 
     # Filter out data_dict entries with token-exchange combinations that already exist
     filtered_data_dict = [row for row in data_dict if (row['token'], row['exchange']) not in existing_token_exchange]

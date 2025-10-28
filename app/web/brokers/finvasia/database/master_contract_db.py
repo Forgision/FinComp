@@ -4,17 +4,12 @@ from pathlib import Path
 
 import pandas as pd
 import requests
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
-from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
-                            scoped_session, sessionmaker)
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 
-from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
-
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 class Base(DeclarativeBase):
     pass
@@ -35,26 +30,23 @@ class SymToken(Base):
     tick_size: Mapped[float] = mapped_column(Float, nullable=True)
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
-def get_db():
-    db = db_session()
-    try:
-        yield db
-    finally:
-        db.close()
-
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     data_dict = df.to_dict(orient='records')
-    existing_token_exchange = {(result.token, result.exchange) for result in db_session.query(SymToken.token, SymToken.exchange).all()}
+    stmt = select(SymToken.token, SymToken.exchange)
+    existing_token_exchange = {(result.token, result.exchange) for result in db.execute(stmt).all()}
     filtered_data_dict = [row for row in data_dict if (row['token'], row['exchange']) not in existing_token_exchange]
     try:
         if filtered_data_dict:

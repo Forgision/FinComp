@@ -4,19 +4,16 @@
 import httpx
 import pandas as pd
 import os
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 
-DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
 
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
 
@@ -40,15 +37,18 @@ class SymToken(Base):
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
@@ -307,4 +307,5 @@ def master_contract_download():
 
 
 def search_symbols(symbol, exchange):
-    return SymToken.query.filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()
+    db = next(get_db())
+    return db.query(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()

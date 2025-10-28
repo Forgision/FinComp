@@ -3,21 +3,18 @@ from datetime import datetime
 
 import httpx
 import pandas as pd
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
-from app.utils.web.socketio import sio as socketio
+
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
+from app.utils.web.socketio import sio as socketio
 
 # Create a shared httpx client for connection pooling
 client = httpx.Client(timeout=30.0)
 
-# Database setup
 
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
 
@@ -44,20 +41,22 @@ class SymToken(Base):
 def init_db():
     """Initialize the database and create tables"""
     logger.info("Initializing Master Contract DB")
-
+    db = next(get_db())
     # Create database directory if it doesn't exist
-    db_path = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
+    db_path = os.path.dirname(settings.DATABASE_URL.replace('sqlite:///', ''))
     if db_path and not os.path.exists(db_path):
         os.makedirs(db_path)
 
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')

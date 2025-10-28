@@ -4,9 +4,9 @@ Optimized for zero-config deployment with configurable session reset time (SESSI
 """
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import pytz
 from sqlalchemy import func, select
@@ -31,7 +31,7 @@ class CacheStats:
         total = self.hits + self.misses
         return (self.hits / total * 100) if total > 0 else 0.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert stats to dictionary for API response"""
         return {
             'hits': self.hits,
@@ -81,7 +81,7 @@ class BrokerSymbolCache:
         self.by_token: Dict[str, SymbolData] = {}
 
         # Cache statistics
-        self.stats = CacheStats()
+        self.stats: CacheStats = CacheStats()
 
         # Session management
         self.session_start: Optional[datetime] = None
@@ -105,7 +105,7 @@ class BrokerSymbolCache:
 
             # Query all symbols from app.core.schemas
             stmt = select(SymToken)
-            symbols = db_session.execute(stmt).scalars().all()
+            symbols = db_session.scalars(stmt).all()
 
             if not symbols:
                 logger.warning(f"No symbols found in database for broker: {broker}")
@@ -199,8 +199,9 @@ class BrokerSymbolCache:
         """Get token for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
-        if key in self.by_symbol_exchange:
-            return self.by_symbol_exchange[key].token
+        data = self.by_symbol_exchange.get(key)
+        if data:
+            return data.token
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -210,8 +211,9 @@ class BrokerSymbolCache:
         """Get symbol for token and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (token, exchange)
-        if key in self.by_token_exchange:
-            return self.by_token_exchange[key].symbol
+        data = self.by_token_exchange.get(key)
+        if data:
+            return data.symbol
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -221,8 +223,9 @@ class BrokerSymbolCache:
         """Get broker symbol for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
-        if key in self.by_symbol_exchange:
-            return self.by_symbol_exchange[key].brsymbol
+        data = self.by_symbol_exchange.get(key)
+        if data:
+            return data.brsymbol
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -232,8 +235,9 @@ class BrokerSymbolCache:
         """Get OpenAlgo symbol for broker symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (brsymbol, exchange)
-        if key in self.by_brsymbol_exchange:
-            return self.by_brsymbol_exchange[key].symbol
+        data = self.by_brsymbol_exchange.get(key)
+        if data:
+            return data.symbol
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -243,8 +247,9 @@ class BrokerSymbolCache:
         """Get broker exchange for symbol and exchange - O(1) lookup"""
         self.stats.hits += 1
         key = (symbol, exchange)
-        if key in self.by_symbol_exchange:
-            return self.by_symbol_exchange[key].brexchange
+        data = self.by_symbol_exchange.get(key)
+        if data:
+            return data.brexchange
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -253,8 +258,9 @@ class BrokerSymbolCache:
     def get_symbol_data(self, token: str) -> Optional[SymbolData]:
         """Get complete symbol data by token - O(1) lookup"""
         self.stats.hits += 1
-        if token in self.by_token:
-            return self.by_token[token]
+        data = self.by_token.get(token)
+        if data:
+            return data
 
         self.stats.hits -= 1
         self.stats.misses += 1
@@ -270,8 +276,9 @@ class BrokerSymbolCache:
 
         for symbol, exchange in symbol_exchange_pairs:
             key = (symbol, exchange)
-            if key in self.by_symbol_exchange:
-                results.append(self.by_symbol_exchange[key].token)
+            data = self.by_symbol_exchange.get(key)
+            if data:
+                results.append(data.token)
                 self.stats.hits += 1
             else:
                 results.append(None)
@@ -288,8 +295,9 @@ class BrokerSymbolCache:
 
         for token, exchange in token_exchange_pairs:
             key = (token, exchange)
-            if key in self.by_token_exchange:
-                results.append(self.by_token_exchange[key].symbol)
+            data = self.by_token_exchange.get(key)
+            if data:
+                results.append(data.symbol)
                 self.stats.hits += 1
             else:
                 results.append(None)
@@ -302,7 +310,7 @@ class BrokerSymbolCache:
         Search symbols by partial match
         Returns list of matching SymbolData objects
         """
-        query = query.upper()
+        query_upper = query.upper()
         matches = []
 
         for symbol_data in self.symbols.values():
@@ -311,9 +319,9 @@ class BrokerSymbolCache:
                 continue
 
             # Check for match in symbol, brsymbol, or name
-            if (query in symbol_data.symbol.upper() or
-                query in symbol_data.brsymbol.upper() or
-                (symbol_data.name and query in symbol_data.name.upper())):
+            if (query_upper in symbol_data.symbol.upper() or
+                query_upper in symbol_data.brsymbol.upper() or
+                (symbol_data.name and query_upper in symbol_data.name.upper())):
                 matches.append(symbol_data)
 
                 if len(matches) >= limit:
@@ -332,7 +340,7 @@ class BrokerSymbolCache:
         self.active_broker = None
         logger.info("Cache cleared")
 
-    def get_cache_info(self) -> dict:
+    def get_cache_info(self) -> Dict[str, Any]:
         """Get cache information for monitoring"""
         return {
             'active_broker': self.active_broker,
@@ -434,11 +442,8 @@ def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
     try:
         from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.execute(stmt).scalars().first()
-        if sym_token:
-            return sym_token.token
-        else:
-            return None
+        sym_token = db_session.scalars(stmt).first()
+        return sym_token.token if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -448,11 +453,8 @@ def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
     try:
         from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter_by(token=token, exchange=exchange)
-        sym_token = db_session.execute(stmt).scalars().first()
-        if sym_token:
-            return sym_token.symbol
-        else:
-            return None
+        sym_token = db_session.scalars(stmt).first()
+        return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -462,11 +464,8 @@ def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
     try:
         from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.execute(stmt).scalars().first()
-        if sym_token:
-            return sym_token.brsymbol
-        else:
-            return None
+        sym_token = db_session.scalars(stmt).first()
+        return sym_token.brsymbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -476,11 +475,8 @@ def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
     try:
         from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter_by(brsymbol=brsymbol, exchange=exchange)
-        sym_token = db_session.execute(stmt).scalars().first()
-        if sym_token:
-            return sym_token.symbol
-        else:
-            return None
+        sym_token = db_session.scalars(stmt).first()
+        return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -490,11 +486,8 @@ def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
     try:
         from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.execute(stmt).scalars().first()
-        if sym_token:
-            return sym_token.brexchange
-        else:
-            return None
+        sym_token = db_session.scalars(stmt).first()
+        return sym_token.brexchange if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -524,7 +517,7 @@ def clear_cache():
     cache = get_cache()
     cache.clear_cache()
 
-def get_cache_stats() -> dict:
+def get_cache_stats() -> Dict[str, Any]:
     """Get cache statistics for monitoring"""
     cache = get_cache()
     return cache.get_cache_info()
@@ -559,7 +552,7 @@ def get_symbols_bulk(token_exchange_pairs: List[Tuple[str, str]]) -> List[Option
     return results
 
 # Search functionality
-def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) -> List[dict]:
+def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
     """
     Search symbols with cache support
     Returns list of symbol dictionaries
@@ -587,7 +580,7 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
         if exchange:
             stmt = stmt.filter_by(exchange=exchange)
 
-        results = db_session.execute(stmt).scalars().limit(limit).all()
+        results = db_session.scalars(stmt.limit(limit)).all()
         return [
             {
                 'symbol': r.symbol,

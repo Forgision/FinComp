@@ -4,19 +4,15 @@ from io import StringIO
 from os import listdir, makedirs, path, remove, rmdir
 import pandas as pd
 import re
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine
+from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
 
-DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
-
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
 
@@ -40,15 +36,18 @@ class SymToken(Base):
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
@@ -82,7 +81,7 @@ def copy_from_dataframe(df):
                 symtoken_objects.append(symtoken)
 
             # Add all objects and commit in one transaction
-            db_session.add_all(symtoken_objects)
+            db.add_all(symtoken_objects)
             db.commit()
             logger.info(f"Successfully inserted {len(symtoken_objects)} records into the database")
         else:
@@ -306,7 +305,8 @@ def find_symbol_by_token(token, exchange):
     Returns:
         str: Symbol in OpenAlgo format, or None if not found
     """
-    result = db_session.query(SymToken).filter_by(token=token, exchange=exchange).first()
+    db = next(get_db())
+    result = db.query(SymToken).filter_by(token=token, exchange=exchange).first()
     if result:
         return result.symbol
     return None
@@ -323,8 +323,9 @@ def find_token_by_symbol(symbol, exchange):
     Returns:
         str: Token ID, or None if not found
     """
+    db = next(get_db())
     # First try with the symbol as provided
-    result = db_session.query(SymToken).filter_by(symbol=symbol, exchange=exchange).first()
+    result = db.query(SymToken).filter_by(symbol=symbol, exchange=exchange).first()
     if result:
         return result.token
 
@@ -333,19 +334,19 @@ def find_token_by_symbol(symbol, exchange):
         # Try with OpenAlgo format if it was in Groww format
         openalgo_symbol = format_groww_to_openalgo_symbol(symbol, exchange)
         if openalgo_symbol != symbol:
-            result = db_session.query(SymToken).filter_by(symbol=openalgo_symbol, exchange=exchange).first()
+            result = db.query(SymToken).filter_by(symbol=openalgo_symbol, exchange=exchange).first()
             if result:
                 return result.token
 
         # Try with Groww format if it was in OpenAlgo format
         groww_symbol = format_openalgo_to_groww_symbol(symbol, exchange)
         if groww_symbol != symbol:
-            result = db_session.query(SymToken).filter_by(symbol=groww_symbol, exchange=exchange).first()
+            result = db.query(SymToken).filter_by(symbol=groww_symbol, exchange=exchange).first()
             if result:
                 return result.token
 
     # Check the brsymbol field as a fallback
-    result = db_session.query(SymToken).filter_by(brsymbol=symbol, exchange=exchange).first()
+    result = db.query(SymToken).filter_by(brsymbol=symbol, exchange=exchange).first()
     if result:
         return result.token
 
@@ -680,7 +681,7 @@ def delete_groww_temp_data(output_path):
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-
+    db = next(get_db())
     output_path = 'tmp'
     try:
         # Step 1: Download the instrument data
@@ -732,7 +733,7 @@ def master_contract_download():
         delete_groww_temp_data(output_path)
 
         # Verify data was inserted
-        count = db_session.query(SymToken).count()
+        count = db.query(SymToken).count()
         logger.info(f"Total records in database after insertion: {count}")
 
         return socketio.emit('master_contract_download', {'status': 'success', 'message': f'Successfully downloaded and inserted {count} symbols'})
@@ -746,4 +747,5 @@ def master_contract_download():
 
 
 def search_symbols(symbol, exchange):
-    return SymToken.query.filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()
+    db = next(get_db())
+    return db.query(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()

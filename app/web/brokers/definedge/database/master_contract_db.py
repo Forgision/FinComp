@@ -2,18 +2,13 @@
 
 import os
 import pandas as pd
-from sqlalchemy import Float, Integer, Sequence, String, create_engine
-from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
-                            scoped_session, sessionmaker)
+from sqlalchemy import Float, Integer, Sequence, String, create_engine, select
+from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
-
-DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
-
-engine = create_engine(DATABASE_URL)
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 class Base(DeclarativeBase):
     pass
@@ -33,20 +28,16 @@ class SymToken(Base):
     instrumenttype: Mapped[str] = mapped_column(String, nullable=True)
     tick_size: Mapped[float] = mapped_column(Float, nullable=True)
 
-def get_db():
-    db = db_session()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    db = next(get_db())
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
     """Delete all records from symtoken table"""
+    db = next(get_db())
     try:
-        db_session.query(SymToken).delete()
+        db.query(SymToken).delete()
         db.commit()
         logger.info("All records deleted from symtoken table")
     except Exception as e:
@@ -55,8 +46,9 @@ def delete_symtoken_table():
 
 def copy_from_dataframe(df):
     """Copy dataframe to database"""
+    db = next(get_db())
     try:
-        df.to_sql('symtoken', con=engine, if_exists='append', index=False)
+        df.to_sql('symtoken', con=db.get_bind(), if_exists='append', index=False)
         logger.info(f"Inserted {len(df)} records into symtoken table")
     except Exception as e:
         logger.error(f"Error copying dataframe to database: {e}")
@@ -613,8 +605,9 @@ def master_contract_download():
 
 def search_symbols(symbol, exchange):
     """Search for symbols in the database"""
+    db = next(get_db())
     try:
-        results = db_session.query(SymToken).filter(
+        results = db.query(SymToken).filter(
             SymToken.symbol.ilike(f"%{symbol}%"),
             SymToken.exchange == exchange
         ).limit(10).all()

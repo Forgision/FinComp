@@ -12,15 +12,15 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from sqlalchemy import (
     Boolean,
-    Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
+    select,
+    func,
+    DateTime
 )
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
 from app.core.schemas.base import Base
@@ -62,91 +62,91 @@ class TelegramUser(Base):
     """Telegram users table"""
     __tablename__ = 'telegram_users'
 
-    id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, unique=True, nullable=False, index=True)
-    openalgo_username = Column(String(255), nullable=False, index=True)
-    encrypted_api_key = Column(Text)  # Encrypted API key for secure storage
-    host_url = Column(String(500))  # OpenAlgo host URL
-    first_name = Column(String(255))
-    last_name = Column(String(255))
-    telegram_username = Column(String(255))
-    broker = Column(String(50), default='default')
-    is_active = Column(Boolean, default=True)
-    notifications_enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    last_command_at = Column(DateTime)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
+    openalgo_username: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    encrypted_api_key: Mapped[Optional[str]] = mapped_column(Text)
+    host_url: Mapped[Optional[str]] = mapped_column(String(500))
+    first_name: Mapped[Optional[str]] = mapped_column(String(255))
+    last_name: Mapped[Optional[str]] = mapped_column(String(255))
+    telegram_username: Mapped[Optional[str]] = mapped_column(String(255))
+    broker: Mapped[str] = mapped_column(String(50), default='default')
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    last_command_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     # Relationships
-    command_logs = relationship("CommandLog", back_populates="user", cascade="all, delete-orphan")
-    notifications = relationship("NotificationQueue", back_populates="user", cascade="all, delete-orphan")
-    preferences = relationship("UserPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    command_logs: Mapped[List["CommandLog"]] = relationship("CommandLog", back_populates="user", cascade="all, delete-orphan")
+    notifications: Mapped[List["NotificationQueue"]] = relationship("NotificationQueue", back_populates="user", cascade="all, delete-orphan")
+    preferences: Mapped["UserPreference"] = relationship("UserPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 class BotConfig(Base):
     """Bot configuration table"""
     __tablename__ = 'bot_config'
 
-    id = Column(Integer, primary_key=True, default=1)
-    token = Column(Text)
-    is_active = Column(Boolean, default=False)
-    bot_username = Column(String(255))
-    max_message_length = Column(Integer, default=4096)
-    rate_limit_per_minute = Column(Integer, default=30)
-    broadcast_enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    token: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    bot_username: Mapped[Optional[str]] = mapped_column(String(255))
+    max_message_length: Mapped[int] = mapped_column(Integer, default=4096)
+    rate_limit_per_minute: Mapped[int] = mapped_column(Integer, default=30)
+    broadcast_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
 
 class CommandLog(Base):
     """Command logs table for analytics"""
     __tablename__ = 'command_logs'
 
-    id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, ForeignKey('telegram_users.telegram_id'), nullable=False, index=True)
-    command = Column(String(100), nullable=False)
-    chat_id = Column(Integer)
-    parameters = Column(Text)
-    executed_at = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey('telegram_users.telegram_id'), nullable=False, index=True)
+    command: Mapped[str] = mapped_column(String(100), nullable=False)
+    chat_id: Mapped[Optional[int]] = mapped_column(Integer)
+    parameters: Mapped[Optional[str]] = mapped_column(Text)
+    executed_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     # Relationship
-    user = relationship("TelegramUser", back_populates="command_logs")
+    user: Mapped["TelegramUser"] = relationship("TelegramUser", back_populates="command_logs")
 
 
 class NotificationQueue(Base):
     """Notification queue table"""
     __tablename__ = 'notification_queue'
 
-    id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, ForeignKey('telegram_users.telegram_id'), nullable=False)
-    message = Column(Text, nullable=False)
-    priority = Column(Integer, default=5)
-    status = Column(String(20), default='pending', index=True)
-    created_at = Column(DateTime, default=func.now())
-    sent_at = Column(DateTime)
-    error_message = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey('telegram_users.telegram_id'), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, default=5)
+    status: Mapped[str] = mapped_column(String(20), default='pending', index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    error_message: Mapped[Optional[str]] = mapped_column(Text)
 
     # Relationship
-    user = relationship("TelegramUser", back_populates="notifications")
+    user: Mapped["TelegramUser"] = relationship("TelegramUser", back_populates="notifications")
 
 
 class UserPreference(Base):
     """User preferences table"""
     __tablename__ = 'user_preferences'
 
-    telegram_id = Column(Integer, ForeignKey('telegram_users.telegram_id'), primary_key=True)
-    order_notifications = Column(Boolean, default=True)
-    trade_notifications = Column(Boolean, default=True)
-    pnl_notifications = Column(Boolean, default=True)
-    daily_summary = Column(Boolean, default=True)
-    summary_time = Column(String(10), default='18:00')
-    language = Column(String(10), default='en')
-    timezone = Column(String(50), default='Asia/Kolkata')
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey('telegram_users.telegram_id'), primary_key=True)
+    order_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    trade_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    pnl_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
+    daily_summary: Mapped[bool] = mapped_column(Boolean, default=True)
+    summary_time: Mapped[str] = mapped_column(String(10), default='18:00')
+    language: Mapped[str] = mapped_column(String(10), default='en')
+    timezone: Mapped[str] = mapped_column(String(50), default='Asia/Kolkata')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationship
-    user = relationship("TelegramUser", back_populates="preferences")
+    user: Mapped["TelegramUser"] = relationship("TelegramUser", back_populates="preferences")
 
 
 def init_db():
@@ -155,7 +155,8 @@ def init_db():
         Base.metadata.create_all(bind=engine)
 
         # Create default bot config if not exists
-        config = db_session.query(BotConfig).filter_by(id=1).first()
+        stmt = select(BotConfig).filter_by(id=1)
+        config = db_session.execute(stmt).scalars().first()
         if not config:
             default_config = BotConfig(id=1)
             db_session.add(default_config)
@@ -174,10 +175,11 @@ def init_db():
 def get_telegram_user(telegram_id: int) -> Optional[Dict]:
     """Get telegram user by telegram_id"""
     try:
-        user = db_session.query(TelegramUser).filter_by(
+        stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
-        ).first()
+        )
+        user = db_session.execute(stmt).scalars().first()
 
         if user:
             return {
@@ -205,10 +207,11 @@ def get_telegram_user(telegram_id: int) -> Optional[Dict]:
 def get_telegram_user_by_username(username: str) -> Optional[Dict]:
     """Get telegram user by OpenAlgo username"""
     try:
-        user = db_session.query(TelegramUser).filter_by(
+        stmt = select(TelegramUser).filter_by(
             openalgo_username=username,
             is_active=True
-        ).first()
+        )
+        user = db_session.execute(stmt).scalars().first()
 
         if user:
             return {
@@ -233,13 +236,14 @@ def get_telegram_user_by_username(username: str) -> Optional[Dict]:
         db_session.remove()
 
 
-def create_or_update_telegram_user(telegram_id: int, username: str, api_key: str = None,
-                                  host_url: str = None, first_name: str = '',
+def create_or_update_telegram_user(telegram_id: int, username: str, api_key: Optional[str] = None,
+                                  host_url: Optional[str] = None, first_name: str = '',
                                   last_name: str = '', telegram_username: str = '',
                                   broker: str = 'default') -> bool:
     """Create or update telegram user with encrypted API key"""
     try:
-        user = db_session.query(TelegramUser).filter_by(telegram_id=telegram_id).first()
+        stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
+        user = db_session.execute(stmt).scalars().first()
 
         # Encrypt API key if provided
         encrypted_key = None
@@ -292,7 +296,8 @@ def create_or_update_telegram_user(telegram_id: int, username: str, api_key: str
 def delete_telegram_user(telegram_id: int) -> bool:
     """Delete telegram user (soft delete by marking inactive)"""
     try:
-        user = db_session.query(TelegramUser).filter_by(telegram_id=telegram_id).first()
+        stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
+        user = db_session.execute(stmt).scalars().first()
 
         if user:
             user.is_active = False
@@ -314,15 +319,15 @@ def delete_telegram_user(telegram_id: int) -> bool:
 def get_all_telegram_users(filters: Optional[Dict] = None) -> List[Dict]:
     """Get all active telegram users with optional filters"""
     try:
-        query = db_session.query(TelegramUser).filter_by(is_active=True)
+        stmt = select(TelegramUser).filter_by(is_active=True)
 
         if filters:
             if 'broker' in filters:
-                query = query.filter_by(broker=filters['broker'])
+                stmt = stmt.filter_by(broker=filters['broker'])
             if 'notifications_enabled' in filters:
-                query = query.filter_by(notifications_enabled=filters['notifications_enabled'])
+                stmt = stmt.filter_by(notifications_enabled=filters['notifications_enabled'])
 
-        users = query.all()
+        users = db_session.execute(stmt).scalars().all()
 
         return [{
             'id': user.id,
@@ -349,7 +354,8 @@ def get_all_telegram_users(filters: Optional[Dict] = None) -> List[Dict]:
 def get_bot_config() -> Dict:
     """Get bot configuration"""
     try:
-        config = db_session.query(BotConfig).filter_by(id=1).first()
+        stmt = select(BotConfig).filter_by(id=1)
+        config = db_session.execute(stmt).scalars().first()
 
         if config:
             return {
@@ -385,7 +391,8 @@ def get_bot_config() -> Dict:
 def update_bot_config(config: Dict) -> bool:
     """Update bot configuration"""
     try:
-        bot_config = db_session.query(BotConfig).filter_by(id=1).first()
+        stmt = select(BotConfig).filter_by(id=1)
+        bot_config = db_session.execute(stmt).scalars().first()
 
         if not bot_config:
             bot_config = BotConfig(id=1)
@@ -413,7 +420,7 @@ def update_bot_config(config: Dict) -> bool:
 
 # Command Logging Functions
 
-def log_command(telegram_id: int, command: str, chat_id: int = None, parameters: Dict = None):
+def log_command(telegram_id: int, command: str, chat_id: Optional[int] = None, parameters: Optional[Dict] = None):
     """Log command execution for analytics"""
     try:
         params_json = json.dumps(parameters) if parameters else None
@@ -428,7 +435,8 @@ def log_command(telegram_id: int, command: str, chat_id: int = None, parameters:
         db_session.add(command_log)
 
         # Update last_command_at in telegram_users
-        user = db_session.query(TelegramUser).filter_by(telegram_id=telegram_id).first()
+        stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
+        user = db_session.execute(stmt).scalars().first()
         if user:
             user.last_command_at = func.now()
 
@@ -447,29 +455,32 @@ def get_command_stats(days: int = 7) -> Dict:
         since_date = datetime.now() - timedelta(days=days)
 
         # Total commands
-        total_commands = db_session.query(CommandLog).filter(
+        stmt_total = select(func.count(CommandLog.id)).filter(
             CommandLog.executed_at >= since_date
-        ).count()
+        )
+        total_commands = db_session.execute(stmt_total).scalar_one()
 
         # Commands by type
-        command_counts = db_session.query(
+        stmt_counts = select(
             CommandLog.command,
             func.count(CommandLog.id).label('count')
         ).filter(
             CommandLog.executed_at >= since_date
-        ).group_by(CommandLog.command).order_by(func.count(CommandLog.id).desc()).all()
+        ).group_by(CommandLog.command).order_by(func.count(CommandLog.id).desc())
+        command_counts = db_session.execute(stmt_counts).all()
 
         commands_by_type = {cmd: count for cmd, count in command_counts}
 
         # Active users
-        active_users = db_session.query(
+        stmt_active = select(
             func.count(func.distinct(CommandLog.telegram_id))
         ).filter(
             CommandLog.executed_at >= since_date
-        ).scalar()
+        )
+        active_users = db_session.execute(stmt_active).scalar_one()
 
         # Most active users
-        top_users = db_session.query(
+        stmt_top = select(
             TelegramUser.telegram_username,
             func.count(CommandLog.id).label('command_count')
         ).join(
@@ -480,7 +491,8 @@ def get_command_stats(days: int = 7) -> Dict:
             TelegramUser.telegram_username
         ).order_by(
             func.count(CommandLog.id).desc()
-        ).limit(10).all()
+        ).limit(10)
+        top_users = db_session.execute(stmt_top).all()
 
         return {
             'total_commands': total_commands,
@@ -508,7 +520,8 @@ def get_command_stats(days: int = 7) -> Dict:
 def get_user_preferences(telegram_id: int) -> Dict:
     """Get user preferences"""
     try:
-        pref = db_session.query(UserPreference).filter_by(telegram_id=telegram_id).first()
+        stmt = select(UserPreference).filter_by(telegram_id=telegram_id)
+        pref = db_session.execute(stmt).scalars().first()
 
         if pref:
             return {
@@ -542,7 +555,8 @@ def get_user_preferences(telegram_id: int) -> Dict:
 def update_user_preferences(telegram_id: int, preferences: Dict) -> bool:
     """Update user preferences"""
     try:
-        pref = db_session.query(UserPreference).filter_by(telegram_id=telegram_id).first()
+        stmt = select(UserPreference).filter_by(telegram_id=telegram_id)
+        pref = db_session.execute(stmt).scalars().first()
 
         if not pref:
             pref = UserPreference(telegram_id=telegram_id)
@@ -590,12 +604,13 @@ def add_notification(telegram_id: int, message: str, priority: int = 5) -> bool:
 def get_pending_notifications(limit: int = 100) -> List[Dict]:
     """Get pending notifications from queue"""
     try:
-        notifications = db_session.query(NotificationQueue).filter_by(
+        stmt = select(NotificationQueue).filter_by(
             status='pending'
         ).order_by(
             NotificationQueue.priority.desc(),
             NotificationQueue.created_at.asc()
-        ).limit(limit).all()
+        ).limit(limit)
+        notifications = db_session.execute(stmt).scalars().all()
 
         return [{
             'id': n.id,
@@ -613,10 +628,11 @@ def get_pending_notifications(limit: int = 100) -> List[Dict]:
         db_session.remove()
 
 
-def mark_notification_sent(notification_id: int, success: bool = True, error_message: str = None):
+def mark_notification_sent(notification_id: int, success: bool = True, error_message: Optional[str] = None):
     """Mark notification as sent or failed"""
     try:
-        notification = db_session.query(NotificationQueue).filter_by(id=notification_id).first()
+        stmt = select(NotificationQueue).filter_by(id=notification_id)
+        notification = db_session.execute(stmt).scalars().first()
 
         if notification:
             notification.status = 'sent' if success else 'failed'
@@ -635,10 +651,11 @@ def mark_notification_sent(notification_id: int, success: bool = True, error_mes
 def get_decrypted_api_key(telegram_id: int) -> Optional[str]:
     """Get and decrypt API key for a telegram user"""
     try:
-        user = db_session.query(TelegramUser).filter_by(
+        stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
-        ).first()
+        )
+        user = db_session.execute(stmt).scalars().first()
 
         if user and user.encrypted_api_key:
             decrypted_key = fernet.decrypt(user.encrypted_api_key.encode()).decode()
@@ -654,10 +671,11 @@ def get_decrypted_api_key(telegram_id: int) -> Optional[str]:
 def get_user_credentials(telegram_id: int) -> Optional[Dict]:
     """Get user's API credentials and host URL"""
     try:
-        user = db_session.query(TelegramUser).filter_by(
+        stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
-        ).first()
+        )
+        user = db_session.execute(stmt).scalars().first()
 
         if user:
             api_key = None

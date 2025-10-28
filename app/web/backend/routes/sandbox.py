@@ -23,7 +23,6 @@ from app.core.schemas.sandbox_db import (
     get_all_configs,
     set_config,
 )
-from app.core.schemas.sandbox_db import db_session as sandbox_db_session
 from app.core.schemas.session import get_db
 from app.utils.logging import logger
 
@@ -113,24 +112,24 @@ async def update_config(request: Request, db: Session = Depends(get_db)):
             # If starting_capital was updated, update all user funds immediately
             if config_key == 'starting_capital':
                 try:
-                    # from app.core.schemas.sandbox_db import SandboxFunds, db_session
+                    # from app.core.schemas.sandbox_db import SandboxFunds, db
                     # from decimal import Decimal
 
                     new_capital = Decimal(str(config_value))
 
                     # Update all user funds with new starting capital
                     # This resets their balance to the new capital value
-                    funds = sandbox_db_session.query(SandboxFunds).all()
+                    funds = db.query(SandboxFunds).all()
                     for fund in funds:
                         # New available = new_capital - used_margin + total_pnl
                         fund.total_capital = new_capital
                         fund.available_balance = new_capital - fund.used_margin + fund.total_pnl
 
-                    sandbox_db_session.commit()
+                    db.commit()
                     logger.info(f"Updated {len(funds)} user funds with new starting capital: ₹{new_capital}")
                 except Exception as e:
                     logger.error(f"Error updating user funds with new capital: {e}")
-                    sandbox_db_session.rollback()
+                    db.rollback()
 
             # If square-off time was updated, reload the schedule automatically
             if config_key.endswith('square_off_time') or config_key in ['reset_day', 'reset_time']:
@@ -195,25 +194,25 @@ async def reset_config(request: Request, db: Session = Depends(get_db)):
         # Clear all sandbox data for the current user
         try:
             # Delete all orders
-            deleted_orders = sandbox_db_session.query(SandboxOrders).filter_by(user_id=user_id).delete()
+            deleted_orders = db.query(SandboxOrders).filter_by(user_id=user_id).delete()
             logger.info(f"Deleted {deleted_orders} sandbox orders for user {user_id}")
 
             # Delete all trades
-            deleted_trades = sandbox_db_session.query(SandboxTrades).filter_by(user_id=user_id).delete()
+            deleted_trades = db.query(SandboxTrades).filter_by(user_id=user_id).delete()
             logger.info(f"Deleted {deleted_trades} sandbox trades for user {user_id}")
 
             # Delete all positions
-            deleted_positions = sandbox_db_session.query(SandboxPositions).filter_by(user_id=user_id).delete()
+            deleted_positions = db.query(SandboxPositions).filter_by(user_id=user_id).delete()
             logger.info(f"Deleted {deleted_positions} sandbox positions for user {user_id}")
 
             # Delete all holdings
-            deleted_holdings = sandbox_db_session.query(SandboxHoldings).filter_by(user_id=user_id).delete()
+            deleted_holdings = db.query(SandboxHoldings).filter_by(user_id=user_id).delete()
             logger.info(f"Deleted {deleted_holdings} sandbox holdings for user {user_id}")
 
             # Reset funds to starting capital
             starting_capital = Decimal(default_configs['starting_capital'])
 
-            fund = sandbox_db_session.query(SandboxFunds).filter_by(user_id=user_id).first()
+            fund = db.query(SandboxFunds).filter_by(user_id=user_id).first()
 
             if fund:
                 # Reset existing fund
@@ -239,14 +238,14 @@ async def reset_config(request: Request, db: Session = Depends(get_db)):
                     last_reset_date=datetime.now(pytz.timezone('Asia/Kolkata')),
                     reset_count=1
                 )
-                sandbox_db_session.add(fund)
+                db.add(fund)
                 logger.info(f"Created new sandbox funds for user {user_id}")
 
-            sandbox_db_session.commit()
+            db.commit()
             logger.info(f"Successfully reset all sandbox data for user {user_id}")
 
         except Exception as e:
-            sandbox_db_session.rollback()
+            db.rollback()
             logger.error(f"Error clearing sandbox data: {str(e)}\n{traceback.format_exc()}")
             raise HTTPException(status_code=500, detail=f"Error clearing sandbox data: {str(e)}")
 

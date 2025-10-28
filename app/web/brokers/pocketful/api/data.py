@@ -3,9 +3,10 @@ import json
 import time
 
 import pandas as pd
+from app.core.schemas.session import get_db
 from app.core.schemas.token_db import get_br_symbol
 from app.web.brokers.pocketful.api.pocketfulwebsocket import PocketfulSocket
-from app.web.brokers.pocketful.database.master_contract_db import SymToken, db_session
+from app.web.brokers.pocketful.database.master_contract_db import SymToken
 
 from app.utils.logging import logger
 
@@ -177,17 +178,17 @@ class BrokerData:
         logger.info(f"Fetching quotes using compact market data for {exchange}:{br_symbol}")
 
         # Get token from app.core.schemas
-        with db_session() as session:
-            symbol_info = session.query(SymToken).filter(
-                SymToken.exchange == exchange,
-                SymToken.brsymbol == br_symbol
-            ).first()
+        db = next(get_db())
+        symbol_info = db.query(SymToken).filter(
+            SymToken.exchange == exchange,
+            SymToken.brsymbol == br_symbol
+        ).first()
 
-            if not symbol_info:
-                raise Exception(f"Could not find token for {exchange}:{br_symbol}")
+        if not symbol_info:
+            raise Exception(f"Could not find token for {exchange}:{br_symbol}")
 
-            # Get the instrument token from the database
-            instrument_token = int(symbol_info.token)
+        # Get the instrument token from the database
+        instrument_token = int(symbol_info.token)
 
         # Map exchange to Pocketful exchange code
         if exchange == "NSE_INDEX":
@@ -431,17 +432,17 @@ class BrokerData:
             logger.info(f"Fetching market depth for {exchange}:{br_symbol}")
 
             # Get token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            db = next(get_db())
+            symbol_info = db.query(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            ).first()
 
-                if not symbol_info:
-                    raise Exception(f"Could not find token for {exchange}:{br_symbol}")
+            if not symbol_info:
+                raise Exception(f"Could not find token for {exchange}:{br_symbol}")
 
-                # Get the instrument token from the database
-                instrument_token = int(symbol_info.token)
+            # Get the instrument token from the database
+            instrument_token = int(symbol_info.token)
 
             # Map exchange to Pocketful exchange code
             if exchange == "NSE_INDEX":

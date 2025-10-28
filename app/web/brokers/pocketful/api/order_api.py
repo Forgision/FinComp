@@ -1,7 +1,8 @@
 
 import json
 
-from app.core.schemas.auth_db import Auth, db_session
+from app.core.schemas.auth_db import Auth
+from app.core.schemas.session import get_db
 from app.core.schemas.token_db import get_br_symbol, get_oa_symbol
 from app.web.brokers.pocketful.mapping.transform_data import (
     map_product_type,
@@ -142,6 +143,7 @@ def get_client_id(auth):
     Returns:
         client_id string or None if not found
     """
+    db = next(get_db())
     # Get the username from the session
     username = session.get('username')
     logger.debug(f"DEBUG - Session username: {username}")
@@ -149,7 +151,7 @@ def get_client_id(auth):
     # Get client_id from auth database
     client_id = None
     if username:
-        auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+        auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
         if auth_obj and auth_obj.user_id:
             client_id = auth_obj.user_id
             logger.debug(f"DEBUG - Found client_id in database: {client_id}")
@@ -164,10 +166,10 @@ def get_client_id(auth):
 
             # Store the client_id in the database for future use
             if client_id and username:
-                auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+                auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
                 if auth_obj:
                     auth_obj.user_id = client_id
-                    db_session.commit()
+                    db.commit()
                     logger.debug("DEBUG - Stored client_id in database")
 
     return client_id
@@ -543,13 +545,14 @@ def place_order_api(data, auth_token):
     """
     Place an order using Pocketful's API.
     """
+    db = next(get_db())
     # Get the username from the session
     username = session.get('username')
 
     # Get client_id from auth database
     client_id = None
     if username:
-        auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+        auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
         if auth_obj and auth_obj.user_id:
             client_id = auth_obj.user_id
 
@@ -561,10 +564,10 @@ def place_order_api(data, auth_token):
 
             # Store the client_id in the database for future use
             if client_id and username:
-                auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+                auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
                 if auth_obj:
                     auth_obj.user_id = client_id
-                    db_session.commit()
+                    db.commit()
 
             if not client_id:
                 return None, {"status": "error", "message": "Client ID not found"}, None
@@ -865,13 +868,14 @@ def modify_order(data, auth):
     """
     Modify an order using Pocketful's API.
     """
+    db = next(get_db())
     # Get the username from the session
     username = session.get('username')
 
     # Get client_id from auth database
     client_id = None
     if username:
-        auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+        auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
         if auth_obj and auth_obj.user_id:
             client_id = auth_obj.user_id
 
@@ -883,10 +887,10 @@ def modify_order(data, auth):
 
             # Store the client_id in the database for future use
             if client_id and username:
-                auth_obj = Auth.query.filter_by(name=username, broker='pocketful').first()
+                auth_obj = db.query(Auth).filter_by(name=username, broker='pocketful').first()
                 if auth_obj:
                     auth_obj.user_id = client_id
-                    db_session.commit()
+                    db.commit()
 
             if not client_id:
                 return {"status": "error", "message": "Client ID not found"}, 400

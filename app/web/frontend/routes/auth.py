@@ -14,7 +14,7 @@ from app.core.schemas.user_db import (
     User,
     authenticate_user,
     find_user_by_email,
-    find_user_by_username,
+    find_admin_user,
 )
 from app.core.schemas.session import get_db
 from app.utils.email_debug import debug_smtp_connection
@@ -46,8 +46,8 @@ class ResetPassword(BaseModel):
 
 @auth_router.get("/login", response_class=HTMLResponse, name="auth.login")
 async def login_get(request: Request):
-    if find_user_by_username() is None:
-        return RedirectResponse(url='/setup', status_code=status.HTTP_302_FOUND)
+    if find_admin_user() is None:
+        return RedirectResponse(url='/setup', status_code=status.HTTP_32_FOUND)
     if 'user' in request.session:
         return RedirectResponse(url='/auth/broker', status_code=status.HTTP_302_FOUND)
     if request.session.get('logged_in'):

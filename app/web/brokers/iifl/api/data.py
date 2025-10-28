@@ -2,10 +2,11 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.web.brokers.iifl.baseurl import MARKET_DATA_URL
-from app.web.brokers.iifl.database.master_contract_db import SymToken, db_session
 from app.core.schemas.auth_db import get_feed_token
+from app.core.schemas.session import get_db
 from app.core.schemas.token_db import get_br_symbol
+from app.web.brokers.iifl.baseurl import MARKET_DATA_URL
+from app.web.brokers.iifl.database.master_contract_db import SymToken
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
@@ -91,6 +92,7 @@ class BrokerData:
         Returns:
             tuple: (token_info, exchange_segment)
         """
+        db = next(get_db())
         # Exchange segment mapping
         exchange_segment_map = {
             "NSE": 1,
@@ -111,16 +113,15 @@ class BrokerData:
             raise Exception(f"Unknown exchange segment: {exchange}")
 
         # Get exchange_token from app.core.schemas
-        with db_session() as session:
-            symbol_info = session.query(SymToken).filter(
-                SymToken.exchange == exchange,
-                SymToken.brsymbol == br_symbol
-            ).first()
+        symbol_info = db.query(SymToken).filter(
+            SymToken.exchange == exchange,
+            SymToken.brsymbol == br_symbol
+        ).first()
 
-            if not symbol_info:
-                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+        if not symbol_info:
+            raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-            return symbol_info, brexchange
+        return symbol_info, brexchange
 
     def _fetch_market_data(self, token: dict, message_code: int) -> dict:
         """
@@ -227,7 +228,7 @@ class BrokerData:
     def get_history(self, symbol, exchange, timeframe, from_date, to_date):
         """Get historical data for a symbol"""
         try:
-
+            db = next(get_db())
             # Map timeframe to compression value
             compression_map = {
                 "1s": "1", "1m": "60", "2m": "120", "3m": "180", "5m": "300",
@@ -260,17 +261,16 @@ class BrokerData:
             if not exchange_segment:
                 raise Exception(f"Unsupported exchange: {exchange}")
              # Get exchange_token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            symbol_info = db.query(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            ).first()
 
-                if not symbol_info:
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            if not symbol_info:
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-                # Get the token for quotes
-                token = symbol_info.token  # token = instrument ID
+            # Get the token for quotes
+            token = symbol_info.token  # token = instrument ID
 
 
             # Convert dates to datetime objects with IST timezone
@@ -471,7 +471,7 @@ class BrokerData:
         try:
             logger.info("=== Starting Market Depth Request ===")
             logger.info(f"Symbol: {symbol}, Exchange: {exchange}")
-
+            db = next(get_db())
             # Get feed token and user ID for request
             user_id = None
             feed_token = None
@@ -480,12 +480,6 @@ class BrokerData:
             if hasattr(self, 'user_id') and self.user_id:
                 user_id = self.user_id
                 logger.debug(f"Using instance user_id: {user_id}")
-
-            # Try to get from session if not found in instance
-            with db_session() as session:
-                if not user_id and hasattr(session, 'marketdata_userid') and session.get('marketdata_userid'):
-                    user_id = session.get('marketdata_userid')
-                    logger.debug(f"Using session user_id: {user_id}")
 
             # If no user ID is available, use the one from feed token authentication
             if not user_id and self.user_id:
@@ -500,11 +494,6 @@ class BrokerData:
             if hasattr(self, 'feed_token') and self.feed_token:
                 feed_token = self.feed_token
                 logger.debug("Using instance feed_token")
-
-            # Try to get from session if not found in instance
-            if not feed_token and hasattr(session, 'marketdata_token') and session.get('marketdata_token'):
-                feed_token = session.get('marketdata_token')
-                logger.debug("Using session feed_token")
 
             # If still no feed token, try to get a new one
             if not feed_token:
@@ -544,16 +533,15 @@ class BrokerData:
 
             # Get exchange_token from app.core.schemas
             logger.info("Querying database for symbol token...")
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            symbol_info = db.query(SymToken).filter(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            ).first()
 
-                if not symbol_info:
-                    logger.error(f"Could not find exchange token for {exchange}:{br_symbol}")
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
-                logger.info(f"Found token {symbol_info.token} for {exchange}:{br_symbol}")
+            if not symbol_info:
+                logger.error(f"Could not find exchange token for {exchange}:{br_symbol}")
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            logger.info(f"Found token {symbol_info.token} for {exchange}:{br_symbol}")
 
             # Get market depth via REST API
             logger.info("Getting market depth via REST API...")

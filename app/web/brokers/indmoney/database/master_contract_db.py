@@ -14,41 +14,15 @@ from sqlalchemy import (
     String,
     create_engine,
     text,
+    select
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.core.config import settings
+from app.core.schemas.session import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 
-DATABASE_URL = settings.DATABASE_URL  # Replace with your database path
-
-# Create engine with optimized settings for SQLite concurrency
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=20,
-    max_overflow=50,
-    pool_timeout=30,
-    pool_recycle=3600,
-    connect_args={
-        'timeout': 30,
-        'check_same_thread': False
-    }
-)
-
-# Enable WAL mode for better concurrent access
-try:
-    with engine.connect() as conn:
-        conn.execute(text("PRAGMA journal_mode=WAL"))
-        conn.execute(text("PRAGMA synchronous=NORMAL"))
-        conn.execute(text("PRAGMA temp_store=memory"))
-        conn.execute(text("PRAGMA mmap_size=268435456"))  # 256MB
-        conn.commit()
-except Exception as e:
-    logger.warning(f"Could not set SQLite pragmas for master_contract_db: {e}")
-
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 class Base(DeclarativeBase):
     pass
 
@@ -72,15 +46,18 @@ class SymToken(Base):
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
 def init_db():
+    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=db.get_bind())
 
 def delete_symtoken_table():
+    db = next(get_db())
     logger.info("Deleting Symtoken Table")
     db.query(SymToken).delete()
     db.commit()
 
 def copy_from_dataframe(df):
+    db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
     data_dict = df.to_dict(orient='records')
@@ -106,7 +83,7 @@ def copy_from_dataframe(df):
                 # Use a separate transaction for each chunk with retry logic
                 try:
                     # Insert chunk
-                    db_session.bulk_insert_mappings(SymToken.__mapper__, chunk)
+                    db.bulk_insert_mappings(SymToken.__mapper__, chunk)
                     db.commit()  # Commit each chunk immediately
 
                     total_inserted += len(chunk)
@@ -122,7 +99,7 @@ def copy_from_dataframe(df):
                     # Retry once for this chunk
                     try:
                         time.sleep(0.1)  # Brief pause before retry
-                        db_session.bulk_insert_mappings(SymToken.__mapper__, chunk)
+                        db.bulk_insert_mappings(SymToken.__mapper__, chunk)
                         db.commit()
                         total_inserted += len(chunk)
                     except Exception as retry_error:
@@ -142,13 +119,15 @@ def copy_from_dataframe(df):
         db.rollback()
 
 def download_csv_indmoney_data(output_path):
+    db = next(get_db())
     logger.info("Downloading Master Contract CSV Files from Indmoney")
 
     # Get the access token for Indmoney broker from the database
     # Since Indmoney might have multiple users, we need to get the first valid one
     try:
         from app.core.schemas.auth_db import Auth
-        auth_obj = db_session.query(Auth).filter_by(broker='indmoney', is_revoked=False).first()
+        stmt = select(Auth).filter_by(broker='indmoney', is_revoked=False)
+        auth_obj = db.scalars(stmt).first()
         if auth_obj:
             from app.core.schemas.auth_db import decrypt_token
             auth_token = decrypt_token(auth_obj.auth)
@@ -448,4 +427,6 @@ def search_symbols(symbol, exchange):
     """
     Search for symbols in the database
     """
-    return SymToken.query.filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()
+    db = next(get_db())
+    stmt = select(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange)
+    return db.scalars(stmt).all()

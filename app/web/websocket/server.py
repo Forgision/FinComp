@@ -370,8 +370,9 @@ class WebSocketProxy:
         try:
             from sqlalchemy import text
 
-            from app.core.schemas.session import db_session
+            from app.core.schemas.session import get_db
 
+            db = next(get_db())
             # Get user's connected broker from app.core.schemas
             # This queries the auth_token table to find the user's active broker
             query = text("""
@@ -381,7 +382,7 @@ class WebSocketProxy:
                 LIMIT 1
             """)
 
-            result = db_session.execute(query, {"user_id": user_id}).fetchone()
+            result = db.execute(query, {"user_id": user_id}).fetchone()
 
             if result and result.broker:
                 broker_name = result.broker
