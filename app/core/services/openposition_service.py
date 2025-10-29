@@ -1,20 +1,21 @@
+import asyncio
 import copy
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-import requests
+import httpx
 from app.core.schemas.analyzer_db import async_log_analyzer
 from app.core.schemas.apilog_db import async_log_order
-from app.core.schemas.apilog_db import executor as log_executor
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
 
 
-def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
+async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
     """
     Helper function to emit analyzer error events
 
@@ -38,18 +39,20 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     analyzer_request['api_type'] = 'openposition'
 
     # Log to analyzer database
-    log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'openposition')
+    asyncio.create_task(async_log_analyzer(
+        analyzer_request, error_response, 'openposition'))
 
     # Emit socket event
-    sio.emit('analyzer_update', {
+    await sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
 
     return error_response
 
-def get_open_position_with_auth(
-    db,
+
+async def get_open_position_with_auth(
+    db: Session,
     position_data: Dict[str, Any],
     auth_token: str,
     broker: str,
@@ -76,7 +79,7 @@ def get_open_position_with_auth(
 
     # If in analyze mode, route to sandbox for real position data
     if get_analyze_mode(db) is True:
-        from services.sandbox_service import sandbox_get_positions
+        from app.core.services.sandbox_service import sandbox_get_positions
 
         api_key = original_data.get('apikey')
         if not api_key:
@@ -87,7 +90,8 @@ def get_open_position_with_auth(
             }, 400
 
         # Get all positions from sandbox
-        success, positions_response, status_code = sandbox_get_positions(api_key, original_data)
+        success, positions_response, status_code = sandbox_get_positions(
+            db, api_key, original_data)
 
         if not success:
             return False, positions_response, status_code
@@ -116,8 +120,9 @@ def get_open_position_with_auth(
         # Log and emit
         analyzer_request = request_data.copy()
         analyzer_request['api_type'] = 'openposition'
-        log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'openposition')
-        sio.emit('analyzer_update', {'request': analyzer_request, 'response': response_data})
+        asyncio.create_task(async_log_analyzer(
+            db, analyzer_request, response_data, 'openposition'))
+        await sio.emit('analyzer_update', {'request': analyzer_request, 'response': response_data})
 
         return True, response_data, 200
 
@@ -131,14 +136,16 @@ def get_open_position_with_auth(
 
         # Make request to positionbook API using HOST_SERVER from config
         host_server = settings.HOST_SERVER
-        positionbook_response = requests.post(f'{host_server}/api/v1/positionbook', json=positionbook_request)
+        async with httpx.AsyncClient() as client:
+            positionbook_response = await client.post(f'{host_server}/api/v1/positionbook', json=positionbook_request)
 
         if positionbook_response.status_code != 200:
             error_response = {
                 'status': 'error',
                 'message': 'Failed to fetch positionbook'
             }
-            log_executor.submit(async_log_order, 'openposition', original_data, error_response)
+            asyncio.create_task(async_log_order(
+                db, 'openposition', original_data, error_response))
             return False, error_response, positionbook_response.status_code
 
         positionbook_data = positionbook_response.json()
@@ -147,7 +154,8 @@ def get_open_position_with_auth(
                 'status': 'error',
                 'message': positionbook_data.get('message', 'Error fetching positionbook')
             }
-            log_executor.submit(async_log_order, 'openposition', original_data, error_response)
+            asyncio.create_task(async_log_order(
+                db, 'openposition', original_data, error_response))
             return False, error_response, 500
 
         # Find the specific position
@@ -155,7 +163,7 @@ def get_open_position_with_auth(
         for position in positionbook_data['data']:
             if (position.get('symbol') == position_data['symbol'] and
                 position.get('exchange') == position_data['exchange'] and
-                position.get('product') == position_data['product']):
+                    position.get('product') == position_data['product']):
                 position_found = position
                 break
 
@@ -165,7 +173,8 @@ def get_open_position_with_auth(
                 'quantity': 0,
                 'status': 'success'
             }
-            log_executor.submit(async_log_order, 'openposition', request_data, response_data)
+            asyncio.create_task(async_log_order(
+                db, 'openposition', request_data, response_data))
             return True, response_data, 200
 
         # Return the position quantity
@@ -173,7 +182,8 @@ def get_open_position_with_auth(
             'quantity': position_found['quantity'],
             'status': 'success'
         }
-        log_executor.submit(async_log_order, 'openposition', request_data, response_data)
+        asyncio.create_task(async_log_order(
+            db, 'openposition', request_data, response_data))
 
         return True, response_data, 200
 
@@ -184,11 +194,13 @@ def get_open_position_with_auth(
             'status': 'error',
             'message': str(e)
         }
-        log_executor.submit(async_log_order, 'openposition', original_data, error_response)
+        asyncio.create_task(async_log_order(
+            db, 'openposition', original_data, error_response))
         return False, error_response, 500
 
-def get_open_position(
-    db,
+
+async def get_open_position(
+    db: Session,
     position_data: Dict[str, Any],
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -235,11 +247,11 @@ def get_open_position(
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return get_open_position_with_auth(db, position_data, AUTH_TOKEN, broker_name, original_data)
+        return await get_open_position_with_auth(db, position_data, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_open_position_with_auth(db, position_data, auth_token, broker, original_data)
+        return await get_open_position_with_auth(db, position_data, auth_token, broker, original_data)
 
     # Case 3: Invalid parameters
     else:

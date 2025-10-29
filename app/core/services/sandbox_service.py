@@ -9,6 +9,8 @@ virtual trading environment instead of the live broker.
 
 import copy
 from typing import Any, Dict, Optional, Tuple
+from sqlalchemy.orm import Session
+from app.core.schemas.session import get_db
 
 from app.core.schemas.analyzer_db import async_log_analyzer
 from app.core.schemas.apilog_db import executor
@@ -30,22 +32,23 @@ from app.utils.logging import logger
 from app.utils.web.socketio import sio
 
 
-def is_sandbox_mode() -> bool:
+def is_sandbox_mode(db: Session) -> bool:
     """Check if sandbox/analyzer mode is enabled"""
-    return get_analyze_mode() is True
+    return get_analyze_mode(db) is True
 
 
-def get_user_id_from_apikey(api_key: str) -> Optional[str]:
+def get_user_id_from_apikey(db: Session, api_key: str) -> Optional[str]:
     """Get user ID from API key"""
     try:
-        user_id = verify_api_key(api_key)
+        user_id = verify_api_key(db, api_key)
         return user_id
     except Exception as e:
         logger.error(f"Error getting user ID from API key: {e}")
         return None
 
 
-def sandbox_place_order(
+async def sandbox_place_order(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
@@ -66,7 +69,7 @@ def sandbox_place_order(
     """
     try:
         # Get user ID from API key
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -101,16 +104,16 @@ def sandbox_place_order(
         log_request['api_type'] = 'placeorder'
 
         # Log to analyzer database
-        executor.submit(async_log_analyzer, log_request, response, 'placeorder')
+        await async_log_analyzer(db, log_request, response, 'placeorder')
 
         # Emit socket event
-        sio.emit('analyzer_update', {
+        await sio.emit('analyzer_update', {
             'request': log_request,
             'response': response
         })
 
         # Send Telegram alert
-        telegram_alert_service.send_order_alert('placeorder', order_data, response, api_key)
+        await telegram_alert_service.send_order_alert('placeorder', order_data, response, api_key)
 
         return success, response, status_code
 
@@ -123,14 +126,15 @@ def sandbox_place_order(
         }, 500
 
 
-def sandbox_modify_order(
+async def sandbox_modify_order(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Modify order in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -158,8 +162,8 @@ def sandbox_modify_order(
             log_request.pop('apikey', None)
         log_request['api_type'] = 'modifyorder'
 
-        executor.submit(async_log_analyzer, log_request, response, 'modifyorder')
-        sio.emit('analyzer_update', {'request': log_request, 'response': response})
+        await async_log_analyzer(db, log_request, response, 'modifyorder')
+        await sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code
 
@@ -172,14 +176,15 @@ def sandbox_modify_order(
         }, 500
 
 
-def sandbox_cancel_order(
+async def sandbox_cancel_order(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Cancel order in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -198,8 +203,8 @@ def sandbox_cancel_order(
             log_request.pop('apikey', None)
         log_request['api_type'] = 'cancelorder'
 
-        executor.submit(async_log_analyzer, log_request, response, 'cancelorder')
-        sio.emit('analyzer_update', {'request': log_request, 'response': response})
+        await async_log_analyzer(db, log_request, response, 'cancelorder')
+        await sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code
 
@@ -213,12 +218,13 @@ def sandbox_cancel_order(
 
 
 def sandbox_get_orderbook(
+    db: Session,
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get orderbook in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -241,13 +247,14 @@ def sandbox_get_orderbook(
 
 
 def sandbox_get_order_status(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get order status in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -272,12 +279,13 @@ def sandbox_get_order_status(
 
 
 def sandbox_get_positions(
+    db: Session,
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get open positions in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -300,12 +308,13 @@ def sandbox_get_positions(
 
 
 def sandbox_get_holdings(
+    db: Session,
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get holdings in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -328,12 +337,13 @@ def sandbox_get_holdings(
 
 
 def sandbox_get_tradebook(
+    db: Session,
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get tradebook in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -355,13 +365,14 @@ def sandbox_get_tradebook(
         }, 500
 
 
-def sandbox_get_funds(
+async def sandbox_get_funds(
+    db: Session,
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Get funds/margins in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -393,14 +404,15 @@ def sandbox_get_funds(
         }, 500
 
 
-def sandbox_close_position(
+async def sandbox_close_position(
+    db: Session,
     position_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Close position in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -471,7 +483,8 @@ def sandbox_close_position(
         }, 500
 
 
-def sandbox_place_smart_order(
+async def sandbox_place_smart_order(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
@@ -481,7 +494,7 @@ def sandbox_place_smart_order(
     Smart orders adjust positions to match a target position size.
     """
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',
@@ -578,14 +591,15 @@ def sandbox_place_smart_order(
         }, 500
 
 
-def sandbox_cancel_all_orders(
+async def sandbox_cancel_all_orders(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: str,
     original_data: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any], int]:
     """Cancel all open orders in sandbox mode"""
     try:
-        user_id = get_user_id_from_apikey(api_key)
+        user_id = get_user_id_from_apikey(db, api_key)
         if not user_id:
             return False, {
                 'status': 'error',

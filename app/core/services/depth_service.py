@@ -3,8 +3,10 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import Auth, get_auth_token_broker, verify_api_key
+from sqlalchemy.orm import Session
 
 from app.utils.logging import logger
+from sqlalchemy import select
 
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
@@ -17,6 +19,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = None
     try:
         module_path = f'broker.{broker_name}.api.data'
         broker_module = importlib.import_module(module_path)
@@ -93,6 +96,7 @@ def get_depth_with_auth(
         }, 500
 
 def get_depth(
+    db: Session,
     symbol: str,
     exchange: str,
     api_key: Optional[str] = None,
@@ -122,7 +126,7 @@ def get_depth(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        auth_info = get_auth_token_broker(api_key, include_feed_token=True)
+        auth_info = get_auth_token_broker(db, provided_api_key=api_key, include_feed_token=True)
         if len(auth_info) == 3:
             AUTH_TOKEN, FEED_TOKEN, broker_name = auth_info
         else:
@@ -134,9 +138,10 @@ def get_depth(
         # Get user_id from auth database
         extracted_user_id = None
         try:
-            extracted_user_id = verify_api_key(api_key)  # Get the actual user_id from API key
+            extracted_user_id = verify_api_key(db, provided_api_key=api_key)  # Get the actual user_id from API key
             if extracted_user_id:
-                auth_obj = Auth.query.filter_by(name=extracted_user_id).first()  # Query using user_id instead of api_key
+                stmt = select(Auth).where(Auth.name == extracted_user_id)
+                auth_obj = db.execute(stmt).scalar_one_or_none()
                 if auth_obj and auth_obj.user_id:
                     extracted_user_id = auth_obj.user_id
         except Exception as e:

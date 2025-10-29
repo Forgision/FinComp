@@ -13,7 +13,7 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-def get_api_response(endpoint, auth, method="GET", payload=''):
+async def get_api_response(endpoint, auth, method="GET", payload=''):
     """
     Make API requests to Fyers API using shared connection pooling.
 
@@ -43,11 +43,11 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
 
         # Make the request
         if method == "GET":
-            response = client.get(url, headers=headers)
+            response = await client.get(url, headers=headers)
         elif method == "POST":
-            response = client.post(url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
+            response = await client.post(url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
         else:
-            response = client.request(method, url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
+            response = await client.request(method, url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
 
         # Add status attribute for compatibility
         response.status = response.status_code
@@ -70,25 +70,25 @@ def get_api_response(endpoint, auth, method="GET", payload=''):
         logger.exception("Error during API request")
         return {"s": "error", "message": f"General error: {e}"}
 
-def get_order_book(auth):
-    return get_api_response("/api/v3/orders",auth)
+async def get_order_book(auth):
+    return await get_api_response("/api/v3/orders",auth)
 
-def get_trade_book(auth):
-    return get_api_response("/api/v3/tradebook",auth)
+async def get_trade_book(auth):
+    return await get_api_response("/api/v3/tradebook",auth)
 
-def get_positions(auth):
-    return get_api_response("/api/v3/positions",auth)
+async def get_positions(auth):
+    return await get_api_response("/api/v3/positions",auth)
 
-def get_holdings(auth):
-    return get_api_response("/api/v3/holdings",auth)
+async def get_holdings(auth):
+    return await get_api_response("/api/v3/holdings",auth)
 
-def get_open_position(tradingsymbol, exchange, product,auth):
+async def get_open_position(tradingsymbol, exchange, product,auth):
 
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
     tradingsymbol = get_br_symbol(tradingsymbol,exchange)
 
 
-    positions_data = get_positions(auth)
+    positions_data = await get_positions(auth)
     net_qty = '0'
 
     if positions_data and positions_data.get('s') and positions_data.get('netPositions'):
@@ -101,7 +101,7 @@ def get_open_position(tradingsymbol, exchange, product,auth):
 
     return net_qty
 
-def place_order_api(data, auth):
+async def place_order_api(data, auth):
     """
     Place a new order using the Fyers API with shared connection pooling.
 
@@ -131,7 +131,7 @@ def place_order_api(data, auth):
         logger.debug(f"Placing order with payload: {json.dumps(payload, indent=2)}")
 
         # Make the POST request
-        response = client.post(url, headers=headers, json=payload)
+        response = await client.post(url, headers=headers, json=payload)
         response_data = response.json()
 
         # Add status attribute for compatibility
@@ -169,7 +169,7 @@ def place_order_api(data, auth):
         response = type('obj', (object,), {'status_code': 500, 'status': 500})
         return response, {"s": "error", "message": f"General error: {e}"}, None
 
-def place_smartorder_api(data,auth):
+async def place_smartorder_api(data,auth):
 
     AUTH_TOKEN = auth
 
@@ -185,7 +185,7 @@ def place_smartorder_api(data,auth):
 
 
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
+    current_position = int(await get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
 
 
     logger.debug(f"position_size : {position_size}")
@@ -200,7 +200,7 @@ def place_smartorder_api(data,auth):
     if position_size == 0 and current_position == 0 and int(data['quantity'])!=0:
         action = data['action']
         quantity = data['quantity']
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
+        res, response, orderid = await place_order_api(data,AUTH_TOKEN)
 
         return res , response, orderid
 
@@ -243,14 +243,14 @@ def place_smartorder_api(data,auth):
         order_data["quantity"] = str(quantity)
 
         # Place the order
-        res, response, orderid = place_order_api(order_data,AUTH_TOKEN)
+        res, response, orderid = await place_order_api(order_data,AUTH_TOKEN)
 
         return res , response, orderid
 
 
 
 
-def close_all_positions(current_api_key, auth):
+async def close_all_positions(current_api_key, auth):
     """
     Close all open positions using the Fyers API with shared connection pooling.
 
@@ -279,7 +279,7 @@ def close_all_positions(current_api_key, auth):
         logger.debug("Closing all positions")
 
         # Make the DELETE request with the payload
-        response = client.request("DELETE", url, headers=headers, json=payload)
+        response = await client.request("DELETE", url, headers=headers, json=payload)
         response_data = response.json()
 
         logger.debug(f"Close all positions response: {json.dumps(response_data, indent=2)}")
@@ -302,7 +302,7 @@ def close_all_positions(current_api_key, auth):
         logger.exception("Unexpected error during close all positions")
         return {"status": "error", "message": f"General error: {e}"}, 500
 
-def cancel_order(orderid, auth):
+async def cancel_order(orderid, auth):
     """
     Cancel an order using the Fyers API with shared connection pooling.
 
@@ -331,7 +331,7 @@ def cancel_order(orderid, auth):
         logger.debug(f"Cancelling order {orderid} with payload: {payload}")
 
         # Make the DELETE request with the order ID in the JSON body
-        response = client.request("DELETE", url, headers=headers, json=payload)
+        response = await client.request("DELETE", url, headers=headers, json=payload)
         response_data = response.json()
 
         logger.debug(f"Cancel order response: {json.dumps(response_data, indent=2)}")
@@ -355,7 +355,7 @@ def cancel_order(orderid, auth):
         return {"status": "error", "message": f"General error: {e}"}, 500
 
 
-def modify_order(data, auth):
+async def modify_order(data, auth):
     """
     Modify an existing order using the Fyers API with shared connection pooling.
 
@@ -384,7 +384,7 @@ def modify_order(data, auth):
         logger.debug(f"Modifying order with payload: {json.dumps(payload, indent=2)}")
 
         # Make the PATCH request
-        response = client.patch(url, headers=headers, json=payload)
+        response = await client.patch(url, headers=headers, json=payload)
         response_data = response.json()
 
         logger.debug(f"Modify order response: {json.dumps(response_data, indent=2)}")
@@ -412,7 +412,7 @@ def modify_order(data, auth):
         return {"status": "error", "message": error_msg}, 500
 
 
-def cancel_all_orders_api(data, auth):
+async def cancel_all_orders_api(data, auth):
     """
     Cancel all open orders.
 
@@ -424,7 +424,7 @@ def cancel_all_orders_api(data, auth):
         tuple: (list of canceled order IDs, list of failed order IDs)
     """
     AUTH_TOKEN = auth
-    order_book_response = get_order_book(AUTH_TOKEN)
+    order_book_response = await get_order_book(AUTH_TOKEN)
 
     if order_book_response.get('s') != 'ok':
         error_msg = order_book_response.get('message', 'Failed to retrieve order book')
@@ -451,7 +451,7 @@ def cancel_all_orders_api(data, auth):
             logger.warning(f"Skipping order with no ID: {order}")
             continue
 
-        cancel_response, status_code = cancel_order(orderid, AUTH_TOKEN)
+        cancel_response, status_code = await cancel_order(orderid, AUTH_TOKEN)
         if status_code == 200:
             logger.info(f"Successfully canceled order {orderid}.")
             canceled_orders.append(orderid)
@@ -460,4 +460,3 @@ def cancel_all_orders_api(data, auth):
             failed_cancellations.append(orderid)
 
     return canceled_orders, failed_cancellations
-

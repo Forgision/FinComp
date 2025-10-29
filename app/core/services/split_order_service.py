@@ -1,14 +1,15 @@
+import asyncio
 import copy
 import importlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.analyzer_db import async_log_analyzer
 from app.core.schemas.apilog_db import async_log_order
-from app.core.schemas.apilog_db import executor as log_executor
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
+from sqlalchemy.orm import Session
+from app.core.schemas.session import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -16,7 +17,8 @@ from app.utils.web.socketio import sio
 # Maximum number of orders allowed
 MAX_ORDERS = 100
 
-def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
+
+async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
     """
     Helper function to emit analyzer error events
 
@@ -38,17 +40,19 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
     if 'apikey' in analyzer_request:
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'splitorder'
+    db = next(get_db())
 
     # Log to analyzer database
-    log_executor.submit(async_log_analyzer, analyzer_request, error_response, 'splitorder')
+    await async_log_analyzer(db, analyzer_request, error_response, 'splitorder')
 
     # Emit socket event
-    sio.emit('analyzer_update', {
+    await sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
 
     return error_response
+
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
@@ -68,7 +72,8 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
 
-def place_single_order(
+
+async def place_single_order(
     order_data: Dict[str, Any],
     broker_module: Any,
     auth_token: str,
@@ -90,11 +95,12 @@ def place_single_order(
     """
     try:
         # Place the order using place_order_api
-        res, response_data, order_id = broker_module.place_order_api(order_data, auth_token)
+        res, response_data, order_id = broker_module.place_order_api(
+            order_data, auth_token)
 
         if res.status == 200:
             # Emit order event for toast notification with batch info
-            sio.emit('order_event', {
+            await sio.emit('order_event', {
                 'symbol': order_data['symbol'],
                 'action': order_data['action'],
                 'orderid': order_id,
@@ -116,7 +122,8 @@ def place_single_order(
                 'orderid': order_id
             }
         else:
-            message = response_data.get('message', 'Failed to place order') if isinstance(response_data, dict) else 'Failed to place order'
+            message = response_data.get('message', 'Failed to place order') if isinstance(
+                response_data, dict) else 'Failed to place order'
             return {
                 'order_num': order_num,
                 'quantity': int(order_data['quantity']),
@@ -133,7 +140,9 @@ def place_single_order(
             'message': 'Failed to place order due to internal error'
         }
 
-def split_order_with_auth(
+
+async def split_order_with_auth(
+    db: Session,
     split_data: Dict[str, Any],
     auth_token: str,
     broker: str,
@@ -164,10 +173,10 @@ def split_order_with_auth(
         total_quantity = int(split_data['quantity'])
         if split_size <= 0:
             error_message = 'Split size must be greater than 0'
-            if get_analyze_mode() is True:
-                return False, emit_analyzer_error(original_data, error_message), 400
+            if get_analyze_mode(db) is True:
+                return False, await emit_analyzer_error(original_data, error_message), 400
             error_response = {'status': 'error', 'message': error_message}
-            log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
+            await async_log_order(db, 'splitorder', original_data, error_response)
             return False, error_response, 400
 
         # Calculate number of full-size orders and remaining quantity
@@ -178,81 +187,62 @@ def split_order_with_auth(
         total_orders = num_full_orders + (1 if remaining_qty > 0 else 0)
         if total_orders > MAX_ORDERS:
             error_message = f'Total number of orders would exceed maximum limit of {MAX_ORDERS}'
-            if get_analyze_mode() is True:
-                return False, emit_analyzer_error(original_data, error_message), 400
+            if get_analyze_mode(db) is True:
+                return False, await emit_analyzer_error(original_data, error_message), 400
             error_response = {'status': 'error', 'message': error_message}
-            log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
+            await async_log_order(db, 'splitorder', original_data, error_response)
             return False, error_response, 400
 
     except ValueError:
         error_message = 'Invalid quantity or split size'
-        if get_analyze_mode() is True:
-            return False, emit_analyzer_error(original_data, error_message), 400
+        if get_analyze_mode(db) is True:
+            return False, await emit_analyzer_error(original_data, error_message), 400
         error_response = {'status': 'error', 'message': error_message}
-        log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
+        await async_log_order(db, 'splitorder', original_data, error_response)
         return False, error_response, 400
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode() is True:
+    if get_analyze_mode(db) is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         api_key = original_data.get('apikey')
         if not api_key:
-            return False, emit_analyzer_error(original_data, 'API key required for sandbox mode'), 400
+            return False, await emit_analyzer_error(original_data, 'API key required for sandbox mode'), 400
 
         analyze_results = []
+        tasks = []
 
         # Place full-size orders in sandbox
         for i in range(num_full_orders):
             order_data = copy.deepcopy(split_data)
             order_data['quantity'] = str(split_size)
             order_data['apikey'] = api_key
-
-            # Place order in sandbox
-            success, response, status_code = sandbox_place_order(
-                order_data,
-                api_key,
-                {'apikey': api_key, 'order_type': 'split'}
-            )
-
-            if success:
-                analyze_results.append({
-                    'order_num': i + 1,
-                    'quantity': split_size,
-                    'status': 'success',
-                    'orderid': response.get('orderid')
-                })
-            else:
-                analyze_results.append({
-                    'order_num': i + 1,
-                    'quantity': split_size,
-                    'status': 'error',
-                    'message': response.get('message', 'Order placement failed')
-                })
+            tasks.append(sandbox_place_order(
+                db, order_data, api_key, {'apikey': api_key, 'order_type': 'split'}))
 
         # Place remaining quantity order if any
         if remaining_qty > 0:
             order_data = copy.deepcopy(split_data)
             order_data['quantity'] = str(remaining_qty)
             order_data['apikey'] = api_key
+            tasks.append(sandbox_place_order(
+                db, order_data, api_key, {'apikey': api_key, 'order_type': 'split'}))
 
-            success, response, status_code = sandbox_place_order(
-                order_data,
-                api_key,
-                {'apikey': api_key, 'order_type': 'split'}
-            )
+        results = await asyncio.gather(*tasks)
 
+        for i, result in enumerate(results):
+            success, response, status_code = result
             if success:
                 analyze_results.append({
-                    'order_num': num_full_orders + 1,
-                    'quantity': remaining_qty,
+                    'order_num': i + 1,
+                    'quantity': split_size if i < num_full_orders else remaining_qty,
                     'status': 'success',
                     'orderid': response.get('orderid')
                 })
             else:
                 analyze_results.append({
-                    'order_num': num_full_orders + 1,
-                    'quantity': remaining_qty,
+                    'order_num': i + 1,
+                    'quantity': split_size if i < num_full_orders else remaining_qty,
                     'status': 'error',
                     'message': response.get('message', 'Order placement failed')
                 })
@@ -270,16 +260,16 @@ def split_order_with_auth(
         analyzer_request['api_type'] = 'splitorder'
 
         # Log to analyzer database
-        log_executor.submit(async_log_analyzer, analyzer_request, response_data, 'splitorder')
+        await async_log_analyzer(db, analyzer_request, response_data, 'splitorder')
 
         # Emit socket event for toast notification
-        sio.emit('analyzer_update', {
+        await sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
 
         # Send Telegram alert for analyze mode
-        telegram_alert_service.send_order_alert('splitorder', split_data, response_data, split_data.get('apikey'))
+        await telegram_alert_service.send_order_alert('splitorder', split_data, response_data, split_data.get('apikey'))
         return True, response_data, 200
 
     # Live mode - process actual orders
@@ -289,70 +279,46 @@ def split_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        log_executor.submit(async_log_order, 'splitorder', original_data, error_response)
+        await async_log_order(db, 'splitorder', original_data, error_response)
         return False, error_response, 404
 
     # Process orders concurrently
-    results = []
+    tasks = []
+    # Submit full-size orders
+    for i in range(num_full_orders):
+        order_data = copy.deepcopy(split_data)
+        order_data['quantity'] = str(split_size)
+        tasks.append(place_single_order(
+            order_data, broker_module, auth_token, i + 1, total_orders))
 
-    # Create a ThreadPoolExecutor for concurrent order placement
-    with ThreadPoolExecutor(max_workers=10) as order_executor:
-        # Prepare orders for concurrent execution
-        futures = []
+    # Submit remaining quantity order if any
+    if remaining_qty > 0:
+        order_data = copy.deepcopy(split_data)
+        order_data['quantity'] = str(remaining_qty)
+        tasks.append(place_single_order(
+            order_data, broker_module, auth_token, total_orders, total_orders))
 
-        # Submit full-size orders
-        for i in range(num_full_orders):
-            order_data = copy.deepcopy(split_data)
-            order_data['quantity'] = str(split_size)
-            futures.append(
-                order_executor.submit(
-                    place_single_order,
-                    order_data,
-                    broker_module,
-                    auth_token,
-                    i + 1,
-                    total_orders
-                )
-            )
+    results = await asyncio.gather(*tasks)
+    # Sort results by order_num to maintain order in response
+    results.sort(key=lambda x: x['order_num'])
 
-        # Submit remaining quantity order if any
-        if remaining_qty > 0:
-            order_data = copy.deepcopy(split_data)
-            order_data['quantity'] = str(remaining_qty)
-            futures.append(
-                order_executor.submit(
-                    place_single_order,
-                    order_data,
-                    broker_module,
-                    auth_token,
-                    total_orders,
-                    total_orders
-                )
-            )
+    # Log the split order results
+    response_data = {
+        'status': 'success',
+        'total_quantity': total_quantity,
+        'split_size': split_size,
+        'results': results
+    }
+    await async_log_order(db, 'splitorder', split_request_data, response_data)
 
-        # Collect results as they complete
-        for future in as_completed(futures):
-            result = future.result()
-            results.append(result)
+    # Send Telegram alert for live mode
+    await telegram_alert_service.send_order_alert('splitorder', split_data, response_data, split_data.get('apikey'))
 
-        # Sort results by order_num to maintain order in response
-        results.sort(key=lambda x: x['order_num'])
+    return True, response_data, 200
 
-        # Log the split order results
-        response_data = {
-            'status': 'success',
-            'total_quantity': total_quantity,
-            'split_size': split_size,
-            'results': results
-        }
-        log_executor.submit(async_log_order, 'splitorder', split_request_data, response_data)
 
-        # Send Telegram alert for live mode
-        telegram_alert_service.send_order_alert('splitorder', split_data, response_data, split_data.get('apikey'))
-
-        return True, response_data, 200
-
-def split_order(
+async def split_order(
+    db: Session,
     split_data: Dict[str, Any],
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -383,7 +349,7 @@ def split_order(
         # Add API key to split data
         split_data['apikey'] = api_key
 
-        auth_details = get_auth_token_broker(api_key)
+        auth_details = get_auth_token_broker(db, api_key)
         if not auth_details or len(auth_details) < 2:
             error_response = {
                 'status': 'error',
@@ -399,11 +365,11 @@ def split_order(
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return split_order_with_auth(split_data, AUTH_TOKEN, broker_name, original_data)
+        return await split_order_with_auth(db, split_data, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return split_order_with_auth(split_data, auth_token, broker, original_data)
+        return await split_order_with_auth(db, split_data, auth_token, broker, original_data)
 
     # Case 3: Invalid parameters
     else:

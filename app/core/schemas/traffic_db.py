@@ -145,7 +145,7 @@ def ban_ip(db: Session, ip_address: str, reason: str, duration_hours: int = 24, 
             logger.warning(f"Attempted to ban localhost IP {ip_address} - ignoring")
             return False
 
-        security_settings = get_security_settings()
+        security_settings = get_security_settings(db)
         repeat_limit = security_settings['repeat_offender_limit']
 
         stmt = select(IPBan).filter_by(ip_address=ip_address)
@@ -191,7 +191,7 @@ def unban_ip(db: Session, ip_address: str) -> bool:
 
 def get_all_bans(db: Session) -> List[IPBan]:
     try:
-        stmt = select(IPBan).filter(IPBan.is_permanent == False, IPBan.expires_at < datetime.utcnow())
+        stmt = select(IPBan).filter(IPBan.is_permanent.is_(False), IPBan.expires_at < datetime.utcnow())
         expired = db.execute(stmt).scalars().all()
         for ban in expired:
             db.delete(ban)
@@ -206,7 +206,7 @@ def track_404(db: Session, ip_address: str, path: str) -> bool:
         if is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings()
+        security_settings = get_security_settings(db)
         threshold_404 = security_settings['404_threshold']
         ban_duration_404 = security_settings['404_ban_duration']
         now = datetime.utcnow()
@@ -261,7 +261,7 @@ def track_invalid_api_key(db: Session, ip_address: str, api_key_hash: Optional[s
         if is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings()
+        security_settings = get_security_settings(db)
         threshold_api = security_settings['api_threshold']
         ban_duration_api = security_settings['api_ban_duration']
         now = datetime.utcnow()

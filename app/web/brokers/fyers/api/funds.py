@@ -10,7 +10,7 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-def get_margin_data(auth_token: str) -> Dict[str, str]:
+async def get_margin_data(auth_token: str) -> Dict[str, str]:
     """
     Fetch and process margin/funds data from Fyers' API using shared HTTP client with connection pooling.
 
@@ -49,7 +49,7 @@ def get_margin_data(auth_token: str) -> Dict[str, str]:
 
     try:
         # Get the funds data
-        response = client.get(
+        response = await client.get(
             'https://api-t1.fyers.in/api/v3/funds',
             headers=headers,
             timeout=30.0
@@ -126,5 +126,3 @@ def get_margin_data(auth_token: str) -> Dict[str, str]:
         logger.exception("Unexpected error in get_margin_data")
 
     return default_response
-
-

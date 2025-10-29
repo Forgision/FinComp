@@ -1,16 +1,15 @@
 # database/apilog_db.py
 
 import json
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import pytz
 from sqlalchemy import DateTime, Integer, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 from sqlalchemy.sql import func
 
 from app.core.schemas.base import Base
-from app.core.schemas.session import engine, get_db
+from app.core.schemas.session import engine
 from app.utils.logging import logger
 
 
@@ -20,19 +19,16 @@ class OrderLog(Base):
     api_type: Mapped[str] = mapped_column(Text, nullable=False)
     request_data: Mapped[str] = mapped_column(Text, nullable=False)
     response_data: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now())
+
 
 def init_db():
     logger.info("Initializing API Log DB")
     Base.metadata.create_all(bind=engine)
 
 
-
-# Executor for asynchronous tasks
-executor = ThreadPoolExecutor(10)  # Increased from 2 to 10 for better concurrency
-
-def async_log_order(api_type,request_data, response_data):
-    db = next(get_db())
+async def async_log_order(db: Session, api_type, request_data, response_data):
     try:
         # Serialize JSON data for storage
         request_json = json.dumps(request_data)
@@ -42,7 +38,8 @@ def async_log_order(api_type,request_data, response_data):
         ist = pytz.timezone('Asia/Kolkata')
         now_ist = datetime.now(ist)
 
-        order_log = OrderLog(api_type=api_type,request_data=request_json, response_data=response_json, created_at=now_ist)
+        order_log = OrderLog(api_type=api_type, request_data=request_json,
+                             response_data=response_json, created_at=now_ist)
         db.add(order_log)
         db.commit()
     except Exception as e:

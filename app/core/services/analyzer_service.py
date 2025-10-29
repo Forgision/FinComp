@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 
 import pytz
 from sqlalchemy import func, select, delete
@@ -49,7 +49,7 @@ async def toggle_analyzer_mode(db: Session, analyzer_data: dict, api_key: str):
         return False, {"status": "error", "message": "Internal server error"}, 500
 
 
-def format_request(req: AnalyzerLog, ist: datetime.tzinfo):
+def format_request(req: AnalyzerLog, ist: tzinfo):
     """Format a single request entry"""
     try:
         request_data = json.loads(req.request_data) if isinstance(req.request_data, str) else req.request_data
@@ -187,7 +187,7 @@ def clear_analyzer_logs(db: Session):
     try:
         # Delete all logs older than 24 hours
         cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
-        stmt = delete(AnalyzerLog).where(AnalyzerLog.created_at < cutoff)
+        stmt = delete(AnalyzerLog.__table__).where(AnalyzerLog.created_at < cutoff)
         db.execute(stmt)
         db.commit()
         return True, "Analyzer logs cleared successfully"

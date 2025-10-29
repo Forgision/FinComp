@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from app.core.config import settings
 from app.core.schemas.base import Base
-from app.core.schemas.session import db_session, engine
+from app.core.schemas.session import engine, get_db
 from app.utils.logging import logger
 
 
@@ -70,12 +70,12 @@ def init_db():
     logger.info("Initializing Settings DB")
 
     Base.metadata.create_all(bind=engine)
-
-    if not db_session.execute(select(Settings)).scalar_one_or_none():
+    db = next(get_db())
+    if not db.execute(select(Settings)).scalar_one_or_none():
         logger.info("Creating default settings (Live Mode)")
         default_settings = Settings(analyze_mode=False)
-        db_session.add(default_settings)
-        db_session.commit()
+        db.add(default_settings)
+        db.commit()
 
 
 def get_settings(db: Session) -> Settings:

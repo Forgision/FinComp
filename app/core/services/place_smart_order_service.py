@@ -1,11 +1,11 @@
+import asyncio
 import copy
 import importlib
-import time
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.analyzer_db import async_log_analyzer
-from app.core.schemas.apilog_db import async_log_order, executor
+from app.core.schemas.apilog_db import async_log_order
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.utils.constants import (
@@ -17,13 +17,15 @@ from app.utils.constants import (
 )
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
+from sqlalchemy.orm import Session
+from app.core.schemas.session import get_db
 
 from .telegram_alert_service import telegram_alert_service
 
 # Smart order delay
 SMART_ORDER_DELAY = "0.5"  # Default value, can be overridden by environment variable
 
-def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
+async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
     """
     Helper function to emit analyzer error events
 
@@ -46,16 +48,18 @@ def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dic
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'placesmartorder'
 
+    db = next(get_db())
     # Log to analyzer database
-    executor.submit(async_log_analyzer, analyzer_request, error_response, 'placesmartorder')
+    await async_log_analyzer(db, analyzer_request, error_response, 'placesmartorder')
 
     # Emit socket event
-    sio.emit('analyzer_update', {
+    await sio.emit('analyzer_update', {
         'request': analyzer_request,
         'response': error_response
     })
 
     return error_response
+
 
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
@@ -67,6 +71,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = None
     try:
         module_path = f'app.broker.{broker_name}.api.order_api'
         broker_module = importlib.import_module(module_path)
@@ -74,6 +79,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
+
 
 def validate_smart_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     """
@@ -112,7 +118,9 @@ def validate_smart_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str
 
     return True, None
 
-def place_smart_order_with_auth(
+
+async def place_smart_order_with_auth(
+    db: Session,
     order_data: Dict[str, Any],
     auth_token: str,
     broker: str,
@@ -142,22 +150,24 @@ def place_smart_order_with_auth(
     # Validate order data
     is_valid, error_message = validate_smart_order(order_data)
     if not is_valid:
-        if get_analyze_mode() is True:
-            return False, emit_analyzer_error(original_data, error_message or "Validation failed"), 400
-        error_response = {'status': 'error', 'message': error_message or "Validation failed"}
-        executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
+        if get_analyze_mode(db) is True:
+            return False, await emit_analyzer_error(original_data, error_message or "Validation failed"), 400
+        error_response = {'status': 'error',
+                          'message': error_message or "Validation failed"}
+        await async_log_order(db, 'placesmartorder', original_data, error_response)
         return False, error_response, 400
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode() is True:
+    if get_analyze_mode(db) is True:
         from app.core.services.sandbox_service import sandbox_place_smart_order
 
         api_key = original_data.get('apikey')
         if not api_key:
-            return False, emit_analyzer_error(original_data, 'API key required for sandbox mode'), 400
+            return False, await emit_analyzer_error(original_data, 'API key required for sandbox mode'), 400
 
         # Route to sandbox smart order
-        success, response_data, status_code = sandbox_place_smart_order(
+        success, response_data, status_code = await sandbox_place_smart_order(
+            db,
             order_data,
             api_key,
             original_data
@@ -168,16 +178,16 @@ def place_smart_order_with_auth(
         analyzer_request['api_type'] = 'placesmartorder'
 
         # Log to analyzer database with complete request and response
-        executor.submit(async_log_analyzer, analyzer_request, response_data, 'placesmartorder')
+        await async_log_analyzer(db, analyzer_request, response_data, 'placesmartorder')
 
         # Emit socket event for toast notification
-        sio.emit('analyzer_update', {
+        await sio.emit('analyzer_update', {
             'request': analyzer_request,
             'response': response_data
         })
 
         # Send Telegram alert for analyze mode
-        telegram_alert_service.send_order_alert('placesmartorder', order_data, response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert('placesmartorder', order_data, response_data, order_data.get('apikey'))
         return success, response_data, status_code
 
     # Live Mode - Proceed with actual order placement
@@ -187,11 +197,13 @@ def place_smart_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
+        await async_log_order(db, 'placesmartorder', original_data, error_response)
         return False, error_response, 404
 
+    order_response_data: dict[str, Any] = {}
     try:
-        res, response_data, order_id = broker_module.place_smartorder_api(order_data, auth_token)
+        res, response_data, order_id = broker_module.place_smartorder_api(
+            order_data, auth_token)
 
         # Handle case where position size matches current position
         if res is None and response_data.get('status') == 'success' and 'No action needed' in response_data.get('message', ''):
@@ -200,25 +212,26 @@ def place_smart_order_with_auth(
                 'status': 'success',
                 'message': 'Positions Already Matched. No Action needed.'
             }
-            executor.submit(async_log_order, 'placesmartorder', order_request_data, order_response_data)
+            await async_log_order(db, 'placesmartorder', order_request_data, order_response_data)
 
             # Emit notification for matched positions
-            sio.emit('order_notification', {
+            await sio.emit('order_notification', {
                 'symbol': order_data.get('symbol'),
                 'status': 'info',
                 'message': ' Positions Already Matched. No Action needed.'
             })
             # Send Telegram alert
-            telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
+            await telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
             return True, order_response_data, 200
 
         # Log successful order immediately after placement
         if res and res.status == 200:
-            order_response_data = {'status': 'success', 'orderid': order_id}
-            executor.submit(async_log_order, 'placesmartorder', order_request_data, order_response_data)
+            order_response_data = {
+                'status': 'success', 'orderid': order_id}
+            await async_log_order(db, 'placesmartorder', order_request_data, order_response_data)
             # Send Telegram alert
-            telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
-            sio.emit('order_event', {
+            await telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
+            await sio.emit('order_event', {
                 'symbol': order_data.get('symbol'),
                 'action': order_data.get('action'),
                 'orderid': order_id,
@@ -232,29 +245,33 @@ def place_smart_order_with_auth(
             'status': 'error',
             'message': 'Failed to place smart order due to internal error'
         }
-        executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
+        await async_log_order(db, 'placesmartorder', original_data, error_response)
         return False, error_response, 500
 
     # Add delay if needed
     try:
-        time.sleep(float(smart_order_delay))
+        await asyncio.sleep(float(smart_order_delay))
     except Exception:
-        logger.error(f"Invalid SMART_ORDER_DELAY value: {smart_order_delay}")
+        logger.error(
+            f"Invalid SMART_ORDER_DELAY value: {smart_order_delay}")
         traceback.print_exc()
 
     if res and res.status == 200:
         return True, order_response_data, 200
     else:
-        message = response_data.get('message', 'Failed to place smart order') if isinstance(response_data, dict) else 'Failed to place smart order'
+        message = response_data.get(
+            'message', 'Failed to place smart order') if isinstance(response_data, dict) else 'Failed to place smart order'
         error_response = {
             'status': 'error',
             'message': message
         }
-        executor.submit(async_log_order, 'placesmartorder', original_data, error_response)
+        await async_log_order(db, 'placesmartorder', original_data, error_response)
         status_code = res.status if res and hasattr(res, 'status') else 500
         return False, error_response, status_code
 
-def place_smart_order(
+
+async def place_smart_order(
+    db: Session,
     order_data: Dict[str, Any],
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -291,7 +308,7 @@ def place_smart_order(
         # Add API key to order data
         order_data['apikey'] = api_key
 
-        auth_details = get_auth_token_broker(api_key)
+        auth_details = get_auth_token_broker(db, provided_api_key=api_key)
         if not auth_details or len(auth_details) < 2:
             error_response = {
                 'status': 'error',
@@ -307,11 +324,11 @@ def place_smart_order(
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return place_smart_order_with_auth(order_data, AUTH_TOKEN, broker_name, original_data, smart_order_delay)
+        return await place_smart_order_with_auth(db, order_data, AUTH_TOKEN, broker_name, original_data, smart_order_delay)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return place_smart_order_with_auth(order_data, auth_token, broker, original_data, smart_order_delay)
+        return await place_smart_order_with_auth(db, order_data, auth_token, broker, original_data, smart_order_delay)
 
     # Case 3: Invalid parameters
     else:

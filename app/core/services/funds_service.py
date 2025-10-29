@@ -3,6 +3,7 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
+from sqlalchemy.orm import Session
 
 # Initialize logger
 from app.utils.logging import logger
@@ -17,6 +18,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = None
     try:
         module_path = f'app.web.broker.broker.{broker_name}.api.funds'
         broker_module = importlib.import_module(module_path)
@@ -25,7 +27,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
 
-def get_funds_with_auth(db, auth_token: str, broker: str, original_data: Dict[str, Any] = None) -> Tuple[bool, Dict[str, Any], int]:
+async def get_funds_with_auth(db: Session, auth_token: str, broker: str, original_data: Optional[Dict[str, Any]] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get account funds and margin details from the broker using provided auth token.
 
@@ -52,7 +54,7 @@ def get_funds_with_auth(db, auth_token: str, broker: str, original_data: Dict[st
                 'mode': 'analyze'
             }, 400
 
-        return sandbox_get_funds(api_key, original_data)
+        return await sandbox_get_funds(db, api_key, original_data)
 
     broker_module = import_broker_module(broker)
     if broker_module is None:
@@ -77,7 +79,7 @@ def get_funds_with_auth(db, auth_token: str, broker: str, original_data: Dict[st
             'message': str(e)
         }, 500
 
-def get_funds(db, api_key: Optional[str] = None, auth_token: Optional[str] = None, broker: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
+async def get_funds(db: Session, api_key: Optional[str] = None, auth_token: Optional[str] = None, broker: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get account funds and margin details from the broker.
     Supports both API-based authentication and direct internal calls.
@@ -95,18 +97,24 @@ def get_funds(db, api_key: Optional[str] = None, auth_token: Optional[str] = Non
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
-        if AUTH_TOKEN is None:
+        auth_details = get_auth_token_broker(db, provided_api_key=api_key)
+        if not auth_details or len(auth_details) < 2:
+            return False, {
+                'status': 'error',
+                'message': 'Invalid openalgo apikey'
+            }, 403
+        AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
+        if AUTH_TOKEN is None or broker_name is None:
             return False, {
                 'status': 'error',
                 'message': 'Invalid openalgo apikey'
             }, 403
         original_data = {'apikey': api_key}
-        return get_funds_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_funds_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_funds_with_auth(db, auth_token, broker, None)
+        return await get_funds_with_auth(db, auth_token, broker)
 
     # Case 3: Invalid parameters
     else:

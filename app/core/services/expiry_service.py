@@ -1,13 +1,14 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import verify_api_key
 from app.core.schemas.symbol import SymToken
-from app.core.schemas.session import db_session
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.utils.logging import logger
 
 
-def get_expiry_dates(symbol: str, exchange: str, instrumenttype: str, api_key: str = None) -> Tuple[bool, Dict[str, Any], int]:
+def get_expiry_dates(db: Session, symbol: str, exchange: str, instrumenttype: str, api_key: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get expiry dates for F&O symbols (futures or options) for a given underlying symbol.
 
@@ -23,7 +24,7 @@ def get_expiry_dates(symbol: str, exchange: str, instrumenttype: str, api_key: s
     try:
         # Validate API key if provided
         if api_key:
-            user_id = verify_api_key(api_key)
+            user_id = verify_api_key(db, provided_api_key=api_key)
             if not user_id:
                 logger.warning("Invalid API key provided for expiry dates")
                 return False, {
@@ -80,10 +81,10 @@ def get_expiry_dates(symbol: str, exchange: str, instrumenttype: str, api_key: s
         # For exact matching, we need to ensure the symbol starts with the underlying symbol
         # followed by a date pattern (for F&O instruments)
         # Use startswith and filter in Python for exact matching
-        query = db_session.query(SymToken.symbol, SymToken.expiry, SymToken.instrumenttype).filter(
-            SymToken.symbol.like(f'{symbol}%'),
-            SymToken.exchange == exchange,
-            SymToken.expiry.isnot(None),
+        stmt = select(SymToken.symbol, SymToken.expiry, SymToken.instrumenttype).where(
+            SymToken.symbol.like(f'{symbol}%')).where(
+            SymToken.exchange == exchange).where(
+            SymToken.expiry.isnot(None)).where(
             SymToken.expiry != ''
         )
 
@@ -91,22 +92,22 @@ def get_expiry_dates(symbol: str, exchange: str, instrumenttype: str, api_key: s
         if instrumenttype == 'futures':
             # All exchanges support FUT along with their specific types
             if exchange in ['NFO', 'BFO']:
-                query = query.filter(SymToken.instrumenttype.in_(['FUTSTK', 'FUTIDX', 'FUT']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['FUTSTK', 'FUTIDX', 'FUT']))
             elif exchange == 'MCX':
-                query = query.filter(SymToken.instrumenttype.in_(['FUTCOM', 'FUTENR', 'FUT']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['FUTCOM', 'FUTENR', 'FUT']))
             elif exchange == 'CDS':
-                query = query.filter(SymToken.instrumenttype.in_(['FUTCUR', 'FUTIRC', 'FUT']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['FUTCUR', 'FUTIRC', 'FUT']))
         else:  # options
             # All exchanges support CE/PE along with their specific types
             if exchange in ['NFO', 'BFO']:
-                query = query.filter(SymToken.instrumenttype.in_(['OPTSTK', 'OPTIDX', 'CE', 'PE']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['OPTSTK', 'OPTIDX', 'CE', 'PE']))
             elif exchange == 'MCX':
-                query = query.filter(SymToken.instrumenttype.in_(['OPTFUT', 'CE', 'PE']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['OPTFUT', 'CE', 'PE']))
             elif exchange == 'CDS':
-                query = query.filter(SymToken.instrumenttype.in_(['OPTCUR', 'OPTIRC', 'CE', 'PE']))
+                stmt = stmt.where(SymToken.instrumenttype.in_(['OPTCUR', 'OPTIRC', 'CE', 'PE']))
 
         # Execute query and get results
-        results = query.all()
+        results = db.execute(stmt).all()
 
         if not results:
             logger.info(f"No expiry dates found for symbol: {symbol}, exchange: {exchange}, instrumenttype: {instrumenttype}")

@@ -1,3 +1,4 @@
+import asyncio
 from sqlalchemy.orm import Session
 from app.core.schemas.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -22,7 +23,6 @@ from app.core.services.orderbook_service import get_orderbook
 from app.core.services.positionbook_service import get_positionbook
 from app.core.services.tradebook_service import get_tradebook
 from app.core.schemas.apilog_db import async_log_order
-from app.core.schemas.apilog_db import executor as log_executor
 from app.core.schemas.settings_db import get_analyze_mode
 from app.utils.logging import logger
 
@@ -54,7 +54,7 @@ async def funds_endpoint(
         HTTPException: If an error occurs while fetching the funds.
     """
     try:
-        success, response_data, status_code = get_funds(db, api_key=api_key_data.api_key)
+        success, response_data, status_code = await get_funds(db, api_key=api_key_data.api_key)
         if not success:
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
         return FundsResponse(**response_data)
@@ -114,7 +114,7 @@ async def tradebook_endpoint(
         HTTPException: If an error occurs while fetching the trade book.
     """
     try:
-        success, response_data, status_code = get_tradebook(db, api_key=api_key_data.api_key)
+        success, response_data, status_code = await get_tradebook(db, api_key=api_key_data.api_key)
         if not success:
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
         return TradebookResponse(**response_data)
@@ -144,7 +144,7 @@ async def positionbook_endpoint(
         HTTPException: If an error occurs while fetching the position book.
     """
     try:
-        success, response_data, status_code = get_positionbook(db, api_key=api_key_data.api_key)
+        success, response_data, status_code = await get_positionbook(db, api_key=api_key_data.api_key)
         if not success:
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
         return PositionbookResponse(**response_data)
@@ -174,7 +174,7 @@ async def holdings_endpoint(
         HTTPException: If an error occurs while fetching the holdings.
     """
     try:
-        success, response_data, status_code = get_holdings(db, api_key=api_key_data.api_key)
+        success, response_data, status_code = await get_holdings(db, api_key=api_key_data.api_key)
         if not success:
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
         return HoldingsResponse(**response_data)
@@ -211,7 +211,7 @@ async def openposition_endpoint(
         api_key = open_position_request.apikey
         position_data = open_position_request.model_dump(exclude_unset=True, exclude={"apikey"})
 
-        success, response_data, status_code = get_open_position(
+        success, response_data, status_code = await get_open_position(
             db,
             position_data=position_data,
             api_key=api_key
@@ -220,10 +220,10 @@ async def openposition_endpoint(
             if get_analyze_mode(db):
                 # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
                 # and returns a dict compatible with HTTPException detail
-                error_detail = emit_analyzer_error(open_position_request.model_dump(), response_data.get("message", "An error occurred"))
+                error_detail = await emit_analyzer_error(open_position_request.model_dump(), response_data.get("message", "An error occurred"))
                 raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=error_detail, code=str(status_code), details=response_data).model_dump())
 
-            log_executor.submit(async_log_order, 'openposition', open_position_request.model_dump(), response_data)
+            asyncio.create_task(async_log_order(db, 'openposition', open_position_request.model_dump(), response_data))
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
 
         return OpenPositionResponse(**response_data)
@@ -234,8 +234,8 @@ async def openposition_endpoint(
         error_message = 'An unexpected error occurred'
         if get_analyze_mode(db):
             # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
-            error_detail = emit_analyzer_error(open_position_request.model_dump(), error_message)
+            error_detail = await emit_analyzer_error(open_position_request.model_dump(), error_message)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_detail, code=str(status.HTTP_500_INTERNAL_SERVER_ERROR), details={"error": str(e)}).model_dump())
 
-        log_executor.submit(async_log_order, 'openposition', open_position_request.model_dump(), {'status': 'error', 'message': error_message})
+        asyncio.create_task(async_log_order(db, 'openposition', open_position_request.model_dump(), {'status': 'error', 'message': error_message}))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_message, code=str(status.HTTP_500_INTERNAL_SERVER_ERROR), details={"error": str(e)}).model_dump())
