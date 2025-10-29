@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     FIVEPAISA_BASE_URL: str = "https://Openapi.5paisa.com"
 
     # Security Configuration
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     APP_KEY: str = "3daa0403ce2501ee7432b75bf100048e3cf510d63d2754f952e93d88bf07ea84"
     API_KEY_PEPPER: str = "a25d94718479b170c16278e321ea6c989358bf499a658fd20c90033cef8ce772"
     TELEGRAM_KEY_SALT: str = 'telegram-openalgo-salt'

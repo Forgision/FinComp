@@ -1,3 +1,5 @@
+# app/core/services/analyzer_service.py
+
 import csv
 import io
 import json
@@ -5,20 +7,19 @@ import traceback
 from datetime import datetime, timedelta
 
 import pytz
-from sqlalchemy import func
+from sqlalchemy import func, select, delete
+from sqlalchemy.orm import Session
 
 from app.core.schemas.analyzer_db import AnalyzerLog
-from app.core.schemas.session import db_session
-from app.core.schemas.settings_db import get_analyze_mode as get_mode, set_analyze_mode
+from app.core.schemas.settings_db import get_analyze_mode, set_analyze_mode
 from app.utils.api_analyzer import get_analyzer_stats
-
 from app.utils.logging import logger
 
 
-async def get_analyzer_status(analyzer_data: dict, api_key: str):
+async def get_analyzer_status(db: Session, analyzer_data: dict, api_key: str):
     """Get analyzer mode status and statistics"""
     try:
-        is_enabled = get_mode()
+        is_enabled = get_analyze_mode(db)
         stats = get_analyzer_stats()
         response_data = {
             "status": "success",
@@ -31,12 +32,12 @@ async def get_analyzer_status(analyzer_data: dict, api_key: str):
         return False, {"status": "error", "message": "Internal server error"}, 500
 
 
-async def toggle_analyzer_mode(analyzer_data: dict, api_key: str):
+async def toggle_analyzer_mode(db: Session, analyzer_data: dict, api_key: str):
     """Toggle analyzer mode on/off"""
     try:
-        current_mode = get_mode()
+        current_mode = get_analyze_mode(db)
         new_mode = not current_mode
-        set_analyze_mode(new_mode)
+        set_analyze_mode(db, new_mode)
         response_data = {
             "status": "success",
             "message": f"Analyzer mode turned {'ON' if new_mode else 'OFF'}",
@@ -48,7 +49,7 @@ async def toggle_analyzer_mode(analyzer_data: dict, api_key: str):
         return False, {"status": "error", "message": "Internal server error"}, 500
 
 
-def format_request(req, ist):
+def format_request(req: AnalyzerLog, ist: datetime.tzinfo):
     """Format a single request entry"""
     try:
         request_data = json.loads(req.request_data) if isinstance(req.request_data, str) else req.request_data
@@ -92,11 +93,12 @@ def format_request(req, ist):
         return None
 
 
-def get_recent_requests():
+def get_recent_requests(db: Session):
     """Get recent analyzer requests"""
     try:
         ist = pytz.timezone('Asia/Kolkata')
-        recent = db_session.query(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100).all()
+        stmt = select(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100)
+        recent = db.execute(stmt).scalars().all()
         requests = []
 
         for req in recent:
@@ -110,29 +112,29 @@ def get_recent_requests():
         return []
 
 
-def get_filtered_requests(start_date=None, end_date=None):
+def get_filtered_requests(db: Session, start_date=None, end_date=None):
     """Get analyzer requests with date filtering"""
     try:
         ist = pytz.timezone('Asia/Kolkata')
-        query = db_session.query(AnalyzerLog)
+        stmt = select(AnalyzerLog)
 
         # Apply date filters if provided
         if start_date:
             if isinstance(start_date, str):
                 start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            query = query.filter(func.date(AnalyzerLog.created_at) >= start_date)
+            stmt = stmt.where(func.date(AnalyzerLog.created_at) >= start_date)
         if end_date:
             if isinstance(end_date, str):
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            query = query.filter(func.date(AnalyzerLog.created_at) <= end_date)
+            stmt = stmt.where(func.date(AnalyzerLog.created_at) <= end_date)
 
         # If no dates provided, default to today
         if not start_date and not end_date:
             today_ist = datetime.now(ist).date()
-            query = query.filter(func.date(AnalyzerLog.created_at) == today_ist)
+            stmt = stmt.where(func.date(AnalyzerLog.created_at) == today_ist)
 
         # Get results ordered by created_at
-        results = query.order_by(AnalyzerLog.created_at.desc()).all()
+        results = db.execute(stmt.order_by(AnalyzerLog.created_at.desc())).scalars().all()
         requests = []
 
         for req in results:
@@ -146,7 +148,7 @@ def get_filtered_requests(start_date=None, end_date=None):
         return []
 
 
-def generate_csv(requests):
+def generate_csv(requests: list) -> str:
     """Generate CSV from analyzer requests"""
     try:
         output = io.StringIO()
@@ -180,15 +182,16 @@ def generate_csv(requests):
         return ""
 
 
-def clear_analyzer_logs():
+def clear_analyzer_logs(db: Session):
     """Clear analyzer logs"""
     try:
         # Delete all logs older than 24 hours
         cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
-        db_session.query(AnalyzerLog).filter(AnalyzerLog.created_at < cutoff).delete()
-        db_session.commit()
+        stmt = delete(AnalyzerLog).where(AnalyzerLog.created_at < cutoff)
+        db.execute(stmt)
+        db.commit()
         return True, "Analyzer logs cleared successfully"
     except Exception as e:
         logger.error(f"Error clearing analyzer logs: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False, "Error clearing analyzer logs"

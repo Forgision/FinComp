@@ -38,7 +38,7 @@ class SymToken(Base):
         Index('idx_brsymbol_exchange', 'brsymbol', 'exchange'),
     )
 
-def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
+def enhanced_search_symbols(query: str, exchange: Optional[str] = None) -> List[SymToken]:
     """
     Enhanced search function that searches across multiple fields
     and supports partial matching with multiple terms
@@ -89,7 +89,7 @@ def enhanced_search_symbols(query: str, exchange: str = None) -> List[SymToken]:
 
         # Execute query - no limit to show all matching results
         results = db_session.execute(stmt).scalars().all()
-        return results
+        return list(results)
 
     except Exception as e:
         logger.error(f"Error in enhanced search: {str(e)}")

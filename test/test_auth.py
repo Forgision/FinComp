@@ -17,7 +17,7 @@ class TestAuth(unittest.TestCase):
         # Create a test user and API key
         self.db = next(get_db())
         add_user(self.username, self.email, self.password, True)
-        upsert_api_key(self.username, self.api_key)
+        upsert_api_key(self.db, self.username, self.api_key)
         self.db.commit()
 
     def tearDown(self):
