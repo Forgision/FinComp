@@ -1,11 +1,13 @@
 import logging
+from datetime import datetime
+from typing import List, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select
+from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
 from sqlalchemy.sql import func
 
 from app.core.schemas.base import Base
-from app.core.schemas.session import db_session, engine
+from app.core.schemas.session import engine
 
 logger = logging.getLogger(__name__)
 
@@ -13,45 +15,45 @@ class Strategy(Base):
     """Model for trading strategies"""
     __tablename__ = 'strategies'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)
-    webhook_id = Column(String(36), unique=True, nullable=False)  # UUID
-    user_id = Column(String(255), nullable=False)
-    platform = Column(String(50), nullable=False, default='tradingview')  # Platform type (tradingview, chartink, etc)
-    is_active = Column(Boolean, default=True)
-    is_intraday = Column(Boolean, default=True)
-    trading_mode = Column(String(10), nullable=False, default='LONG')  # LONG, SHORT, or BOTH
-    start_time = Column(String(5))  # HH:MM format
-    end_time = Column(String(5))  # HH:MM format
-    squareoff_time = Column(String(5))  # HH:MM format
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    webhook_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)  # UUID
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    platform: Mapped[str] = mapped_column(String(50), nullable=False, default='tradingview')  # Platform type (tradingview, chartink, etc)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_intraday: Mapped[bool] = mapped_column(Boolean, default=True)
+    trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default='LONG')  # LONG, SHORT, or BOTH
+    start_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
+    end_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
+    squareoff_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # Relationships
-    symbol_mappings = relationship("StrategySymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
+    symbol_mappings: Mapped[List["StrategySymbolMapping"]] = relationship("StrategySymbolMapping", back_populates="strategy", cascade="all, delete-orphan")
 
 class StrategySymbolMapping(Base):
     """Model for symbol mappings in strategies"""
     __tablename__ = 'strategy_symbol_mappings'
 
-    id = Column(Integer, primary_key=True)
-    strategy_id = Column(Integer, ForeignKey('strategies.id'), nullable=False)
-    symbol = Column(String(50), nullable=False)
-    exchange = Column(String(10), nullable=False)
-    quantity = Column(Integer, nullable=False)
-    product_type = Column(String(10), nullable=False)  # MIS/CNC
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy_id: Mapped[int] = mapped_column(Integer, ForeignKey('strategies.id'), nullable=False)
+    symbol: Mapped[str] = mapped_column(String(50), nullable=False)
+    exchange: Mapped[str] = mapped_column(String(10), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_type: Mapped[str] = mapped_column(String(10), nullable=False)  # MIS/CNC
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # Relationships
-    strategy = relationship("Strategy", back_populates="symbol_mappings")
+    strategy: Mapped["Strategy"] = relationship("Strategy", back_populates="symbol_mappings")
 
 def init_db():
     """Initialize the database"""
     logger.info("Initializing Strategy DB")
     Base.metadata.create_all(bind=engine)
 
-def create_strategy(name, webhook_id, user_id, is_intraday=True, trading_mode='LONG', start_time=None, end_time=None, squareoff_time=None, platform='tradingview'):
+def create_strategy(db: Session, name: str, webhook_id: str, user_id: str, is_intraday: bool = True, trading_mode: str = 'LONG', start_time: Optional[str] = None, end_time: Optional[str] = None, squareoff_time: Optional[str] = None, platform: str = 'tradingview') -> Optional[Strategy]:
     """Create a new strategy"""
     try:
         strategy = Strategy(
@@ -65,83 +67,83 @@ def create_strategy(name, webhook_id, user_id, is_intraday=True, trading_mode='L
             squareoff_time=squareoff_time,
             platform=platform
         )
-        db_session.add(strategy)
-        db_session.commit()
+        db.add(strategy)
+        db.commit()
         return strategy
     except Exception as e:
         logger.error(f"Error creating strategy: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return None
 
-def get_strategy(strategy_id):
+def get_strategy(db: Session, strategy_id: int) -> Optional[Strategy]:
     """Get strategy by ID"""
     try:
-        return Strategy.query.get(strategy_id)
+        return db.get(Strategy, strategy_id)
     except Exception as e:
         logger.error(f"Error getting strategy {strategy_id}: {str(e)}")
         return None
 
-def get_strategy_by_webhook_id(webhook_id):
+def get_strategy_by_webhook_id(db: Session, webhook_id: str) -> Optional[Strategy]:
     """Get strategy by webhook ID"""
     try:
-        return Strategy.query.filter_by(webhook_id=webhook_id).first()
+        return db.execute(select(Strategy).filter_by(webhook_id=webhook_id)).scalar_one_or_none()
     except Exception as e:
         logger.error(f"Error getting strategy by webhook ID {webhook_id}: {str(e)}")
         return None
 
-def get_all_strategies():
+def get_all_strategies(db: Session) -> List[Strategy]:
     """Get all strategies"""
     try:
-        return Strategy.query.all()
+        return list(db.execute(select(Strategy)).scalars().all())
     except Exception as e:
         logger.error(f"Error getting all strategies: {str(e)}")
         return []
 
-def get_user_strategies(user_id):
+def get_user_strategies(db: Session, user_id: str) -> List[Strategy]:
     """Get all strategies for a user"""
     try:
         logger.info(f"Fetching strategies for user: {user_id}")
-        strategies = Strategy.query.filter_by(user_id=user_id).all()
+        strategies = list(db.execute(select(Strategy).filter_by(user_id=user_id)).scalars().all())
         logger.info(f"Found {len(strategies)} strategies")
         return strategies
     except Exception as e:
         logger.error(f"Error getting user strategies for {user_id}: {str(e)}")
         return []
 
-def delete_strategy(strategy_id):
+def delete_strategy(db: Session, strategy_id: int) -> bool:
     """Delete strategy and its symbol mappings"""
     try:
-        strategy = get_strategy(strategy_id)
+        strategy = get_strategy(db, strategy_id)
         if not strategy:
             return False
 
-        db_session.delete(strategy)
-        db_session.commit()
+        db.delete(strategy)
+        db.commit()
         return True
     except Exception as e:
         logger.error(f"Error deleting strategy {strategy_id}: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
 
-def toggle_strategy(strategy_id):
+def toggle_strategy(db: Session, strategy_id: int) -> Optional[Strategy]:
     """Toggle strategy active status"""
     try:
-        strategy = get_strategy(strategy_id)
+        strategy = get_strategy(db, strategy_id)
         if not strategy:
             return None
 
         strategy.is_active = not strategy.is_active
-        db_session.commit()
+        db.commit()
         return strategy
     except Exception as e:
         logger.error(f"Error toggling strategy {strategy_id}: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return None
 
-def update_strategy_times(strategy_id, start_time=None, end_time=None, squareoff_time=None):
+def update_strategy_times(db: Session, strategy_id: int, start_time: Optional[str] = None, end_time: Optional[str] = None, squareoff_time: Optional[str] = None) -> bool:
     """Update strategy trading times"""
     try:
-        strategy = Strategy.query.get(strategy_id)
+        strategy = db.get(Strategy, strategy_id)
         if strategy:
             if start_time is not None:
                 strategy.start_time = start_time
@@ -149,15 +151,15 @@ def update_strategy_times(strategy_id, start_time=None, end_time=None, squareoff
                 strategy.end_time = end_time
             if squareoff_time is not None:
                 strategy.squareoff_time = squareoff_time
-            db_session.commit()
+            db.commit()
             return True
         return False
     except Exception as e:
         logger.error(f"Error updating strategy times {strategy_id}: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
 
-def add_symbol_mapping(strategy_id, symbol, exchange, quantity, product_type):
+def add_symbol_mapping(db: Session, strategy_id: int, symbol: str, exchange: str, quantity: int, product_type: str) -> Optional[StrategySymbolMapping]:
     """Add symbol mapping to strategy"""
     try:
         mapping = StrategySymbolMapping(
@@ -167,15 +169,15 @@ def add_symbol_mapping(strategy_id, symbol, exchange, quantity, product_type):
             quantity=quantity,
             product_type=product_type
         )
-        db_session.add(mapping)
-        db_session.commit()
+        db.add(mapping)
+        db.commit()
         return mapping
     except Exception as e:
         logger.error(f"Error adding symbol mapping: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return None
 
-def bulk_add_symbol_mappings(strategy_id, mappings):
+def bulk_add_symbol_mappings(db: Session, strategy_id: int, mappings: List[dict]) -> bool:
     """Add multiple symbol mappings at once"""
     try:
         for mapping_data in mappings:
@@ -183,32 +185,32 @@ def bulk_add_symbol_mappings(strategy_id, mappings):
                 strategy_id=strategy_id,
                 **mapping_data
             )
-            db_session.add(mapping)
-        db_session.commit()
+            db.add(mapping)
+        db.commit()
         return True
     except Exception as e:
         logger.error(f"Error bulk adding symbol mappings: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
 
-def get_symbol_mappings(strategy_id):
+def get_symbol_mappings(db: Session, strategy_id: int) -> List[StrategySymbolMapping]:
     """Get all symbol mappings for a strategy"""
     try:
-        return StrategySymbolMapping.query.filter_by(strategy_id=strategy_id).all()
+        return list(db.execute(select(StrategySymbolMapping).filter_by(strategy_id=strategy_id)).scalars().all())
     except Exception as e:
         logger.error(f"Error getting symbol mappings: {str(e)}")
         return []
 
-def delete_symbol_mapping(mapping_id):
+def delete_symbol_mapping(db: Session, mapping_id: int) -> bool:
     """Delete a symbol mapping"""
     try:
-        mapping = StrategySymbolMapping.query.get(mapping_id)
+        mapping = db.get(StrategySymbolMapping, mapping_id)
         if mapping:
-            db_session.delete(mapping)
-            db_session.commit()
+            db.delete(mapping)
+            db.commit()
             return True
         return False
     except Exception as e:
         logger.error(f"Error deleting symbol mapping {mapping_id}: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
