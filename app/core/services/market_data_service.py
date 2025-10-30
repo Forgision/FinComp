@@ -130,6 +130,9 @@ class MarketDataService:
                         'ltp': market_data.get('ltp', 0),
                         'timestamp': market_data.get('timestamp', timestamp)
                     }
+                else:
+                    logger.warning(f"Unknown mode: {mode}")
+                    raise ValueError(f"Unknown mode: {mode}")
 
                 cache_entry['last_update'] = timestamp
                 self.metrics['total_updates'] += 1

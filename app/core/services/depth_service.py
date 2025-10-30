@@ -148,9 +148,9 @@ def get_depth(
             logger.warning(f"Could not fetch user_id: {e}")
 
         return get_depth_with_auth(
-            AUTH_TOKEN,
+            AUTH_TOKEN if AUTH_TOKEN is not None else '',
             FEED_TOKEN,
-            broker_name,
+            broker_name if broker_name is not None else '',
             symbol,
             exchange,
             extracted_user_id

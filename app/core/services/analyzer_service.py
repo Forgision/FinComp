@@ -187,7 +187,7 @@ def clear_analyzer_logs(db: Session):
     try:
         # Delete all logs older than 24 hours
         cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
-        stmt = delete(AnalyzerLog.__table__).where(AnalyzerLog.created_at < cutoff)
+        stmt = delete(AnalyzerLog).where(AnalyzerLog.created_at < cutoff)
         db.execute(stmt)
         db.commit()
         return True, "Analyzer logs cleared successfully"

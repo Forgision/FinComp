@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.core.models.metrics_models import HealthCheckResponse, PerformanceMetric
 from app.utils.logging import logger
@@ -29,7 +29,7 @@ async def collect_health_metrics() -> HealthCheckResponse:
         version="1.0.0", # Placeholder for actual version
     )
 
-async def record_performance_metric(metric_name: str, value: float, unit: str = "", tags: Dict[str, Any] = None):
+async def record_performance_metric(metric_name: str, value: float, unit: str = "", tags: Optional[Dict[str, Any]] = None):
     """Records a custom performance metric."""
     metric = PerformanceMetric(
         metric_name=metric_name,
