@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import importlib
 import traceback
@@ -150,7 +149,7 @@ async def modify_order_with_auth(
         })
         await async_log_order(db, 'modifyorder', order_request_data, response_data)
         # Send Telegram alert for live mode
-        await telegram_alert_service.send_order_alert('modifyorder', order_data, response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'modifyorder', order_data, response_data, order_data.get('apikey'))
         return True, response_data, 200
     else:
         message = response_message.get('message', 'Failed to modify order') if isinstance(

@@ -241,7 +241,7 @@ def get_api_key_for_tradingview(db: Session, user_id: str) -> Optional[str]:
 def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
     import hashlib
     from flask import has_request_context
-    from app.core.schemas.traffic_db import InvalidAPIKeyTracker
+    from app.core.schemas.traffic_db import track_invalid_api_key
     from app.utils.ip_helper import get_real_ip
 
     peppered_key = provided_api_key + PEPPER
@@ -259,7 +259,7 @@ def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
     try:
         client_ip = get_real_ip() if has_request_context() else '127.0.0.1'
         api_key_hash = hashlib.sha256(provided_api_key.encode()).hexdigest()[:16]
-        InvalidAPIKeyTracker.track_invalid_api_key(db, client_ip, api_key_hash)
+        track_invalid_api_key(db, client_ip, api_key_hash)
     except Exception as track_error:
         logger.warning(f"Could not track invalid API key attempt: {track_error}")
 

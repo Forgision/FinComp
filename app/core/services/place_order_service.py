@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import importlib
 import traceback
@@ -152,7 +151,7 @@ async def place_order_with_auth(
         order_response_data = {'status': 'success', 'orderid': order_id}
         await async_log_order(db, 'placeorder', order_request_data, order_response_data)
         # Send Telegram alert asynchronously
-        await telegram_alert_service.send_order_alert('placeorder', order_data, order_response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'placeorder', order_data, order_response_data, order_data.get('apikey'))
         return True, order_response_data, 200
     else:
         message = response_data.get('message', 'Failed to place order') if isinstance(

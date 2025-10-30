@@ -152,7 +152,7 @@ async def cancel_order_with_auth(
         }
         await async_log_order(db, 'cancelorder', order_request_data, order_response_data)
         # Send Telegram alert for live mode
-        await telegram_alert_service.send_order_alert('cancelorder', {'orderid': orderid}, order_response_data, original_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'cancelorder', {'orderid': orderid}, order_response_data, original_data.get('apikey'))
         return True, order_response_data, 200
     else:
         message = response_message.get('message', 'Failed to cancel order') if isinstance(

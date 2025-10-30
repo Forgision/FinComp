@@ -10,10 +10,8 @@ virtual trading environment instead of the live broker.
 import copy
 from typing import Any, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
 
 from app.core.schemas.analyzer_db import async_log_analyzer
-from app.core.schemas.apilog_db import executor
 from app.core.schemas.auth_db import verify_api_key
 from app.core.schemas.settings_db import get_analyze_mode
 from app.algo.sandbox.fund_manager import get_user_funds
@@ -113,7 +111,7 @@ async def sandbox_place_order(
         })
 
         # Send Telegram alert
-        await telegram_alert_service.send_order_alert('placeorder', order_data, response, api_key)
+        await telegram_alert_service.send_order_alert(db, 'placeorder', order_data, response, api_key)
 
         return success, response, status_code
 

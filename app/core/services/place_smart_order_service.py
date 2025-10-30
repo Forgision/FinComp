@@ -187,7 +187,7 @@ async def place_smart_order_with_auth(
         })
 
         # Send Telegram alert for analyze mode
-        await telegram_alert_service.send_order_alert('placesmartorder', order_data, response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'placesmartorder', order_data, response_data, order_data.get('apikey'))
         return success, response_data, status_code
 
     # Live Mode - Proceed with actual order placement
@@ -221,7 +221,7 @@ async def place_smart_order_with_auth(
                 'message': ' Positions Already Matched. No Action needed.'
             })
             # Send Telegram alert
-            await telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
+            await telegram_alert_service.send_order_alert(db, 'placesmartorder', order_data, order_response_data, order_data.get('apikey'))
             return True, order_response_data, 200
 
         # Log successful order immediately after placement
@@ -230,7 +230,7 @@ async def place_smart_order_with_auth(
                 'status': 'success', 'orderid': order_id}
             await async_log_order(db, 'placesmartorder', order_request_data, order_response_data)
             # Send Telegram alert
-            await telegram_alert_service.send_order_alert('placesmartorder', order_data, order_response_data, order_data.get('apikey'))
+            await telegram_alert_service.send_order_alert(db, 'placesmartorder', order_data, order_response_data, order_data.get('apikey'))
             await sio.emit('order_event', {
                 'symbol': order_data.get('symbol'),
                 'action': order_data.get('action'),

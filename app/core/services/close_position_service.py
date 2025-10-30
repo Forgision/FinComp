@@ -158,7 +158,7 @@ async def close_position_with_auth(
         })
         await async_log_order(db, 'closeposition', position_request_data, response_data)
         # Send Telegram alert for live mode
-        await telegram_alert_service.send_order_alert('closeposition', position_data or {}, response_data, (position_data or {}).get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'closeposition', position_data or {}, response_data, (position_data or {}).get('apikey'))
         return True, response_data, 200
     else:
         message = response_code.get('message', 'Failed to close positions') if isinstance(

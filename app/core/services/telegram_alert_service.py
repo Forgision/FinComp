@@ -3,7 +3,7 @@ Telegram Alert Service for Order Notifications
 Handles asynchronous sending of order-related alerts to users via Telegram
 """
 
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -14,6 +14,7 @@ from app.core.schemas.telegram_db import (
     get_telegram_user_by_username,
 )
 from app.utils.logging import logger
+from sqlalchemy.orm import Session
 
 # Lazy import telegram bot service to avoid import errors if telegram package not installed properly
 telegram_bot_service = None
@@ -34,9 +35,6 @@ def _get_telegram_bot_service():
                     return False
             telegram_bot_service = MockTelegramBotService()
     return telegram_bot_service
-
-# Thread pool for async operations
-alert_executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="telegram_alert")
 
 class TelegramAlertService:
     """Service for sending order-related alerts via Telegram"""
@@ -170,60 +168,30 @@ class TelegramAlertService:
             logger.error(f"Error formatting order details: {e}")
             return f"Order Type: {order_type}\nStatus: {response.get('status', 'unknown')}"
 
-    def send_alert_sync(self, telegram_id: int, message: str) -> bool:
-        """Send alert message synchronously (thread-safe)"""
+    async def send_alert(self, db: Session, telegram_id: int, message: str) -> bool:
+        """Send alert message asynchronously"""
         try:
-            # Get telegram bot service
             bot_service = _get_telegram_bot_service()
-
-            # Check if bot is running
             if not bot_service.is_running:
                 logger.debug("Telegram bot is not running, queueing notification")
-                # Queue the notification for later delivery
-                add_notification(telegram_id, message, priority=8)
+                add_notification(db, telegram_id, message, priority=8)
                 return True
 
-            # Check if bot has an event loop running
-            if not hasattr(bot_service, 'bot_loop') or bot_service.bot_loop is None:
-                logger.error("Bot loop not available")
-                add_notification(telegram_id, message, priority=8)
-                return False
+            success = await bot_service.send_notification(telegram_id, message)
+            if not success:
+                add_notification(db, telegram_id, message, priority=8)
 
-            # Schedule the async task in the bot's existing event loop
-            import asyncio
-            import concurrent.futures
-
-            try:
-                # Use run_coroutine_threadsafe to schedule in the bot's loop
-                future = asyncio.run_coroutine_threadsafe(
-                    bot_service.send_notification(telegram_id, message),
-                    bot_service.bot_loop
-                )
-                # Wait for the result (max 10 seconds)
-                success = future.result(timeout=10)
-
-                if not success:
-                    # If failed, add to queue for retry
-                    add_notification(telegram_id, message, priority=8)
-
-                logger.info(f"Telegram notification sent: {success}")
-                return success
-
-            except concurrent.futures.TimeoutError:
-                logger.error("Timeout sending telegram notification")
-                add_notification(telegram_id, message, priority=8)
-                return False
-
+            logger.info(f"Telegram notification sent: {success}")
+            return success
         except Exception as e:
             logger.error(f"Error sending telegram alert: {e}")
-            # Add to queue on error
-            add_notification(telegram_id, message, priority=8)
+            add_notification(db, telegram_id, message, priority=8)
             return False
 
-    def send_order_alert(self, order_type: str, order_data: Dict[str, Any],
+    async def send_order_alert(self, db: Session, order_type: str, order_data: Dict[str, Any],
                         response: Dict[str, Any], api_key: Optional[str] = None):
         """
-        Send order alert to telegram user (non-blocking)
+        Send order alert to telegram user asynchronously
 
         Args:
             order_type: Type of order (placeorder, basketorder, etc.)
@@ -234,25 +202,22 @@ class TelegramAlertService:
         try:
             logger.info(f"Telegram alert triggered for {order_type}, response: {response.get('status', 'unknown')}")
 
-            # Skip if alerts are disabled
             if not self.enabled:
                 logger.debug("Telegram alerts are disabled globally")
                 return
 
-            # Get username from API key
             username = None
             api_key_used = api_key or order_data.get('apikey')
 
             if api_key_used:
                 logger.debug(f"Looking up username for API key (first 10 chars): {api_key_used[:10] if api_key_used else 'None'}...")
-                username = get_username_by_apikey(api_key_used)
+                username = get_username_by_apikey(db, provided_api_key=api_key_used)
                 logger.debug(f"Username lookup result: {username}")
             else:
                 logger.warning("No API key provided for telegram alert")
 
             if not username:
                 logger.warning(f"No username found for telegram alert - api_key present: {bool(api_key_used)}, api_key_length: {len(api_key_used) if api_key_used else 0}")
-                # Try to get username from session if available
                 try:
                     from flask import has_request_context, session
                     if has_request_context() and session.get('user'):
@@ -264,50 +229,32 @@ class TelegramAlertService:
                 if not username:
                     return
 
-            # Get telegram user
-            telegram_user = get_telegram_user_by_username(username)
-            if not telegram_user:
-                logger.info(f"No telegram user linked for username: {username}")
-                return
-            if not telegram_user.get('notifications_enabled'):
-                logger.info(f"Notifications disabled for telegram user: {username}")
+            telegram_user = get_telegram_user_by_username(db, username)
+            if not telegram_user or not telegram_user.get('notifications_enabled'):
+                logger.info(f"No telegram user or notifications disabled for username: {username}")
                 return
 
             logger.info(f"Sending telegram alert to user {username} (telegram_id: {telegram_user['telegram_id']})")
 
-            # Format message
             template = self.alert_templates.get(order_type, '📊 *Order Update*\n{details}')
             details = self.format_order_details(order_type, order_data, response)
             message = template.format(details=details)
 
-            # Send alert asynchronously (non-blocking)
-            telegram_id = telegram_user['telegram_id']
-
-            # Get telegram bot service
-
-            # Use thread pool executor for non-blocking execution
-            logger.info(f"Queueing alert via thread pool for telegram_id: {telegram_id}")
-            alert_executor.submit(self.send_alert_sync, telegram_id, message)
-
+            await self.send_alert(db, telegram_user['telegram_id'], message)
             logger.info(f"Telegram alert queued successfully for {order_type}")
 
         except Exception as e:
-            # Log error but don't raise - we don't want to affect order processing
             logger.error(f"Error queuing telegram alert: {e}", exc_info=True)
 
-    # Backward compatibility wrapper
-    _send_alert_sync_wrapper = send_alert_sync
-
-    def send_broadcast_alert(self, message: str, filters: Optional[Dict] = None):
+    async def send_broadcast_alert(self, db: Session, message: str, filters: Optional[Dict] = None):
         """Send broadcast alert to multiple users"""
         try:
-            users = get_all_telegram_users(filters)
-
-            for user in users:
-                if user.get('notifications_enabled'):
-                    telegram_id = user['telegram_id']
-                    alert_executor.submit(self._send_alert_sync_wrapper, telegram_id, message)
-
+            users = get_all_telegram_users(db, filters)
+            tasks = [
+                self.send_alert(db, user['telegram_id'], message)
+                for user in users if user.get('notifications_enabled')
+            ]
+            await asyncio.gather(*tasks)
         except Exception as e:
             logger.error(f"Error sending broadcast alert: {e}")
 

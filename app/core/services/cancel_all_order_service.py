@@ -127,7 +127,7 @@ async def cancel_all_orders_with_auth(
         })
 
         # Send Telegram alert for analyze mode
-        await telegram_alert_service.send_order_alert('cancelallorder', order_data, response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'cancelallorder', order_data, response_data, order_data.get('apikey'))
         return success, response_data, status_code
 
     broker_module = import_broker_module(broker)
@@ -173,7 +173,7 @@ async def cancel_all_orders_with_auth(
     await async_log_order(db, 'cancelallorder', order_request_data, response_data)
 
     # Send Telegram alert for live mode
-    await telegram_alert_service.send_order_alert('cancelallorder', order_data or {}, response_data, (order_data or {}).get('apikey'))
+    await telegram_alert_service.send_order_alert(db, 'cancelallorder', order_data or {}, response_data, (order_data or {}).get('apikey'))
 
     return True, response_data, 200
 

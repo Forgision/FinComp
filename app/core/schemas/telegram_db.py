@@ -20,7 +20,7 @@ from sqlalchemy import (
     func,
     DateTime
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.core.config import settings
 from app.core.schemas.base import Base
@@ -155,31 +155,29 @@ def init_db():
         Base.metadata.create_all(bind=engine)
 
         # Create default bot config if not exists
-        stmt = select(BotConfig).filter_by(id=1)
-        config = db_session.execute(stmt).scalars().first()
-        if not config:
-            default_config = BotConfig(id=1)
-            db_session.add(default_config)
-            db_session.commit()
+        with db_session() as session:
+            stmt = select(BotConfig).filter_by(id=1)
+            config = session.execute(stmt).scalars().first()
+            if not config:
+                default_config = BotConfig(id=1)
+                session.add(default_config)
+                session.commit()
 
         logger.info("Telegram database initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {str(e)}")
-        db_session.rollback()
-    finally:
-        db_session.remove()
 
 
 # Telegram User Management Functions
 
-def get_telegram_user(telegram_id: int) -> Optional[Dict]:
+def get_telegram_user(db: Session, telegram_id: int) -> Optional[Dict]:
     """Get telegram user by telegram_id"""
     try:
         stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
         )
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         if user:
             return {
@@ -200,18 +198,16 @@ def get_telegram_user(telegram_id: int) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Failed to get telegram user: {str(e)}")
         return None
-    finally:
-        db_session.remove()
 
 
-def get_telegram_user_by_username(username: str) -> Optional[Dict]:
+def get_telegram_user_by_username(db: Session, username: str) -> Optional[Dict]:
     """Get telegram user by OpenAlgo username"""
     try:
         stmt = select(TelegramUser).filter_by(
             openalgo_username=username,
             is_active=True
         )
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         if user:
             return {
@@ -232,18 +228,16 @@ def get_telegram_user_by_username(username: str) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Failed to get telegram user by username: {str(e)}")
         return None
-    finally:
-        db_session.remove()
 
 
-def create_or_update_telegram_user(telegram_id: int, username: str, api_key: Optional[str] = None,
+def create_or_update_telegram_user(db: Session, telegram_id: int, username: str, api_key: Optional[str] = None,
                                   host_url: Optional[str] = None, first_name: str = '',
                                   last_name: str = '', telegram_username: str = '',
                                   broker: str = 'default') -> bool:
     """Create or update telegram user with encrypted API key"""
     try:
         stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         # Encrypt API key if provided
         encrypted_key = None
@@ -275,34 +269,32 @@ def create_or_update_telegram_user(telegram_id: int, username: str, api_key: Opt
                 telegram_username=telegram_username,
                 broker=broker
             )
-            db_session.add(user)
+            db.add(user)
 
             # Also create default preferences
             preferences = UserPreference(telegram_id=telegram_id)
-            db_session.add(preferences)
+            db.add(preferences)
 
-        db_session.commit()
+        db.commit()
         logger.debug(f"Telegram user {telegram_id} linked successfully")
         return True
 
     except Exception as e:
         logger.error(f"Failed to create/update telegram user: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
-    finally:
-        db_session.remove()
 
 
-def delete_telegram_user(telegram_id: int) -> bool:
+def delete_telegram_user(db: Session, telegram_id: int) -> bool:
     """Delete telegram user (soft delete by marking inactive)"""
     try:
         stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         if user:
             user.is_active = False
             user.updated_at = func.now()
-            db_session.commit()
+            db.commit()
             logger.debug(f"Telegram user {telegram_id} unlinked")
             return True
 
@@ -310,13 +302,11 @@ def delete_telegram_user(telegram_id: int) -> bool:
 
     except Exception as e:
         logger.error(f"Failed to delete telegram user: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
-    finally:
-        db_session.remove()
 
 
-def get_all_telegram_users(filters: Optional[Dict] = None) -> List[Dict]:
+def get_all_telegram_users(db: Session, filters: Optional[Dict] = None) -> List[Dict]:
     """Get all active telegram users with optional filters"""
     try:
         stmt = select(TelegramUser).filter_by(is_active=True)
@@ -327,7 +317,7 @@ def get_all_telegram_users(filters: Optional[Dict] = None) -> List[Dict]:
             if 'notifications_enabled' in filters:
                 stmt = stmt.filter_by(notifications_enabled=filters['notifications_enabled'])
 
-        users = db_session.execute(stmt).scalars().all()
+        users = db.execute(stmt).scalars().all()
 
         return [{
             'id': user.id,
@@ -345,17 +335,15 @@ def get_all_telegram_users(filters: Optional[Dict] = None) -> List[Dict]:
     except Exception as e:
         logger.error(f"Failed to get all telegram users: {str(e)}")
         return []
-    finally:
-        db_session.remove()
 
 
 # Bot Configuration Functions
 
-def get_bot_config() -> Dict:
+def get_bot_config(db: Session) -> Dict:
     """Get bot configuration"""
     try:
         stmt = select(BotConfig).filter_by(id=1)
-        config = db_session.execute(stmt).scalars().first()
+        config = db.execute(stmt).scalars().first()
 
         if config:
             return {
@@ -384,19 +372,17 @@ def get_bot_config() -> Dict:
     except Exception as e:
         logger.error(f"Failed to get bot config: {str(e)}")
         return {}
-    finally:
-        db_session.remove()
 
 
-def update_bot_config(config: Dict) -> bool:
+def update_bot_config(db: Session, config: Dict) -> bool:
     """Update bot configuration"""
     try:
         stmt = select(BotConfig).filter_by(id=1)
-        bot_config = db_session.execute(stmt).scalars().first()
+        bot_config = db.execute(stmt).scalars().first()
 
         if not bot_config:
             bot_config = BotConfig(id=1)
-            db_session.add(bot_config)
+            db.add(bot_config)
 
         # Update fields (map bot_token to token for database)
         for key, value in config.items():
@@ -406,21 +392,19 @@ def update_bot_config(config: Dict) -> bool:
             elif hasattr(bot_config, key) and key not in ['id', 'created_at']:
                 setattr(bot_config, key, value)
 
-        db_session.commit()
+        db.commit()
         logger.debug("Bot configuration updated")
         return True
 
     except Exception as e:
         logger.error(f"Failed to update bot config: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
-    finally:
-        db_session.remove()
 
 
 # Command Logging Functions
 
-def log_command(telegram_id: int, command: str, chat_id: Optional[int] = None, parameters: Optional[Dict] = None):
+def log_command(db: Session, telegram_id: int, command: str, chat_id: Optional[int] = None, parameters: Optional[Dict] = None):
     """Log command execution for analytics"""
     try:
         params_json = json.dumps(parameters) if parameters else None
@@ -432,24 +416,22 @@ def log_command(telegram_id: int, command: str, chat_id: Optional[int] = None, p
             chat_id=chat_id,
             parameters=params_json
         )
-        db_session.add(command_log)
+        db.add(command_log)
 
         # Update last_command_at in telegram_users
         stmt = select(TelegramUser).filter_by(telegram_id=telegram_id)
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
         if user:
             user.last_command_at = func.now()
 
-        db_session.commit()
+        db.commit()
 
     except Exception as e:
         logger.error(f"Failed to log command: {str(e)}")
-        db_session.rollback()
-    finally:
-        db_session.remove()
+        db.rollback()
 
 
-def get_command_stats(days: int = 7) -> Dict:
+def get_command_stats(db: Session, days: int = 7) -> Dict:
     """Get command statistics for the last N days"""
     try:
         since_date = datetime.now() - timedelta(days=days)
@@ -458,7 +440,7 @@ def get_command_stats(days: int = 7) -> Dict:
         stmt_total = select(func.count(CommandLog.id)).filter(
             CommandLog.executed_at >= since_date
         )
-        total_commands = db_session.execute(stmt_total).scalar_one()
+        total_commands = db.execute(stmt_total).scalar_one()
 
         # Commands by type
         stmt_counts = select(
@@ -467,7 +449,7 @@ def get_command_stats(days: int = 7) -> Dict:
         ).filter(
             CommandLog.executed_at >= since_date
         ).group_by(CommandLog.command).order_by(func.count(CommandLog.id).desc())
-        command_counts = db_session.execute(stmt_counts).all()
+        command_counts = db.execute(stmt_counts).all()
 
         commands_by_type = {cmd: count for cmd, count in command_counts}
 
@@ -477,7 +459,7 @@ def get_command_stats(days: int = 7) -> Dict:
         ).filter(
             CommandLog.executed_at >= since_date
         )
-        active_users = db_session.execute(stmt_active).scalar_one()
+        active_users = db.execute(stmt_active).scalar_one()
 
         # Most active users
         stmt_top = select(
@@ -492,7 +474,7 @@ def get_command_stats(days: int = 7) -> Dict:
         ).order_by(
             func.count(CommandLog.id).desc()
         ).limit(10)
-        top_users = db_session.execute(stmt_top).all()
+        top_users = db.execute(stmt_top).all()
 
         return {
             'total_commands': total_commands,
@@ -511,17 +493,15 @@ def get_command_stats(days: int = 7) -> Dict:
             'top_users': [],
             'period_days': days
         }
-    finally:
-        db_session.remove()
 
 
 # User Preferences Functions
 
-def get_user_preferences(telegram_id: int) -> Dict:
+def get_user_preferences(db: Session, telegram_id: int) -> Dict:
     """Get user preferences"""
     try:
         stmt = select(UserPreference).filter_by(telegram_id=telegram_id)
-        pref = db_session.execute(stmt).scalars().first()
+        pref = db.execute(stmt).scalars().first()
 
         if pref:
             return {
@@ -548,40 +528,36 @@ def get_user_preferences(telegram_id: int) -> Dict:
     except Exception as e:
         logger.error(f"Failed to get user preferences: {str(e)}")
         return {}
-    finally:
-        db_session.remove()
 
 
-def update_user_preferences(telegram_id: int, preferences: Dict) -> bool:
+def update_user_preferences(db: Session, telegram_id: int, preferences: Dict) -> bool:
     """Update user preferences"""
     try:
         stmt = select(UserPreference).filter_by(telegram_id=telegram_id)
-        pref = db_session.execute(stmt).scalars().first()
+        pref = db.execute(stmt).scalars().first()
 
         if not pref:
             pref = UserPreference(telegram_id=telegram_id)
-            db_session.add(pref)
+            db.add(pref)
 
         # Update fields
         for key, value in preferences.items():
             if hasattr(pref, key) and key not in ['telegram_id', 'created_at']:
                 setattr(pref, key, value)
 
-        db_session.commit()
+        db.commit()
         logger.debug(f"User preferences updated for telegram_id: {telegram_id}")
         return True
 
     except Exception as e:
         logger.error(f"Failed to update user preferences: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
-    finally:
-        db_session.remove()
 
 
 # Notification Queue Functions
 
-def add_notification(telegram_id: int, message: str, priority: int = 5) -> bool:
+def add_notification(db: Session, telegram_id: int, message: str, priority: int = 5) -> bool:
     """Add notification to queue"""
     try:
         notification = NotificationQueue(
@@ -589,19 +565,17 @@ def add_notification(telegram_id: int, message: str, priority: int = 5) -> bool:
             message=message,
             priority=priority
         )
-        db_session.add(notification)
-        db_session.commit()
+        db.add(notification)
+        db.commit()
         return True
 
     except Exception as e:
         logger.error(f"Failed to add notification: {str(e)}")
-        db_session.rollback()
+        db.rollback()
         return False
-    finally:
-        db_session.remove()
 
 
-def get_pending_notifications(limit: int = 100) -> List[Dict]:
+def get_pending_notifications(db: Session, limit: int = 100) -> List[Dict]:
     """Get pending notifications from queue"""
     try:
         stmt = select(NotificationQueue).filter_by(
@@ -610,7 +584,7 @@ def get_pending_notifications(limit: int = 100) -> List[Dict]:
             NotificationQueue.priority.desc(),
             NotificationQueue.created_at.asc()
         ).limit(limit)
-        notifications = db_session.execute(stmt).scalars().all()
+        notifications = db.execute(stmt).scalars().all()
 
         return [{
             'id': n.id,
@@ -624,38 +598,34 @@ def get_pending_notifications(limit: int = 100) -> List[Dict]:
     except Exception as e:
         logger.error(f"Failed to get pending notifications: {str(e)}")
         return []
-    finally:
-        db_session.remove()
 
 
-def mark_notification_sent(notification_id: int, success: bool = True, error_message: Optional[str] = None):
+def mark_notification_sent(db: Session, notification_id: int, success: bool = True, error_message: Optional[str] = None):
     """Mark notification as sent or failed"""
     try:
         stmt = select(NotificationQueue).filter_by(id=notification_id)
-        notification = db_session.execute(stmt).scalars().first()
+        notification = db.execute(stmt).scalars().first()
 
         if notification:
             notification.status = 'sent' if success else 'failed'
             notification.sent_at = func.now()
             notification.error_message = error_message
-            db_session.commit()
+            db.commit()
 
     except Exception as e:
         logger.error(f"Failed to update notification status: {str(e)}")
-        db_session.rollback()
-    finally:
-        db_session.remove()
+        db.rollback()
 
 
 # Helper functions for API key management
-def get_decrypted_api_key(telegram_id: int) -> Optional[str]:
+def get_decrypted_api_key(db: Session, telegram_id: int) -> Optional[str]:
     """Get and decrypt API key for a telegram user"""
     try:
         stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
         )
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         if user and user.encrypted_api_key:
             decrypted_key = fernet.decrypt(user.encrypted_api_key.encode()).decode()
@@ -664,18 +634,16 @@ def get_decrypted_api_key(telegram_id: int) -> Optional[str]:
     except Exception as e:
         logger.error(f"Failed to decrypt API key: {str(e)}")
         return None
-    finally:
-        db_session.remove()
 
 
-def get_user_credentials(telegram_id: int) -> Optional[Dict]:
+def get_user_credentials(db: Session, telegram_id: int) -> Optional[Dict]:
     """Get user's API credentials and host URL"""
     try:
         stmt = select(TelegramUser).filter_by(
             telegram_id=telegram_id,
             is_active=True
         )
-        user = db_session.execute(stmt).scalars().first()
+        user = db.execute(stmt).scalars().first()
 
         if user:
             api_key = None
@@ -695,21 +663,19 @@ def get_user_credentials(telegram_id: int) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Failed to get user credentials: {str(e)}")
         return None
-    finally:
-        db_session.remove()
 
 
 # Helper function to get auth token
-def get_auth_token_by_username(username: str):
+def get_auth_token_by_username(db: Session, username: str):
     """Helper function to get auth token - imports here to avoid circular imports"""
     from app.core.schemas.auth_db import get_auth_token
-    return get_auth_token(db_session(), name=username)
+    return get_auth_token(db, name=username)
 
 
 # Cleanup function
-def cleanup_db():
+def cleanup_db(db: Session):
     """Cleanup database connections"""
-    db_session.remove()
+    db.close()
 
 
 # Initialize database on module load

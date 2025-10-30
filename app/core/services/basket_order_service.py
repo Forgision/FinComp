@@ -288,7 +288,7 @@ async def process_basket_order_with_auth(
         })
 
         # Send Telegram alert for analyze mode
-        await telegram_alert_service.send_order_alert('basketorder', basket_data, response_data, basket_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(db, 'basketorder', basket_data, response_data, basket_data.get('apikey'))
         return True, response_data, 200
 
     # Live mode - process actual orders
@@ -330,7 +330,7 @@ async def process_basket_order_with_auth(
     await async_log_order(db, 'basketorder', basket_request_data, response_data)
 
     # Send Telegram alert for live basket order
-    await telegram_alert_service.send_order_alert('basketorder', basket_data, response_data, basket_data.get('apikey'))
+    await telegram_alert_service.send_order_alert(db, 'basketorder', basket_data, response_data, basket_data.get('apikey'))
 
     return True, response_data, 200
 
