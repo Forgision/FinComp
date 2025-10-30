@@ -258,6 +258,8 @@ def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
 
     try:
         client_ip = get_real_ip() if has_request_context() else '127.0.0.1'
+        if client_ip is None:
+            client_ip = '127.0.0.1'
         api_key_hash = hashlib.sha256(provided_api_key.encode()).hexdigest()[:16]
         track_invalid_api_key(db, client_ip, api_key_hash)
     except Exception as track_error:
