@@ -16,10 +16,10 @@ import httpx
 import pandas as pd
 import plotly.graph_objects as go
 import telegram.error
-from app.core.schemas.auth_db import get_username_by_apikey
+from app.core.models.auth_db import get_username_by_apikey
 
 # Database imports
-from app.core.schemas.telegram_db import (
+from app.core.models.telegram_db import (
     create_or_update_telegram_user,
     delete_telegram_user,
     get_all_telegram_users,
@@ -862,7 +862,9 @@ class TelegramBotService:
                 else:
                     logger.info(f"Successfully retrieved OpenAlgo username: {openalgo_username}")
 
+                db = next(get_db())
                 create_or_update_telegram_user(
+                    db=db,
                     telegram_id=user.id,
                     username=openalgo_username,  # Use the actual OpenAlgo username
                     telegram_username=user.username,
@@ -900,8 +902,8 @@ class TelegramBotService:
     async def cmd_unlink(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /unlink command"""
         user = update.effective_user
-
-        if delete_telegram_user(user.id):
+        db = next(get_db())
+        if delete_telegram_user(user.id, db=db):
             # Clear SDK client cache
             if user.id in self.sdk_clients:
                 del self.sdk_clients[user.id]

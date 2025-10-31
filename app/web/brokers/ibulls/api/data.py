@@ -2,13 +2,13 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.core.schemas.token_db import get_br_symbol
-# from app.core.schemas.session import db_session
-from app.core.schemas.auth_db import get_feed_token
-from app.web.brokers.ibulls.database.master_contract_db import SymToken
+from app.core.models.token_db import get_br_symbol
+from app.core.models.auth_db import get_feed_token
+from app.core.models.symbol import SymToken
 from app.web.brokers.ibulls.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
+from app.db.session import get_db
 
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):
@@ -113,16 +113,16 @@ class BrokerData:
             raise Exception(f"Unknown exchange segment: {exchange}")
 
         # Get exchange_token from app.core.schemas
-        with db_session() as session:
-            symbol_info = session.query(SymToken).filter(
-                SymToken.exchange == exchange,
-                SymToken.brsymbol == br_symbol
-            ).first()
+        db = next(get_db())
+        symbol_info = db.exec(select(SymToken).where(
+            SymToken.exchange == exchange,
+            SymToken.brsymbol == br_symbol
+        )).first()
 
-            if not symbol_info:
-                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+        if not symbol_info:
+            raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-            return symbol_info, brexchange
+        return symbol_info, brexchange
 
     def _fetch_market_data(self, token: dict, message_code: int) -> dict:
         """
@@ -262,17 +262,17 @@ class BrokerData:
             if not exchange_segment:
                 raise Exception(f"Unsupported exchange: {exchange}")
              # Get exchange_token from app.core.schemas
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            db = next(get_db())
+            symbol_info = db.exec(select(SymToken).where(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            )).first()
 
-                if not symbol_info:
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            if not symbol_info:
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
-                # Get the token for quotes
-                token = symbol_info.token  # token = instrument ID
+            # Get the token for quotes
+            token = symbol_info.token  # token = instrument ID
 
 
             # Convert dates to datetime objects with IST timezone
@@ -547,16 +547,16 @@ class BrokerData:
 
             # Get exchange_token from app.core.schemas
             logger.info("Querying database for symbol token...")
-            with db_session() as session:
-                symbol_info = session.query(SymToken).filter(
-                    SymToken.exchange == exchange,
-                    SymToken.brsymbol == br_symbol
-                ).first()
+            db = next(get_db())
+            symbol_info = db.exec(select(SymToken).where(
+                SymToken.exchange == exchange,
+                SymToken.brsymbol == br_symbol
+            )).first()
 
-                if not symbol_info:
-                    logger.error(f"Could not find exchange token for {exchange}:{br_symbol}")
-                    raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
-                logger.info(f"Found token {symbol_info.token} for {exchange}:{br_symbol}")
+            if not symbol_info:
+                logger.error(f"Could not find exchange token for {exchange}:{br_symbol}")
+                raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
+            logger.info(f"Found token {symbol_info.token} for {exchange}:{br_symbol}")
 
             # Get market depth via REST API
             logger.info("Getting market depth via REST API...")

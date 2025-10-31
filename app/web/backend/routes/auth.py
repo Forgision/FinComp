@@ -4,24 +4,24 @@ import re
 import secrets
 from typing import Optional
 
-import qrcode  # type: ignore #Library stubs not installed for "qrcode"
+import qrcode
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi_csrf_protect.flexible import CsrfProtect
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.models.auth import SMTPConfig, SMTPDebug, SMTPTest
 from app.core.services import user_service
-from app.core.schemas.auth_db import (
+from app.core.models.auth_db import (
     auth_cache,
     feed_token_cache,
     upsert_api_key,
     upsert_auth,
 )
-from app.core.schemas.session import get_db
-from app.core.schemas.settings_db import get_smtp_settings, set_smtp_settings
-from app.core.schemas.user_db import add_user, find_user_by_email
+from app.db.session import get_db
+from app.core.models.settings_db import get_smtp_settings, set_smtp_settings
+from app.core.models.user import add_user, find_user_by_email
 from app.utils.auth_utils import mask_api_credential
 from app.utils.email_debug import debug_smtp_connection
 from app.utils.email_utils import send_password_reset_email, send_test_email
@@ -81,7 +81,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 
         # Clear symbol cache
         try:
-            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.models.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:
@@ -147,9 +147,10 @@ async def change_password_post(
     username = request.session['user']
     user = user_service.get_user_by_username(db, username)
 
-    if user and verify_password(old_password, user.password_hash):
+    if user and user.check_password(old_password, db=db):
         if new_password == confirm_password:
             user.set_password(new_password)
+            db.add(user)
             db.commit()
             flash(request, "Your password has been changed successfully.", "success")
         else:
@@ -157,7 +158,7 @@ async def change_password_post(
     else:
         flash(request, "Old Password is incorrect.", "error")
 
-    return RedirectResponse(url=request.url_for('auth.change'), status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=request.url_for('auth.change_password'), status_code=status.HTTP_303_SEE_OTHER)
 
 
 @auth_router.get('/setup', name="setup")
@@ -177,33 +178,24 @@ async def setup_get(request: Request,
 @auth_router.post('/setup', name="setup")
 async def setup_post(
     request: Request,
+    db: Session = Depends(get_db),
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
     confirm_password: str = Form(...),
-    csrf_token: str = Form(...),
-    csrf_protect: CsrfProtect = Depends(),
-    db: Session = Depends(get_db)
 ):
-    #TODO: make crsf validation working. There is "The CSRF token is invalid" error.
-    # try:
-    #     # cs = await csrf_protect.get_csrf_from_body(re)
-    #     await csrf_protect.validate_csrf(request)
-    # except CsrfProtectError as e:
-    #     raise HTTPException(status_code=400, detail=f"CSRF token validation error:{e.message}")
-
     if user_service.get_total_users_count(db) > 0:
         flash(request, "Setup has already been completed.", "warning")
         return RedirectResponse(url=auth_router.url_path_for('auth.login'))
 
     # Add the new admin user
-    user = add_user(username, email, password, is_admin=True)
+    user = add_user(db, username, email, password, is_admin=True)
     if user:
         logger.info(f"New admin user {username} created successfully")
 
         # Automatically generate and save API key
         api_key = generate_api_key()
-        key_id = upsert_api_key(username, api_key)
+        key_id = upsert_api_key(db, username, api_key)
         if not key_id:
             logger.error(f"Failed to create API key for user {username}")
         else:
@@ -227,12 +219,12 @@ async def setup_post(
 
         # Flash message with SMTP setup info and redirect to login
         flash(request, 'Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.', 'success')
-        return RedirectResponse(auth_router.url_path_for('auth.login'))
+        return RedirectResponse(auth_router.url_path_for('auth.login'), status_code=status.HTTP_302_FOUND)
     else:
         # If the user already exists or an error occurred, show an error message
         logger.error(f"Failed to create admin user {username}")
-        flash('User already exists or an error occurred', 'error')
-        return RedirectResponse(auth_router.url_path_for('setup'))
+        flash(request, 'User already exists or an error occurred', 'error')
+        return RedirectResponse(auth_router.url_path_for('setup'), status_code=status.HTTP_302_FOUND)
 
 
 @auth_router.get('/broker', name='broker_login', response_class=HTMLResponse)
@@ -295,7 +287,7 @@ async def reset_password_post(
     token: Optional[str] = Form(None)
 ):
     if step == 'email':
-        user = find_user_by_email(email, db)
+        user = find_user_by_email(db, email)
         if user:
             request.session['reset_email'] = email
         return JSONResponse(content={
@@ -324,7 +316,7 @@ async def reset_password_post(
                 "email": email
             })
 
-        user = find_user_by_email(email, db)
+        user = find_user_by_email(db, email)
         if user:
             try:
                 token = secrets.token_urlsafe(32)
@@ -350,7 +342,7 @@ async def reset_password_post(
         })
 
     elif step == 'totp':
-        user = find_user_by_email(email, db)
+        user = find_user_by_email(db, email)
         if user and user.verify_totp(totp_code):
             token = secrets.token_urlsafe(32)
             request.session['reset_token'] = token
@@ -377,9 +369,10 @@ async def reset_password_post(
             flash(request, 'Invalid or expired reset token.', 'error')
             return RedirectResponse(url=request.url_for('reset_password'), status_code=status.HTTP_302_FOUND)
 
-        user = find_user_by_email(email, db)
+        user = find_user_by_email(db, email)
         if user:
             user.set_password(password)
+            db.add(user)
             db.commit()
 
             request.session.pop('reset_token', None)

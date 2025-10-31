@@ -5,7 +5,7 @@ from typing import Dict, Optional
 import httpx
 import pandas as pd
 import pytz
-from app.core.schemas.token_db import get_br_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_token
 from app.web.brokers.fivepaisa.mapping.transform_data import (
     map_exchange,
     map_exchange_type,
@@ -14,6 +14,7 @@ from app.web.brokers.fivepaisa.mapping.transform_data import (
 from app.core.config import settings
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
+from sqlalchemy.orm import Session
 
 # Retrieve the BROKER_API_KEY environment variable
 broker_api_key = settings.BROKER_API_KEY
@@ -73,9 +74,10 @@ def get_api_response(endpoint: str, auth: str, method: str = "GET", payload: str
         raise
 
 class BrokerData:
-    def __init__(self, auth_token):
+    def __init__(self, auth_token, db: Session):
         """Initialize 5Paisa data handler with authentication token"""
         self.auth_token = auth_token
+        self.db = db
         # Map common timeframe format to 5Paisa resolutions
         self.timeframe_map = {
             # Minutes
@@ -98,8 +100,8 @@ class BrokerData:
         """
         try:
             # Get token from symbol
-            token = get_token(symbol, exchange)
-            br_symbol = get_br_symbol(symbol, exchange)
+            token = get_token(symbol, exchange, db=self.db)
+            br_symbol = get_br_symbol(symbol, exchange, db=self.db)
 
             # Prepare request payload
             json_data = {
@@ -176,8 +178,8 @@ class BrokerData:
         """
         try:
             # Get token from symbol
-            token = get_token(symbol, exchange)
-            br_symbol = get_br_symbol(symbol, exchange)
+            token = get_token(symbol, exchange, db=self.db)
+            br_symbol = get_br_symbol(symbol, exchange, db=self.db)
 
             # Get market snapshot for overall data
             snapshot_data = {
@@ -311,8 +313,8 @@ class BrokerData:
         """
         try:
             # Get token from symbol
-            token = get_token(symbol, exchange)
-            br_symbol = get_br_symbol(symbol, exchange)
+            token = get_token(symbol, exchange, db=self.db)
+            br_symbol = get_br_symbol(symbol, exchange, db=self.db)
 
             # Prepare request payload
             json_data = {
@@ -450,7 +452,7 @@ class BrokerData:
                 logger.debug(f"Debug: Converted interval from {original_interval} to {interval}")
 
             # Get token from symbol
-            token = get_token(symbol, exchange)
+            token = get_token(symbol, exchange, db=self.db)
 
             # Map interval
             fivepaisa_interval = self.map_interval(interval)

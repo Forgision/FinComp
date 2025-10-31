@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.core.services.history_service import get_history
 from app.core.services.tradebook_service import get_tradebook
-from app.core.schemas.auth_db import get_api_key_for_tradingview, get_auth_token
-from app.core.schemas.session import get_db
+from app.core.models.auth_db import get_api_key_for_tradingview, get_auth_token
+from app.db.session import get_db
 from app.utils.logging import logger
 
 # Define the FastAPI router

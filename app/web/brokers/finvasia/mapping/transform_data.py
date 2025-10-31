@@ -1,11 +1,12 @@
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.token_db import get_br_symbol
+from sqlalchemy.orm import Session
 
-def transform_data(data, token):
+def transform_data(data, token, db: Session):
     """
     NOTE: This is a placeholder implementation.
     """
     userid = data.get("apikey")
-    symbol = get_br_symbol(data.get("symbol"), data.get("exchange"))
+    symbol = get_br_symbol(data.get("symbol"), data.get("exchange"), db=db)
     transformed = {
         "uid": userid,
         "actid": userid,

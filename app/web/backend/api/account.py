@@ -1,6 +1,6 @@
 import asyncio
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.models.error_models import BaseErrorResponse
 from app.core.models.api_schemas import (
@@ -22,8 +22,8 @@ from app.core.services.openposition_service import (
 from app.core.services.orderbook_service import get_orderbook
 from app.core.services.positionbook_service import get_positionbook
 from app.core.services.tradebook_service import get_tradebook
-from app.core.schemas.apilog_db import async_log_order
-from app.core.schemas.settings_db import get_analyze_mode
+from app.core.models.apilog_db import async_log_order
+from app.core.models.settings_db import get_analyze_mode
 from app.utils.logging import logger
 
 account_router = APIRouter()

@@ -44,8 +44,8 @@ from fastapi.responses import (
 )
 from sqlalchemy.orm import Session
 
-from app.core.schemas.auth_db import Auth as DBAuth
-from app.core.schemas.master_contract_status_db import (
+from app.core.models.auth_db import Auth as DBAuth
+from app.core.models.master_contract_status_db import (
     MasterContractStatus as DBMasterContractStatus,
 )
 

@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.core.schemas.token_db import get_token
+from app.core.models.token_db import get_token
 from .baseurl import get_url
 
 from app.utils.httpx_client import get_httpx_client

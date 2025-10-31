@@ -16,8 +16,8 @@ from decimal import Decimal
 import pytz
 
 from app.core.services.quotes_service import get_quotes
-from app.core.schemas.auth_db import ApiKeys, decrypt_token
-from app.core.schemas.sandbox_db import (
+from app.core.models.auth_db import ApiKeys, decrypt_token
+from app.core.models.sandbox_db import (
     SandboxHoldings,
     SandboxPositions,
     db_session,

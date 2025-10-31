@@ -1,7 +1,8 @@
 import json
 
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.web.brokers.dhan.api.baseurl import get_url
+from sqlalchemy.orm import Session
 from app.web.brokers.dhan.mapping.transform_data import (
     map_exchange,
     map_exchange_type,
@@ -100,10 +101,10 @@ def get_order_details_api(orderid, auth):
         return res, {"error": "Invalid JSON response"}
     return res, response_data
 
-def get_open_position(tradingsymbol, exchange, product, auth):
+def get_open_position(tradingsymbol, exchange, product, auth, db: Session):
 
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol,exchange)
+    tradingsymbol = get_br_symbol(tradingsymbol,exchange, db=db)
     positions_data = get_positions(auth)
     net_qty = '0'
 
@@ -121,11 +122,11 @@ def get_open_position(tradingsymbol, exchange, product, auth):
 
     return net_qty
 
-def place_order_api(data,auth):
+def place_order_api(data,auth, db: Session):
     AUTH_TOKEN = auth
     BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
-    token = get_token(data['symbol'], data['exchange'])
+    token = get_token(data['symbol'], data['exchange'], db=db)
     newdata = transform_data(data, token)
     headers = {
         'access-token': AUTH_TOKEN,
@@ -164,7 +165,7 @@ def place_order_api(data,auth):
 
     return res, response_data, orderid
 
-def place_smartorder_api(data,auth):
+def place_smartorder_api(data,auth, db: Session):
 
     AUTH_TOKEN = auth
     #If no API call is made in this function then res will return None
@@ -179,7 +180,7 @@ def place_smartorder_api(data,auth):
 
 
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
+    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN, db=db))
 
 
     logger.info(f"position_size : {position_size}")
@@ -194,7 +195,7 @@ def place_smartorder_api(data,auth):
     if position_size == 0 and current_position == 0 and int(data['quantity'])!=0:
         action = data['action']
         quantity = data['quantity']
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(data,AUTH_TOKEN, db=db)
 
         return res , response, orderid
 
@@ -235,14 +236,14 @@ def place_smartorder_api(data,auth):
         order_data["quantity"] = str(quantity)
 
         # Place the order
-        res, response, orderid = place_order_api(order_data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(order_data,AUTH_TOKEN, db=db)
 
         return res , response, orderid
 
 
 
 
-def close_all_positions(current_api_key,auth):
+def close_all_positions(current_api_key,auth, db: Session):
     AUTH_TOKEN = auth
     # Fetch the current open positions
     positions_response = get_positions(AUTH_TOKEN)
@@ -267,7 +268,7 @@ def close_all_positions(current_api_key,auth):
             #print(f"Exchange : {position['exchange']}")
 
             #get openalgo symbol to send to placeorder function
-            symbol = get_symbol(position['securityId'],map_exchange(position['exchangeSegment']))
+            symbol = get_symbol(position['securityId'],map_exchange(position['exchangeSegment']), db=db)
             logger.info(f"The Symbol is {symbol}")
 
             # Prepare the order payload
@@ -285,7 +286,7 @@ def close_all_positions(current_api_key,auth):
             logger.debug(f"Close position payload: {place_order_payload}")
 
             # Place the order to close the position
-            _, api_response, _ =   place_order_api(place_order_payload,AUTH_TOKEN)
+            _, api_response, _ =   place_order_api(place_order_payload,AUTH_TOKEN, db=db)
 
             logger.debug(f"Close position response: {api_response}")
 

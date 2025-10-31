@@ -9,8 +9,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from app.core.schemas.auth_db import get_auth_token, get_feed_token
-from app.core.schemas.token_db import get_token
+from app.core.models.auth_db import get_auth_token, get_feed_token
+from app.core.models.token_db import get_token
 
 from app.core.config import settings
 

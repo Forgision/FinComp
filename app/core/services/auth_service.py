@@ -1,14 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-import pyotp
 from jose import JWTError, jwt
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.schemas.user_db import User
-from app.utils.web.security import password_to_hash, verify_password
+from app.core.models.user import User, add_user as register_user, authenticate_user as db_authenticate_user
+
 
 ALGORITHM = "HS256"
 
@@ -24,15 +22,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def authenticate_user(username: str, password: str, db: Session) -> Optional[User]:
-    stmt = select(User).where(User.username == username)
-    user = db.execute(stmt).scalar_one_or_none()
-    if not user or not verify_password(password, user.password_hash):
-        return None
-    return user
+def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
+    if db_authenticate_user(db, username, password):
+        statement = select(User).where(User.username == username)
+        return db.exec(statement).first()
+    return None
 
 
-def get_current_user(token: str, db: Session) -> Optional[User]:
+def get_current_user(db: Session, token: str) -> Optional[User]:
     try:
         payload = jwt.decode(token, settings.APP_KEY, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
@@ -41,16 +38,5 @@ def get_current_user(token: str, db: Session) -> Optional[User]:
     except JWTError:
         return None
 
-    stmt = select(User).where(User.username == username)
-    user = db.execute(stmt).scalar_one_or_none()
-    return user
-
-
-def register_user(username: str, email: str, password: str, db: Session) -> User:
-    totp_secret = pyotp.random_base32()
-    new_user = User(username=username, email=email, totp_secret=totp_secret)
-    new_user.set_password(password)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    statement = select(User).where(User.username == username)
+    return db.exec(statement).first()

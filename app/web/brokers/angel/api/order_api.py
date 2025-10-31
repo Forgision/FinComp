@@ -1,6 +1,6 @@
 import json
-
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from sqlalchemy.orm import Session
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.web.brokers.angel.mapping.transform_data import (
     map_product_type,
     reverse_map_product_type,
@@ -66,9 +66,9 @@ def get_positions(auth):
 def get_holdings(auth):
     return get_api_response("/rest/secure/angelbroking/portfolio/v1/getAllHolding",auth)
 
-def get_open_position(tradingsymbol, exchange, producttype,auth):
+def get_open_position(tradingsymbol, exchange, producttype,auth, db: Session):
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol,exchange)
+    tradingsymbol = get_br_symbol(tradingsymbol,exchange, db=db)
     positions_data = get_positions(auth)
 
     logger.debug(f"{positions_data}")
@@ -83,12 +83,12 @@ def get_open_position(tradingsymbol, exchange, producttype,auth):
 
     return net_qty
 
-def place_order_api(data,auth):
+def place_order_api(data,auth, db: Session):
     AUTH_TOKEN = auth
     BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
-    token = get_token(data['symbol'], data['exchange'])
-    newdata = transform_data(data, token)
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    newdata = transform_data(data, token, db=db)
     headers = {
         'Authorization': f'Bearer {AUTH_TOKEN}',
         'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ def place_order_api(data,auth):
         orderid = None
     return response, response_data, orderid
 
-def place_smartorder_api(data,auth):
+def place_smartorder_api(data,auth, db: Session):
 
     AUTH_TOKEN = auth
 
@@ -157,7 +157,7 @@ def place_smartorder_api(data,auth):
 
 
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
+    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN, db=db))
 
 
     logger.info(f"position_size : {position_size}")
@@ -174,7 +174,7 @@ def place_smartorder_api(data,auth):
         quantity = data['quantity']
         #logger.info(f"action : {action}")
         #logger.info(f"Quantity : {quantity}")
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(data,AUTH_TOKEN, db=db)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
 
@@ -219,7 +219,7 @@ def place_smartorder_api(data,auth):
 
         #logger.info(f"{order_data}")
         # Place the order
-        res, response, orderid = place_order_api(order_data,auth)
+        res, response, orderid = place_order_api(order_data,auth, db=db)
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
@@ -229,7 +229,7 @@ def place_smartorder_api(data,auth):
 
 
 
-def close_all_positions(current_api_key,auth):
+def close_all_positions(current_api_key,auth, db: Session):
     # Fetch the current open positions
     AUTH_TOKEN = auth
 
@@ -252,7 +252,7 @@ def close_all_positions(current_api_key,auth):
 
 
             #get openalgo symbol to send to placeorder function
-            symbol = get_symbol(position['symboltoken'],position['exchange'])
+            symbol = get_symbol(position['symboltoken'],position['exchange'], db=db)
             logger.info(f"The Symbol is {symbol}")
 
             # Prepare the order payload
@@ -270,7 +270,7 @@ def close_all_positions(current_api_key,auth):
             logger.info(f"{place_order_payload}")
 
             # Place the order to close the position
-            res, response, orderid =   place_order_api(place_order_payload,auth)
+            res, response, orderid =   place_order_api(place_order_payload,auth, db=db)
 
             # logger.info(f"{res}")
             # logger.info(f"{response}")
@@ -331,7 +331,7 @@ def cancel_order(orderid,auth):
         return {"status": "error", "message": data.get("message", "Failed to cancel order")}, response.status
 
 
-def modify_order(data,auth):
+def modify_order(data,auth, db: Session):
 
     # Assuming you have a function to get the authentication token
     AUTH_TOKEN = auth
@@ -340,8 +340,8 @@ def modify_order(data,auth):
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
 
-    token = get_token(data['symbol'], data['exchange'])
-    data['symbol'] = get_br_symbol(data['symbol'],data['exchange'])
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    data['symbol'] = get_br_symbol(data['symbol'],data['exchange'], db=db)
 
     transformed_data = transform_modify_order_data(data, token)  # You need to implement this function
     # Set up the request headers

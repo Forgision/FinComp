@@ -19,15 +19,16 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytz
+from sqlmodel import Session
 
-from app.core.schemas.sandbox_db import (
+from app.core.models.sandbox_db import (
     SandboxFunds,
     SandboxHoldings,
     SandboxPositions,
-    db_session,
     get_config,
 )
-from app.core.schemas.symbol import SymToken
+from app.db.session import get_db
+from app.core.models.symbol import SymToken
 from app.utils.logging import logger
 
 
@@ -50,16 +51,15 @@ class FundManager:
 
     def __init__(self, user_id):
         self.user_id = user_id
-        self.starting_capital = Decimal(get_config('starting_capital', '10000000.00'))
+        self.db = next(get_db())
+        self.starting_capital = Decimal(get_config(self.db, 'starting_capital', '10000000.00'))
 
     def initialize_funds(self):
         """Initialize funds for a new user"""
         try:
-            # Check if user already has funds
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
-                # Create new fund account
                 funds = SandboxFunds(
                     user_id=self.user_id,
                     total_capital=self.starting_capital,
@@ -71,8 +71,8 @@ class FundManager:
                     last_reset_date=datetime.now(pytz.timezone('Asia/Kolkata')),
                     reset_count=0
                 )
-                db_session.add(funds)
-                db_session.commit()
+                self.db.add(funds)
+                self.db.commit()
                 logger.info(f"Initialized funds for user {self.user_id} with ₹{self.starting_capital}")
                 return True, "Funds initialized successfully"
             else:
@@ -80,33 +80,29 @@ class FundManager:
                 return True, "Funds already initialized"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error initializing funds for user {self.user_id}: {e}")
             return False, f"Error initializing funds: {str(e)}"
 
     def get_funds(self):
         """Get current fund status for user"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
-                # Initialize funds if not exists
                 success, message = self.initialize_funds()
                 if not success:
                     return None
-
-                funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+                funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return None
 
-            # Check if reset is needed
             self._check_and_reset_funds(funds)
 
-            # Return fund details
             return {
                 'availablecash': float(funds.available_balance),
-                'collateral': 0.00,  # No collateral in sandbox
+                'collateral': 0.00,
                 'm2munrealized': float(funds.unrealized_pnl),
                 'm2mrealized': float(funds.realized_pnl),
                 'utiliseddebits': float(funds.used_margin),
@@ -121,19 +117,17 @@ class FundManager:
             return None
 
     def _check_and_reset_funds(self, funds):
-        """Check if funds need to be reset (every Sunday at midnight IST)"""
+        """Check if funds need to be reset"""
         try:
             ist = pytz.timezone('Asia/Kolkata')
             now = datetime.now(ist)
             last_reset = funds.last_reset_date
 
-            # Make last_reset timezone aware if it isn't
             if last_reset.tzinfo is None:
                 last_reset = ist.localize(last_reset)
 
-            # Check if it's Sunday and we haven't reset today
-            reset_day = get_config('reset_day', 'Sunday')
-            reset_time_str = get_config('reset_time', '00:00')
+            reset_day = get_config(self.db, 'reset_day', 'Sunday')
+            reset_time_str = get_config(self.db, 'reset_time', '00:00')
 
             if now.strftime('%A') == reset_day:
                 reset_hour, reset_minute = map(int, reset_time_str.split(':'))
@@ -144,7 +138,6 @@ class FundManager:
                     microsecond=0
                 )
 
-                # If current time is past reset time and last reset was before today's reset time
                 if now >= reset_time_today and last_reset < reset_time_today:
                     self._reset_funds(funds)
 
@@ -156,7 +149,6 @@ class FundManager:
         try:
             logger.info(f"Resetting funds for user {self.user_id}")
 
-            # Reset all fund values
             funds.total_capital = self.starting_capital
             funds.available_balance = self.starting_capital
             funds.used_margin = Decimal('0.00')
@@ -166,23 +158,22 @@ class FundManager:
             funds.last_reset_date = datetime.now(pytz.timezone('Asia/Kolkata'))
             funds.reset_count += 1
 
-            db_session.commit()
+            self.db.commit()
 
-            # Clear all positions and holdings
-            db_session.query(SandboxPositions).filter_by(user_id=self.user_id).delete()
-            db_session.query(SandboxHoldings).filter_by(user_id=self.user_id).delete()
-            db_session.commit()
+            self.db.query(SandboxPositions).filter_by(user_id=self.user_id).delete()
+            self.db.query(SandboxHoldings).filter_by(user_id=self.user_id).delete()
+            self.db.commit()
 
             logger.info(f"Funds reset successfully for user {self.user_id} (Reset #{funds.reset_count})")
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error resetting funds for user {self.user_id}: {e}")
 
     def check_margin_available(self, required_margin):
         """Check if user has sufficient margin available"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -202,7 +193,7 @@ class FundManager:
     def block_margin(self, amount, description=""):
         """Block margin for a trade"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -212,24 +203,23 @@ class FundManager:
             if funds.available_balance < amount:
                 return False, f"Insufficient funds. Required: ₹{amount}, Available: ₹{funds.available_balance}"
 
-            # Block the margin
             funds.available_balance -= amount
             funds.used_margin += amount
 
-            db_session.commit()
+            self.db.commit()
 
             logger.info(f"Blocked ₹{amount} margin for user {self.user_id}. {description}")
             return True, f"Margin blocked: ₹{amount}"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error blocking margin for user {self.user_id}: {e}")
             return False, f"Error blocking margin: {str(e)}"
 
     def release_margin(self, amount, realized_pnl: Decimal = Decimal('0'), description=""):
         """Release blocked margin and update P&L"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
@@ -237,110 +227,88 @@ class FundManager:
             amount = Decimal(str(amount))
             realized_pnl = Decimal(str(realized_pnl))
 
-            # Release the margin
             funds.used_margin -= amount
             funds.available_balance += amount
-
-            # Add realized P&L
             funds.available_balance += realized_pnl
             funds.realized_pnl += realized_pnl
             funds.total_pnl = funds.realized_pnl + funds.unrealized_pnl
 
-            db_session.commit()
+            self.db.commit()
 
             logger.info(f"Released ₹{amount} margin for user {self.user_id}. Realized P&L: ₹{realized_pnl}. {description}")
             return True, f"Margin released: ₹{amount}, P&L: ₹{realized_pnl}"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error releasing margin for user {self.user_id}: {e}")
             return False, f"Error releasing margin: {str(e)}"
 
     def transfer_margin_to_holdings(self, amount, description=""):
-        """
-        Transfer margin to holdings during T+1 settlement
-        Reduces used_margin without crediting available_balance
-        (the money is now represented in holdings value, not available cash)
-        """
+        """Transfer margin to holdings during T+1 settlement"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
 
             amount = Decimal(str(amount))
-
-            # Reduce used margin (release from used_margin)
-            # But do NOT credit available_balance - money is now in holdings
             funds.used_margin -= amount
-
-            db_session.commit()
+            self.db.commit()
 
             logger.info(f"Transferred ₹{amount} margin to holdings for user {self.user_id}. {description}")
             return True, f"Margin transferred to holdings: ₹{amount}"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error transferring margin to holdings for user {self.user_id}: {e}")
             return False, f"Error transferring margin to holdings: {str(e)}"
 
     def credit_sale_proceeds(self, amount, description=""):
-        """
-        Credit sale proceeds from selling CNC holdings
-        Increases available_balance when holdings are sold
-        """
+        """Credit sale proceeds from selling CNC holdings"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
 
             amount = Decimal(str(amount))
-
-            # Credit sale proceeds to available balance
             funds.available_balance += amount
-
-            db_session.commit()
+            self.db.commit()
 
             logger.info(f"Credited ₹{amount} sale proceeds for user {self.user_id}. {description}")
             return True, f"Sale proceeds credited: ₹{amount}"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error crediting sale proceeds for user {self.user_id}: {e}")
             return False, f"Error crediting sale proceeds: {str(e)}"
 
     def update_unrealized_pnl(self, unrealized_pnl):
         """Update unrealized P&L from open positions"""
         try:
-            funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
+            funds = self.db.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
             if not funds:
                 return False, "Funds not initialized"
 
             unrealized_pnl = Decimal(str(unrealized_pnl))
-
             funds.unrealized_pnl = unrealized_pnl
             funds.total_pnl = funds.realized_pnl + funds.unrealized_pnl
-
-            db_session.commit()
+            self.db.commit()
 
             return True, "Unrealized P&L updated"
 
         except Exception as e:
-            db_session.rollback()
+            self.db.rollback()
             logger.error(f"Error updating unrealized P&L for user {self.user_id}: {e}")
             return False, f"Error updating unrealized P&L: {str(e)}"
 
     def calculate_margin_required(self, symbol, exchange, product, quantity, price, action=None):
         """Calculate margin required for a trade based on leverage rules"""
         try:
-
             quantity = abs(int(quantity))
             price = Decimal(str(price))
-
-            # Get symbol info to determine instrument type
-            from app.core.schemas.session import get_db
+            from app.db.session import get_db
             from sqlalchemy import select
             db = next(get_db())
             stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
@@ -350,20 +318,14 @@ class FundManager:
                 logger.error(f"Symbol {symbol} not found on {exchange}")
                 return None, "Symbol not found"
 
-            # Calculate trade value (quantity × price)
             trade_value = quantity * price
-
-            # Determine leverage based on action, product and symbol type
             leverage = self._get_leverage(exchange, product, symbol, action)
 
             if leverage is None:
                 return None, "Unable to determine leverage"
 
-            # Calculate margin (always use leverage-based calculation)
             margin = trade_value / Decimal(str(leverage))
-
             logger.debug(f"Margin for {symbol} {exchange} {product} {action}: ₹{margin} (Trade value: ₹{trade_value}, Leverage: {leverage}x)")
-
             return margin, "Margin calculated successfully"
 
         except Exception as e:
@@ -371,32 +333,23 @@ class FundManager:
             return None, f"Error calculating margin: {str(e)}"
 
     def _get_leverage(self, exchange, product, symbol, action=None):
-        """Get leverage multiplier based on exchange, product, symbol type, and action"""
+        """Get leverage multiplier"""
         try:
-            # Equity exchanges
             if exchange in ['NSE', 'BSE']:
                 if product == 'MIS':
-                    return Decimal(get_config('equity_mis_leverage', '5'))
+                    return Decimal(get_config(self.db, 'equity_mis_leverage', '5'))
                 elif product == 'CNC':
-                    return Decimal(get_config('equity_cnc_leverage', '1'))
-                else:  # NRML
-                    return Decimal(get_config('equity_cnc_leverage', '1'))
-
-            # Futures (NFO, BFO, MCX, CDS, BCD, NCDEX exchanges with FUT suffix)
+                    return Decimal(get_config(self.db, 'equity_cnc_leverage', '1'))
+                else:
+                    return Decimal(get_config(self.db, 'equity_cnc_leverage', '1'))
             elif is_future(symbol, exchange):
-                return Decimal(get_config('futures_leverage', '10'))
-
-            # Options (NFO, BFO, MCX, CDS, BCD, NCDEX exchanges with CE/PE suffix)
+                return Decimal(get_config(self.db, 'futures_leverage', '10'))
             elif is_option(symbol, exchange):
-                # Options use different leverage based on BUY vs SELL
                 if action == 'BUY':
-                    return Decimal(get_config('option_buy_leverage', '1'))
-                else:  # SELL
-                    return Decimal(get_config('option_sell_leverage', '1'))
-
-            # Default to 1x leverage
+                    return Decimal(get_config(self.db, 'option_buy_leverage', '1'))
+                else:
+                    return Decimal(get_config(self.db, 'option_sell_leverage', '1'))
             return Decimal('1')
-
         except Exception as e:
             logger.error(f"Error getting leverage: {e}")
             return Decimal('1')
@@ -415,15 +368,11 @@ def initialize_user_funds(user_id):
 
 
 def reset_all_user_funds():
-    """
-    Reset funds for all users (called by scheduler on configured reset day/time)
-    This is the scheduled auto-reset function that runs independently of user actions.
-    """
+    """Reset funds for all users"""
     try:
         logger.info("=== AUTO-RESET: Starting scheduled fund reset for all users ===")
-
-        # Get all unique user IDs from funds table
-        all_funds = db_session.query(SandboxFunds).all()
+        db = next(get_db())
+        all_funds = db.query(SandboxFunds).all()
 
         if not all_funds:
             logger.info("No user funds to reset")
@@ -432,18 +381,12 @@ def reset_all_user_funds():
         reset_count = 0
         for fund in all_funds:
             try:
-                # Create FundManager for this user
                 fm = FundManager(fund.user_id)
-
-                # Call the internal reset function
                 fm._reset_funds(fund)
                 reset_count += 1
-
             except Exception as e:
                 logger.error(f"Error resetting funds for user {fund.user_id}: {e}")
                 continue
-
         logger.info(f"=== AUTO-RESET: Successfully reset {reset_count} user fund accounts ===")
-
     except Exception as e:
         logger.error(f"Error in scheduled auto-reset: {e}")

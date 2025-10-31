@@ -6,8 +6,10 @@ import threading
 import time
 from collections import defaultdict
 from typing import Any, Dict, Optional
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token
+from app.core.models.auth_db import get_auth_token
 from .dhan_mapping import (
     DhanCapabilityRegistry,
     DhanExchangeMapper,
@@ -74,9 +76,10 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         auth_token = settings.BROKER_API_SECRET  # This is the Dhan access token
 
         if not client_id or not auth_token:
+            db = next(get_db())
             # Fall back to database if env vars not set
             if not auth_data:
-                auth_token = get_auth_token(user_id)
+                auth_token = get_auth_token(db, user_id)
                 client_id = user_id
                 if not auth_token:
                     self.logger.error(f"No authentication token found for user {user_id}")

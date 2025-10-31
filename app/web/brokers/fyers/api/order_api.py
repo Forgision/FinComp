@@ -1,7 +1,7 @@
 import json
 
 import httpx
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.token_db import get_br_symbol
 from app.web.brokers.fyers.mapping.transform_data import (
     map_product_type,
     transform_data,

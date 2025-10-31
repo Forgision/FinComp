@@ -1,6 +1,6 @@
 import json
 
-from app.core.schemas.token_db import get_br_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_token
 from app.web.brokers.fivepaisaxts.baseurl import INTERACTIVE_URL
 from app.web.brokers.fivepaisaxts.mapping.transform_data import (
     map_product_type,

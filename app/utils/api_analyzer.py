@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 import pytz
 
-from app.core.schemas.analyzer_db import AnalyzerLog
-from app.core.schemas.symbol import SymToken
+from app.core.models.analyzer_db import AnalyzerLog
+from app.core.models.symbol import SymToken
 from app.utils.constants import (
     DEFAULT_DISCLOSED_QUANTITY,
     DEFAULT_PRICE,

@@ -4,14 +4,15 @@ import io
 import qrcode
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
+from sqlmodel import Session
 from app.web.frontend import templates
 
-from app.core.schemas.auth_db import upsert_api_key
-from app.core.schemas.user_db import add_user, find_admin_user
+from app.core.models.auth_db import upsert_api_key
+from app.core.models.user import add_user, find_admin_user
 from app.utils.auth_utils import generate_api_key
 from app.utils.logging import logger
 from app.utils.session import invalidate_session_if_invalid
-
+from app.db.session import get_db
 
 core_router = APIRouter()
 
@@ -25,26 +26,27 @@ async def faq(request: Request, _=Depends(invalidate_session_if_invalid)):
     return templates.TemplateResponse("faq.html", {"request": request})
 
 @core_router.get("/setup")
-async def setup_form(request: Request):
-    if find_admin_user() is not None:
+async def setup_form(request: Request, db: Session = Depends(get_db)):
+    if find_admin_user(db) is not None:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("setup.html", {"request": request})
 
 @core_router.post("/setup")
 async def setup_submit(
     request: Request,
+    db: Session = Depends(get_db),
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...)
 ):
-    if find_admin_user() is not None:
+    if find_admin_user(db) is not None:
         return RedirectResponse(url="/login", status_code=303)
 
-    user = add_user(username, email, password, is_admin=True)
+    user = add_user(db, username, email, password, is_admin=True)
     if user:
         logger.info(f"New admin user {username} created successfully")
         api_key = generate_api_key()
-        key_id = upsert_api_key(username, api_key)
+        key_id = upsert_api_key(db, username, api_key)
         if not key_id:
             logger.error(f"Failed to create API key for user {username}")
         else:

@@ -7,8 +7,8 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from app.core.schemas.auth_db import get_username_by_apikey
-from app.core.schemas.telegram_db import (
+from app.core.models.auth_db import get_username_by_apikey
+from app.core.models.telegram_db import (
     add_notification,
     get_all_telegram_users,
     get_telegram_user_by_username,
@@ -24,7 +24,7 @@ def _get_telegram_bot_service():
     global telegram_bot_service
     if telegram_bot_service is None:
         try:
-            from services.telegram_bot_service import telegram_bot_service as tbs
+            from app.core.services.telegram_bot_service import telegram_bot_service as tbs
             telegram_bot_service = tbs
         except ImportError as e:
             logger.warning(f"Telegram bot service not available: {e}")

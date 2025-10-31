@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.models.tradingview_models import TradingViewRequest
-from app.core.schemas.auth_db import get_api_key_for_tradingview
-from app.core.schemas.session import get_db
-from app.core.schemas.symbol import enhanced_search_symbols
+from app.core.models.auth_db import get_api_key_for_tradingview
+from app.db.session import get_db
+from app.core.models.symbol import enhanced_search_symbols
 from app.utils.logging import logger
 
 host = settings.HOST_SERVER

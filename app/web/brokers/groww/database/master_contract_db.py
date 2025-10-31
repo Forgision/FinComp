@@ -8,7 +8,7 @@ from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, s
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.config import settings
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio

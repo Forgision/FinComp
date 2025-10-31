@@ -5,9 +5,10 @@ from urllib.parse import unquote
 import jwt
 from app.utils.web.limiter import limiter
 from app.core.services.utils import get_httpx_client
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.services.auth_service import (
@@ -15,6 +16,8 @@ from app.core.services.auth_service import (
     handle_auth_success,
     load_broker_auth_functions,
 )
+from app.db.session import get_db
+from app.core.models.user import find_admin_user
 from app.utils.logging import logger
 
 # Initialize logger
@@ -39,7 +42,7 @@ async def ratelimit_handler(request: Request, exc: HTTPException):
 @brlogin_router.api_route('/{broker}/callback', methods=['POST','GET'])
 @limiter.limit(LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(LOGIN_RATE_LIMIT_HOUR)
-async def broker_callback(broker: str, request: Request, para: str = None):
+async def broker_callback(broker: str, request: Request, para: str = None, db: Session = Depends(get_db)):
     logger.info(f'Broker callback initiated for: {broker}')
     logger.debug(f'Session contents: {dict(request.session)}')
     logger.info(f'Session has user key: {"user" in request.session}')
@@ -520,8 +523,7 @@ async def broker_callback(broker: str, request: Request, para: str = None):
             # For Compositedge, handle missing session user
             if broker == 'compositedge' and 'user' not in request.session:
                 # Get the admin user from the database
-                from app.core.schemas.user_db import find_user_by_username
-                admin_user = await find_user_by_username()
+                admin_user = find_admin_user(db)
                 if admin_user:
                     # Use the admin user's username
                     username = admin_user.username

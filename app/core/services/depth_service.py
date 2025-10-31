@@ -2,7 +2,7 @@ import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas.auth_db import Auth, get_auth_token_broker, verify_api_key
+from app.core.models.auth_db import Auth, get_auth_token_broker, verify_api_key
 from sqlalchemy.orm import Session
 
 from app.utils.logging import logger

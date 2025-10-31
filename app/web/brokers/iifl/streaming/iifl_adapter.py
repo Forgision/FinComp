@@ -3,9 +3,11 @@ import json
 import threading
 import time
 from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token, get_feed_token
-from app.core.schemas.token_db import get_symbol
+from app.core.models.auth_db import get_auth_token, get_feed_token
+from app.core.models.token_db import get_symbol
 from .iifl_websocket import IiflWebSocketClient
 from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.web.websocket.mapping import SymbolMapper
@@ -52,9 +54,10 @@ class IiflWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         # Get tokens from app.core.schemas if not provided
         if not auth_data:
+            db = next(get_db())
             # Fetch authentication tokens from app.core.schemas
-            auth_token = get_auth_token(user_id)
-            feed_token = get_feed_token(user_id)
+            auth_token = get_auth_token(db, user_id)
+            feed_token = get_feed_token(db, user_id)
 
             if not auth_token or not feed_token:
                 self.logger.error(f"No authentication tokens found for user {user_id}")
@@ -574,34 +577,35 @@ class IiflWebSocketAdapter(BaseBrokerWebSocketAdapter):
             token_str = str(exchange_instrument_id)
             symbol = None  # Initialize symbol to None
 
+            db = next(get_db())
             # If it's a known index token, try the index exchange first
             if self._is_index_token(token_str, exchange_segment):
                 if exchange_segment == 1:  # NSE segment
-                    symbol = get_symbol(token_str, 'NSE_INDEX')
+                    symbol = get_symbol(db, token_str, 'NSE_INDEX')
                     if symbol:
                         exchange = 'NSE_INDEX'
                         self.logger.info(f"Found index symbol {symbol} in NSE_INDEX for token {exchange_instrument_id}")
                 elif exchange_segment == 11:  # BSE segment
-                    symbol = get_symbol(token_str, 'BSE_INDEX')
+                    symbol = get_symbol(db, token_str, 'BSE_INDEX')
                     if symbol:
                         exchange = 'BSE_INDEX'
                         self.logger.info(f"Found index symbol {symbol} in BSE_INDEX for token {exchange_instrument_id}")
 
             # If not found as index or not an index token, try regular exchange
             if not symbol:
-                symbol = get_symbol(token_str, exchange)
+                symbol = get_symbol(db, token_str, exchange)
 
             # If still not found on base exchange, try index exchange as fallback
             if not symbol:
                 if exchange == 'NSE' and not self._is_index_token(token_str, exchange_segment):
                     # Try NSE_INDEX for NSE segment as fallback
-                    symbol = get_symbol(token_str, 'NSE_INDEX')
+                    symbol = get_symbol(db, token_str, 'NSE_INDEX')
                     if symbol:
                         exchange = 'NSE_INDEX'
                         self.logger.info(f"Found symbol {symbol} in NSE_INDEX for token {exchange_instrument_id}")
                 elif exchange == 'BSE' and not self._is_index_token(token_str, exchange_segment):
                     # Try BSE_INDEX for BSE segment as fallback
-                    symbol = get_symbol(token_str, 'BSE_INDEX')
+                    symbol = get_symbol(db, token_str, 'BSE_INDEX')
                     if symbol:
                         exchange = 'BSE_INDEX'
                         self.logger.info(f"Found symbol {symbol} in BSE_INDEX for token {exchange_instrument_id}")

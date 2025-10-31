@@ -9,7 +9,7 @@ from app.core.config import settings
 
 from .logging import logger
 
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 
 
 def get_session_expiry_time():
@@ -77,8 +77,8 @@ async def revoke_user_tokens_fastapi(request: Request, db: Session):
         username = request.session.get('user')
         try:
             # Local import to avoid circular dependencies
-            from app.core.schemas.auth_db import auth_cache, feed_token_cache, upsert_auth
-            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.models.auth_db import auth_cache, feed_token_cache, upsert_auth
+            from app.core.models.master_contract_cache_hook import clear_cache_on_logout
 
             # Clear cache entries first to prevent stale data access
             cache_key_auth = f"auth-{username}"

@@ -6,8 +6,10 @@ Integrates with the OpenAlgo WebSocket proxy system
 import threading
 import time
 from typing import Any, Dict, Optional
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token
+from app.core.models.auth_db import get_auth_token
 
 # Import base adapter
 from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
@@ -61,8 +63,9 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.access_token = auth_data['access_token']
                 self.logger.debug("Using access token from auth_data")
             else:
+                db = next(get_db())
                 # Get from app.core.schemas
-                auth_token = get_auth_token(user_id)
+                auth_token = get_auth_token(db, user_id)
                 if not auth_token:
                     raise ValueError(f"No auth token found for user {user_id}")
 

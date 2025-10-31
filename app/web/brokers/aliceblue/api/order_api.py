@@ -6,9 +6,9 @@ from app.web.brokers.aliceblue.mapping.transform_data import (
     transform_data,
     transform_modify_order_data,
 )
-from app.core.schemas.token_db import get_br_symbol, get_oa_symbol
+from app.core.models.token_db import get_br_symbol, get_oa_symbol
 from app.utils.httpx_client import get_httpx_client
-
+from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.utils.logging import logger
 
@@ -85,10 +85,10 @@ def get_positions(auth):
 def get_holdings(auth):
     return get_api_response("/rest/AliceBlueAPIService/api/positionAndHoldings/holdings",auth)
 
-def get_open_position(tradingsymbol, exchange, product,auth):
+def get_open_position(tradingsymbol, exchange, product,auth, db: Session):
 
     #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol,exchange)
+    tradingsymbol = get_br_symbol(tradingsymbol,exchange, db=db)
 
 
     position_data = get_positions(auth)
@@ -115,14 +115,14 @@ def get_open_position(tradingsymbol, exchange, product,auth):
 
     return net_qty
 
-def place_order_api(data, auth):
+def place_order_api(data, auth, db: Session):
     """Place an order using the AliceBlue API with shared connection pooling."""
     try:
         # Get the shared httpx client
         client = get_httpx_client()
 
         AUTH_TOKEN = auth
-        newdata = transform_data(data)
+        newdata = transform_data(data, db=db)
 
         # Prepare headers and payload
         headers = {
@@ -171,7 +171,7 @@ def place_order_api(data, auth):
         response = type('', (), {'status': 500, 'status_code': 500})()
         return response, response_data, None
 
-def place_smartorder_api(data,auth):
+def place_smartorder_api(data,auth, db: Session):
 
     AUTH_TOKEN = auth
 
@@ -187,7 +187,7 @@ def place_smartorder_api(data,auth):
 
 
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
+    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN, db=db))
 
 
     logger.info(f"position_size : {position_size}")
@@ -205,7 +205,7 @@ def place_smartorder_api(data,auth):
         quantity = data['quantity']
         #logger.info(f"action : {action}")
         #logger.info(f"Quantity : {quantity}")
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(data,AUTH_TOKEN, db=db)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
 
@@ -251,7 +251,7 @@ def place_smartorder_api(data,auth):
 
         #logger.info(f"{order_data}")
         # Place the order
-        res, response, orderid = place_order_api(order_data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(order_data,AUTH_TOKEN, db=db)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
 
@@ -260,7 +260,7 @@ def place_smartorder_api(data,auth):
 
 
 
-def close_all_positions(current_api_key,auth):
+def close_all_positions(current_api_key,auth, db: Session):
 
     AUTH_TOKEN = auth
     # Fetch the current open positions
@@ -296,7 +296,7 @@ def close_all_positions(current_api_key,auth):
             quantity = abs(int(position['Netqty']))
 
             #Get OA Symbol before sending to Place Order
-            symbol = get_oa_symbol(position['Tsym'],position['Exchange'])
+            symbol = get_oa_symbol(position['Tsym'],position['Exchange'], db=db)
             # Prepare the order payload
             place_order_payload = {
                 "apikey": current_api_key,
@@ -312,7 +312,7 @@ def close_all_positions(current_api_key,auth):
             logger.info(f"{place_order_payload}")
 
             # Place the order to close the position
-            _, api_response, _ =   place_order_api(place_order_payload,AUTH_TOKEN)
+            _, api_response, _ =   place_order_api(place_order_payload,AUTH_TOKEN, db=db)
 
             logger.info(f"{api_response}")
 
@@ -377,14 +377,14 @@ def cancel_order(orderid, auth):
         return {"status": "error", "message": f"General error: {str(e)}"}, 500
 
 
-def modify_order(data, auth):
+def modify_order(data, auth, db: Session):
     """Modify an order using the AliceBlue API with shared connection pooling."""
     try:
         # Get the shared httpx client
         client = get_httpx_client()
 
         AUTH_TOKEN = auth
-        newdata = transform_modify_order_data(data)
+        newdata = transform_modify_order_data(data, db=db)
 
         # Prepare headers
         headers = {

@@ -10,8 +10,8 @@ import pytz
 from sqlalchemy import func, select, delete
 from sqlalchemy.orm import Session
 
-from app.core.schemas.analyzer_db import AnalyzerLog
-from app.core.schemas.settings_db import get_analyze_mode, set_analyze_mode
+from app.core.models.analyzer_db import AnalyzerLog
+from app.core.models.settings_db import get_analyze_mode, set_analyze_mode
 from app.utils.api_analyzer import get_analyzer_stats
 from app.utils.logging import logger
 

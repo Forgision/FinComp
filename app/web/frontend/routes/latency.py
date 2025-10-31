@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.templating import Jinja2Templates
 
 from app.core.services.limiter_service import limiter
-from app.core.schemas.latency_db import OrderLatency, latency_session
+from app.core.models.latency_db import OrderLatency
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 
@@ -17,7 +17,8 @@ templates = Jinja2Templates(directory="app/frontend/templates")
 latency_router = APIRouter(prefix="/latency")
 
 def get_latency_db():
-    db = latency_session()
+    from app.db.session import get_db
+    db = next(get_db())
     try:
         yield db
     finally:

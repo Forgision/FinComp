@@ -6,9 +6,9 @@ from app.web.brokers.finvasia.mapping.transform_data import (
     transform_data,
     transform_modify_order_data,
 )
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
-
+from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.utils.logging import logger
 
@@ -58,8 +58,8 @@ def get_positions(auth):
 def get_holdings(auth):
     return get_api_response("/v1/holdings", auth, method="POST")
 
-def get_open_position(tradingsymbol, exchange, producttype, auth):
-    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
+def get_open_position(tradingsymbol, exchange, producttype, auth, db: Session):
+    tradingsymbol = get_br_symbol(tradingsymbol, exchange, db=db)
     positions_data = get_positions(auth)
     logger.info(f"{positions_data}")
     net_qty = '0'
@@ -73,12 +73,12 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
                 break
     return net_qty
 
-def place_order_api(data, auth):
+def place_order_api(data, auth, db: Session):
     AUTH_TOKEN = auth
     BROKER_API_KEY = settings.BROKER_API_KEY
     data['apikey'] = BROKER_API_KEY
-    token = get_token(data['symbol'], data['exchange'])
-    newdata = transform_data(data, token)
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    newdata = transform_data(data, token, db=db)
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     payload_str = "jData=" + json.dumps(newdata) + "&jKey=" + AUTH_TOKEN
     logger.info(f"{payload_str}")
@@ -93,14 +93,14 @@ def place_order_api(data, auth):
         orderid = None
     return response, response_data, orderid
 
-def place_smartorder_api(data, auth):
+def place_smartorder_api(data, auth, db: Session):
     AUTH_TOKEN = auth
     res = None
     symbol = data.get("symbol")
     exchange = data.get("exchange")
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product), AUTH_TOKEN))
+    current_position = int(get_open_position(symbol, exchange, map_product_type(product), AUTH_TOKEN, db=db))
     logger.info(f"position_size : {position_size}")
     logger.info(f"Open Position : {current_position}")
     action = None
@@ -108,7 +108,7 @@ def place_smartorder_api(data, auth):
     if position_size == 0 and current_position == 0 and int(data.get('quantity', 0)) != 0:
         action = data['action']
         quantity = data['quantity']
-        res, response, orderid = place_order_api(data, AUTH_TOKEN)
+        res, response, orderid = place_order_api(data, AUTH_TOKEN, db=db)
         return res, response, orderid
     elif position_size == current_position:
         if int(data.get('quantity', 0)) == 0:
@@ -137,12 +137,12 @@ def place_smartorder_api(data, auth):
         order_data = data.copy()
         order_data["action"] = action
         order_data["quantity"] = str(quantity)
-        res, response, orderid = place_order_api(order_data, auth)
+        res, response, orderid = place_order_api(order_data, auth, db=db)
         logger.info(f"{response}")
         logger.info(f"{orderid}")
         return res, response, orderid
 
-def close_all_positions(current_api_key, auth):
+def close_all_positions(current_api_key, auth, db: Session):
     AUTH_TOKEN = auth
     positions_response = get_positions(AUTH_TOKEN)
     if positions_response is None or (positions_response and positions_response[0].get('stat') == "Not_Ok"):
@@ -153,7 +153,7 @@ def close_all_positions(current_api_key, auth):
                 continue
             action = 'SELL' if int(position.get('netqty')) > 0 else 'BUY'
             quantity = abs(int(position.get('netqty')))
-            symbol = get_symbol(position['token'], position['exch'])
+            symbol = get_symbol(position['token'], position['exch'], db=db)
             logger.info(f"The Symbol is {symbol}")
             place_order_payload = {
                 "apikey": current_api_key,
@@ -166,7 +166,7 @@ def close_all_positions(current_api_key, auth):
                 "quantity": str(quantity)
             }
             logger.info(f"{place_order_payload}")
-            res, response, orderid = place_order_api(place_order_payload, auth)
+            res, response, orderid = place_order_api(place_order_payload, auth, db=db)
     return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
 
 def cancel_order(orderid, auth):
@@ -186,11 +186,11 @@ def cancel_order(orderid, auth):
     else:
         return {"status": "error", "message": data.get("message", "Failed to cancel order")}, response.status
 
-def modify_order(data, auth):
+def modify_order(data, auth, db: Session):
     AUTH_TOKEN = auth
     api_key = settings.BROKER_API_KEY
-    token = get_token(data['symbol'], data['exchange'])
-    data['symbol'] = get_br_symbol(data['symbol'], data['exchange'])
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    data['symbol'] = get_br_symbol(data['symbol'], data['exchange'], db=db)
     data["apikey"] = api_key
     transformed_data = transform_modify_order_data(data, token)
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}

@@ -1,7 +1,7 @@
 from typing import Any, Dict, Tuple
 
-from app.core.schemas.auth_db import verify_api_key
-from app.core.schemas.symbol import enhanced_search_symbols
+from app.core.models.auth_db import verify_api_key
+from app.core.models.symbol import enhanced_search_symbols
 
 from app.utils.logging import logger
 

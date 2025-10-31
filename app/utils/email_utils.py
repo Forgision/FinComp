@@ -11,7 +11,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from app.core.schemas.settings_db import get_smtp_settings
+from app.core.models.settings_db import get_smtp_settings
 
 from .logging import logger
 

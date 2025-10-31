@@ -2,8 +2,10 @@ import logging
 import threading
 import time
 from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token, get_feed_token
+from app.core.models.auth_db import get_auth_token, get_feed_token
 from .smartWebSocketV2 import SmartWebSocketV2
 from .angel_mapping import (
     AngelCapabilityRegistry,
@@ -46,9 +48,10 @@ class AngelWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         # Get tokens from app.core.schemas if not provided
         if not auth_data:
+            db = next(get_db())
             # Fetch authentication tokens from app.core.schemas
-            auth_token = get_auth_token(user_id)
-            feed_token = get_feed_token(user_id)
+            auth_token = get_auth_token(db, user_id)
+            feed_token = get_feed_token(db, user_id)
 
             if not auth_token or not feed_token:
                 self.logger.error(f"No authentication tokens found for user {user_id}")

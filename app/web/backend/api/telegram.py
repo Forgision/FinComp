@@ -5,15 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from pydantic import BaseModel, Field
 
 from app.core.services.telegram_bot_service import telegram_bot_service
-from app.core.schemas.auth_db import verify_api_key
-from app.core.schemas.telegram_db import (
+from app.core.models.auth_db import verify_api_key
+from app.core.models.telegram_db import (
     get_all_telegram_users,
     get_bot_config,
-    get_command_stats,
     get_telegram_user_by_username,
-    get_user_preferences,
     update_bot_config,
-    update_user_preferences,
 )
 from app.utils.logging import logger
 

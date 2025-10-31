@@ -1,10 +1,10 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Firstock API Parameters https://connect.thefirstock.com/api/V4/placeOrder
+from sqlalchemy.orm import Session
+from app.core.models.token_db import get_br_symbol
 
-from app.core.schemas.token_db import get_br_symbol
 
-
-def transform_data(data,token):
+def transform_data(data, token, db: Session):
     """
     Transforms the OpenAlgo API request structure to Firstock's expected structure.
 
@@ -41,7 +41,7 @@ def transform_data(data,token):
     userid = userid[:-4]  # Remove last 4 characters
 
     # Get broker symbol and handle special characters
-    symbol = get_br_symbol(data["symbol"], data["exchange"])
+    symbol = get_br_symbol(data["symbol"], data["exchange"], db=db)
     if symbol and '&' in symbol:
         symbol = symbol.replace('&', '%26')
 

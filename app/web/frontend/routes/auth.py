@@ -6,17 +6,18 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr
 from argon2 import PasswordHasher
+from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.schemas.auth_db import auth_cache, feed_token_cache, upsert_auth
-from app.core.schemas.settings_db import get_smtp_settings, set_smtp_settings
-from app.core.schemas.user_db import (
+from app.core.models.auth_db import auth_cache, feed_token_cache, upsert_auth
+from app.core.models.settings_db import get_smtp_settings, set_smtp_settings
+from app.core.models.user import (
     User,
     authenticate_user,
     find_user_by_email,
     find_admin_user,
 )
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 from app.utils.email_debug import debug_smtp_connection
 from app.utils.email_utils import send_password_reset_email, send_test_email
 from app.utils.logging import logger
@@ -45,9 +46,9 @@ class ResetPassword(BaseModel):
     password: str
 
 @auth_router.get("/login", response_class=HTMLResponse, name="auth.login")
-async def login_get(request: Request):
-    if find_admin_user() is None:
-        return RedirectResponse(url='/setup', status_code=status.HTTP_32_FOUND)
+async def login_get(request: Request, db: Session = Depends(get_db)):
+    if find_admin_user(db) is None:
+        return RedirectResponse(url='/setup', status_code=status.HTTP_302_FOUND)
     if 'user' in request.session:
         return RedirectResponse(url='/auth/broker', status_code=status.HTTP_302_FOUND)
     if request.session.get('logged_in'):
@@ -57,8 +58,8 @@ async def login_get(request: Request):
 @auth_router.post("/login")
 @limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
-async def login_post(request: Request, db = Depends(get_db), username: str = Form(...), password: str = Form(...)):
-    if authenticate_user(username, password):
+async def login_post(request: Request, db: Session = Depends(get_db), username: str = Form(...), password: str = Form(...)):
+    if authenticate_user(db, username, password):
         request.session['user'] = username
         logger.info(f"Login success for user: {username}")
         return JSONResponse(content={'status': 'success'}, status_code=200)
@@ -77,7 +78,8 @@ async def broker_login_get(request: Request):
     BROKER_API_KEY = os.getenv('BROKER_API_KEY')
     BROKER_API_SECRET = os.getenv('BROKER_API_SECRET')
     REDIRECT_URL = os.getenv('REDIRECT_URL')
-    broker_name = re.search(r'/([^/]+)/callback$', REDIRECT_URL).group(1)
+    broker_name_match = re.search(r'/([^/]+)/callback$', REDIRECT_URL)
+    broker_name = broker_name_match.group(1) if broker_name_match else "default"
 
     from app.utils.auth_utils import mask_api_credential
 
@@ -98,7 +100,7 @@ async def reset_password_get(request: Request):
 
 @auth_router.post('/reset-password')
 @limiter.limit(settings.RESET_RATE_LIMIT)
-async def reset_password_post(request: Request, db = Depends(get_db), step: str = Form(...), email: str = Form(None), totp_code: str = Form(None), token: str = Form(None), password: str = Form(None)):
+async def reset_password_post(request: Request, db: Session = Depends(get_db), step: str = Form(...), email: str = Form(None), totp_code: str = Form(None), token: str = Form(None), password: str = Form(None)):
     if step == 'email':
         user = find_user_by_email(db, email)
         if user:
@@ -149,6 +151,7 @@ async def reset_password_post(request: Request, db = Depends(get_db), step: str 
         user = find_user_by_email(db, email)
         if user:
             user.set_password(password)
+            db.add(user)
             db.commit()
             request.session.pop('reset_token', None)
             request.session.pop('reset_email', None)
@@ -178,9 +181,9 @@ async def reset_password_email(request: Request, token: str):
         return RedirectResponse(url='/auth/reset-password', status_code=status.HTTP_302_FOUND)
 
 @auth_router.get('/change', response_class=HTMLResponse)
-async def change_password_get(request: Request, db = Depends(get_db), user: dict = Depends(check_session_validity_fastapi)):
+async def change_password_get(request: Request, db: Session = Depends(get_db), user: dict = Depends(check_session_validity_fastapi)):
     smtp_settings = get_smtp_settings(db)
-    user_obj = db.query(User).filter_by(username=user).first()
+    user_obj = db.query(User).filter_by(username=user['username']).first()
     qr_code = None
     totp_secret = None
     if user_obj:
@@ -194,14 +197,15 @@ async def change_password_get(request: Request, db = Depends(get_db), user: dict
         qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
         qr_code = base64.b64encode(img_buffer.getvalue()).decode()
         totp_secret = user_obj.totp_secret
-    return templates.TemplateResponse('profile.html', {"request": request, "username": user, "smtp_settings": smtp_settings, "qr_code": qr_code, "totp_secret": totp_secret})
+    return templates.TemplateResponse('profile.html', {"request": request, "username": user['username'], "smtp_settings": smtp_settings, "qr_code": qr_code, "totp_secret": totp_secret})
 
 @auth_router.post('/change')
-async def change_password_post(request: Request, db = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), old_password: str = Form(...), new_password: str = Form(...), confirm_password: str = Form(...)):
-    user_obj = db.query(User).filter_by(username=user).first()
-    if user_obj and user_obj.check_password(old_password):
+async def change_password_post(request: Request, db: Session = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), old_password: str = Form(...), new_password: str = Form(...), confirm_password: str = Form(...)):
+    user_obj = db.query(User).filter_by(username=user['username']).first()
+    if user_obj and user_obj.check_password(old_password, db=db):
         if new_password == confirm_password:
             user_obj.set_password(new_password)
+            db.add(user_obj)
             db.commit()
             return RedirectResponse(url='/auth/change', status_code=status.HTTP_302_FOUND)
         else:
@@ -210,45 +214,45 @@ async def change_password_post(request: Request, db = Depends(get_db), user: dic
         return RedirectResponse(url='/auth/change', status_code=status.HTTP_302_FOUND)
 
 @auth_router.post('/smtp-config')
-async def configure_smtp(request: Request, db = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), smtp_server: str = Form(...), smtp_port: int = Form(...), smtp_username: str = Form(...), smtp_password: str = Form(None), smtp_use_tls: bool = Form(...), smtp_from_email: str = Form(...), smtp_helo_hostname: str = Form(None)):
+async def configure_smtp(request: Request, db: Session = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), smtp_server: str = Form(...), smtp_port: int = Form(...), smtp_username: str = Form(...), smtp_password: str = Form(None), smtp_use_tls: bool = Form(...), smtp_from_email: str = Form(...), smtp_helo_hostname: str = Form(None)):
     try:
         if smtp_password and smtp_password.strip():
             set_smtp_settings(db, smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_password=smtp_password, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
         else:
             set_smtp_settings(db, smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
-        logger.info(f"SMTP settings updated by user: {user}")
+        logger.info(f"SMTP settings updated by user: {user['username']}")
     except Exception as e:
         logger.error(f"Error updating SMTP settings: {str(e)}")
     return RedirectResponse(url='/auth/change?tab=smtp', status_code=status.HTTP_302_FOUND)
 
 @auth_router.post('/test-smtp')
-async def test_smtp(request: Request, user: dict = Depends(check_session_validity_fastapi), test_email: EmailStr = Form(...)):
+async def test_smtp(request: Request, db: Session = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), test_email: EmailStr = Form(...)):
     try:
-        result = send_test_email(test_email, sender_name=user)
+        result = send_test_email(test_email, sender_name=user['username'], db=db)
         if result['success']:
-            logger.info(f"Test email sent successfully by user: {user} to {test_email}")
+            logger.info(f"Test email sent successfully by user: {user['username']} to {test_email}")
             return JSONResponse(content={'success': True, 'message': result['message']}, status_code=200)
         else:
-            logger.warning(f"Test email failed for user: {user} - {result['message']}")
+            logger.warning(f"Test email failed for user: {user['username']} - {result['message']}")
             return JSONResponse(content={'success': False, 'message': result['message']}, status_code=400)
     except Exception as e:
         error_msg = f'Error sending test email: {str(e)}'
-        logger.error(f"Test email error for user {user}: {e}")
+        logger.error(f"Test email error for user {user['username']}: {e}")
         return JSONResponse(content={'success': False, 'message': error_msg}, status_code=500)
 
 @auth_router.post('/debug-smtp')
-async def debug_smtp(request: Request, user: dict = Depends(check_session_validity_fastapi)):
+async def debug_smtp(request: Request, db: Session = Depends(get_db), user: dict = Depends(check_session_validity_fastapi)):
     try:
-        logger.info(f"SMTP debug requested by user: {user}")
-        result = debug_smtp_connection()
+        logger.info(f"SMTP debug requested by user: {user['username']}")
+        result = debug_smtp_connection(db=db)
         return JSONResponse(content={'success': result['success'], 'message': result['message'], 'details': result['details']}, status_code=200)
     except Exception as e:
         error_msg = f'Error debugging SMTP: {str(e)}'
-        logger.error(f"SMTP debug error for user {user}: {e}")
+        logger.error(f"SMTP debug error for user {user['username']}: {e}")
         return JSONResponse(content={'success': False, 'message': error_msg, 'details': [f"Unexpected error: {e}"]}, status_code=500)
 
 @auth_router.route('/logout', methods=['GET', 'POST'])
-async def logout(request: Request, db = Depends(get_db)):
+async def logout(request: Request, db: Session = Depends(get_db)):
     if request.session.get('logged_in'):
         username = request.session['user']
         cache_key_auth = f"auth-{username}"
@@ -260,7 +264,7 @@ async def logout(request: Request, db = Depends(get_db)):
             del feed_token_cache[cache_key_feed]
             logger.info(f"Cleared feed token cache for user: {username}")
         try:
-            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.models.master_contract_cache_hook import clear_cache_on_logout
             clear_cache_on_logout()
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:

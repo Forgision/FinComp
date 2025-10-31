@@ -1,61 +1,70 @@
-import unittest
-from app.core.schemas.session import get_db
+import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import SQLModel, create_engine, Session
 
-from app.core.schemas.auth_db import delete_api_key_by_username, upsert_api_key
-from app.core.schemas.user_db import add_user, delete_user_by_username
-from app.main import _app as app_fastapi  # Import the underlying FastAPI app
+from app.core.models.auth_db import delete_api_key_by_username, upsert_api_key
+from app.core.models.user import add_user, delete_user_by_username
+from app.main import _app as app_fastapi
+from app.db.session import get_db
 
+# Use an in-memory SQLite database for testing, configured to allow multi-threaded access
+DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
 
-class TestAuth(unittest.TestCase):
-    def setUp(self):
-        self.username = "testuser"
-        self.email = "test@example.com"
-        self.password = "testpassword"
-        self.api_key = "testapikey"
+def get_test_db():
+    """Dependency override for test database session."""
+    with Session(engine) as session:
+        yield session
 
-        # Create a test user and API key
-        self.db = next(get_db())
-        add_user(self.username, self.email, self.password, True)
-        upsert_api_key(self.db, self.username, self.api_key)
-        self.db.commit()
+app_fastapi.dependency_overrides[get_db] = get_test_db
 
-    def tearDown(self):
-        # Clean up the test user and API key
+@pytest.fixture(scope="module")
+def client():
+    """Provides a test client for the FastAPI application, handling startup and shutdown events."""
+    with TestClient(app_fastapi) as c:
+        yield c
+
+@pytest.fixture(scope="function")
+def test_user():
+    """Creates a test user and API key, and cleans them up after tests."""
+    username = "testuser"
+    email = "test@example.com"
+    password = "testpassword"
+    api_key = "testapikey"
+
+    with Session(engine) as session:
+        add_user(session, username, email, password, True)
+        upsert_api_key(session, username, api_key)
+
+    yield {"username": username, "password": password, "api_key": api_key}
+
+    with Session(engine) as session:
         try:
-            delete_api_key_by_username(self.db, user_id=self.username)
-            delete_user_by_username(self.username)
-            self.db.commit()
+            delete_api_key_by_username(session, user_id=username)
+            delete_user_by_username(session, username)
         except Exception as e:
-            self.db.rollback()
+            session.rollback()
             raise e
-        finally:
-            self.db.close()
 
-    def test_read_main(self):
-        client = TestClient(app_fastapi, follow_redirects=False)
-        response = client.get("/")
-        self.assertEqual(response.status_code, 302) # Expect redirect to login
-        self.assertEqual(response.headers['location'], '/auth/login')
+def test_read_main(client):
+    """Tests that the root URL redirects to the login page."""
+    response = client.get("/")
+    assert response.status_code == 302
+    assert response.headers['location'] == '/auth/login'
 
-    def test_login_page_access(self):
-        client = TestClient(app_fastapi, follow_redirects=False)
-        response = client.get("/auth/login")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Login", response.text)
-        self.assertIn("Username", response.text)
-        self.assertIn("Password", response.text)
+def test_login_page_access(client):
+    """Tests that the login page is accessible and contains the correct elements."""
+    response = client.get("/auth/login")
+    assert response.status_code == 200
+    assert "Login" in response.text
+    assert "Username" in response.text
+    assert "Password" in response.text
 
-    def test_successful_login(self):
-        client = TestClient(app_fastapi, follow_redirects=False)
-        response = client.post(
-            "/auth/login",
-            data={"username": self.username, "password": self.password},
-            follow_redirects=False
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"status": "success"})
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_successful_login(client, test_user):
+    """Tests that a user can successfully log in with correct credentials."""
+    response = client.post(
+        "/auth/login",
+        data={"username": test_user["username"], "password": test_user["password"]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}

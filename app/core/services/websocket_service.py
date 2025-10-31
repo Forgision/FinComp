@@ -7,7 +7,7 @@ without dealing with authentication or connection management.
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.core.schemas.auth_db import get_broker_name
+from app.core.models.auth_db import get_broker_name
 
 from app.core.config import settings
 from app.utils.logging import logger
@@ -29,7 +29,7 @@ def get_user_api_key(username: str) -> Optional[str]:
         API key string or None if not found
     """
     try:
-        from app.core.schemas.auth_db import get_api_key_for_tradingview
+        from app.core.models.auth_db import get_api_key_for_tradingview
         # The API key table stores username as user_id (it's a String column)
         api_key = get_api_key_for_tradingview(username)
         if not api_key:

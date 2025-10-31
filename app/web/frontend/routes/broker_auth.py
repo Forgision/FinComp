@@ -5,6 +5,7 @@ import json
 import jwt
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from sqlmodel import Session
 from starlette.templating import Jinja2Templates
 
 from app.core.services.limiter_service import limiter
@@ -12,6 +13,8 @@ from app.utils.auth_utils import handle_auth_failure, handle_auth_success
 from app.core.config import settings
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
+from app.db.session import get_db
+from app.core.models.user import find_admin_user
 
 # Initialize logger and templates
 templates = Jinja2Templates(directory="app/frontend/templates")
@@ -26,7 +29,7 @@ broker_router = APIRouter()
 @broker_router.api_route("/{broker}/callback", methods=["GET", "POST"], dependencies=[Depends(check_session_validity_fastapi)])
 @limiter.limit(LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(LOGIN_RATE_LIMIT_HOUR)
-async def broker_callback(request: Request, broker: str):
+async def broker_callback(request: Request, broker: str, db: Session = Depends(get_db)):
     logger.info(f"Broker callback initiated for: {broker}")
     logger.debug(f"Session contents: {request.session}")
 
@@ -135,8 +138,7 @@ async def broker_callback(request: Request, broker: str):
 
         auth_token, feed_token, user_id, error_message = auth_function(access_token)
         if not user:
-            from app.core.schemas.user_db import find_user_by_username
-            admin_user = find_user_by_username()
+            admin_user = find_admin_user(db)
             if admin_user:
                 user = admin_user.username
                 request.session["user"] = user

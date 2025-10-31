@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import select
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.token_db import get_br_symbol
 from app.web.brokers.groww.database.master_contract_db import (
     format_openalgo_to_groww_symbol,
 )
@@ -30,7 +30,7 @@ from app.web.brokers.groww.mapping.transform_data import (
 
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 
 # API Endpoints
 GROWW_BASE_URL = 'https://api.groww.in'

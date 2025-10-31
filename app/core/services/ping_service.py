@@ -1,6 +1,8 @@
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas.auth_db import get_auth_token_broker
+from app.db.session import get_db
+from sqlalchemy.orm import Session
+from app.core.models.auth_db import get_auth_token_broker
 
 
 def ping_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[str, Any], int]:
@@ -45,7 +47,8 @@ def get_ping(api_key: Optional[str] = None, auth_token: Optional[str] = None, br
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
+        db = next(get_db())
+        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {
                 'status': 'error',

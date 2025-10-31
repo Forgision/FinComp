@@ -14,8 +14,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.schemas.auth_db import get_api_key_for_tradingview
-from app.core.schemas.chartink_db import (
+from app.core.models.auth_db import get_api_key_for_tradingview
+from app.core.models.chartink_db import (
     add_symbol_mapping,
     bulk_add_symbol_mappings,
     create_strategy,

@@ -4,11 +4,11 @@ import io
 import qrcode
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlmodel import Session
 
-from app.core.schemas.auth_db import upsert_api_key
-from app.core.schemas.session import get_db
-from app.core.schemas.user_db import add_user, find_user_by_username
+from app.core.models.auth_db import upsert_api_key
+from app.db.session import get_db
+from app.core.models.user import add_user, find_admin_user as find_user_by_username
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 from app.utils.web.security import (

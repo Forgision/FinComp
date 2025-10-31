@@ -1,6 +1,7 @@
 import json
+from sqlalchemy.orm import Session
 
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.web.brokers.firstock.mapping.transform_data import (
     map_product_type,
     reverse_map_product_type,
@@ -115,7 +116,7 @@ def get_holdings(auth):
 
     return response
 
-def get_open_position(tradingsymbol, exchange, producttype, auth):
+def get_open_position(tradingsymbol, exchange, producttype, auth, db: Session):
     """
     Get open position for a specific symbol
 
@@ -129,7 +130,7 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
         str: Net quantity as string, '0' if no position found
     """
     # Convert Trading Symbol from OpenAlgo Format to Broker Format
-    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
+    tradingsymbol = get_br_symbol(tradingsymbol, exchange, db=db)
     if '&' in tradingsymbol:
         tradingsymbol = tradingsymbol.replace('&', '%26')
 
@@ -157,7 +158,7 @@ def get_open_position(tradingsymbol, exchange, producttype, auth):
 
     return net_qty
 
-def place_order_api(data, auth):
+def place_order_api(data, auth, db: Session):
     """
     Place order through Firstock API
     Returns: response, response_data, orderid
@@ -165,8 +166,8 @@ def place_order_api(data, auth):
     api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]
 
-    token = get_token(data['symbol'], data['exchange'])
-    transformed_data = transform_data(data, token)
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    transformed_data = transform_data(data, token, db=db)
     transformed_data.update({
         "jKey": auth,
         "userId": api_key
@@ -203,7 +204,7 @@ def place_order_api(data, auth):
         return None, {"status": "failed", "error": str(e)}, None
 
 
-def place_smartorder_api(data,auth):
+def place_smartorder_api(data, auth, db: Session):
 
     AUTH_TOKEN = auth
 
@@ -219,7 +220,7 @@ def place_smartorder_api(data,auth):
 
 
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
+    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN, db=db))
 
 
     logger.info(f"position_size : {position_size}")
@@ -236,7 +237,7 @@ def place_smartorder_api(data,auth):
         quantity = data['quantity']
         #logger.info(f"action : {action}")
         #logger.info(f"Quantity : {quantity}")
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
+        res, response, orderid = place_order_api(data,AUTH_TOKEN, db=db)
         #logger.info(f"{res}")
         #logger.info(f"{response}")
 
@@ -282,7 +283,7 @@ def place_smartorder_api(data,auth):
 
         #logger.info(f"{order_data}")
         # Place the order
-        res, response, orderid = place_order_api(order_data,auth)
+        res, response, orderid = place_order_api(order_data,auth, db=db)
         #logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
@@ -292,7 +293,7 @@ def place_smartorder_api(data,auth):
 
 
 
-def close_all_positions(current_api_key, auth):
+def close_all_positions(current_api_key, auth, db: Session):
     """
     Close all open positions for the user
 
@@ -338,7 +339,7 @@ def close_all_positions(current_api_key, auth):
             action = 'SELL' if int(net_qty) > 0 else 'BUY'
 
             # Get OpenAlgo symbol
-            symbol = get_symbol(position.get('token'), position.get('exchange'))
+            symbol = get_symbol(position.get('token'), position.get('exchange'), db=db)
             if not symbol:
                 positions_failed += 1
                 error_messages.append(f"Failed to get symbol for token {position.get('token')}")
@@ -360,7 +361,7 @@ def close_all_positions(current_api_key, auth):
             }
 
             # Place the order to close the position
-            res, response, orderid = place_order_api(place_order_payload, auth)
+            res, response, orderid = place_order_api(place_order_payload, auth, db=db)
 
             if response and response.get('status') == 'success':
                 positions_closed += 1
@@ -468,7 +469,7 @@ def cancel_order(orderid, auth):
         }, 500
 
 
-def modify_order(data, auth):
+def modify_order(data, auth, db: Session):
     """
     Modify an existing order
 
@@ -487,8 +488,8 @@ def modify_order(data, auth):
     api_key = api_key[:-4]  # Remove last 4 characters
 
     # Get token and transform symbol
-    token = get_token(data['symbol'], data['exchange'])
-    data['symbol'] = get_br_symbol(data['symbol'], data['exchange'])
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    data['symbol'] = get_br_symbol(data['symbol'], data['exchange'], db=db)
 
     # Transform the data to Firstock format
     transformed_data = transform_modify_order_data(data, token)
@@ -567,7 +568,7 @@ def cancel_all_orders_api(data,auth):
     return canceled_orders, failed_cancellations
 
 
-def placeorder(data, auth):
+def placeorder(data, auth, db: Session):
     """
     Place an order through Firstock API
 
@@ -581,8 +582,8 @@ def placeorder(data, auth):
     api_key = settings.BROKER_API_KEY
     api_key = api_key[:-4]  # Remove last 4 characters
 
-    token = get_token(data['symbol'], data['exchange'])
-    transformed_data = transform_data(data, token)
+    token = get_token(data['symbol'], data['exchange'], db=db)
+    transformed_data = transform_data(data, token, db=db)
     transformed_data.update({
         "jKey": auth,
         "userId": api_key

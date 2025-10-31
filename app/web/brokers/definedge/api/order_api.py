@@ -1,7 +1,8 @@
 import json
 
 import httpx
-from app.core.schemas.token_db import get_br_symbol, get_oa_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_oa_symbol, get_token
+from sqlalchemy.orm import Session
 from app.web.brokers.definedge.mapping.transform_data import (
     map_product_type,
     reverse_map_product_type,
@@ -71,10 +72,10 @@ def get_holdings(auth):
     """Get holdings from DefinedGe API."""
     return get_api_response("/holdings", auth)
 
-def get_open_position(tradingsymbol, exchange, product, auth):
+def get_open_position(tradingsymbol, exchange, product, auth, db: Session):
     """Get open position for a specific symbol."""
     # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
+    tradingsymbol = get_br_symbol(tradingsymbol, exchange, db=db)
 
     logger.info("=== GET OPEN POSITION ===")
     logger.info(f"Looking for: Symbol={tradingsymbol}, Exchange={exchange}, Product={product}")
@@ -142,7 +143,7 @@ def get_open_position(tradingsymbol, exchange, product, auth):
 
     return net_qty
 
-def place_order_api(data, auth):
+def place_order_api(data, auth, db: Session):
     """Place an order using the DefinedGe API with shared connection pooling."""
     try:
         logger.info("=== PLACE ORDER DEFINEDGE CALLED ===")
@@ -155,7 +156,7 @@ def place_order_api(data, auth):
         client = get_httpx_client()
 
         # Get token and transform data
-        token = get_token(data['symbol'], data['exchange'])
+        token = get_token(data['symbol'], data['exchange'], db=db)
         newdata = transform_data(data, token)
 
         # Prepare headers
@@ -223,7 +224,7 @@ def place_order_api(data, auth):
         response = type('', (), {'status': 500, 'status_code': 500})()
         return response, response_data, None
 
-def place_smartorder_api(data, auth):
+def place_smartorder_api(data, auth, db: Session):
     """Place smart order based on position sizing logic."""
 
     # Initialize default return values
@@ -244,7 +245,7 @@ def place_smartorder_api(data, auth):
         position_size = int(data.get("position_size", "0"))
 
         # Get current open position for the symbol
-        current_position = int(get_open_position(symbol, exchange, map_product_type(product), auth))
+        current_position = int(get_open_position(symbol, exchange, map_product_type(product), auth, db=db))
 
         logger.info("=== SMART ORDER EXECUTION ===")
         logger.info(f"Symbol: {symbol}, Exchange: {exchange}, Product: {product}")
@@ -300,7 +301,7 @@ def place_smartorder_api(data, auth):
             logger.info(f"Placing order: {action} {quantity} {symbol}")
 
             # Place the order
-            res, response, orderid = place_order_api(order_data, auth)
+            res, response, orderid = place_order_api(order_data, auth, db=db)
             logger.info(f"Order response: {response}")
             logger.info(f"Order ID: {orderid}")
 
@@ -316,7 +317,7 @@ def place_smartorder_api(data, auth):
         response_data = {"status": "error", "message": error_msg}
         return res, response_data, orderid
 
-def close_all_positions(current_api_key, auth):
+def close_all_positions(current_api_key, auth, db: Session):
     """Close all open positions."""
 
     logger.info("=== CLOSE ALL POSITIONS DEFINEDGE CALLED ===")
@@ -408,7 +409,7 @@ def close_all_positions(current_api_key, auth):
             logger.info(f"Closing position: {tradingsymbol} ({exchange}) - Qty: {netqty_int}, Action: {action}")
 
             # Get openalgo symbol to send to placeorder function
-            symbol = get_oa_symbol(tradingsymbol, exchange)
+            symbol = get_oa_symbol(tradingsymbol, exchange, db=db)
 
             if not symbol:
                 logger.error(f"Failed to get OpenAlgo symbol for {tradingsymbol} on {exchange}")
@@ -431,7 +432,7 @@ def close_all_positions(current_api_key, auth):
             logger.info(f"Square-off order payload: {place_order_payload}")
 
             # Place the order to close the position
-            res, response, orderid = place_order_api(place_order_payload, auth)
+            res, response, orderid = place_order_api(place_order_payload, auth, db=db)
 
             if orderid:
                 closed_positions.append({
@@ -537,7 +538,7 @@ def cancel_order(orderid, auth):
         logger.error(f"Error type: {type(e).__name__}")
         return {"status": "error", "message": f"Error: {str(e)}"}, 500
 
-def modify_order(data,auth):
+def modify_order(data,auth, db: Session):
 
     logger.info("=== MODIFY ORDER DEFINEDGE CALLED ===")
     logger.info(f"Raw input data: {data}")
@@ -549,7 +550,7 @@ def modify_order(data,auth):
     client = get_httpx_client()
 
     # Get token but don't overwrite the symbol in data
-    token = get_token(data['symbol'], data['exchange'])
+    token = get_token(data['symbol'], data['exchange'], db=db)
     # The transform function will handle the symbol conversion internally
 
     transformed_data = transform_modify_order_data(data, token)

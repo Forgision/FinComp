@@ -4,8 +4,10 @@ Each instance is fully isolated and safe for multi-client use.
 """
 import threading
 import time
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token
+from app.core.models.auth_db import get_auth_token
 from app.web.websocket.base_adapter import BaseBrokerWebSocketAdapter
 
 from app.utils.logging import logger
@@ -44,8 +46,9 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self._broker_name = broker_name.lower()
         self._user_id = user_id
 
+        db = next(get_db())
         # Load authentication from DB
-        auth_string = get_auth_token(user_id)
+        auth_string = get_auth_token(db, user_id)
         if not auth_string:
             logger.error(f"No authentication token found for user {user_id}")
             raise ValueError(f"No authentication token found for user {user_id}")
@@ -430,10 +433,11 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Only clean up caches if NO modes are active for this symbol
                 from .kotak_mapping import get_kotak_exchange
-                from app.core.schemas.token_db import get_token
+                from app.core.models.token_db import get_token
 
+                db = next(get_db())
                 kotak_exchange = get_kotak_exchange(exchange)
-                token = get_token(symbol, exchange)
+                token = get_token(db, symbol, exchange)
                 mapping_key = (kotak_exchange, str(token))
 
                 if mapping_key in self._symbol_modes:
@@ -457,11 +461,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return False
 
         try:
-            from app.core.schemas.token_db import get_token
+            from app.core.models.token_db import get_token
             from .kotak_mapping import get_kotak_exchange
 
+            db = next(get_db())
             kotak_exchange = get_kotak_exchange(exchange)
-            token = get_token(symbol, exchange)
+            token = get_token(db, symbol, exchange)
 
             if not token:
                 logger.error(f"No token found for {symbol} on {exchange}")
@@ -498,11 +503,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return
 
         try:
-            from app.core.schemas.token_db import get_token
+            from app.core.models.token_db import get_token
             from .kotak_mapping import get_kotak_exchange
 
+            db = next(get_db())
             kotak_exchange = get_kotak_exchange(exchange)
-            token = get_token(symbol, exchange)
+            token = get_token(db, symbol, exchange)
 
             if not token:
                 logger.error(f"No token found for {symbol} on {exchange}")
@@ -541,11 +547,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return False
 
         try:
-            from app.core.schemas.token_db import get_token
+            from app.core.models.token_db import get_token
             from .kotak_mapping import get_kotak_exchange
 
+            db = next(get_db())
             kotak_exchange = get_kotak_exchange(exchange)
-            token = get_token(symbol, exchange)
+            token = get_token(db, symbol, exchange)
 
             if not token:
                 logger.error(f"No token found for {symbol} on {exchange}")
@@ -576,11 +583,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return
 
         try:
-            from app.core.schemas.token_db import get_token
+            from app.core.models.token_db import get_token
             from .kotak_mapping import get_kotak_exchange
 
+            db = next(get_db())
             kotak_exchange = get_kotak_exchange(exchange)
-            token = get_token(symbol, exchange)
+            token = get_token(db, symbol, exchange)
 
             if not token:
                 logger.error(f"No token found for {symbol} on {exchange}")

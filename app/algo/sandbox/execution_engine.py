@@ -108,7 +108,7 @@ class ExecutionEngine:
         """
         try:
             # Get any user's API key for fetching quotes
-            from app.core.schemas.auth_db import ApiKeys, decrypt_token
+            from app.core.models.auth_db import ApiKeys, decrypt_token
             api_key_obj = db_session.query(ApiKeys).first()
 
             if not api_key_obj:

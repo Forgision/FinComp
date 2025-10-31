@@ -2,9 +2,9 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.core.schemas.auth_db import get_feed_token
-from app.core.schemas.session import get_db
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.auth_db import get_feed_token
+from app.db.session import get_db
+from app.core.models.token_db import get_br_symbol
 from app.web.brokers.iifl.baseurl import MARKET_DATA_URL
 from app.web.brokers.iifl.database.master_contract_db import SymToken
 from app.utils.httpx_client import get_httpx_client

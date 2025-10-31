@@ -11,9 +11,9 @@ import copy
 from typing import Any, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
-from app.core.schemas.analyzer_db import async_log_analyzer
-from app.core.schemas.auth_db import verify_api_key
-from app.core.schemas.settings_db import get_analyze_mode
+from app.core.models.analyzer_db import async_log_analyzer
+from app.core.models.auth_db import verify_api_key
+from app.core.models.settings_db import get_analyze_mode
 from app.algo.sandbox.fund_manager import get_user_funds
 from app.algo.sandbox.holdings_manager import HoldingsManager
 

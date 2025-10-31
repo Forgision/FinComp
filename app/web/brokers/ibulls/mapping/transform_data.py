@@ -2,8 +2,8 @@
 #Mapping ibullssecurities Broking Parameters https://symphonyfintech.com/xts-trading-front-end-api/
 from flask import session
 
-from app.core.schemas.auth_db import get_feed_token
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.auth_db import get_feed_token
+from app.core.models.token_db import get_br_symbol
 from app.web.brokers.ibulls.api.data import BrokerData
 
 from app.utils.logging import logger

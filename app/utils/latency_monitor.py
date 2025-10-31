@@ -3,8 +3,8 @@ from functools import wraps
 
 from fastapi import Request
 
-from app.core.schemas.auth_db import get_broker_name
-from app.core.schemas.latency_db import OrderLatency, latency_session
+from app.core.models.auth_db import get_broker_name
+from app.core.models.latency_db import OrderLatency, latency_session
 
 
 class LatencyTracker:

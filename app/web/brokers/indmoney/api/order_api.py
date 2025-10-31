@@ -7,7 +7,7 @@ from ..mapping.transform_data import (
     transform_data,
     transform_modify_order_data,
 )
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
 
 from app.core.config import settings

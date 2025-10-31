@@ -16,9 +16,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.schemas.auth_db import get_api_key_for_tradingview
-from app.core.schemas.session import get_db
-from app.core.schemas.strategy_db import (
+from app.core.models.auth_db import get_api_key_for_tradingview
+from app.db.session import get_db
+from app.core.models.strategy_db import (
     add_symbol_mapping,
     bulk_add_symbol_mappings,
     create_strategy,
@@ -30,7 +30,7 @@ from app.core.schemas.strategy_db import (
     get_user_strategies,
     toggle_strategy,
 )
-from app.core.schemas.symbol import enhanced_search_symbols
+from app.core.models.symbol import enhanced_search_symbols
 from app.utils.logging import logger
 
 # Rate limiting configuration (placeholders for now, will integrate slowapi if needed)

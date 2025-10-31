@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict
 
 import httpx
-from app.core.schemas.token_db import get_br_symbol, get_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_symbol, get_token
 from app.web.brokers.fivepaisa.mapping.transform_data import (
     map_exchange,
     map_exchange_type,

@@ -1,7 +1,7 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
 
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.token_db import get_br_symbol
 
 
 def transform_data(data,token):

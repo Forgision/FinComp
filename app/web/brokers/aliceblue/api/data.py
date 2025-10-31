@@ -11,9 +11,9 @@ from app.core.config import settings
 from app.utils.logging import logger
 
 
-from app.core.schemas.session import get_db
-from app.core.schemas.symbol import SymToken
-from app.core.schemas.token_db import get_br_symbol, get_token
+from app.db.session import get_db
+from app.core.models.symbol import SymToken
+from app.core.models.token_db import get_br_symbol, get_token
 from app.utils.httpx_client import get_httpx_client
 
 from .alicebluewebsocket import AliceBlueWebSocket

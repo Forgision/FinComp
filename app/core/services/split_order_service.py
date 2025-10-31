@@ -3,13 +3,13 @@ import copy
 import importlib
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas.analyzer_db import async_log_analyzer
-from app.core.schemas.apilog_db import async_log_order
-from app.core.schemas.auth_db import get_auth_token_broker
-from app.core.schemas.settings_db import get_analyze_mode
+from app.core.models.analyzer_db import async_log_analyzer
+from app.core.models.apilog_db import async_log_order
+from app.core.models.auth_db import get_auth_token_broker
+from app.core.models.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.db.session import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio

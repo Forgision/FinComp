@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas.auth_db import verify_api_key
-from app.core.schemas.symbol import SymToken
+from app.core.models.auth_db import verify_api_key
+from app.core.models.symbol import SymToken
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 

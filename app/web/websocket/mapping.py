@@ -1,5 +1,6 @@
-from app.core.schemas.token_db import get_brexchange, get_token
-
+from app.core.models.token_db import get_brexchange, get_token
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
 class ExchangeMapper:
     """Base class for mapping OpenAlgo exchange codes to broker-specific exchange types"""
@@ -39,9 +40,10 @@ class SymbolMapper:
             dict: Token data with 'token' and 'brexchange' or None if not found
         """
         try:
+            db = next(get_db())
             # Get token from app.core.schemas
-            token = get_token(symbol, exchange)
-            brexchange = get_brexchange(symbol, exchange)
+            token = get_token(db, symbol, exchange)
+            brexchange = get_brexchange(db, symbol, exchange)
 
             if not token or not brexchange:
                 SymbolMapper.logger.error(f"Symbol not found: {symbol}-{exchange}")

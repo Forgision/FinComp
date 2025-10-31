@@ -6,73 +6,58 @@ import os
 
 import pandas as pd
 import requests
-from app.core.schemas.auth_db import get_auth_token
-from app.core.schemas.user_db import find_user_by_username
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from app.core.models.auth_db import get_auth_token
+from sqlmodel import SQLModel, Field, Session, create_engine, select
+from sqlalchemy import Index
 
 from app.core.config import settings
-from app.core.schemas.session import get_db
+from app.db.session import get_db, engine
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-class SymToken(Base):
+class SymToken(SQLModel, table=True):
     __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
-    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
-    name: Mapped[str] = mapped_column(String)
-    exchange: Mapped[str] = mapped_column(String, index=True)  # Include this column in a composite index
-    brexchange: Mapped[str] = mapped_column(String, index=True)
-    token: Mapped[str] = mapped_column(String, index=True)  # Indexed for performance
-    expiry: Mapped[str] = mapped_column(String)
-    strike: Mapped[float] = mapped_column(Float)
-    lotsize: Mapped[int] = mapped_column(Integer)
-    instrumenttype: Mapped[str] = mapped_column(String)
-    tick_size: Mapped[float] = mapped_column(Float)
+    id: int = Field(default=None, primary_key=True)
+    symbol: str = Field(nullable=False, index=True)
+    brsymbol: str = Field(nullable=False, index=True)
+    name: str
+    exchange: str = Field(index=True)
+    brexchange: str = Field(index=True)
+    token: str = Field(index=True)
+    expiry: str
+    strike: float
+    lotsize: int
+    instrumenttype: str
+    tick_size: float
 
-    # Define a composite index on symbol and exchange columns
     __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
 
 def init_db():
-    db = next(get_db())
     logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=db.get_bind())
+    SQLModel.metadata.create_all(bind=engine)
 
 def delete_symtoken_table():
-    db = next(get_db())
-    logger.info("Deleting Symtoken Table")
-    db.query(SymToken).delete()
-    db.commit()
+    with Session(engine) as session:
+        logger.info("Deleting Symtoken Table")
+        session.query(SymToken).delete()
+        session.commit()
 
 def copy_from_dataframe(df):
-    db = next(get_db())
-    logger.info("Performing Bulk Insert")
-    # Convert DataFrame to a list of dictionaries
-    data_dict = df.to_dict(orient='records')
-
-    # Retrieve existing tokens to filter them out from the insert
-    existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}
-
-    # Filter out data_dict entries with tokens that already exist
-    filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
-
-    # Insert in bulk the filtered records
-    try:
-        if filtered_data_dict:  # Proceed only if there's anything to insert
-            db.bulk_insert_mappings(SymToken, filtered_data_dict)
-            db.commit()
-            logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
-        else:
-            logger.info("No new records to insert.")
-    except Exception as e:
-        logger.error(f"Error during bulk insert: {e}")
-        db.rollback()
+    with Session(engine) as session:
+        logger.info("Performing Bulk Insert")
+        data_dict = df.to_dict(orient='records')
+        existing_tokens = {result.token for result in session.exec(select(SymToken.token)).all()}
+        filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
+        try:
+            if filtered_data_dict:
+                session.bulk_insert_mappings(SymToken, filtered_data_dict)
+                session.commit()
+                logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
+            else:
+                logger.info("No new records to insert.")
+        except Exception as e:
+            logger.error(f"Error during bulk insert: {e}")
+            session.rollback()
 
 def download_csv_kotak_data(output_path):
 
@@ -446,5 +431,6 @@ def master_contract_download():
 
 
 def search_symbols(symbol, exchange):
-    db = next(get_db())
-    return db.query(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange).all()
+    with Session(engine) as session:
+        statement = select(SymToken).where(SymToken.symbol.like(f'%{symbol}%')).where(SymToken.exchange == exchange)
+        return session.exec(statement).all()

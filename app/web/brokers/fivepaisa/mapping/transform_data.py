@@ -1,14 +1,15 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
 
-from app.core.schemas.token_db import get_br_symbol
+from app.core.models.token_db import get_br_symbol
+from sqlalchemy.orm import Session
 
 
-def transform_data(data,token):
+def transform_data(data, token, db: Session):
     """
     Transforms the new API request structure to the current expected structure.
     """
-    get_br_symbol(data["symbol"],data["exchange"])
+    get_br_symbol(data["symbol"], data["exchange"], db=db)
     # Basic mapping
     transformed = {
         "OrderType": map_action(data["action"].upper()),

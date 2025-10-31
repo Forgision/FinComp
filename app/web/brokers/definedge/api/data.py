@@ -3,7 +3,7 @@ import json
 from datetime import timedelta
 
 import pandas as pd
-from app.core.schemas.token_db import get_br_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_token
 
 from app.utils.logging import logger
 
@@ -32,7 +32,7 @@ def get_quotes(symbol, exchange, auth_token):
         client = get_httpx_client()
 
         # Get token for the symbol
-        from app.core.schemas.token_db import get_token
+        from app.core.models.token_db import get_token
         token_id = get_token(symbol, exchange)
 
         logger.info(f"Getting quotes for {symbol} ({exchange}) with token: {token_id}")

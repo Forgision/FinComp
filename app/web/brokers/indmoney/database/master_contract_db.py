@@ -125,16 +125,16 @@ def download_csv_indmoney_data(output_path):
     # Get the access token for Indmoney broker from the database
     # Since Indmoney might have multiple users, we need to get the first valid one
     try:
-        from app.core.schemas.auth_db import Auth
+        from app.core.models.auth_db import Auth
         stmt = select(Auth).filter_by(broker='indmoney', is_revoked=False)
         auth_obj = db.scalars(stmt).first()
         if auth_obj:
-            from app.core.schemas.auth_db import decrypt_token
+            from app.core.models.auth_db import decrypt_token
             auth_token = decrypt_token(auth_obj.auth)
         else:
             auth_token = None
     except Exception as e:
-        logger.error(f"Error getting auth token from app.core.schemas: {e}")
+        logger.error(f"Error getting auth token from app.core.models: {e}")
         auth_token = None
 
     if not auth_token:

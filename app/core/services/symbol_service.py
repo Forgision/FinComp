@@ -1,9 +1,9 @@
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas.auth_db import get_auth_token_broker
-from app.core.schemas.symbol import SymToken
-from app.core.schemas.session import db_session
+from app.core.models.auth_db import get_auth_token_broker
+from app.core.models.symbol import SymToken
+from app.db.session import get_db
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.utils.logging import logger
@@ -31,8 +31,9 @@ def get_symbol_info_with_auth(
         - HTTP status code (int)
     """
     try:
+        db = next(get_db())
         # Query the database for the symbol
-        result = db_session.query(SymToken).filter(
+        result = db.query(SymToken).filter(
             SymToken.symbol == symbol,
             SymToken.exchange == exchange
         ).first()

@@ -1,15 +1,15 @@
 #Mapping OpenAlgo API Request https://openalgo.in/docs
 #Mapping Zerodha Broking Parameters https://kite.trade/docs/connect/v3/
 
-from app.core.schemas.token_db import get_br_symbol, get_token
+from app.core.models.token_db import get_br_symbol, get_token
+from sqlalchemy.orm import Session
 
-
-def transform_data(data):
+def transform_data(data, db: Session):
     """
     Transforms the new API request structure to the current expected structure.
     """
-    symbol = get_br_symbol(data['symbol'],data['exchange'])
-    token = get_token(data['symbol'],data['exchange'])
+    symbol = get_br_symbol(data['symbol'],data['exchange'], db=db)
+    token = get_token(data['symbol'],data['exchange'], db=db)
 
     # Basic mapping
     transformed = {
@@ -33,7 +33,7 @@ def transform_data(data):
     return transformed
 
 
-def transform_modify_order_data(data):
+def transform_modify_order_data(data, db: Session):
     return {
         "discqty": int(data.get("disclosed_quantity", 0)),
         "exch": data.get("exchange"),
@@ -42,7 +42,7 @@ def transform_modify_order_data(data):
         "prctyp": map_order_type(data.get("pricetype")),
         "price": float(data.get("price")),
         "qty": int(data.get("quantity")),
-        "trading_symbol": get_br_symbol(data.get("symbol"),data.get("exchange")),
+        "trading_symbol": get_br_symbol(data.get("symbol"),data.get("exchange"), db=db),
         "trigPrice": data.get("trigger_price", "0"),
         "transtype": data.get("action").upper(),
         "pCode": data.get("product")

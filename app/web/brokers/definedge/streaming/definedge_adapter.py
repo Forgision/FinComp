@@ -2,8 +2,10 @@ import logging
 import threading
 import time
 from typing import Any, Dict, Optional
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 
-from app.core.schemas.auth_db import get_auth_token, get_feed_token
+from app.core.models.auth_db import get_auth_token, get_feed_token, get_user_id
 from .definedge_websocket import DefinedGeWebSocket
 from .definedge_mapping import (
     DefinedgeCapabilityRegistry,
@@ -144,17 +146,17 @@ class DefinedgeWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         # Get tokens from app.core.schemas if not provided (following Angel pattern)
         if not auth_data:
+            db = next(get_db())
             # Fetch authentication tokens from app.core.schemas
-            auth_token = get_auth_token(user_id)
-            feed_token = get_feed_token(user_id)  # This contains susertoken for DefinEdge
+            auth_token = get_auth_token(db, user_id)
+            feed_token = get_feed_token(db, user_id)  # This contains susertoken for DefinEdge
 
             if not auth_token:
                 self.logger.error(f"No authentication tokens found for user {user_id}")
                 raise ValueError(f"No authentication tokens found for user {user_id}")
 
             # Get the actual DefinEdge user_id from app.core.schemas
-            from app.core.schemas.auth_db import get_user_id
-            definedge_uid = get_user_id(user_id)  # This should return "1272808"
+            definedge_uid = get_user_id(db, user_id)  # This should return "1272808"
 
             self.logger.info(f"Tokens retrieved from DB for user {user_id}, DefinEdge uid: {definedge_uid}")
 

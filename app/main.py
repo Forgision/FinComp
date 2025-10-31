@@ -11,10 +11,10 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
+from sqlmodel import SQLModel
 
 from app.core.config import settings
-from app.core.schemas.auth_db import init_db as ensure_auth_tables_exists
-from app.core.schemas.user_db import init_db as ensure_user_tables_exists
+from app.db.session import engine
 from app.utils.logging import logger
 from app.core.services.limiter_service import limiter
 from app.utils.web.socketio import sio
@@ -48,14 +48,12 @@ from app.web.websocket.fastapi_integration import (
 from app.web.websocket.broker_factory import register_all_adapters
 from app.core.models.error_models import BaseErrorResponse
 from app.web.backend.middleware import CorrelationIdMiddleware
-
-# from app.utils.plugin_loader import load_broker_auth_functions
+import app.core.models  # Import all models to register them with SQLModel
 
 class CsrfSettings(BaseModel):
     secret_key: str = settings.APP_KEY
     cookie_samesite: str = "none"
     cookie_secure: bool = True
-    # cookie_key: str = 'csrf_token'
     token_key: str = 'csrf_token'
 
 @CsrfProtect.load_config
@@ -63,22 +61,11 @@ def get_csrf_config():
     return CsrfSettings()
 
 
-def setup_environment():
-    """Initializes the application environment, database, and plugins."""
-    logger.info("Starting environment setup...")
-    # load_broker_auth_functions()
-    ensure_auth_tables_exists()
-    ensure_user_tables_exists()
-    # ensure_master_contract_tables_exists()
-    # ensure_api_log_tables_exists()
-    # ensure_analyzer_tables_exists()
-    # ensure_settings_tables_exists()
-    # ensure_chartink_tables_exists()
-    # ensure_traffic_logs_exists()
-    # ensure_latency_tables_exists()
-    # ensure_strategy_tables_exists()
-    # ensure_sandbox_tables_exists()
-    logger.info("Environment setup completed successfully.")
+def create_db_and_tables():
+    """Initializes the database and creates tables."""
+    logger.info("Creating database and tables...")
+    SQLModel.metadata.create_all(engine)
+    logger.info("Database and tables created successfully.")
 
 
 @asynccontextmanager
@@ -86,7 +73,7 @@ async def lifespan(app: FastAPI):
     """
     Handles application startup and shutdown events.
     """
-    setup_environment()
+    create_db_and_tables()
     start_websocket_server()
     separate_str = "=" * 60
     logger.info(separate_str)
