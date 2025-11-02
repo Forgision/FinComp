@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Tuple, Any
 
 import pytz
 from sqlalchemy import func, select
+from app.core.schemas import SessionLocal
+from app.core.schemas.symbol import SymToken
 
 from app.utils.logging import logger
 
@@ -95,8 +97,6 @@ class BrokerSymbolCache:
         This is called once after master contract download
         """
         try:
-            from app.core.schemas.symbol import SymToken, db_session
-
             start_time = time.time()
             logger.info(f"Loading all symbols for broker: {broker}")
 
@@ -104,8 +104,9 @@ class BrokerSymbolCache:
             self.clear_cache()
 
             # Query all symbols from app.core.schemas
-            stmt = select(SymToken)
-            symbols = db_session.scalars(stmt).all()
+            with SessionLocal() as db_session:
+                stmt = select(SymToken)
+                symbols = db_session.scalars(stmt).all()
 
             if not symbols:
                 logger.warning(f"No symbols found in database for broker: {broker}")
@@ -440,10 +441,10 @@ def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
 def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for token by symbol and exchange"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.scalars(stmt).first()
-        return sym_token.token if sym_token else None
+        with SessionLocal() as db_session:
+            stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+            sym_token = db_session.scalars(stmt).first()
+            return sym_token.token if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -451,10 +452,10 @@ def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
     """Query database for symbol by token and exchange"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(SymToken).filter_by(token=token, exchange=exchange)
-        sym_token = db_session.scalars(stmt).first()
-        return sym_token.symbol if sym_token else None
+        with SessionLocal() as db_session:
+            stmt = select(SymToken).filter_by(token=token, exchange=exchange)
+            sym_token = db_session.scalars(stmt).first()
+            return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -462,10 +463,10 @@ def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
 def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker symbol"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.scalars(stmt).first()
-        return sym_token.brsymbol if sym_token else None
+        with SessionLocal() as db_session:
+            stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+            sym_token = db_session.scalars(stmt).first()
+            return sym_token.brsymbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -473,10 +474,10 @@ def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
     """Query database for OpenAlgo symbol"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(SymToken).filter_by(brsymbol=brsymbol, exchange=exchange)
-        sym_token = db_session.scalars(stmt).first()
-        return sym_token.symbol if sym_token else None
+        with SessionLocal() as db_session:
+            stmt = select(SymToken).filter_by(brsymbol=brsymbol, exchange=exchange)
+            sym_token = db_session.scalars(stmt).first()
+            return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -484,10 +485,10 @@ def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
 def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker exchange"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-        sym_token = db_session.scalars(stmt).first()
-        return sym_token.brexchange if sym_token else None
+        with SessionLocal() as db_session:
+            stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
+            sym_token = db_session.scalars(stmt).first()
+            return sym_token.brexchange if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
@@ -495,10 +496,10 @@ def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
 def get_symbol_count() -> int:
     """Get the total count of symbols in the database"""
     try:
-        from app.core.schemas.symbol import SymToken, db_session
-        stmt = select(func.count(SymToken.id))
-        count = db_session.execute(stmt).scalar_one()
-        return count
+        with SessionLocal() as db_session:
+            stmt = select(func.count(SymToken.id))
+            count = db_session.execute(stmt).scalar_one()
+            return count
     except Exception as e:
         logger.error(f"Error while counting symbols: {e}")
         return 0
@@ -574,13 +575,14 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
         ]
 
     # Fallback to database search
+    
     try:
-        from app.core.schemas.symbol import SymToken, db_session
         stmt = select(SymToken).filter(SymToken.symbol.like(f'%{query}%'))
         if exchange:
             stmt = stmt.filter_by(exchange=exchange)
 
-        results = db_session.scalars(stmt.limit(limit)).all()
+        with SessionLocal() as db_session:
+            results = db_session.scalars(stmt.limit(limit)).all()
         return [
             {
                 'symbol': r.symbol,

@@ -94,8 +94,3 @@ def enhanced_search_symbols(query: str, exchange: Optional[str] = None) -> List[
         except Exception as e:
             logger.error(f"Error in enhanced search: {str(e)}")
             return []
-
-def init_db():
-    """Initialize the database"""
-    logger.info("Initializing Master Contract DB")
-    Base.metadata.create_all(bind=engine)

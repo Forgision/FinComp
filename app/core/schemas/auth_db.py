@@ -204,7 +204,9 @@ def get_feed_token(name: str) -> Optional[str]:
         cache_key = f"feed-{name}"
         cached_obj = feed_token_cache.get(cache_key)
         if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
-            return decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
+            return (
+                decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
+            )
 
         auth_obj = get_feed_token_dbquery(db, name)
         if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
@@ -331,29 +333,36 @@ def get_broker_name(db: Session, provided_api_key: str) -> Optional[str]:
     return None
 
 
-def get_auth_token_broker(
-    db: Session, provided_api_key: str, include_feed_token: bool = False
-):
-    user_id = verify_api_key(db, provided_api_key)
+def get_auth_token_broker(provided_api_key: str, include_feed_token: bool = False):
+    with SessionLocal() as db:
+        user_id = verify_api_key(db, provided_api_key)
 
-    if user_id:
-        stmt = select(Auth).where(Auth.name == user_id)
-        auth_obj = db.execute(stmt).scalar_one_or_none()
-        if auth_obj and not auth_obj.is_revoked:
-            decrypted_token = decrypt_token(auth_obj.auth)
-            if include_feed_token:
-                decrypted_feed_token = (
-                    decrypt_token(auth_obj.feed_token) if auth_obj.feed_token else None
+        if user_id:
+            try:
+                stmt = select(Auth).where(Auth.name == user_id)
+                auth_obj = db.execute(stmt).scalar_one_or_none()
+                if auth_obj and not auth_obj.is_revoked:
+                    decrypted_token = decrypt_token(auth_obj.auth)
+                    if include_feed_token:
+                        decrypted_feed_token = (
+                            decrypt_token(auth_obj.feed_token)
+                            if auth_obj.feed_token
+                            else None
+                        )
+                        return decrypted_token, decrypted_feed_token, auth_obj.broker
+                    return decrypted_token, auth_obj.broker
+                else:
+                    logger.warning(
+                        f"No valid auth token or broker found for user_id '{user_id}'."
+                    )
+                    return (None, None, None) if include_feed_token else (None, None)
+            except Exception as e:
+                logger.error(
+                    f"Error while querying the database for auth token and broker: {e}"
                 )
-                return decrypted_token, decrypted_feed_token, auth_obj.broker
-            return decrypted_token, auth_obj.broker
+                return (None, None, None) if include_feed_token else (None, None)
         else:
-            logger.warning(
-                f"No valid auth token or broker found for user_id '{user_id}'."
-            )
             return (None, None, None) if include_feed_token else (None, None)
-    else:
-        return (None, None, None) if include_feed_token else (None, None)
 
 
 def delete_api_key_by_username(db: Session, user_id: str) -> bool:

@@ -12,8 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
-from app.core.schemas import Base
-from app.core.schemas.session import db_session
+from app.core.schemas import Base, SessionLocal
 from app.utils.logging import logger
 
 # Initialize Argon2 hasher
@@ -54,7 +53,9 @@ class User(Base):
             # Check if the hash needs to be updated
             if ph.check_needs_rehash(self.password_hash):
                 self.set_password(password)
-                db_session.commit()
+                with SessionLocal() as db_session:
+                    db_session.add(self)
+                    db_session.commit()
             return True
         except VerifyMismatchError:
             return False
@@ -71,28 +72,25 @@ class User(Base):
         totp = pyotp.TOTP(self.totp_secret)
         return totp.verify(token)
 
-def init_db():
-    from app.core.schemas.session import engine
-    logger.info("Initializing User DB")
-    Base.metadata.create_all(bind=engine)
 
 def add_user(username: str, email: str, password: str, is_admin: bool = False) -> Optional[User]:
-    try:
-        # Generate TOTP secret for the user
-        totp_secret = pyotp.random_base32()
-        user = User(
-            username=username,
-            email=email,
-            totp_secret=totp_secret,
-            is_admin=is_admin
-        )
-        user.set_password(password)
-        db_session.add(user)
-        db_session.commit()
-        return user  # Return the user object instead of True
-    except IntegrityError:
-        db_session.rollback()
-        return None  # Return None instead of False
+    with SessionLocal() as db_session:
+        try:
+            # Generate TOTP secret for the user
+            totp_secret = pyotp.random_base32()
+            user = User(
+                username=username,
+                email=email,
+                totp_secret=totp_secret,
+                is_admin=is_admin
+            )
+            user.set_password(password)
+            db_session.add(user)
+            db_session.commit()
+            return user  # Return the user object instead of True
+        except IntegrityError:
+            db_session.rollback()
+            return None  # Return None instead of False
 
 def authenticate_user(username: str, password: str) -> bool:
     """Authenticate user with Argon2 hashed password"""
@@ -106,9 +104,9 @@ def authenticate_user(username: str, password: str) -> bool:
             # Invalid password, remove from cache
             del username_cache[cache_key]
             return False
-
-    stmt = select(User).filter_by(username=username)
-    user = db_session.execute(stmt).scalars().first()
+    with SessionLocal() as db_session:
+        stmt = select(User).filter_by(username=username)
+        user = db_session.execute(stmt).scalars().first()
 
     if user and user.check_password(password):
         username_cache[cache_key] = user  # Cache the User object
@@ -119,13 +117,15 @@ def authenticate_user(username: str, password: str) -> bool:
 
 def find_user_by_email(email: str) -> Optional[User]:
     """Find user by email for password reset"""
-    stmt = select(User).filter_by(email=email)
-    return db_session.execute(stmt).scalars().first()
+    with SessionLocal() as db_session:
+        stmt = select(User).filter_by(email=email)
+        return db_session.execute(stmt).scalars().first()
 
 def find_admin_user() -> Optional[User]:
     """Find admin user"""
-    stmt = select(User).filter_by(is_admin=True)
-    return db_session.execute(stmt).scalars().first()
+    with SessionLocal() as db_session:
+        stmt = select(User).filter_by(is_admin=True)
+        return db_session.execute(stmt).scalars().first()
 
 def rehash_all_passwords():
     """
@@ -133,25 +133,27 @@ def rehash_all_passwords():
     This should be called once when upgrading from the old hashing method.
     Requires knowing the original passwords or having users reset them.
     """
-    stmt = select(User)
-    users = db_session.execute(stmt).scalars().all()
-    for user in users:
-        if user.password_hash.startswith('pbkdf2:sha256'):  # Old Werkzeug format
-            # At this point, you would either:
-            # 1. Have users reset their passwords
-            # 2. Or if you have access to original passwords (during migration):
-            #    user.set_password(original_password)
-            pass
-    db_session.commit()
+    with SessionLocal() as db_session:
+        stmt = select(User)
+        users = db_session.execute(stmt).scalars().all()
+        for user in users:
+            if user.password_hash.startswith('pbkdf2:sha256'):  # Old Werkzeug format
+                # At this point, you would either:
+                # 1. Have users reset their passwords
+                # 2. Or if you have access to original passwords (during migration):
+                #    user.set_password(original_password)
+                pass
+        db_session.commit()
 
 def delete_user_by_username(username: str) -> bool:
     """Delete a user by username."""
-    stmt = select(User).filter_by(username=username)
-    user = db_session.execute(stmt).scalars().first()
-    if user:
-        db_session.delete(user)
-        db_session.commit()
-        if f"user-{username}" in username_cache:
-            del username_cache[f"user-{username}"]
-        return True
-    return False
+    with SessionLocal() as db_session:
+        stmt = select(User).filter_by(username=username)
+        user = db_session.execute(stmt).scalars().first()
+        if user:
+            db_session.delete(user)
+            db_session.commit()
+            if f"user-{username}" in username_cache:
+                del username_cache[f"user-{username}"]
+            return True
+        return False

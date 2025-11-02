@@ -18,8 +18,8 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    module_path = f'broker.{broker_name}.api.data'
     try:
-        module_path = f'broker.{broker_name}.api.data'
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -113,7 +113,7 @@ def get_history(
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     feed_token: Optional[str] = None,
-    broker: Optional[str] = None
+    broker: Optional[str] = ''
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get historical data for a symbol.
@@ -138,7 +138,13 @@ def get_history(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, FEED_TOKEN, broker_name = get_auth_token_broker(api_key, include_feed_token=True)
+        auth_details = get_auth_token_broker(api_key, include_feed_token=True)
+        if not auth_details or len(auth_details) < 3:
+            return False, {'status': 'error', 'message': 'Invalid openalgo apikey or broker details missing'}, 403
+
+        AUTH_TOKEN, FEED_TOKEN, broker_name = auth_details
+        if broker_name is None:
+            broker_name = ''
         if AUTH_TOKEN is None:
             return False, {
                 'status': 'error',
