@@ -10,7 +10,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 from app.web.backend.schemas.order_schemas import OrderData
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -60,7 +60,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'placeorder')
+    await async_log_analyzer(analyzer_request, error_response, 'placeorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -98,7 +98,7 @@ async def place_order_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         # Get API key from original data
@@ -121,7 +121,7 @@ async def place_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'placeorder', original_data, error_response)
+        await async_log_order('placeorder', original_data, error_response)
         return False, error_response, 404
 
     try:
@@ -135,7 +135,7 @@ async def place_order_with_auth(
             'status': 'error',
             'message': 'Failed to place order due to internal error'
         }
-        await async_log_order(db, 'placeorder', original_data, error_response)
+        await async_log_order('placeorder', original_data, error_response)
         return False, error_response, 500
 
     if res.status == 200:
@@ -149,7 +149,7 @@ async def place_order_with_auth(
             'mode': 'live'
         })
         order_response_data = {'status': 'success', 'orderid': order_id}
-        await async_log_order(db, 'placeorder', order_request_data, order_response_data)
+        await async_log_order('placeorder', order_request_data, order_response_data)
         # Send Telegram alert asynchronously
         await telegram_alert_service.send_order_alert(db, 'placeorder', order_data, order_response_data, order_data.get('apikey'))
         return True, order_response_data, 200
@@ -160,7 +160,7 @@ async def place_order_with_auth(
             'status': 'error',
             'message': message
         }
-        await async_log_order(db, 'placeorder', original_data, error_response)
+        await async_log_order('placeorder', original_data, error_response)
         return False, error_response, res.status if res.status != 200 else 500
 
 

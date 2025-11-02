@@ -12,7 +12,7 @@ from app.core.config import settings
 
 # from app.utils.security import verify_password # type: ignore
 from app.core.services import user_service  # type: ignore
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.auth_utils import (  # type: ignore
     handle_auth_failure,
     handle_auth_success,
@@ -35,7 +35,7 @@ broker_router = APIRouter(prefix="/auth/broker",  tags=["broker"])
 # Define getKotakOTP (moved to top for better organization and async)
 async def getKotakOTP(userid: str, access_token: str):
     logger.debug(f"Attempting to send OTP for Kotak user: {userid}")
-    async with get_httpx_client() as client:
+    async with await get_httpx_client() as client:
         payload = json.dumps({
             "userId": userid,
             "sendEmail": True,
@@ -147,7 +147,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             userid = str(form.get('userid'))
 
             # Use httpx_client within an async context
-            async with get_httpx_client() as client:
+            async with await get_httpx_client() as client:
 
                 payload = {
                     "userId": userid
@@ -159,7 +159,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                     url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getAPIEncpkey"
                     response = await client.post(url, json=payload, headers=headers)
                     response.raise_for_status()
-                    data_dict = response.json()
+                    data_dict = await response.json()
                     logger.debug(f'Aliceblue response data: {data_dict}')
 
                     if data_dict.get('stat') == 'Ok' and data_dict.get('encKey'):
@@ -280,15 +280,16 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
         auth_token, feed_token, user_id, error_message = await auth_function(code)
 
     elif broker=='dhan':
+        from app.web.brokers.dhan.api.funds import (
+                test_auth_token,  # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
+            )
+        
         code = 'dhan'
         logger.debug(f'Dhan broker - The code is {code}')
         auth_token, error_message = await auth_function(code)
 
         if auth_token:
-            from ...broker.dhan.api.funds import (
-                test_auth_token,  # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
-            )
-            is_valid, validation_error = await test_auth_token(auth_token)
+            is_valid, validation_error = test_auth_token(auth_token)
 
             if not is_valid:
                 logger.error(f"Dhan authentication validation failed: {validation_error}")
@@ -403,7 +404,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
             api_token = settings.BROKER_API_KEY
             api_secret = settings.BROKER_API_SECRET
 
-            from ...broker.definedge.api.auth_api import (
+            from app.web.brokers.definedge.api.auth_api import (
                 login_step1,  # Assuming this path will be valid in FastAPI context # type: ignore
             )
 
@@ -431,7 +432,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
                 api_token = settings.BROKER_API_KEY
                 api_secret = settings.BROKER_API_SECRET
 
-                from ...broker.definedge.api.auth_api import (
+                from app.web.brokers.definedge.api.auth_api import (
                     login_step1,  # type: ignore # type: ignore
                 )
 
@@ -457,7 +458,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
                 api_secret = settings.BROKER_API_SECRET
 
-                from ...broker.definedge.api.auth_api import (
+                from app.web.brokers.definedge.api.auth_api import (
                     authenticate_broker,  # type: ignore # type: ignore
                 )
 
@@ -524,7 +525,7 @@ async def broker_loginflow(broker: str, request: Request):
                 mobile_number = f'+91{mobile_number}'
 
             # Use httpx_client within an async context
-            async with get_httpx_client() as client:
+            async with await get_httpx_client() as client:
                 # First get the access token
                 api_secret = settings.BROKER_API_SECRET
                 auth_string = base64.b64encode(f"{settings.BROKER_API_KEY}:{api_secret}".encode()).decode('utf-8')
@@ -541,7 +542,7 @@ async def broker_loginflow(broker: str, request: Request):
                 try:
                     response = await client.post("https://napi.kotaksecurities.com/oauth2/token", content=payload, headers=headers)
                     response.raise_for_status()
-                    data = response.json()
+                    data = await response.json()
 
                     if 'access_token' in data:
                         access_token = data['access_token']
@@ -557,7 +558,7 @@ async def broker_loginflow(broker: str, request: Request):
                         }
                         response = await client.post("https://gw-napi.kotaksecurities.com/login/1.0/login/v2/validate", content=payload, headers=headers)
                         response.raise_for_status()
-                        data_dict = response.json()
+                        data_dict = await response.json()
 
                         if 'data' in data_dict:
                             token = data_dict['data']['token']

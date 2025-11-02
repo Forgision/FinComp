@@ -12,8 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.schemas.base import Base
-from app.core.schemas.session import db_session, engine
+from app.core.schemas import Base, engine, SessionLocal
 from app.utils.logging import logger
 
 class SymToken(Base):
@@ -50,50 +49,51 @@ def enhanced_search_symbols(query: str, exchange: Optional[str] = None) -> List[
     Returns:
         List[SymToken]: List of matching SymToken objects
     """
-    try:
-        # Split the query into terms and clean them
-        terms = [term.strip().upper() for term in query.split() if term.strip()]
+    with SessionLocal() as db_session:
+        try:
+            # Split the query into terms and clean them
+            terms = [term.strip().upper() for term in query.split() if term.strip()]
 
-        # Base query
-        stmt = select(SymToken)
+            # Base query
+            stmt = select(SymToken)
 
-        # If exchange is specified, filter by it
-        if exchange:
-            stmt = stmt.filter(SymToken.exchange == exchange)
+            # If exchange is specified, filter by it
+            if exchange:
+                stmt = stmt.filter(SymToken.exchange == exchange)
 
-        # Create conditions for each term
-        all_conditions = []
-        for term in terms:
-            # Number detection for more accurate strike price and token searches
-            try:
-                num_term = float(term)
-                term_conditions = or_(
-                    SymToken.symbol.ilike(f'%{term}%'),
-                    SymToken.brsymbol.ilike(f'%{term}%'),
-                    SymToken.name.ilike(f'%{term}%'),
-                    SymToken.token.ilike(f'%{term}%'),
-                    SymToken.strike == num_term
-                )
-            except ValueError:
-                term_conditions = or_(
-                    SymToken.symbol.ilike(f'%{term}%'),
-                    SymToken.brsymbol.ilike(f'%{term}%'),
-                    SymToken.name.ilike(f'%{term}%'),
-                    SymToken.token.ilike(f'%{term}%')
-                )
-            all_conditions.append(term_conditions)
+            # Create conditions for each term
+            all_conditions = []
+            for term in terms:
+                # Number detection for more accurate strike price and token searches
+                try:
+                    num_term = float(term)
+                    term_conditions = or_(
+                        SymToken.symbol.ilike(f'%{term}%'),
+                        SymToken.brsymbol.ilike(f'%{term}%'),
+                        SymToken.name.ilike(f'%{term}%'),
+                        SymToken.token.ilike(f'%{term}%'),
+                        SymToken.strike == num_term
+                    )
+                except ValueError:
+                    term_conditions = or_(
+                        SymToken.symbol.ilike(f'%{term}%'),
+                        SymToken.brsymbol.ilike(f'%{term}%'),
+                        SymToken.name.ilike(f'%{term}%'),
+                        SymToken.token.ilike(f'%{term}%')
+                    )
+                all_conditions.append(term_conditions)
 
-        # Combine all conditions with AND
-        if all_conditions:
-            stmt = stmt.filter(and_(*all_conditions))
+            # Combine all conditions with AND
+            if all_conditions:
+                stmt = stmt.filter(and_(*all_conditions))
 
-        # Execute query - no limit to show all matching results
-        results = db_session.execute(stmt).scalars().all()
-        return list(results)
+            # Execute query - no limit to show all matching results
+            results = db_session.execute(stmt).scalars().all()
+            return list(results)
 
-    except Exception as e:
-        logger.error(f"Error in enhanced search: {str(e)}")
-        return []
+        except Exception as e:
+            logger.error(f"Error in enhanced search: {str(e)}")
+            return []
 
 def init_db():
     """Initialize the database"""

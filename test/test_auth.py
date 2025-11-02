@@ -1,5 +1,5 @@
 import unittest
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from fastapi.testclient import TestClient
 
 from app.core.schemas.auth_db import delete_api_key_by_username, upsert_api_key

@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
-from app.core.schemas.base import Base
+from app.core.schemas import Base
 from app.core.schemas.session import db_session
 from app.utils.logging import logger
 

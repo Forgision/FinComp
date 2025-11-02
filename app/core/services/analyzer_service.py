@@ -19,7 +19,7 @@ from app.utils.logging import logger
 async def get_analyzer_status(db: Session, analyzer_data: dict, api_key: str):
     """Get analyzer mode status and statistics"""
     try:
-        is_enabled = get_analyze_mode(db)
+        is_enabled = get_analyze_mode()
         stats = get_analyzer_stats()
         response_data = {
             "status": "success",
@@ -35,9 +35,9 @@ async def get_analyzer_status(db: Session, analyzer_data: dict, api_key: str):
 async def toggle_analyzer_mode(db: Session, analyzer_data: dict, api_key: str):
     """Toggle analyzer mode on/off"""
     try:
-        current_mode = get_analyze_mode(db)
+        current_mode = get_analyze_mode()
         new_mode = not current_mode
-        set_analyze_mode(db, new_mode)
+        set_analyze_mode(new_mode)
         response_data = {
             "status": "success",
             "message": f"Analyzer mode turned {'ON' if new_mode else 'OFF'}",

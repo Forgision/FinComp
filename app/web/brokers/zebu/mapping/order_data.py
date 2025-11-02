@@ -1,4 +1,4 @@
-from app.core.models.token_db import get_oa_symbol, get_symbol
+from app.core.schemas.token_db import get_oa_symbol, get_symbol
 
 from app.utils.logging import logger
 

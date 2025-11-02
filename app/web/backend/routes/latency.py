@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.schemas.latency_db import OrderLatency
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 from app.utils.web.limiter import limiter

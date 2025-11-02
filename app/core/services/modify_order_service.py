@@ -9,7 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -40,7 +40,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'modifyorder')
+    await async_log_analyzer(analyzer_request, error_response, 'modifyorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -98,7 +98,7 @@ async def modify_order_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_modify_order
 
         # Get API key from original data
@@ -120,7 +120,7 @@ async def modify_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'modifyorder', original_data, error_response)
+        await async_log_order('modifyorder', original_data, error_response)
         return False, error_response, 404
 
     try:
@@ -134,7 +134,7 @@ async def modify_order_with_auth(
             'status': 'error',
             'message': 'Failed to modify order due to internal error'
         }
-        await async_log_order(db, 'modifyorder', original_data, error_response)
+        await async_log_order('modifyorder', original_data, error_response)
         return False, error_response, 500
 
     if status_code == 200:
@@ -147,7 +147,7 @@ async def modify_order_with_auth(
             'orderid': order_data['orderid'],
             'mode': 'live'
         })
-        await async_log_order(db, 'modifyorder', order_request_data, response_data)
+        await async_log_order('modifyorder', order_request_data, response_data)
         # Send Telegram alert for live mode
         await telegram_alert_service.send_order_alert(db, 'modifyorder', order_data, response_data, order_data.get('apikey'))
         return True, response_data, 200
@@ -158,7 +158,7 @@ async def modify_order_with_auth(
             'status': 'error',
             'message': message
         }
-        await async_log_order(db, 'modifyorder', original_data, error_response)
+        await async_log_order('modifyorder', original_data, error_response)
         return False, error_response, status_code
 
 

@@ -4,9 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base
-from .session import db_session as SessionLocal
-from .session import engine
+from . import engine, Base, SessionLocal as SessionLocal
 
 logger = logging.getLogger(__name__)
 

@@ -14,12 +14,12 @@ from datetime import datetime, time
 
 import pytz
 
+from app.core.schemas import SessionLocal
 from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
-    db_session,
     get_config,
-    init_db,
+    init_default_config as init_db,
 )
 from app.algo.sandbox.position_manager import PositionManager
 from app.utils.logging import logger
@@ -65,8 +65,9 @@ class SquareOffManager:
             self._cancel_open_mis_orders(current_time)
 
             # Step 2: Get all open MIS positions (quantity != 0)
-            mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
-                .filter(SandboxPositions.quantity != 0).all()
+            with SessionLocal() as db_session:
+                mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
+                    .filter(SandboxPositions.quantity != 0).all()
 
             if not mis_positions:
                 logger.debug("No MIS positions to square-off")
@@ -102,10 +103,11 @@ class SquareOffManager:
             from sandbox.order_manager import OrderManager
 
             # Get all open MIS orders
-            open_orders = db_session.query(SandboxOrders).filter_by(
-                product='MIS',
-                order_status='open'
-            ).all()
+            with SessionLocal() as db_session:
+                open_orders = db_session.query(SandboxOrders).filter_by(
+                    product='MIS',
+                    order_status='open'
+                ).all()
 
             if not open_orders:
                 return
@@ -176,8 +178,9 @@ class SquareOffManager:
     def force_square_off_all_mis(self):
         """Force square-off all MIS positions immediately"""
         try:
-            mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
-                .filter(SandboxPositions.quantity != 0).all()
+            with SessionLocal() as db_session:
+                mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
+                    .filter(SandboxPositions.quantity != 0).all()
 
             if not mis_positions:
                 logger.info("No MIS positions to force square-off")

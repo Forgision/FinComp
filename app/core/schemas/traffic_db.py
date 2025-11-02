@@ -17,6 +17,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, scoped_sessio
 from sqlalchemy.pool import NullPool
 from sqlalchemy.sql import func
 
+from app.core.schemas import ENSURE_TABLE_REGISTRY
 from app.core.config import settings
 from app.core.schemas.settings_db import get_security_settings
 from app.utils.logging import logger
@@ -39,8 +40,15 @@ else:
         pool_timeout=10
     )
 
-logs_session_factory = sessionmaker(autocommit=False, autoflush=False, bind=logs_engine)
-LogsSession = scoped_session(logs_session_factory)
+LogSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=logs_engine)
+LogsSession = scoped_session(LogSessionLocal)
+
+def get_logs_db():
+    db = LogsSession()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class LogBase(DeclarativeBase):
     pass
@@ -145,7 +153,7 @@ def ban_ip(db: Session, ip_address: str, reason: str, duration_hours: int = 24, 
             logger.warning(f"Attempted to ban localhost IP {ip_address} - ignoring")
             return False
 
-        security_settings = get_security_settings(db)
+        security_settings = get_security_settings()
         repeat_limit = security_settings['repeat_offender_limit']
 
         stmt = select(IPBan).filter_by(ip_address=ip_address)
@@ -206,7 +214,7 @@ def track_404(db: Session, ip_address: str, path: str) -> bool:
         if is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings(db)
+        security_settings = get_security_settings()
         threshold_404 = security_settings['404_threshold']
         ban_duration_404 = security_settings['404_ban_duration']
         now = datetime.utcnow()
@@ -261,7 +269,7 @@ def track_invalid_api_key(db: Session, ip_address: str, api_key_hash: Optional[s
         if is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings(db)
+        security_settings = get_security_settings()
         threshold_api = security_settings['api_threshold']
         ban_duration_api = security_settings['api_ban_duration']
         now = datetime.utcnow()
@@ -319,3 +327,6 @@ def init_logs_db():
         os.makedirs(db_dir, exist_ok=True)
     logger.info(f"Initializing Traffic Logs DB at: {LOGS_DATABASE_URL}")
     LogBase.metadata.create_all(bind=logs_engine)
+    
+
+ENSURE_TABLE_REGISTRY['logs_db'] = init_logs_db

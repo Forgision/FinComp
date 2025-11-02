@@ -19,7 +19,7 @@ from app.core.schemas.auth_db import (
     upsert_api_key,
     upsert_auth,
 )
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.settings_db import get_smtp_settings, set_smtp_settings
 from app.core.schemas.user_db import add_user, find_user_by_email
 from app.utils.auth_utils import mask_api_credential
@@ -88,7 +88,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
             logger.error(f"Error clearing symbol cache on logout: {cache_error}")
 
         # Revoke auth token in the database
-        inserted_id = upsert_auth(db, username, "", "", revoke=True)
+        inserted_id = upsert_auth(username, "", "", revoke=True)
         if inserted_id:
             logger.info(f"Auth revoked in the database for user: {username}")
         else:
@@ -448,8 +448,7 @@ async def configure_smtp(
             smtp_password=smtp_config.smtp_password,
             smtp_use_tls=smtp_config.smtp_use_tls,
             smtp_from_email=str(smtp_config.smtp_from_email) if smtp_config.smtp_from_email else None,
-            smtp_helo_hostname=smtp_config.smtp_helo_hostname,
-            db=db
+            smtp_helo_hostname=smtp_config.smtp_helo_hostname
         )
         logger.info(f"SMTP settings updated by user: {request.session['user']}")
         return {"message": "SMTP settings updated successfully."}

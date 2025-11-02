@@ -78,7 +78,7 @@ async def get_open_position_with_auth(
         request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for real position data
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_get_positions
 
         api_key = original_data.get('apikey')

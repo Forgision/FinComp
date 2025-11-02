@@ -9,7 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -40,7 +40,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'cancelallorder')
+    await async_log_analyzer(analyzer_request, error_response, 'cancelallorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -98,7 +98,7 @@ async def cancel_all_orders_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_cancel_all_orders
 
         api_key = original_data.get('apikey')
@@ -118,7 +118,7 @@ async def cancel_all_orders_with_auth(
         analyzer_request['api_type'] = 'cancelallorder'
 
         # Log to analyzer database with complete request and response
-        await async_log_analyzer(db, analyzer_request, response_data, 'cancelallorder')
+        await async_log_analyzer(analyzer_request, response_data, 'cancelallorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {
@@ -136,7 +136,7 @@ async def cancel_all_orders_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'cancelallorder', original_data, error_response)
+        await async_log_order('cancelallorder', original_data, error_response)
         return False, error_response, 404
 
     try:
@@ -150,7 +150,7 @@ async def cancel_all_orders_with_auth(
             'status': 'error',
             'message': 'Failed to cancel all orders due to internal error'
         }
-        await async_log_order(db, 'cancelallorder', original_data, error_response)
+        await async_log_order('cancelallorder', original_data, error_response)
         return False, error_response, 500
 
     # Emit events for each canceled order
@@ -170,7 +170,7 @@ async def cancel_all_orders_with_auth(
     }
 
     # Log the action asynchronously
-    await async_log_order(db, 'cancelallorder', order_request_data, response_data)
+    await async_log_order('cancelallorder', order_request_data, response_data)
 
     # Send Telegram alert for live mode
     await telegram_alert_service.send_order_alert(db, 'cancelallorder', order_data or {}, response_data, (order_data or {}).get('apikey'))

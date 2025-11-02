@@ -2,7 +2,7 @@ import json
 import struct
 import threading
 import time
-from app.web.websocket import websocket
+import websocket
 
 import requests
 from app.web.brokers.pocketful.api.packet_decoder import (

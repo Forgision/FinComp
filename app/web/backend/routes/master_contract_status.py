@@ -9,7 +9,7 @@ from app.core.schemas.master_contract_cache_hook import (
     load_symbols_to_cache,
 )
 from app.core.schemas.master_contract_status_db import check_if_ready, get_status
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.token_db_enhanced import clear_cache, get_cache_stats
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi

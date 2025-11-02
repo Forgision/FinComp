@@ -12,6 +12,7 @@ This document outlines the technologies, development setup, and technical constr
     *   PostgreSQL or MySQL for production environments.
 *   **Database Migrations:** Alembic for managing and versioning the database schema.
 *   **Data Validation:** Pydantic for data validation and settings management.
+*   **Database Usage:** See [Database Usage Guidelines](database_usage.md) for `SessionLocal` patterns.
 
 ## Security & Authentication
 *   **Password Hashing:** Argon2 (specifically Argon2id) with a pepper for securely hashing user passwords and API keys.
@@ -59,6 +60,10 @@ This document outlines the technologies, development setup, and technical constr
 ## Dependencies
 *   **Python:** Backend dependencies are managed with `uv` and are listed in the `pyproject.toml` file.
 *   **JavaScript:** Frontend dependencies are managed with `npm` and are listed in the `package.json` file.
+
+## Python Environment Management
+*   **Package Installation:** All Python packages must be installed using the `uv add` command. Native `pip` commands must not be used. This ensures consistency and leverages `uv`'s performance benefits.
+*   **Application Execution:** All Python scripts and applications should be run using the `uv run` command.
 
 ## Python Environment Management
 *   **Package Installation:** All Python packages must be installed using the `uv add` command. Native `pip` commands must not be used. This ensures consistency and leverages `uv`'s performance benefits.

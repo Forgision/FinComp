@@ -1,4 +1,4 @@
-from app.core.schemas.traffic_db import logs_session
+from app.core.schemas.traffic_db import LogSessionLocal
 
 
 class TrafficLoggerMiddleware:
@@ -23,7 +23,8 @@ class TrafficLoggerMiddleware:
         finally:
             # The original code removed the session in the finally block of log_request.
             # We should preserve this behavior.
-            logs_session.remove()
+            with LogSessionLocal() as logs_session:
+                logs_session.remove()
 
 def init_traffic_logging(app):
     """Initialize traffic logging middleware"""

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.settings_db import get_security_settings, set_security_settings
 from app.core.schemas.traffic_db import (
     Error404Tracker,
@@ -365,7 +365,6 @@ async def update_security_settings(
 
     try:
         set_security_settings(
-            db,
             threshold_404=threshold_404,
             ban_duration_404=ban_duration_404,
             threshold_api=threshold_api,

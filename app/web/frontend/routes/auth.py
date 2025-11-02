@@ -16,7 +16,7 @@ from app.core.schemas.user_db import (
     find_user_by_email,
     find_admin_user,
 )
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.email_debug import debug_smtp_connection
 from app.utils.email_utils import send_password_reset_email, send_test_email
 from app.utils.logging import logger
@@ -213,9 +213,9 @@ async def change_password_post(request: Request, db = Depends(get_db), user: dic
 async def configure_smtp(request: Request, db = Depends(get_db), user: dict = Depends(check_session_validity_fastapi), smtp_server: str = Form(...), smtp_port: int = Form(...), smtp_username: str = Form(...), smtp_password: str = Form(None), smtp_use_tls: bool = Form(...), smtp_from_email: str = Form(...), smtp_helo_hostname: str = Form(None)):
     try:
         if smtp_password and smtp_password.strip():
-            set_smtp_settings(db, smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_password=smtp_password, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
+            set_smtp_settings(smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_password=smtp_password, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
         else:
-            set_smtp_settings(db, smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
+            set_smtp_settings(smtp_server=smtp_server, smtp_port=smtp_port, smtp_username=smtp_username, smtp_use_tls=smtp_use_tls, smtp_from_email=smtp_from_email, smtp_helo_hostname=smtp_helo_hostname)
         logger.info(f"SMTP settings updated by user: {user}")
     except Exception as e:
         logger.error(f"Error updating SMTP settings: {str(e)}")
@@ -265,7 +265,7 @@ async def logout(request: Request, db = Depends(get_db)):
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:
             logger.error(f"Error clearing symbol cache on logout: {cache_error}")
-        inserted_id = upsert_auth(db, username, "", "", revoke=True)
+        inserted_id = upsert_auth(username, "", "", revoke=True)
         if inserted_id is not None:
             logger.info(f"Database Upserted record with ID: {inserted_id}")
             logger.info(f'Auth Revoked in the Database for user: {username}')

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.schemas.auth_db import get_api_key_for_tradingview
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.strategy_db import (
     add_symbol_mapping,
     bulk_add_symbol_mappings,
@@ -211,7 +211,7 @@ def validate_strategy_name(name: str):
 
 def schedule_squareoff(strategy_id: int, db: Session):
     """Schedule squareoff for intraday strategy"""
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy or not strategy.is_intraday or not strategy.squareoff_time:
         return
 
@@ -240,7 +240,7 @@ def schedule_squareoff(strategy_id: int, db: Session):
 def squareoff_positions(strategy_id: int, db: Session):
     """Square off all positions for intraday strategy"""
     try:
-        strategy = get_strategy(db, strategy_id)
+        strategy = get_strategy( strategy_id)
         if not strategy or not strategy.is_intraday:
             return
 
@@ -281,7 +281,7 @@ async def index(request: Request, user_id: str = Depends(check_session_validity_
     """List all strategies"""
     try:
         logger.info(f"Fetching strategies for user: {user_id}")
-        strategies = get_user_strategies(db, user_id)
+        strategies = get_user_strategies(user_id)
         return templates.TemplateResponse(
             "strategy/index.html", {"request": request, "strategies": strategies, "user_id": user_id}
         )
@@ -359,7 +359,6 @@ async def new_strategy_post(
 
         # Create strategy with user ID
         strategy = create_strategy(
-            db=db,
             name=full_name,
             webhook_id=webhook_id,
             user_id=user_id,
@@ -396,7 +395,7 @@ async def new_strategy_post(
 @strategy_router.get("/{strategy_id}", response_class=HTMLResponse)
 async def view_strategy(request: Request, strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
     """View strategy details"""
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -420,7 +419,7 @@ async def view_strategy(request: Request, strategy_id: int, user_id: str = Depen
 async def toggle_strategy_route(strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
     """Toggle strategy active status"""
     try:
-        strategy = toggle_strategy(db, strategy_id)
+        strategy = toggle_strategy(strategy_id)
         if strategy:
             if strategy.is_active:
                 # Schedule squareoff if being activated
@@ -458,7 +457,7 @@ async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_s
             detail="Session expired"
         )
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -479,7 +478,7 @@ async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_s
         except Exception:
             pass
 
-        if delete_strategy(db, strategy_id):
+        if delete_strategy(strategy_id):
             return JSONResponse(content={'status': 'success'})
         else:
             raise HTTPException(
@@ -498,7 +497,7 @@ async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_s
 @strategy_router.get("/{strategy_id}/configure", response_class=HTMLResponse)
 async def configure_symbols_get(request: Request, strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
     """Display form to configure symbols for strategy"""
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Strategy not found")
 
@@ -526,7 +525,7 @@ async def configure_symbols_post(request: Request, strategy_id: int, user_id: st
             detail="Session expired. Please login again."
         )
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Strategy not found")
 
@@ -605,7 +604,6 @@ async def configure_symbols_post(request: Request, strategy_id: int, user_id: st
                 raise ValueError('Quantity must be greater than 0')
 
             mapping = add_symbol_mapping(
-                db=db,
                 strategy_id=strategy_id,
                 symbol=symbol,
                 exchange=exchange,
@@ -634,7 +632,7 @@ async def delete_symbol(strategy_id: int, mapping_id: int, user_id: str = Depend
             detail="Session expired"
         )
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = get_strategy( strategy_id)
     if not strategy or strategy.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -674,7 +672,7 @@ async def search_symbols(request: Request, q: str = "", exchange: str = None, us
 async def webhook(webhook_id: str, request: Request, db: Session = Depends(get_db)):
     """Handle webhook from trading platform"""
     try:
-        strategy = get_strategy_by_webhook_id(db, webhook_id)
+        strategy = get_strategy_by_webhook_id(webhook_id)
         if not strategy:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Invalid webhook ID')
 

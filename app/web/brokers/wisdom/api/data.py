@@ -9,7 +9,7 @@ from app.broker.fivepaisaxts.database.master_contract_db import SymToken
 from app.broker.wisdom.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):

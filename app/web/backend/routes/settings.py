@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.settings_db import get_analyze_mode, set_analyze_mode
 from app.algo.sandbox.execution_thread import start_execution_engine, stop_execution_engine
 from app.utils.logging import logger
@@ -20,7 +20,7 @@ async def get_mode(
 ):
     """Get current analyze mode setting"""
     try:
-        analyze_mode = get_analyze_mode(db) # Assuming get_analyze_mode needs db session
+        analyze_mode = get_analyze_mode() # Assuming get_analyze_mode needs db session
         return JSONResponse(content={'analyze_mode': analyze_mode})
     except Exception as e:
         logger.error(f"Error getting analyze mode: {str(e)}")
@@ -38,7 +38,7 @@ async def set_mode(
     """Set analyze mode setting and manage execution engine thread"""
     try:
         is_analyze_mode = bool(mode)
-        set_analyze_mode(db, is_analyze_mode) # Assuming set_analyze_mode needs db session
+        set_analyze_mode(is_analyze_mode) # Assuming set_analyze_mode needs db session
         mode_name = 'Analyze' if is_analyze_mode else 'Live'
 
         # Start or stop execution engine based on mode

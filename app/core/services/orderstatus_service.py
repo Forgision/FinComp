@@ -8,7 +8,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.tradebook_service import get_tradebook
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -39,7 +39,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'orderstatus')
+    await async_log_analyzer( analyzer_request, error_response, 'orderstatus')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -77,7 +77,7 @@ async def get_order_status_with_auth(
         request_data.pop('apikey', None)
 
     # Log the mode and order details
-    is_analyze_mode = get_analyze_mode(db)
+    is_analyze_mode = get_analyze_mode()
     orderid = status_data.get('orderid')
     logger.info(
         f"[OrderStatus] Processing order status request - Mode: {'ANALYZE' if is_analyze_mode is True else 'LIVE'}, OrderID: {orderid}, Broker: {broker}")
@@ -127,14 +127,14 @@ async def get_order_status_with_auth(
         if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
-            await async_log_analyzer(db, request_data, error_response, 'orderstatus')
+            await async_log_analyzer(request_data, error_response, 'orderstatus')
             # Emit socket event
             await sio.emit('analyzer_update', {
                 'request': request_data,
                 'response': error_response
             })
         else:
-            await async_log_order(db, 'orderstatus', original_data, error_response)
+            await async_log_order('orderstatus', original_data, error_response)
         return False, error_response, status_code
 
     # Find the specific order in the orderbook
@@ -174,14 +174,14 @@ async def get_order_status_with_auth(
         if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
-            await async_log_analyzer(db, request_data, error_response, 'orderstatus')
+            await async_log_analyzer(request_data, error_response, 'orderstatus')
             # Emit socket event
             await sio.emit('analyzer_update', {
                 'request': request_data,
                 'response': error_response
             })
         else:
-            await async_log_order(db, 'orderstatus', original_data, error_response)
+            await async_log_order('orderstatus', original_data, error_response)
         return False, error_response, 404
 
     # Fetch average_price from tradebook if order is executed
@@ -265,7 +265,7 @@ async def get_order_status_with_auth(
         analyzer_request['api_type'] = 'orderstatus'
 
         # Log to analyzer database
-        await async_log_analyzer(db, analyzer_request, response_data, 'orderstatus')
+        await async_log_analyzer(analyzer_request, response_data, 'orderstatus')
         logger.debug("[OrderStatus] Logged to analyzer database")
 
         # Emit socket event for toast notification
@@ -277,7 +277,7 @@ async def get_order_status_with_auth(
     else:
         logger.info(
             f"[OrderStatus] LIVE mode - Preparing response for OrderID {orderid} with status: {order_found.get('order_status')}")
-        await async_log_order(db, 'orderstatus', request_data, response_data)
+        await async_log_order('orderstatus', request_data, response_data)
         logger.debug("[OrderStatus] Logged to order database")
 
     logger.info(

@@ -9,7 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.constants import (
     REQUIRED_ORDER_FIELDS,
@@ -49,7 +49,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'basketorder')
+    await async_log_analyzer(analyzer_request, error_response, 'basketorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -211,7 +211,7 @@ async def process_basket_order_with_auth(
     api_key = basket_data.get('apikey')
 
     # If in analyze mode, route each order to sandbox
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         analyze_results = []
@@ -279,7 +279,7 @@ async def process_basket_order_with_auth(
         analyzer_request['api_type'] = 'basketorder'
 
         # Log to analyzer database
-        await async_log_analyzer(db, analyzer_request, response_data, 'basketorder')
+        await async_log_analyzer(analyzer_request, response_data, 'basketorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {
@@ -298,7 +298,7 @@ async def process_basket_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'basketorder', original_data, error_response)
+        await async_log_order('basketorder', original_data, error_response)
         return False, error_response, 404
 
     # Sort orders to prioritize BUY orders before SELL orders
@@ -327,7 +327,7 @@ async def process_basket_order_with_auth(
         'status': 'success',
         'results': results
     }
-    await async_log_order(db, 'basketorder', basket_request_data, response_data)
+    await async_log_order('basketorder', basket_request_data, response_data)
 
     # Send Telegram alert for live basket order
     await telegram_alert_service.send_order_alert(db, 'basketorder', basket_data, response_data, basket_data.get('apikey'))

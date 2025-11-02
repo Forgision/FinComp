@@ -93,7 +93,7 @@ async def get_orderbook_with_auth(db, auth_token: str, broker: str, original_dat
     """
     # If in analyze mode AND we have original_data (API call), route to sandbox
     # If original_data is None (internal call), use live broker
-    if get_analyze_mode(db) and original_data:
+    if get_analyze_mode() and original_data:
         api_key = original_data.get('apikey')
         if not api_key:
             return False, {

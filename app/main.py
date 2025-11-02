@@ -58,9 +58,9 @@ class CsrfSettings(BaseModel):
     # cookie_key: str = 'csrf_token'
     token_key: str = 'csrf_token'
 
-@CsrfProtect.load_config
-def get_csrf_config():
-    return CsrfSettings()
+# @CsrfProtect.load_config
+# def get_csrf_config():
+#     return CsrfSettings()
 
 
 def setup_environment():
@@ -110,6 +110,7 @@ templates.env.globals['url_for'] = _app.url_path_for
 # Apply Session Middleware
 _app.add_middleware(CorrelationIdMiddleware)
 _app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
+_app.add_middleware()
 
 # Register routers
 _app.include_router(auth_router)
@@ -177,3 +178,4 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 app = socketio.ASGIApp(sio, _app)
+app.wsgi_app = TrafficLoggerMiddleware(app.wsgi_app)

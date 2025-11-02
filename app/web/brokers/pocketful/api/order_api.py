@@ -2,7 +2,7 @@
 import json
 
 from app.core.schemas.auth_db import Auth
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.token_db import get_br_symbol, get_oa_symbol
 from app.web.brokers.pocketful.mapping.transform_data import (
     map_product_type,

@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent   # config/mnt/vault/@work-sta
 class Settings(BaseSettings):
     # Project Configuration
     BASE_DIR: Path = BASE_DIR
-
+    TIMEZONE: str = "Asia/Kolkata"
     SESSION_EXPIRY_TIME: str = "03:00"
 
     # Broker Configuration

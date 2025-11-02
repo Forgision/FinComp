@@ -32,7 +32,7 @@ from app.utils.web.socketio import sio
 
 def is_sandbox_mode(db: Session) -> bool:
     """Check if sandbox/analyzer mode is enabled"""
-    return get_analyze_mode(db) is True
+    return get_analyze_mode() is True
 
 
 def get_user_id_from_apikey(db: Session, api_key: str) -> Optional[str]:
@@ -102,7 +102,7 @@ async def sandbox_place_order(
         log_request['api_type'] = 'placeorder'
 
         # Log to analyzer database
-        await async_log_analyzer(db, log_request, response, 'placeorder')
+        await async_log_analyzer(log_request, response, 'placeorder')
 
         # Emit socket event
         await sio.emit('analyzer_update', {
@@ -160,7 +160,7 @@ async def sandbox_modify_order(
             log_request.pop('apikey', None)
         log_request['api_type'] = 'modifyorder'
 
-        await async_log_analyzer(db, log_request, response, 'modifyorder')
+        await async_log_analyzer(log_request, response, 'modifyorder')
         await sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code
@@ -201,7 +201,7 @@ async def sandbox_cancel_order(
             log_request.pop('apikey', None)
         log_request['api_type'] = 'cancelorder'
 
-        await async_log_analyzer(db, log_request, response, 'cancelorder')
+        await async_log_analyzer(log_request, response, 'cancelorder')
         await sio.emit('analyzer_update', {'request': log_request, 'response': response})
 
         return success, response, status_code

@@ -5,12 +5,12 @@ from datetime import datetime
 
 import pytz
 from sqlalchemy import DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.schemas.base import Base
-from app.core.schemas.session import engine
+from app.core.schemas import Base, SessionLocal
 from app.utils.logging import logger
+from app.core.config import settings
 
 
 class AnalyzerLog(Base):
@@ -43,35 +43,28 @@ class AnalyzerLog(Base):
         }
 
 
-def init_db():
-    """Initialize the analyzer table"""
-    logger.info("Initializing Analyzer Table")
-    Base.metadata.create_all(bind=engine)
-
-# Executor for asynchronous tasks
-
-
-async def async_log_analyzer(db: Session, request_data, response_data, api_type='placeorder'):
+async def async_log_analyzer(request_data, response_data, api_type='placeorder'):
     """Asynchronously log analyzer request"""
-    try:
-        # Serialize JSON data for storage
-        request_json = json.dumps(request_data)
-        response_json = json.dumps(response_data)
+    with SessionLocal() as db:
+        try:
+            # Serialize JSON data for storage
+            request_json = json.dumps(request_data)
+            response_json = json.dumps(response_data)
 
-        # Get current time in IST
-        ist = pytz.timezone('Asia/Kolkata')
-        now_ist = datetime.now(ist)
+            # Get current time in IST
+            ist = pytz.timezone(settings.TIMEZONE)
+            now_ist = datetime.now(ist)
 
-        analyzer_log = AnalyzerLog(
-            api_type=api_type,
-            request_data=request_json,
-            response_data=response_json,
-            created_at=now_ist
-        )
-        db.add(analyzer_log)
-        db.commit()
-    except Exception as e:
-        logger.error(f"Error saving analyzer log: {e}")
-        db.rollback()
-    finally:
-        db.close()
+            analyzer_log = AnalyzerLog(
+                api_type=api_type,
+                request_data=request_json,
+                response_data=response_json,
+                created_at=now_ist
+            )
+            db.add(analyzer_log)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Error saving analyzer log: {e}")
+            db.rollback()
+        finally:
+            db.close()

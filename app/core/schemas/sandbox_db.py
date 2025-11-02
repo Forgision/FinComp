@@ -19,8 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.schemas.base import Base
-from app.core.schemas.session import db_session, engine
+from app.core.schemas import Base, SessionLocal
 from app.utils.logging import logger
 
 
@@ -186,16 +185,6 @@ class SandboxConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
 
-def init_db():
-    """Initialize sandbox database and tables"""
-    logger.info("Initializing Sandbox DB")
-    Base.metadata.create_all(bind=engine)
-    logger.info("Sandbox DB initialized successfully")
-
-    # Initialize default configuration
-    init_default_config()
-
-
 def init_default_config():
     """Initialize default sandbox configuration"""
     from sqlalchemy.exc import IntegrityError
@@ -292,67 +281,70 @@ def init_default_config():
             'description': 'Delay between multi-leg smart orders - Range: 0.1-10 seconds (for future use)'
         }
     ]
-
-    for config in default_configs:
-        try:
-            existing = db_session.execute(select(SandboxConfig).filter_by(config_key=config['config_key'])).scalar_one_or_none()
-            if not existing:
-                config_obj = SandboxConfig(**config)
-                db_session.add(config_obj)
-                db_session.commit()
-                logger.info(f"Added default config: {config['config_key']}")
-        except IntegrityError:
-            db_session.rollback()
-            logger.debug(f"Config already exists: {config['config_key']}")
-        except Exception as e:
-            db_session.rollback()
-            logger.error(f"Error adding config {config['config_key']}: {e}")
+    with SessionLocal() as db_session:
+        for config in default_configs:
+            try:
+                existing = db_session.execute(select(SandboxConfig).filter_by(config_key=config['config_key'])).scalar_one_or_none()
+                if not existing:
+                    config_obj = SandboxConfig(**config)
+                    db_session.add(config_obj)
+                    db_session.commit()
+                    logger.info(f"Added default config: {config['config_key']}")
+            except IntegrityError:
+                db_session.rollback()
+                logger.debug(f"Config already exists: {config['config_key']}")
+            except Exception as e:
+                db_session.rollback()
+                logger.error(f"Error adding config {config['config_key']}: {e}")
 
 
 def get_config(config_key, default=None):
     """Get configuration value by key"""
-    try:
-        config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
-        if config:
-            return config.config_value
-        return default
-    except Exception as e:
-        logger.error(f"Error fetching config {config_key}: {e}")
-        return default
+    with SessionLocal() as db_session:
+        try:
+            config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
+            if config:
+                return config.config_value
+            return default
+        except Exception as e:
+            logger.error(f"Error fetching config {config_key}: {e}")
+            return default
 
 
 def set_config(config_key, config_value, description=None):
     """Set configuration value"""
-    try:
-        config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
-        if config:
-            config.config_value = str(config_value)
-            if description:
-                config.description = description
-        else:
-            config = SandboxConfig(
-                config_key=config_key,
-                config_value=str(config_value),
-                description=description
-            )
-            db_session.add(config)
-        db_session.commit()
-        logger.info(f"Updated config: {config_key} = {config_value}")
-        return True
-    except Exception as e:
-        db_session.rollback()
-        logger.error(f"Error setting config {config_key}: {e}")
-        return False
+    with SessionLocal() as db_session:
+        try:
+            config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
+            if config:
+                config.config_value = str(config_value)
+                if description:
+                    config.description = description
+            else:
+                config = SandboxConfig(
+                    config_key=config_key,
+                    config_value=str(config_value),
+                    description=description
+                )
+                db_session.add(config)
+            db_session.commit()
+            logger.info(f"Updated config: {config_key} = {config_value}")
+            return True
+        except Exception as e:
+            db_session.rollback()
+            logger.error(f"Error setting config {config_key}: {e}")
+            return False
 
 
 def get_all_configs():
     """Get all configuration values"""
-    try:
-        configs = db_session.execute(select(SandboxConfig)).scalars().all()
-        return {config.config_key: {
-            'value': config.config_value,
-            'description': config.description
-        } for config in configs}
-    except Exception as e:
-        logger.error(f"Error fetching all configs: {e}")
-        return {}
+    with SessionLocal() as db_session:
+        try:
+            configs = db_session.execute(select(SandboxConfig)).scalars().all()
+            return {config.config_key: {
+                'value': config.config_value,
+                'description': config.description
+            } for config in configs}
+        except Exception as e:
+            logger.error(f"Error fetching all configs: {e}")
+            return {}

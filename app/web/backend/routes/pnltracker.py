@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.services.history_service import get_history
 from app.core.services.tradebook_service import get_tradebook
 from app.core.schemas.auth_db import get_api_key_for_tradingview, get_auth_token
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 
 # Define the FastAPI router
@@ -97,7 +97,7 @@ async def get_pnl_data(
 
         # Get auth token from session - same as orders.py
         login_username = request.session['user']
-        auth_token = get_auth_token(db, login_username)
+        auth_token = get_auth_token(login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")

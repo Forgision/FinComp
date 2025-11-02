@@ -3,7 +3,7 @@ import json
 import time
 
 import pandas as pd
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.token_db import get_br_symbol
 from app.web.brokers.pocketful.api.pocketfulwebsocket import PocketfulSocket
 from app.web.brokers.pocketful.database.master_contract_db import SymToken

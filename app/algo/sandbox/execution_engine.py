@@ -20,15 +20,12 @@ from decimal import Decimal
 
 import pytz
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from app.core.services.quotes_service import get_quotes
+from app.core.schemas import SessionLocal
 from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
     SandboxTrades,
-    db_session,
     get_config,
 )
 from app.algo.sandbox.fund_manager import FundManager
@@ -51,11 +48,12 @@ class ExecutionEngine:
         """
         try:
             # Get all pending orders
-            pending_orders = db_session.query(SandboxOrders).filter_by(order_status='open').all()
+            with SessionLocal() as db_session:
+                pending_orders = db_session.query(SandboxOrders).filter_by(order_status='open').all()
 
-            if not pending_orders:
-                logger.debug("No pending orders to process")
-                return
+                if not pending_orders:
+                    logger.debug("No pending orders to process")
+                    return
 
             logger.info(f"Processing {len(pending_orders)} pending orders")
 
@@ -75,7 +73,7 @@ class ExecutionEngine:
                 batch = symbols_list[i:i + self.api_rate_limit]
 
                 for symbol, exchange in batch:
-                    quote_cache[(symbol, exchange)] = self._fetch_quote(symbol, exchange)
+                    quote_cache[(symbol, exchange)] = self._fetch_quote( symbol, exchange)
 
                 # Wait 1 second before next batch if more symbols remain
                 if i + self.api_rate_limit < len(symbols_list):
@@ -106,160 +104,163 @@ class ExecutionEngine:
         Fetch real-time quote for a symbol using API key
         Returns dict with ltp, high, low, open, close, etc.
         """
-        try:
-            # Get any user's API key for fetching quotes
-            from app.core.schemas.auth_db import ApiKeys, decrypt_token
-            api_key_obj = db_session.query(ApiKeys).first()
+        with SessionLocal() as db_session:
+            try:
+                # Get any user's API key for fetching quotes
+                from app.core.schemas.auth_db import ApiKeys, decrypt_token
+                api_key_obj = db_session.query(ApiKeys).first()
 
-            if not api_key_obj:
-                logger.warning("No API keys found for fetching quotes")
+                if not api_key_obj:
+                    logger.warning("No API keys found for fetching quotes")
+                    return None
+
+                # Decrypt the API key
+                api_key = decrypt_token(api_key_obj.api_key_encrypted)
+
+                # Use quotes service with API key authentication
+                success, response, status_code = get_quotes(
+                    symbol=symbol,
+                    exchange=exchange,
+                    api_key=api_key
+                )
+
+                if success and 'data' in response:
+                    quote_data = response['data']
+                    logger.debug(f"Fetched quote for {symbol}: LTP={quote_data.get('ltp', 0)}")
+                    return quote_data
+                else:
+                    logger.warning(f"Failed to fetch quote for {symbol}: {response.get('message', 'Unknown error')}")
+                    return None
+
+            except Exception as e:
+                logger.error(f"Error fetching quote for {symbol} on {exchange}: {e}")
                 return None
-
-            # Decrypt the API key
-            api_key = decrypt_token(api_key_obj.api_key_encrypted)
-
-            # Use quotes service with API key authentication
-            success, response, status_code = get_quotes(
-                symbol=symbol,
-                exchange=exchange,
-                api_key=api_key
-            )
-
-            if success and 'data' in response:
-                quote_data = response['data']
-                logger.debug(f"Fetched quote for {symbol}: LTP={quote_data.get('ltp', 0)}")
-                return quote_data
-            else:
-                logger.warning(f"Failed to fetch quote for {symbol}: {response.get('message', 'Unknown error')}")
-                return None
-
-        except Exception as e:
-            logger.error(f"Error fetching quote for {symbol} on {exchange}: {e}")
-            return None
 
     def _process_order(self, order, quote):
         """
         Process a single order based on current quote
         Determines if order should be executed based on price type
         """
-        try:
-            ltp = Decimal(str(quote.get('ltp', 0)))
-            bid = Decimal(str(quote.get('bid', 0)))
-            ask = Decimal(str(quote.get('ask', 0)))
+        with SessionLocal() as db_session:
+            try:
+                ltp = Decimal(str(quote.get('ltp', 0)))
+                bid = Decimal(str(quote.get('bid', 0)))
+                ask = Decimal(str(quote.get('ask', 0)))
 
-            if ltp <= 0:
-                logger.warning(f"Invalid LTP for order {order.orderid}: {ltp}")
-                return
+                if ltp <= 0:
+                    logger.warning(f"Invalid LTP for order {order.orderid}: {ltp}")
+                    return
 
-            # Determine if order should be executed based on price type
-            should_execute = False
-            execution_price = None
+                # Determine if order should be executed based on price type
+                should_execute = False
+                execution_price = None
 
-            if order.price_type == 'MARKET':
-                # Market orders execute immediately at bid/ask (more realistic)
-                # BUY: Execute at ask price (pay seller's asking price)
-                # SELL: Execute at bid price (receive buyer's bid price)
-                # If bid/ask is 0, fall back to LTP
-                should_execute = True
-                if order.action == 'BUY':
-                    execution_price = ask if ask > 0 else ltp
-                else:  # SELL
-                    execution_price = bid if bid > 0 else ltp
-
-            elif order.price_type == 'LIMIT':
-                # Limit BUY: Execute if LTP <= Limit Price (you get filled at LTP or better)
-                # Limit SELL: Execute if LTP >= Limit Price (you get filled at LTP or better)
-                if order.action == 'BUY' and ltp <= order.price:
+                if order.price_type == 'MARKET':
+                    # Market orders execute immediately at bid/ask (more realistic)
+                    # BUY: Execute at ask price (pay seller's asking price)
+                    # SELL: Execute at bid price (receive buyer's bid price)
+                    # If bid/ask is 0, fall back to LTP
                     should_execute = True
-                    execution_price = ltp  # Execute at current market price (LTP), which is better than limit
-                elif order.action == 'SELL' and ltp >= order.price:
-                    should_execute = True
-                    execution_price = ltp  # Execute at current market price (LTP), which is better than limit
+                    if order.action == 'BUY':
+                        execution_price = ask if ask > 0 else ltp
+                    else:  # SELL
+                        execution_price = bid if bid > 0 else ltp
 
-            elif order.price_type == 'SL':
-                # Stop Loss Limit order
-                # SL BUY: When LTP >= trigger price, order activates. Execute at LTP if LTP <= limit price
-                # SL SELL: When LTP <= trigger price, order activates. Execute at LTP if LTP >= limit price
-                if order.action == 'BUY' and ltp >= order.trigger_price:
-                    if ltp <= order.price:
+                elif order.price_type == 'LIMIT':
+                    # Limit BUY: Execute if LTP <= Limit Price (you get filled at LTP or better)
+                    # Limit SELL: Execute if LTP >= Limit Price (you get filled at LTP or better)
+                    if order.action == 'BUY' and ltp <= order.price:
                         should_execute = True
-                        execution_price = ltp  # Execute at current market price (LTP)
-                elif order.action == 'SELL' and ltp <= order.trigger_price:
-                    if ltp >= order.price:
+                        execution_price = ltp  # Execute at current market price (LTP), which is better than limit
+                    elif order.action == 'SELL' and ltp >= order.price:
                         should_execute = True
-                        execution_price = ltp  # Execute at current market price (LTP)
+                        execution_price = ltp  # Execute at current market price (LTP), which is better than limit
 
-            elif order.price_type == 'SL-M':
-                # Stop Loss Market order
-                # BUY: Execute at market when LTP >= trigger price
-                # SELL: Execute at market when LTP <= trigger price
-                if order.action == 'BUY' and ltp >= order.trigger_price:
-                    should_execute = True
-                    execution_price = ltp
-                elif order.action == 'SELL' and ltp <= order.trigger_price:
-                    should_execute = True
-                    execution_price = ltp
+                elif order.price_type == 'SL':
+                    # Stop Loss Limit order
+                    # SL BUY: When LTP >= trigger price, order activates. Execute at LTP if LTP <= limit price
+                    # SL SELL: When LTP <= trigger price, order activates. Execute at LTP if LTP >= limit price
+                    if order.action == 'BUY' and ltp >= order.trigger_price:
+                        if ltp <= order.price:
+                            should_execute = True
+                            execution_price = ltp  # Execute at current market price (LTP)
+                    elif order.action == 'SELL' and ltp <= order.trigger_price:
+                        if ltp >= order.price:
+                            should_execute = True
+                            execution_price = ltp  # Execute at current market price (LTP)
 
-            # Execute the order if conditions are met
-            if should_execute:
-                self._execute_order(order, execution_price)
+                elif order.price_type == 'SL-M':
+                    # Stop Loss Market order
+                    # BUY: Execute at market when LTP >= trigger price
+                    # SELL: Execute at market when LTP <= trigger price
+                    if order.action == 'BUY' and ltp >= order.trigger_price:
+                        should_execute = True
+                        execution_price = ltp
+                    elif order.action == 'SELL' and ltp <= order.trigger_price:
+                        should_execute = True
+                        execution_price = ltp
 
-        except Exception as e:
-            logger.error(f"Error processing order {order.orderid}: {e}")
+                # Execute the order if conditions are met
+                if should_execute:
+                    self._execute_order(order, execution_price)
+
+            except Exception as e:
+                logger.error(f"Error processing order {order.orderid}: {e}")
 
     def _execute_order(self, order, execution_price):
         """
         Execute an order - create trade, update positions, release/adjust margin
         """
-        try:
-            logger.info(f"Executing order {order.orderid}: {order.symbol} {order.action} {order.quantity} @ {execution_price}")
-
-            # Generate trade ID
-            tradeid = self._generate_trade_id()
-
-            # Create trade record
-            trade = SandboxTrades(
-                tradeid=tradeid,
-                orderid=order.orderid,
-                user_id=order.user_id,
-                symbol=order.symbol,
-                exchange=order.exchange,
-                action=order.action,
-                quantity=order.quantity,
-                price=execution_price,
-                product=order.product,
-                strategy=order.strategy,
-                trade_timestamp=datetime.now(pytz.timezone('Asia/Kolkata'))
-            )
-
-            db_session.add(trade)
-
-            # Update order status
-            order.order_status = 'complete'
-            order.average_price = execution_price
-            order.filled_quantity = order.quantity
-            order.pending_quantity = 0
-            order.update_timestamp = datetime.now(pytz.timezone('Asia/Kolkata'))
-
-            db_session.commit()
-
-            # Update position
-            self._update_position(order, execution_price)
-
-            logger.info(f"Order {order.orderid} executed successfully. Trade ID: {tradeid}")
-
-        except Exception as e:
-            db_session.rollback()
-            logger.error(f"Error executing order {order.orderid}: {e}")
-
-            # Mark order as rejected
+        with SessionLocal() as db_session:
             try:
-                order.order_status = 'rejected'
-                order.rejection_reason = f"Execution error: {str(e)}"
+                logger.info(f"Executing order {order.orderid}: {order.symbol} {order.action} {order.quantity} @ {execution_price}")
+
+                # Generate trade ID
+                tradeid = self._generate_trade_id()
+
+                # Create trade record
+                trade = SandboxTrades(
+                    tradeid=tradeid,
+                    orderid=order.orderid,
+                    user_id=order.user_id,
+                    symbol=order.symbol,
+                    exchange=order.exchange,
+                    action=order.action,
+                    quantity=order.quantity,
+                    price=execution_price,
+                    product=order.product,
+                    strategy=order.strategy,
+                    trade_timestamp=datetime.now(pytz.timezone('Asia/Kolkata'))
+                )
+
+                db_session.add(trade)
+
+                # Update order status
+                order.order_status = 'complete'
+                order.average_price = execution_price
+                order.filled_quantity = order.quantity
+                order.pending_quantity = 0
                 order.update_timestamp = datetime.now(pytz.timezone('Asia/Kolkata'))
+
                 db_session.commit()
-            except Exception:
+
+                # Update position
+                self._update_position(order, execution_price)
+
+                logger.info(f"Order {order.orderid} executed successfully. Trade ID: {tradeid}")
+
+            except Exception as e:
                 db_session.rollback()
+                logger.error(f"Error executing order {order.orderid}: {e}")
+
+                # Mark order as rejected
+                try:
+                    order.order_status = 'rejected'
+                    order.rejection_reason = f"Execution error: {str(e)}"
+                    order.update_timestamp = datetime.now(pytz.timezone('Asia/Kolkata'))
+                    db_session.commit()
+                except Exception:
+                    db_session.rollback()
 
     def _update_position(self, order, execution_price):
         """
@@ -270,164 +271,165 @@ class ExecutionEngine:
         or during immediate execution (for MARKET orders). We only need to release margin when
         positions are closed/reduced.
         """
-        try:
-            fund_manager = FundManager(order.user_id)
+        with SessionLocal() as db_session:
+            try:
+                fund_manager = FundManager(order.user_id)
 
-            # Check if position exists
-            position = db_session.query(SandboxPositions).filter_by(
-                user_id=order.user_id,
-                symbol=order.symbol,
-                exchange=order.exchange,
-                product=order.product
-            ).first()
-
-            if not position:
-                # Create new position
-                # Margin already blocked at order placement time
-                position = SandboxPositions(
+                # Check if position exists
+                position = db_session.query(SandboxPositions).filter_by(
                     user_id=order.user_id,
                     symbol=order.symbol,
                     exchange=order.exchange,
-                    product=order.product,
-                    quantity=order.quantity if order.action == 'BUY' else -order.quantity,
-                    average_price=execution_price,
-                    ltp=execution_price,
-                    pnl=Decimal('0.00'),
-                    pnl_percent=Decimal('0.00'),
-                    accumulated_realized_pnl=Decimal('0.00'),
-                    created_at=datetime.now(pytz.timezone('Asia/Kolkata'))
-                )
-                db_session.add(position)
-                logger.info(f"Created new position: {order.symbol} {order.action} {order.quantity} (margin already blocked: ₹{order.margin_blocked})")
+                    product=order.product
+                ).first()
 
-            else:
-                # Update existing position (netting logic)
-                old_quantity = position.quantity
-                new_quantity = order.quantity if order.action == 'BUY' else -order.quantity
-                final_quantity = old_quantity + new_quantity
-
-                # Special case: Reopening a closed position (old_quantity = 0)
-                if old_quantity == 0:
-                    # Keep accumulated realized P&L from previous trades, start fresh unrealized P&L
-                    position.quantity = new_quantity
-                    position.average_price = execution_price
-                    position.ltp = execution_price
-                    position.pnl = Decimal('0.00')  # Reset current P&L (will be updated by MTM)
-                    position.pnl_percent = Decimal('0.00')
-                    # accumulated_realized_pnl stays as is from previous closed trades
-                    logger.info(f"Reopened position: {order.symbol} {order.action} {order.quantity} (accumulated realized P&L: ₹{position.accumulated_realized_pnl}) (margin already blocked: ₹{order.margin_blocked})")
-
-                elif final_quantity == 0:
-                    # Position closed completely
-                    # Calculate realized P&L
-                    realized_pnl = self._calculate_realized_pnl(
-                        old_quantity, position.average_price,
-                        abs(new_quantity), execution_price
+                if not position:
+                    # Create new position
+                    # Margin already blocked at order placement time
+                    position = SandboxPositions(
+                        user_id=order.user_id,
+                        symbol=order.symbol,
+                        exchange=order.exchange,
+                        product=order.product,
+                        quantity=order.quantity if order.action == 'BUY' else -order.quantity,
+                        average_price=execution_price,
+                        ltp=execution_price,
+                        pnl=Decimal('0.00'),
+                        pnl_percent=Decimal('0.00'),
+                        accumulated_realized_pnl=Decimal('0.00'),
+                        created_at=datetime.now(pytz.timezone('Asia/Kolkata'))
                     )
+                    db_session.add(position)
+                    logger.info(f"Created new position: {order.symbol} {order.action} {order.quantity} (margin already blocked: ₹{order.margin_blocked})")
 
-                    # Determine what margin to release
-                    # If this order had margin blocked (order.margin_blocked), it means order was opening/adding position
-                    # If order had no margin blocked (0), it means order was reducing an existing position
-                    order_margin_blocked = order.margin_blocked if hasattr(order, 'margin_blocked') and order.margin_blocked else Decimal('0')
+                else:
+                    # Update existing position (netting logic)
+                    old_quantity = position.quantity
+                    new_quantity = order.quantity if order.action == 'BUY' else -order.quantity
+                    final_quantity = old_quantity + new_quantity
 
-                    if order_margin_blocked == Decimal('0'):
-                        # This order was reducing/closing existing position - no margin was blocked for it
-                        # We need to release margin for the old position that's now closed
+                    # Special case: Reopening a closed position (old_quantity = 0)
+                    if old_quantity == 0:
+                        # Keep accumulated realized P&L from previous trades, start fresh unrealized P&L
+                        position.quantity = new_quantity
+                        position.average_price = execution_price
+                        position.ltp = execution_price
+                        position.pnl = Decimal('0.00')  # Reset current P&L (will be updated by MTM)
+                        position.pnl_percent = Decimal('0.00')
+                        # accumulated_realized_pnl stays as is from previous closed trades
+                        logger.info(f"Reopened position: {order.symbol} {order.action} {order.quantity} (accumulated realized P&L: ₹{position.accumulated_realized_pnl}) (margin already blocked: ₹{order.margin_blocked})")
+
+                    elif final_quantity == 0:
+                        # Position closed completely
+                        # Calculate realized P&L
+                        realized_pnl = self._calculate_realized_pnl(
+                            old_quantity, position.average_price,
+                            abs(new_quantity), execution_price
+                        )
+
+                        # Determine what margin to release
+                        # If this order had margin blocked (order.margin_blocked), it means order was opening/adding position
+                        # If order had no margin blocked (0), it means order was reducing an existing position
+                        order_margin_blocked = order.margin_blocked if hasattr(order, 'margin_blocked') and order.margin_blocked else Decimal('0')
+
+                        if order_margin_blocked == Decimal('0'):
+                            # This order was reducing/closing existing position - no margin was blocked for it
+                            # We need to release margin for the old position that's now closed
+                            # Determine the original position action (BUY for long, SELL for short)
+                            position_action = 'BUY' if old_quantity > 0 else 'SELL'
+                            margin_to_release, _ = fund_manager.calculate_margin_required(
+                                order.symbol, order.exchange, order.product,
+                                abs(old_quantity), position.average_price, position_action
+                            )
+                            if margin_to_release:
+                                fund_manager.release_margin(
+                                    margin_to_release,
+                                    realized_pnl,
+                                    f"Position closed: {order.symbol}"
+                                )
+                                logger.info(f"Released margin ₹{margin_to_release} for closed position (old position margin)")
+                        else:
+                            # This order had margin blocked at placement time
+                            # Release the exact margin that was blocked for this order
+                            fund_manager.release_margin(
+                                order_margin_blocked,
+                                realized_pnl,
+                                f"Position closed: {order.symbol}"
+                            )
+                            logger.info(f"Released margin ₹{order_margin_blocked} for closed position (order margin)")
+
+                        # Keep position with 0 quantity to show it was closed
+                        # Add realized P&L to accumulated realized P&L (for day's trading)
+                        position.accumulated_realized_pnl += realized_pnl
+
+                        position.quantity = 0
+                        position.ltp = execution_price
+                        position.pnl = position.accumulated_realized_pnl  # Display total accumulated P&L
+                        position.pnl_percent = Decimal('0.00')
+                        logger.info(f"Position closed: {order.symbol}, Realized P&L: ₹{realized_pnl}, Total Accumulated P&L: ₹{position.accumulated_realized_pnl}")
+
+                    elif (old_quantity > 0 and final_quantity > old_quantity) or (old_quantity < 0 and final_quantity < old_quantity):
+                        # Adding to existing position (same direction, position size increasing)
+                        # Calculate new average price
+                        total_value = (abs(old_quantity) * position.average_price) + (abs(new_quantity) * execution_price)
+                        total_quantity = abs(old_quantity) + abs(new_quantity)
+                        new_average_price = total_value / total_quantity
+
+                        position.quantity = final_quantity
+                        position.average_price = new_average_price
+                        position.ltp = execution_price
+
+                        # Margin already blocked at order placement time - no action needed
+                        logger.info(f"Added to position: {order.symbol}, New qty: {final_quantity}, Avg: {new_average_price} (margin already blocked: ₹{order.margin_blocked})")
+
+                    else:
+                        # Reducing position (opposite direction)
+                        reduced_quantity = min(abs(old_quantity), abs(new_quantity))
+
+                        # Calculate realized P&L for reduced portion
+                        realized_pnl = self._calculate_realized_pnl(
+                            old_quantity, position.average_price,
+                            reduced_quantity, execution_price
+                        )
+
+                        # Release margin for reduced quantity
+                        # Use position's average price for consistency (same price used when margin was blocked)
                         # Determine the original position action (BUY for long, SELL for short)
                         position_action = 'BUY' if old_quantity > 0 else 'SELL'
                         margin_to_release, _ = fund_manager.calculate_margin_required(
                             order.symbol, order.exchange, order.product,
-                            abs(old_quantity), position.average_price, position_action
+                            reduced_quantity, position.average_price, position_action
                         )
+
                         if margin_to_release:
                             fund_manager.release_margin(
                                 margin_to_release,
                                 realized_pnl,
-                                f"Position closed: {order.symbol}"
+                                f"Position reduced: {order.symbol}"
                             )
-                            logger.info(f"Released margin ₹{margin_to_release} for closed position (old position margin)")
-                    else:
-                        # This order had margin blocked at placement time
-                        # Release the exact margin that was blocked for this order
-                        fund_manager.release_margin(
-                            order_margin_blocked,
-                            realized_pnl,
-                            f"Position closed: {order.symbol}"
-                        )
-                        logger.info(f"Released margin ₹{order_margin_blocked} for closed position (order margin)")
+                            logger.info(f"Released margin ₹{margin_to_release} for reduced position")
 
-                    # Keep position with 0 quantity to show it was closed
-                    # Add realized P&L to accumulated realized P&L (for day's trading)
-                    position.accumulated_realized_pnl += realized_pnl
+                        # If position reversed, recalculate average price for new position
+                        if abs(new_quantity) > abs(old_quantity):
+                            # Position reversed
+                            remaining_quantity = abs(new_quantity) - abs(old_quantity)
+                            position.quantity = remaining_quantity if order.action == 'BUY' else -remaining_quantity
+                            position.average_price = execution_price
+                            # Margin for excess quantity already blocked at order time - no action needed
+                            logger.info(f"Position reversed: {order.symbol}, New qty: {position.quantity} (excess margin already blocked: ₹{order.margin_blocked})")
+                        else:
+                            # Position reduced but not reversed
+                            position.quantity = final_quantity
 
-                    position.quantity = 0
-                    position.ltp = execution_price
-                    position.pnl = position.accumulated_realized_pnl  # Display total accumulated P&L
-                    position.pnl_percent = Decimal('0.00')
-                    logger.info(f"Position closed: {order.symbol}, Realized P&L: ₹{realized_pnl}, Total Accumulated P&L: ₹{position.accumulated_realized_pnl}")
+                        position.ltp = execution_price
+                        logger.info(f"Reduced position: {order.symbol}, New qty: {final_quantity}, Realized P&L: ₹{realized_pnl}")
 
-                elif (old_quantity > 0 and final_quantity > old_quantity) or (old_quantity < 0 and final_quantity < old_quantity):
-                    # Adding to existing position (same direction, position size increasing)
-                    # Calculate new average price
-                    total_value = (abs(old_quantity) * position.average_price) + (abs(new_quantity) * execution_price)
-                    total_quantity = abs(old_quantity) + abs(new_quantity)
-                    new_average_price = total_value / total_quantity
+                db_session.commit()
 
-                    position.quantity = final_quantity
-                    position.average_price = new_average_price
-                    position.ltp = execution_price
-
-                    # Margin already blocked at order placement time - no action needed
-                    logger.info(f"Added to position: {order.symbol}, New qty: {final_quantity}, Avg: {new_average_price} (margin already blocked: ₹{order.margin_blocked})")
-
-                else:
-                    # Reducing position (opposite direction)
-                    reduced_quantity = min(abs(old_quantity), abs(new_quantity))
-
-                    # Calculate realized P&L for reduced portion
-                    realized_pnl = self._calculate_realized_pnl(
-                        old_quantity, position.average_price,
-                        reduced_quantity, execution_price
-                    )
-
-                    # Release margin for reduced quantity
-                    # Use position's average price for consistency (same price used when margin was blocked)
-                    # Determine the original position action (BUY for long, SELL for short)
-                    position_action = 'BUY' if old_quantity > 0 else 'SELL'
-                    margin_to_release, _ = fund_manager.calculate_margin_required(
-                        order.symbol, order.exchange, order.product,
-                        reduced_quantity, position.average_price, position_action
-                    )
-
-                    if margin_to_release:
-                        fund_manager.release_margin(
-                            margin_to_release,
-                            realized_pnl,
-                            f"Position reduced: {order.symbol}"
-                        )
-                        logger.info(f"Released margin ₹{margin_to_release} for reduced position")
-
-                    # If position reversed, recalculate average price for new position
-                    if abs(new_quantity) > abs(old_quantity):
-                        # Position reversed
-                        remaining_quantity = abs(new_quantity) - abs(old_quantity)
-                        position.quantity = remaining_quantity if order.action == 'BUY' else -remaining_quantity
-                        position.average_price = execution_price
-                        # Margin for excess quantity already blocked at order time - no action needed
-                        logger.info(f"Position reversed: {order.symbol}, New qty: {position.quantity} (excess margin already blocked: ₹{order.margin_blocked})")
-                    else:
-                        # Position reduced but not reversed
-                        position.quantity = final_quantity
-
-                    position.ltp = execution_price
-                    logger.info(f"Reduced position: {order.symbol}, New qty: {final_quantity}, Realized P&L: ₹{realized_pnl}")
-
-            db_session.commit()
-
-        except Exception as e:
-            db_session.rollback()
-            logger.error(f"Error updating position for order {order.orderid}: {e}")
-            raise
+            except Exception as e:
+                db_session.rollback()
+                logger.error(f"Error updating position for order {order.orderid}: {e}")
+                raise
 
     def _calculate_realized_pnl(self, old_quantity, avg_price, close_quantity, close_price):
         """Calculate realized P&L for closed positions"""
@@ -468,7 +470,7 @@ if __name__ == '__main__':
     logger.info("Starting Sandbox Execution Engine")
 
     # Get check interval from config
-    from app.core.schemas.sandbox_db import init_db
+    from app.core.schemas.sandbox_db import init_default_config as init_db
     init_db()
 
     check_interval = int(get_config('order_check_interval', '5'))

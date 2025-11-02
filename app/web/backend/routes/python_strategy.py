@@ -50,7 +50,7 @@ from app.core.schemas.master_contract_status_db import (
 )
 
 # FastAPI specific imports
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 
 # Create FastAPI router with /python route

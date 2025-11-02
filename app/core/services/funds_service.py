@@ -43,7 +43,7 @@ async def get_funds_with_auth(db: Session, auth_token: str, broker: str, origina
         - HTTP status code (int)
     """
     from app.core.schemas.settings_db import get_analyze_mode
-    if get_analyze_mode(db) and original_data:
+    if get_analyze_mode() and original_data:
         from app.core.services.sandbox_service import sandbox_get_funds
 
         api_key = original_data.get('apikey')

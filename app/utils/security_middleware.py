@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 
-from app.core.schemas.traffic_db import IPBan
+from app.core.schemas.traffic_db import LogsSession, is_ip_banned
 from flask import abort, jsonify
 from app.utils.ip_helper import get_real_ip, get_real_ip_from_environ
 
@@ -18,7 +18,17 @@ class SecurityMiddleware:
         client_ip = get_real_ip_from_environ(environ)
 
         # Check if IP is banned
-        if IPBan.is_ip_banned(client_ip):
+        db_session = LogsSession()
+        try:
+            if is_ip_banned(db_session, client_ip):
+                # Return 403 Forbidden for banned IPs
+                status = '403 Forbidden'
+                headers = [('Content-Type', 'text/plain')]
+                start_response(status, headers)
+                logger.warning(f"Blocked banned IP: {client_ip}")
+                return [b'Access Denied: Your IP has been banned']
+        finally:
+            LogsSession.remove()
             # Return 403 Forbidden for banned IPs
             status = '403 Forbidden'
             headers = [('Content-Type', 'text/plain')]
@@ -35,7 +45,13 @@ def check_ip_ban(f):
     def decorated_function(*args, **kwargs):
         client_ip = get_real_ip()
 
-        if IPBan.is_ip_banned(client_ip):
+        db_session = LogsSession()
+        try:
+            if is_ip_banned(db_session, client_ip):
+                logger.warning(f"Blocked banned IP in decorator: {client_ip}")
+                abort(403, description="Access Denied: Your IP has been banned")
+        finally:
+            LogsSession.remove()
             logger.warning(f"Blocked banned IP in decorator: {client_ip}")
             abort(403, description="Access Denied: Your IP has been banned")
 

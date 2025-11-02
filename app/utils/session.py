@@ -9,7 +9,7 @@ from app.core.config import settings
 
 from .logging import logger
 
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 
 def get_session_expiry_time():
@@ -95,7 +95,7 @@ async def revoke_user_tokens_fastapi(request: Request, db: Session):
                 logger.error(f"Error clearing symbol cache: {cache_error}")
 
             # Revoke the auth token in database
-            inserted_id = upsert_auth(db, username, "", "", revoke=True)
+            inserted_id = upsert_auth(username, "", "", revoke=True)
             if inserted_id is not None:
                 logger.info(f"Auto-expiry: Revoked auth tokens for user: {username}")
             else:

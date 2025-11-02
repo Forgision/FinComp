@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from starlette.templating import Jinja2Templates
 
 from app.core.schemas.apilog_db import OrderLog
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
 

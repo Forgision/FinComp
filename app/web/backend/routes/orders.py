@@ -17,7 +17,7 @@ from app.core.services.place_smart_order_service import place_smart_order
 from app.core.services.positionbook_service import get_positionbook
 from app.core.services.tradebook_service import get_tradebook
 from app.core.schemas.auth_db import get_api_key_for_tradingview, get_auth_token
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.settings_db import get_analyze_mode
 from app.utils.logging import logger
 from app.utils.web.limiter import limiter

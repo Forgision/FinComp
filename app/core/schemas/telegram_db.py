@@ -23,8 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.core.config import settings
-from app.core.schemas.base import Base
-from app.core.schemas.session import db_session, engine
+from app.core.schemas import Base, engine, ENSURE_TABLE_REGISTRY
 from app.utils.logging import logger
 
 # Database configuration
@@ -149,13 +148,11 @@ class UserPreference(Base):
     user: Mapped["TelegramUser"] = relationship("TelegramUser", back_populates="preferences")
 
 
-def init_db():
+def ensure_table():
     """Initialize the database with required tables"""
     try:
-        Base.metadata.create_all(bind=engine)
-
         # Create default bot config if not exists
-        with db_session() as session:
+        with Session(engine) as session:
             stmt = select(BotConfig).filter_by(id=1)
             config = session.execute(stmt).scalars().first()
             if not config:
@@ -165,10 +162,11 @@ def init_db():
 
         logger.info("Telegram database initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize database: {str(e)}")
+        logger.exception(f"Failed to initialize database: {str(e)}")
 
+# Add to registry to ensure table exist before app start
+ENSURE_TABLE_REGISTRY['telegram_db'] = ensure_table
 
-# Telegram User Management Functions
 
 def get_telegram_user(db: Session, telegram_id: int) -> Optional[Dict]:
     """Get telegram user by telegram_id"""
@@ -669,7 +667,7 @@ def get_user_credentials(db: Session, telegram_id: int) -> Optional[Dict]:
 def get_auth_token_by_username(db: Session, username: str):
     """Helper function to get auth token - imports here to avoid circular imports"""
     from app.core.schemas.auth_db import get_auth_token
-    return get_auth_token(db, name=username)
+    return get_auth_token(name=username)
 
 
 # Cleanup function
@@ -679,4 +677,4 @@ def cleanup_db(db: Session):
 
 
 # Initialize database on module load
-init_db()
+

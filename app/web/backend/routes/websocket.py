@@ -24,7 +24,7 @@ from app.core.services.websocket_service import (
     unsubscribe_from_symbols,
 )
 from app.core.schemas.auth_db import get_api_key_for_tradingview
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 
 # Create FastAPI router

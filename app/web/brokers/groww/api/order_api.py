@@ -30,7 +30,7 @@ from app.web.brokers.groww.mapping.transform_data import (
 
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 # API Endpoints
 GROWW_BASE_URL = 'https://api.groww.in'

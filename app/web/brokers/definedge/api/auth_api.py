@@ -5,7 +5,7 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-def authenticate_broker(otp_token, otp, api_secret=None):
+async def authenticate_broker(otp_token, otp, api_secret=None):
     """
     Authenticate with DefinedGe Securities using OTP verification.
     This is called after OTP has been sent via login_step1.
@@ -25,7 +25,7 @@ def authenticate_broker(otp_token, otp, api_secret=None):
         api_token = settings.BROKER_API_KEY
 
         # Step 2: Verify OTP with auth code to get session keys
-        session_response = login_step2(otp_token, otp, api_secret)
+        session_response = await login_step2(otp_token, otp, api_secret)
         if not session_response:
             return None, None, None, "Failed to verify OTP"
 
@@ -51,7 +51,7 @@ def authenticate_broker(otp_token, otp, api_secret=None):
         logger.error(f"Authentication error: {e}")
         return None, None, None, str(e)
 
-def login_step1(api_token=None, api_secret=None):
+async def login_step1(api_token=None, api_secret=None):
     """Step 1: Login with API credentials to trigger OTP"""
     try:
         # Get credentials from environment if not provided
@@ -61,7 +61,7 @@ def login_step1(api_token=None, api_secret=None):
             api_secret = settings.BROKER_API_SECRET
 
         # Get the shared httpx client with connection pooling
-        client = get_httpx_client()
+        client = await get_httpx_client()
 
         headers = {
             'api_secret': api_secret
@@ -69,10 +69,10 @@ def login_step1(api_token=None, api_secret=None):
 
         url = f"https://signin.definedgesecurities.com/auth/realms/debroking/dsbpkc/login/{api_token}"
 
-        response = client.get(url, headers=headers)
+        response = await client.get(url, headers=headers)
         response.raise_for_status()  # Raise exception for 4XX/5XX responses
 
-        response_data = response.json()
+        response_data = await response.json()
 
         # Add a message field if not present
         if 'message' not in response_data:
@@ -84,11 +84,11 @@ def login_step1(api_token=None, api_secret=None):
         logger.error(f"Step 1 error: {e}")
         return None
 
-def login_step2(otp_token, otp, api_secret):
+async def login_step2(otp_token, otp, api_secret):
     """Step 2: Verify OTP with auth code to get session keys"""
     try:
         # Get the shared httpx client with connection pooling
-        client = get_httpx_client()
+        client =await get_httpx_client()
 
         # Calculate authentication code using SHA256
         auth_string = f"{otp_token}{otp}{api_secret}"
@@ -106,7 +106,7 @@ def login_step2(otp_token, otp, api_secret):
 
         url = "https://signin.definedgesecurities.com/auth/realms/debroking/dsbpkc/token"
 
-        response = client.post(url, json=payload, headers=headers)
+        response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()  # Raise exception for 4XX/5XX responses
 
         return response.json()

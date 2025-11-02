@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.web.brokers.zerodha.database.master_contract_db import SymToken
 
 from app.core.schemas.token_db_enhanced import get_br_symbol
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 

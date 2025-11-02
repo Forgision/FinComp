@@ -10,7 +10,7 @@ from app.core.schemas.settings_db import get_analyze_mode
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from .telegram_alert_service import telegram_alert_service
 
@@ -40,7 +40,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'closeposition')
+    await async_log_analyzer(analyzer_request, error_response, 'closeposition')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -98,7 +98,7 @@ async def close_position_with_auth(
         position_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for real position closing
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_close_position
 
         api_key = original_data.get('apikey')
@@ -128,7 +128,7 @@ async def close_position_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'closeposition', original_data, error_response)
+        await async_log_order('closeposition', original_data, error_response)
         return False, error_response, 404
 
     try:
@@ -143,7 +143,7 @@ async def close_position_with_auth(
             'status': 'error',
             'message': 'Failed to close positions due to internal error'
         }
-        await async_log_order(db, 'closeposition', original_data, error_response)
+        await async_log_order('closeposition', original_data, error_response)
         return False, error_response, 500
 
     if status_code == 200:
@@ -156,7 +156,7 @@ async def close_position_with_auth(
             'message': 'All Open Positions Squared Off',
             'mode': 'live'
         })
-        await async_log_order(db, 'closeposition', position_request_data, response_data)
+        await async_log_order('closeposition', position_request_data, response_data)
         # Send Telegram alert for live mode
         await telegram_alert_service.send_order_alert(db, 'closeposition', position_data or {}, response_data, (position_data or {}).get('apikey'))
         return True, response_data, 200
@@ -167,7 +167,7 @@ async def close_position_with_auth(
             'status': 'error',
             'message': message
         }
-        await async_log_order(db, 'closeposition', original_data, error_response)
+        await async_log_order('closeposition', original_data, error_response)
         return False, error_response, status_code
 
 

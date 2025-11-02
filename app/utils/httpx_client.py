@@ -5,11 +5,13 @@ with automatic protocol negotiation (HTTP/2 when available, HTTP/1.1 fallback)
 import httpx
 
 from .logging import logger
+from app.core.config import settings
+
 
 # Global httpx client for connection pooling
 _httpx_client = None
 
-def get_httpx_client() -> httpx.Client:
+async def get_httpx_client() -> httpx.AsyncClient:
     """
     Returns an HTTP client with automatic protocol negotiation.
     The client will use HTTP/2 when the server supports it,
@@ -21,11 +23,11 @@ def get_httpx_client() -> httpx.Client:
     global _httpx_client
 
     if _httpx_client is None:
-        _httpx_client = _create_http_client()
+        _httpx_client = await _create_http_client()
         logger.info("Created HTTP client with automatic protocol negotiation (HTTP/2 preferred, HTTP/1.1 fallback)")
     return _httpx_client
 
-def request(
+async def request(
     method: str,
     url: str,
     **kwargs
@@ -44,8 +46,8 @@ def request(
     Raises:
         httpx.HTTPError: If the request fails
     """
-    client = get_httpx_client()
-    response = client.request(method, url, **kwargs)
+    client = await get_httpx_client()
+    response = await client.request(method, url, **kwargs)
 
     # Log the actual HTTP version used (info level for visibility)
     if response.http_version:
@@ -54,20 +56,20 @@ def request(
     return response
 
 # Shortcut methods for common HTTP methods
-def get(url: str, **kwargs) -> httpx.Response:
-    return request('GET', url, **kwargs)
+async def get(url: str, **kwargs) -> httpx.Response:
+    return await request('GET', url, **kwargs)
 
-def post(url: str, **kwargs) -> httpx.Response:
-    return request('POST', url, **kwargs)
+async def post(url: str, **kwargs) -> httpx.Response:
+    return await request('POST', url, **kwargs)
 
-def put(url: str, **kwargs) -> httpx.Response:
-    return request('PUT', url, **kwargs)
+async def put(url: str, **kwargs) -> httpx.Response:
+    return await request('PUT', url, **kwargs)
 
-def delete(url: str, **kwargs) -> httpx.Response:
-    return request('DELETE', url, **kwargs)
+async def delete(url: str, **kwargs) -> httpx.Response:
+    return await request('DELETE', url, **kwargs)
 
 
-def _create_http_client() -> httpx.Client:
+async def _create_http_client() -> httpx.AsyncClient:
     """
     Create a new HTTP client with automatic protocol negotiation.
     Enables both HTTP/2 and HTTP/1.1, letting httpx choose the best protocol.
@@ -75,8 +77,6 @@ def _create_http_client() -> httpx.Client:
     Returns:
         httpx.Client: A configured HTTP client with protocol auto-negotiation
     """
-    from app.core.config import settings
-
     try:
         # Detect if running in standalone mode (Docker/production) vs integrated mode (local dev)
         # In standalone mode, disable HTTP/2 to avoid protocol negotiation issues
@@ -86,7 +86,7 @@ def _create_http_client() -> httpx.Client:
         # Disable HTTP/2 in standalone/Docker environments to avoid protocol negotiation issues
         http2_enabled = not is_standalone
 
-        client = httpx.Client(
+        client = httpx.AsyncClient(
             http2=http2_enabled,  # Disable HTTP/2 in standalone mode, enable in integrated mode
             http1=True,  # Always enable HTTP/1.1 for compatibility
             timeout=120.0,  # Increased timeout for large historical data requests
@@ -111,7 +111,7 @@ def _create_http_client() -> httpx.Client:
         raise
 
 
-def cleanup_httpx_client():
+async def cleanup_httpx_client():
     """
     Closes the global httpx client and releases its resources.
     Should be called when the application is shutting down.
@@ -119,6 +119,6 @@ def cleanup_httpx_client():
     global _httpx_client
 
     if _httpx_client is not None:
-        _httpx_client.close()
+        await _httpx_client.aclose()
         _httpx_client = None
         logger.info("Closed HTTP client")

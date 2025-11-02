@@ -1,6 +1,6 @@
 import asyncio
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.models.error_models import BaseErrorResponse
 from app.core.models.api_schemas import (
@@ -217,13 +217,13 @@ async def openposition_endpoint(
             api_key=api_key
         )
         if not success:
-            if get_analyze_mode(db):
+            if get_analyze_mode():
                 # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
                 # and returns a dict compatible with HTTPException detail
                 error_detail = await emit_analyzer_error(open_position_request.model_dump(), response_data.get("message", "An error occurred"))
                 raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=error_detail, code=str(status_code), details=response_data).model_dump())
 
-            asyncio.create_task(async_log_order(db, 'openposition', open_position_request.model_dump(), response_data))
+            asyncio.create_task(async_log_order('openposition', open_position_request.model_dump(), response_data))
             raise HTTPException(status_code=status_code, detail=BaseErrorResponse(message=response_data.get("message", "An error occurred"), code=str(status_code), details=response_data).model_dump())
 
         return OpenPositionResponse(**response_data)
@@ -232,10 +232,10 @@ async def openposition_endpoint(
     except Exception as e:
         logger.exception("An unexpected error occurred in OpenPosition endpoint.")
         error_message = 'An unexpected error occurred'
-        if get_analyze_mode(db):
+        if get_analyze_mode():
             # Assuming emit_analyzer_error is synchronous or handled differently in FastAPI context
             error_detail = await emit_analyzer_error(open_position_request.model_dump(), error_message)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_detail, code=str(status.HTTP_500_INTERNAL_SERVER_ERROR), details={"error": str(e)}).model_dump())
 
-        asyncio.create_task(async_log_order(db, 'openposition', open_position_request.model_dump(), {'status': 'error', 'message': error_message}))
+        asyncio.create_task(async_log_order('openposition', open_position_request.model_dump(), {'status': 'error', 'message': error_message}))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=BaseErrorResponse(message=error_message, code=str(status.HTTP_500_INTERNAL_SERVER_ERROR), details={"error": str(e)}).model_dump())

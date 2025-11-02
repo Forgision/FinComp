@@ -18,7 +18,7 @@ from app.utils.constants import (
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from .telegram_alert_service import telegram_alert_service
 
@@ -50,7 +50,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
 
     db = next(get_db())
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'placesmartorder')
+    await async_log_analyzer(analyzer_request, error_response, 'placesmartorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -150,15 +150,15 @@ async def place_smart_order_with_auth(
     # Validate order data
     is_valid, error_message = validate_smart_order(order_data)
     if not is_valid:
-        if get_analyze_mode(db) is True:
+        if get_analyze_mode() is True:
             return False, await emit_analyzer_error(original_data, error_message or "Validation failed"), 400
         error_response = {'status': 'error',
                           'message': error_message or "Validation failed"}
-        await async_log_order(db, 'placesmartorder', original_data, error_response)
+        await async_log_order('placesmartorder', original_data, error_response)
         return False, error_response, 400
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_smart_order
 
         api_key = original_data.get('apikey')
@@ -178,7 +178,7 @@ async def place_smart_order_with_auth(
         analyzer_request['api_type'] = 'placesmartorder'
 
         # Log to analyzer database with complete request and response
-        await async_log_analyzer(db, analyzer_request, response_data, 'placesmartorder')
+        await async_log_analyzer(analyzer_request, response_data, 'placesmartorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {
@@ -197,7 +197,7 @@ async def place_smart_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'placesmartorder', original_data, error_response)
+        await async_log_order('placesmartorder', original_data, error_response)
         return False, error_response, 404
 
     order_response_data: dict[str, Any] = {}
@@ -212,7 +212,7 @@ async def place_smart_order_with_auth(
                 'status': 'success',
                 'message': 'Positions Already Matched. No Action needed.'
             }
-            await async_log_order(db, 'placesmartorder', order_request_data, order_response_data)
+            await async_log_order('placesmartorder', order_request_data, order_response_data)
 
             # Emit notification for matched positions
             await sio.emit('order_notification', {
@@ -228,7 +228,7 @@ async def place_smart_order_with_auth(
         if res and res.status == 200:
             order_response_data = {
                 'status': 'success', 'orderid': order_id}
-            await async_log_order(db, 'placesmartorder', order_request_data, order_response_data)
+            await async_log_order('placesmartorder', order_request_data, order_response_data)
             # Send Telegram alert
             await telegram_alert_service.send_order_alert(db, 'placesmartorder', order_data, order_response_data, order_data.get('apikey'))
             await sio.emit('order_event', {
@@ -245,7 +245,7 @@ async def place_smart_order_with_auth(
             'status': 'error',
             'message': 'Failed to place smart order due to internal error'
         }
-        await async_log_order(db, 'placesmartorder', original_data, error_response)
+        await async_log_order('placesmartorder', original_data, error_response)
         return False, error_response, 500
 
     # Add delay if needed
@@ -265,7 +265,7 @@ async def place_smart_order_with_auth(
             'status': 'error',
             'message': message
         }
-        await async_log_order(db, 'placesmartorder', original_data, error_response)
+        await async_log_order('placesmartorder', original_data, error_response)
         status_code = res.status if res and hasattr(res, 'status') else 500
         return False, error_response, status_code
 

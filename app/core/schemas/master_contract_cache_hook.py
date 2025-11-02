@@ -92,7 +92,7 @@ async def hook_into_master_contract_download(broker: str):
             from app.web.backend.routes.python_strategy import (
                 restore_strategies_after_login,
             )
-            from app.core.schemas.session import get_db
+            from app.core.schemas import get_db
 
             db = next(get_db())
             logger.info("Attempting to restore Python strategies after master contract download")

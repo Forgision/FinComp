@@ -19,17 +19,13 @@ A balanced and intuitive folder structure is crucial. The structure should be or
 /
 ├── app/
 │   ├── main.py               # Main application entrypoint
-│   ├── broker/               # Broker-specific implementations
+│   ├── algo/                 # Algorithmic trading components
+│   │   └── sandbox/          # Sandbox trading environment
 │   ├── core/                 # Cross-cutting concerns (config, logging)
-│   ├── db/                   # Database schema and session management
-│   ├── frontend/             # Jinja2 templates and static assets
-│   ├── sandbox/              # Sandbox trading environment
-│   ├── strategies/           # User-defined trading strategies
 │   ├── utils/                # Shared utilities
 │   ├── web/                  # Web-specific components
-│   │   └── backend/
-│   │       └── routes/       # FastAPI routers for different features
-│   └── websocket/            # WebSocket proxy server
+│   │   ├── brokers/          # Broker-specific implementations
+│   │   └── websocket/        # WebSocket proxy server
 ├── test/                     # Test code
 ├── .env                      # Local environment variables (not committed)
 ├── Dockerfile                # Instructions for building the application container
@@ -49,6 +45,7 @@ A balanced and intuitive folder structure is crucial. The structure should be or
 *   **Dependency Injection:**
     *   Utilize the web framework's built-in dependency injection system (e.g., FastAPI's `Depends`) for wiring components together.
     *   Inject dependencies like database sessions into services, and services into API routes. This facilitates decoupling and simplifies testing by allowing for easy mocking.
+*   **Plugin Architecture:** The project uses a plugin architecture for broker-specific implementations. Each broker is implemented as a separate plugin in the `app/web/brokers/` directory. This allows for easy integration of new brokers without modifying the core application.
 
 ## 4. Configuration Management
 
@@ -58,7 +55,7 @@ A balanced and intuitive folder structure is crucial. The structure should be or
 
 ## 5. Testing Strategy
 
-*   **Test Isolation:** Keep test code in a separate top-level `test` directory. The internal structure of the `test` directory should mirror the `app/backend` directory for easy navigation.
+*   **Test Isolation:** Keep test code in a separate top-level `test` directory. The internal structure of the `test` directory should mirror the `app/` directory for easy navigation.
 *   **In-Memory Database for Tests:** Use a fast, in-memory database like SQLite for unit and integration tests to ensure they are isolated and run quickly.
 *   **Override Dependencies in Tests:** Use the dependency injection system to replace production dependencies (like the database) with test-specific versions (e.g., a test database session).
 *   **Mock External Services:** Avoid making real network calls to external services in your tests. Mock these dependencies to keep tests fast and reliable.

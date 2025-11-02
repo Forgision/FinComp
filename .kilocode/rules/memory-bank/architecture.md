@@ -72,17 +72,13 @@ OpenAlgo employs a **Modular Monolithic Architecture** with a **RESTful API** in
 /
 ├── app/
 │   ├── main.py               # Main application entrypoint
-│   ├── broker/               # Broker-specific implementations
+│   ├── algo/                 # Algorithmic trading components
+│   │   └── sandbox/          # Sandbox trading environment
 │   ├── core/                 # Cross-cutting concerns (config, logging)
-│   ├── db/                   # Database schema and session management
-│   ├── frontend/             # Jinja2 templates and static assets
-│   ├── sandbox/              # Sandbox trading environment
-│   ├── strategies/           # User-defined trading strategies
 │   ├── utils/                # Shared utilities
 │   ├── web/                  # Web-specific components
-│   │   └── backend/
-│   │       └── routes/       # FastAPI routers for different features
-│   └── websocket/            # WebSocket proxy server
+│   │   ├── brokers/          # Broker-specific implementations
+│   │   └── websocket/        # WebSocket proxy server
 ├── test/                     # Test code
 ├── .env                      # Local environment variables (not committed)
 ├── Dockerfile                # Instructions for building the application container
@@ -102,15 +98,15 @@ graph TD
 
     subgraph "OpenAlgo Application - FastAPI"
         direction TB
-        APILayer[API Layer - FastAPI - app/web/backend/routes]
+        APILayer[API Layer - FastAPI - app/web/brokers]
         Auth[Auth & Session Mgmt]
         RateLimiter[Rate Limiter]
         SocketIO[WebSocket - FastAPI-SocketIO]
         CoreLogic[Core Application Logic]
-        StrategyEngine[Strategy Engine - app/strategies]
-        Sandbox[Sandbox Environment - app/sandbox]
-        BrokerInterface[Broker Interface - app/broker]
-        DBLayer[Database Layer - SQLAlchemy - app/db]
+        StrategyEngine[Strategy Engine - app/algo/strategies]
+        Sandbox[Sandbox Environment - app/algo/sandbox]
+        BrokerInterface[Broker Interface - app/web/brokers]
+        DBLayer[Database Layer - SQLAlchemy - app/core/schemas]
         Utils[Utilities - app/utils]
         LoggingSystem[Centralized Logging System]
     end

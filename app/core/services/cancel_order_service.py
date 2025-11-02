@@ -9,7 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.orm import Session
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -42,7 +42,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     db = next(get_db())
 
     # Log to analyzer database
-    await async_log_analyzer(db, analyzer_request, error_response, 'cancelorder')
+    await async_log_analyzer(analyzer_request, error_response, 'cancelorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -100,7 +100,7 @@ async def cancel_order_with_auth(
         order_request_data.pop('apikey', None)
 
     # If in analyze mode, route to sandbox for virtual trading
-    if get_analyze_mode(db) is True:
+    if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_cancel_order
 
         # Get API key from original data
@@ -123,7 +123,7 @@ async def cancel_order_with_auth(
             'status': 'error',
             'message': 'Broker-specific module not found'
         }
-        await async_log_order(db, 'cancelorder', original_data, error_response)
+        await async_log_order('cancelorder', original_data, error_response)
         return False, error_response, 404
 
     try:
@@ -137,7 +137,7 @@ async def cancel_order_with_auth(
             'status': 'error',
             'message': 'Failed to cancel order due to internal error'
         }
-        await async_log_order(db, 'cancelorder', original_data, error_response)
+        await async_log_order('cancelorder', original_data, error_response)
         return False, error_response, 500
 
     if status_code == 200:
@@ -150,7 +150,7 @@ async def cancel_order_with_auth(
             'status': 'success',
             'orderid': orderid
         }
-        await async_log_order(db, 'cancelorder', order_request_data, order_response_data)
+        await async_log_order('cancelorder', order_request_data, order_response_data)
         # Send Telegram alert for live mode
         await telegram_alert_service.send_order_alert(db, 'cancelorder', {'orderid': orderid}, order_response_data, original_data.get('apikey'))
         return True, order_response_data, 200
@@ -161,7 +161,7 @@ async def cancel_order_with_auth(
             'status': 'error',
             'message': message
         }
-        await async_log_order(db, 'cancelorder', original_data, error_response)
+        await async_log_order('cancelorder', original_data, error_response)
         return False, error_response, status_code
 
 
@@ -196,7 +196,7 @@ async def cancel_order(
     if not orderid:
         error_message = 'Order ID is missing'
         error_response = {'status': 'error', 'message': error_message}
-        await async_log_order(db, 'cancelorder', original_data, error_response)
+        await async_log_order('cancelorder', original_data, error_response)
         return False, error_response, 400
 
     # Case 1: API-based authentication

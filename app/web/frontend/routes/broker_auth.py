@@ -80,7 +80,7 @@ async def broker_callback(request: Request, broker: str):
         elif request.method == "POST":
             userid = form_data.get("userid")
             from app.utils.httpx_client import get_httpx_client
-            client = get_httpx_client()
+            client = await get_httpx_client()
             payload = {"userId": userid}
             headers = {'Content-Type': 'application/json'}
             try:

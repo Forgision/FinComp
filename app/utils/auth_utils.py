@@ -110,7 +110,7 @@ async def handle_auth_success(request: Request, db, auth_token, user_session_key
     logger.info(f"User {user_session_key} logged in successfully with broker {broker}")
 
     # Store auth token in database
-    inserted_id = upsert_auth(db, user_session_key, auth_token, broker, feed_token=feed_token, user_id=user_id)
+    inserted_id = upsert_auth(user_session_key, auth_token, broker, feed_token=feed_token, user_id=user_id)
     if inserted_id:
         logger.info(f"Database record upserted with ID: {inserted_id}")
         # Initialize master contract status for this broker

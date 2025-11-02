@@ -23,7 +23,7 @@ from app.core.schemas.sandbox_db import (
     get_all_configs,
     set_config,
 )
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 
 # Use existing rate limits from .env (same as API endpoints)

@@ -8,7 +8,7 @@ from app.web.brokers.compositedge.database.master_contract_db import SymToken
 from app.utils.logging import logger
 from app.core.schemas.token_db import get_br_symbol
 from app.core.schemas.auth_db import get_feed_token
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.httpx_client import get_httpx_client
 
 
@@ -514,6 +514,7 @@ class BrokerData:
             # If still no feed token, try to get a new one
             if not feed_token:
                 logger.info("No feed token available, attempting to get one")
+                # TODO: fix get_feed_token
                 feed_token, new_user_id, error = get_feed_token()
                 if error:
                     logger.error(f"Failed to get feed token: {error}")

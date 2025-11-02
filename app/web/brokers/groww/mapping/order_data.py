@@ -1,6 +1,6 @@
 import json
 
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.core.schemas.token_db import get_oa_symbol
 from app.web.brokers.groww.database.master_contract_db import (
     SymToken,

@@ -370,7 +370,7 @@ class WebSocketProxy:
         try:
             from sqlalchemy import text
 
-            from app.core.schemas.session import get_db
+            from app.core.schemas import get_db
 
             db = next(get_db())
             # Get user's connected broker from app.core.schemas

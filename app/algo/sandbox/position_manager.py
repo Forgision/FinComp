@@ -24,9 +24,9 @@ from app.core.schemas.sandbox_db import (
     SandboxPositions,
     SandboxTrades,
     get_config,
-    init_db,
+    init_default_config as init_db,
 )
-from app.core.schemas.session import get_db
+from app.core.schemas import get_db
 from app.utils.logging import logger
 
 from .fund_manager import FundManager
