@@ -13,17 +13,17 @@ The core of the strategy is an iterative loop. Do not attempt to fix all errors 
 First, generate a complete and structured report of all current linting errors. This is done using a custom script that executes `ruff check` and formats the output into a markdown file.
 
 ```bash
-uv run .specify/python-tools/check_ruff_errors.py
+uv run .kilocode/python-tools/check_ruff_errors.py
 ```
 
 This command creates `ruff_report.md`, which serves as the source of truth for the current state of linting errors.
 
 ### Step 2: Triage and Prioritize Errors
 
-With a large number of errors, it's crucial to prioritize. Use the `.specify/python-tools/categorize_ruff_errors.py` script to analyze the report and group errors by their type (e.g., `F821`, `E722`).
+With a large number of errors, it's crucial to prioritize. Use the `.kilocode/python-tools/categorize_ruff_errors.py` script to analyze the report and group errors by their type (e.g., `F821`, `E722`).
 
 ```bash
-uv run .specify/python-tools/categorize_ruff_errors.py
+uv run .kilocode/python-tools/categorize_ruff_errors.py
 ```
 
 This script will output a summary table, allowing you to identify the most frequent error codes. **Always focus on the most common error first.** Fixing one common pattern can resolve hundreds of issues at once.
@@ -82,8 +82,8 @@ For errors that cannot be auto-corrected, manual intervention is required. Addre
 ### Step 5: Validate and Repeat
 
 After each round of fixes (automated or manual), **always return to Step 1**:
-1.  Run `uv run .specify/python-tools/check_ruff_errors.py` to generate a new report.
-2.  Run `uv run .specify/python-tools/categorize_ruff_errors.py` to see the new priority list.
+1.  Run `uv run .kilocode/python-tools/check_ruff_errors.py` to generate a new report.
+2.  Run `uv run .kilocode/python-tools/categorize_ruff_errors.py` to see the new priority list.
 3.  Repeat the process.
 
 The loop is complete when `ruff_report.md` shows "No ruff errors found."
