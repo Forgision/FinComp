@@ -34,7 +34,20 @@
       "Bash(copy:*)",
       "Bash(del /F \"D:\\openalgo-sandbox-test\\openalgo\\websocket_proxy\\server_optimized.py\")",
       "Bash(move \"D:\\openalgo-sandbox-test\\openalgo\\websocket_proxy\\OPTIMIZATION_SUMMARY.md\" \"D:\\openalgo-sandbox-test\\openalgo\\docs\\WEBSOCKET_OPTIMIZATION.md\")",
-      "WebFetch(domain:docs.openalgo.in)"
+      "WebFetch(domain:docs.openalgo.in)",
+      "Bash(mkdir FastAPI_FinComp)",
+      "Bash(python3 -m venv venv)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install fastapi uvicorn sqlalchemy pydantic python-multipart jinja2 python-dotenv psutil APScheduler cryptography pandas numpy pytz websockets)",
+      "Bash(main.py)",
+      "Bash(pytest fastapi_app/tests)",
+      "Bash(uv pip install aiosqlite)",
+      "Bash(uv pip install pytest-asyncio)",
+      "Bash(uv pip install pytest pytest-asyncio websockets httpx)",
+      "Bash(pytest -s)",
+      "Bash(pip install asgi-lifespan)",
+      "Bash(uv pip install asgi-lifespan)",
+      "Bash(pytest fastapi_app/tests/test_simple.py)"
     ],
     "deny": [],
     "ask": []
