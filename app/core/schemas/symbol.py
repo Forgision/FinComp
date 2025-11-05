@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.schemas import Base, engine, SessionLocal
+from app.core.schemas import Base, SessionLocal
 from app.utils.logging import logger
 
 class SymToken(Base):

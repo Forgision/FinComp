@@ -12,13 +12,10 @@ from sqlalchemy import (
     Integer,
     Sequence,
     String,
-    create_engine,
-    text,
     select
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.core.config import settings
 from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO

@@ -5,7 +5,7 @@ import httpx
 #database/master_contract_db.py
 import pandas as pd
 from app.core.schemas.auth_db import get_auth_token
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.config import settings

@@ -5,7 +5,7 @@ from app.web.frontend import templates
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_csrf_protect.exceptions import CsrfProtectError
-from fastapi_csrf_protect.flexible import CsrfProtect
+# from fastapi_csrf_protect.flexible import CsrfProtect
 from pydantic import BaseModel
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -13,9 +13,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.schemas.auth_db import init_db as ensure_auth_tables_exists
-from app.core.schemas.user_db import init_db as ensure_user_tables_exists
 from app.utils.logging import logger
+from app.utils.traffic_logger import TrafficLoggerMiddleware
 from app.core.services.limiter_service import limiter
 from app.utils.web.socketio import sio
 from app.web.frontend.routes.analyzer import analyzer_router
@@ -67,8 +66,8 @@ def setup_environment():
     """Initializes the application environment, database, and plugins."""
     logger.info("Starting environment setup...")
     # load_broker_auth_functions()
-    ensure_auth_tables_exists()
-    ensure_user_tables_exists()
+    # ensure_auth_tables_exists()
+    # ensure_user_tables_exists()
     # ensure_master_contract_tables_exists()
     # ensure_api_log_tables_exists()
     # ensure_analyzer_tables_exists()
@@ -110,7 +109,6 @@ templates.env.globals['url_for'] = _app.url_path_for
 # Apply Session Middleware
 _app.add_middleware(CorrelationIdMiddleware)
 _app.add_middleware(SessionMiddleware, secret_key=settings.APP_KEY)
-_app.add_middleware()
 
 # Register routers
 _app.include_router(auth_router)
@@ -164,7 +162,11 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
 @_app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
-        content = BaseErrorResponse(message="Rate limit exceeded. Please try again later.", code="RATE_LIMIT_EXCEEDED").model_dump()
+        content = BaseErrorResponse(
+            message="Rate limit exceeded. Please try again later.", 
+            code="RATE_LIMIT_EXCEEDED",
+            details=None
+        ).model_dump()
     else:
         # Ensure detail is a dictionary for BaseErrorResponse, if it's not already
         if isinstance(exc.detail, dict):
@@ -178,4 +180,4 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 app = socketio.ASGIApp(sio, _app)
-app.wsgi_app = TrafficLoggerMiddleware(app.wsgi_app)
+app = TrafficLoggerMiddleware(app)

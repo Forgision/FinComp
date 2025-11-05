@@ -3,11 +3,9 @@
 from io import StringIO
 from os import listdir, makedirs, path, remove, rmdir
 import pandas as pd
-import re
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.core.config import settings
 from app.core.schemas import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger

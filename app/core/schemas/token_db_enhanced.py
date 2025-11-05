@@ -4,7 +4,7 @@ Optimized for zero-config deployment with configurable session reset time (SESSI
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 

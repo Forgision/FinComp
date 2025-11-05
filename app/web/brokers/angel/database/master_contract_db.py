@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 import requests
 from sqlalchemy import (mapped_column, Float, Index, Integer, Sequence, String,
-                        create_engine, select)
+                        select)
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 
 from app.core.schemas import get_db

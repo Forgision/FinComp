@@ -5,7 +5,7 @@ from typing import Optional
 
 from cryptography.fernet import Fernet
 from sqlalchemy import Boolean, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
 from app.core.schemas import Base, SessionLocal, ENSURE_TABLE_REGISTRY

@@ -4,17 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from app.web.brokers.iifl.api.auth_api import authenticate_broker, get_feed_token
 from app.web.brokers.iifl.api.data import BrokerData, get_api_response
 from app.web.brokers.iifl.api.order_api import (
-    cancel_all_orders_api,
-    cancel_order,
-    close_all_positions,
-    get_holdings,
-    get_open_position,
     get_order_book,
-    get_positions,
-    get_trade_book,
-    modify_order,
-    place_order_api,
-    place_smartorder_api,
 )
 from app.web.brokers.iifl.api.funds import get_margin_data
 

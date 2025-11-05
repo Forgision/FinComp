@@ -7,8 +7,7 @@ import os
 import pandas as pd
 import requests
 from app.core.schemas.auth_db import get_auth_token
-from app.core.schemas.user_db import find_user_by_username
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.config import settings

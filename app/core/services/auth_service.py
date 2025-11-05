@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.schemas.user_db import User
-from app.utils.web.security import password_to_hash, verify_password
+from app.utils.web.security import verify_password
 
 ALGORITHM = "HS256"
 

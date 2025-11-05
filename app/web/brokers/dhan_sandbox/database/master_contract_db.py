@@ -2,11 +2,10 @@
 
 import pandas as pd
 import requests
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
 import os
 
-from app.core.config import settings
 from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO

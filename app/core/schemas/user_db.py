@@ -13,7 +13,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
 from app.core.schemas import Base, SessionLocal
-from app.utils.logging import logger
 
 # Initialize Argon2 hasher
 ph = PasswordHasher()

@@ -1,11 +1,11 @@
 import logging
 from typing import List
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from . import SessionLocal, engine, Base
+from . import Base
 
 logger = logging.getLogger(__name__)
 

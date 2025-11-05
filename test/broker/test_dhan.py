@@ -1,9 +1,7 @@
-import unittest
 from unittest.mock import patch, MagicMock
 import json
 
 from app.web.brokers.dhan.api.auth_api import authenticate_broker
-from app.core.config import settings
 from app.web.brokers.dhan.api.order_api import get_order_details_api
 
 class TestDhanIntegration:

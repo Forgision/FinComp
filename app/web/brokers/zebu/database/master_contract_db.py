@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import Float, Index, Integer, Sequence, String, create_engine, select
+from sqlalchemy import Float, Index, Integer, Sequence, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.schemas import get_db

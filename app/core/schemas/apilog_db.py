@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytz
 from sqlalchemy import DateTime, Integer, Text
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.core.schemas import Base, SessionLocal
