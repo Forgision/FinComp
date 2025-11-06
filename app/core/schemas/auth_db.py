@@ -161,20 +161,19 @@ def upsert_auth(
 
 
 def get_auth_token(name: str) -> Optional[str]:
-    with SessionLocal() as db:
-        if not name:
-            logger.debug("get_auth_token called with empty/None name, returning None")
-            return None
+    if not name:
+        logger.debug("get_auth_token called with empty/None name, returning None")
+        return None
 
-        cache_key = f"auth-{name}"
-        cached_obj = auth_cache.get(cache_key)
-        if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
-            return decrypt_token(cached_obj.auth)
+    cache_key = f"auth-{name}"
+    cached_obj = auth_cache.get(cache_key)
+    if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
+        return decrypt_token(cached_obj.auth)
 
-        auth_obj = get_auth_token_dbquery(name)
-        if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
-            auth_cache[cache_key] = auth_obj
-            return decrypt_token(auth_obj.auth)
+    auth_obj = get_auth_token_dbquery(name)
+    if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
+        auth_cache[cache_key] = auth_obj
+        return decrypt_token(auth_obj.auth)
     return None
 
 

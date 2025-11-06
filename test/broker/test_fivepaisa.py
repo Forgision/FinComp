@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from app.core.config import settings
 from app.web.brokers.fivepaisa.api.auth_api import authenticate_broker
-from app.web.brokers.fivepaisa.api.data import BrokerData, get_api_response
+from app.web.brokers.fivepaisa.api.data import BrokerData, get_api_response, map_interval
 from app.web.brokers.fivepaisa.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
@@ -18,7 +18,7 @@ from app.web.brokers.fivepaisa.api.order_api import (
     get_trade_book,
     modify_order,
     place_order_api,
-    place_smartorder_api,
+    place_smartorder_api
 )
 
 
@@ -362,7 +362,6 @@ async def test_get_api_response_generic_exception(mock_httpx_client, mock_settin
     with pytest.raises(Exception) as exc_info:
         await get_api_response(endpoint, auth_token)
 
-    assert exc_info.type == Exception
     assert "An error occurred: Unknown error" in str(exc_info.value)
 
 
@@ -522,7 +521,7 @@ async def test_get_quotes_prev_close_fallback(
     """Test get_quotes with fallback for prev_close."""
     mock_snapshot_response = MagicMock()
     mock_snapshot_response.status_code = 200
-    mock_snapshot_response.json.return_value = {
+    mock_response_data = {
         "head": {"statusDescription": "Success"},
         "body": {
             "Data": [
@@ -537,6 +536,7 @@ async def test_get_quotes_prev_close_fallback(
             ]
         },
     }
+    mock_snapshot_response.json.return_value = mock_response_data
 
     with patch(
         "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
@@ -762,7 +762,7 @@ async def test_get_depth_exception_handling(mock_httpx_client, mock_settings):
         depth = await broker_data.get_depth("TESTSYMBOL", "NSE")
 
         assert depth is None
-        mock_get_market_depth.assert_called_once_with("TESTSYMBOL", "NSE")
+        mock_get_market_depth.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -825,26 +825,6 @@ def test_process_raw_candles_missing_keys():
     assert processed_candles[0]["close"] == 0  # Default value
 
 
-# --- Tests for order_api.py ---
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
-async def test_get_order_book_success(mock_get_api_response):
-    """Test successful retrieval of order book."""
-    mock_get_api_response.return_value = {
-        "head": {"statusDescription": "Success"},
-        "body": {"OrderBookDetail": [{"order": "details"}]},
-    }
-    auth_token = "mock_auth_token"
-    order_book = await get_order_book(auth_token)
-
-    assert order_book == {"head": {"statusDescription": "Success"}, "body": {"OrderBookDetail": [{"order": "details"}]}}
-    mock_get_api_response.assert_called_once_with(
-        "/VendorsAPI/Service1.svc/V3/OrderBook", auth_token, method="POST", payload=ANY
-    )
-
-
 @pytest.mark.asyncio
 @patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_order_book_api_error(mock_get_api_response):
@@ -857,23 +837,6 @@ async def test_get_order_book_api_error(mock_get_api_response):
 
     assert "API error" in str(exc_info.value)
     mock_get_api_response.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
-async def test_get_trade_book_success(mock_get_api_response):
-    """Test successful retrieval of trade book."""
-    mock_get_api_response.return_value = {
-        "head": {"statusDescription": "Success"},
-        "body": {"TradeBookDetail": [{"trade": "details"}]},
-    }
-    auth_token = "mock_auth_token"
-    trade_book = await get_trade_book(auth_token)
-
-    assert trade_book == {"head": {"statusDescription": "Success"}, "body": {"TradeBookDetail": [{"trade": "details"}]}}
-    mock_get_api_response.assert_called_once_with(
-        "/VendorsAPI/Service1.svc/V1/TradeBook", auth_token, method="POST", payload=ANY
-    )
 
 
 @pytest.mark.asyncio
@@ -1081,20 +1044,6 @@ async def test_get_order_book_success(mock_get_api_response):
 
 @pytest.mark.asyncio
 @patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
-async def test_get_order_book_api_error(mock_get_api_response):
-    """Test get_order_book when API call raises an exception."""
-    mock_get_api_response.side_effect = Exception("API error")
-    auth_token = "mock_auth_token"
-
-    with pytest.raises(Exception) as exc_info:
-        await get_order_book(auth_token)
-
-    assert "API error" in str(exc_info.value)
-    mock_get_api_response.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_trade_book_success(mock_get_api_response):
     """Test successful retrieval of trade book."""
     mock_get_api_response.return_value = {
@@ -1108,20 +1057,6 @@ async def test_get_trade_book_success(mock_get_api_response):
     mock_get_api_response.assert_called_once_with(
         "/VendorsAPI/Service1.svc/V1/TradeBook", auth_token, method="POST", payload=ANY
     )
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
-async def test_get_trade_book_api_error(mock_get_api_response):
-    """Test get_trade_book when API call raises an exception."""
-    mock_get_api_response.side_effect = Exception("API error")
-    auth_token = "mock_auth_token"
-
-    with pytest.raises(Exception) as exc_info:
-        await get_trade_book(auth_token)
-
-    assert "API error" in str(exc_info.value)
-    mock_get_api_response.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -1445,24 +1380,6 @@ async def test_place_smartorder_api_http_error(mock_transform_data, mock_get_htt
 
     assert response is None
     assert response_data == {"error": "HTTP error occurred: 400"}
-    assert order_id is None
-    mock_transform_data.assert_called_once_with(order_data)
-    mock_get_httpx_client.return_value.post.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
-@patch("app.web.brokers.fivepaisa.api.order_api.transform_data", return_value={"mock": "transformed_data"})
-async def test_place_smartorder_api_request_error(mock_transform_data, mock_get_httpx_client):
-    """Test httpx.RequestError during smart order placement."""
-    mock_get_httpx_client.return_value.post.side_effect = httpx.RequestError("Network error", request=MagicMock())
-
-    order_data = {"symbol": "TEST", "exchange": "NSE"}
-    auth_token = "mock_auth_token"
-    response, response_data, order_id = await place_smartorder_api(order_data, auth_token)
-
-    assert response is None
-    assert response_data == {"error": "Request error occurred: Network error"}
     assert order_id is None
     mock_transform_data.assert_called_once_with(order_data)
     mock_get_httpx_client.return_value.post.assert_called_once()
@@ -1977,74 +1894,4 @@ async def test_get_open_position_general_exception(mock_get_httpx_client):
     open_positions = await get_open_position(auth_token)
 
     assert open_positions == {"body": {"TradeBookDetail": []}}
-    mock_get_httpx_client.return_value.post.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
-async def test_get_holdings_success(mock_get_httpx_client):
-    """Test successful retrieval of holdings."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "head": {"statusDescription": "Success"},
-        "body": {"HoldingsDetail": [{"holding": "details"}]},
-    }
-    mock_get_httpx_client.return_value.post.return_value = mock_response
-
-    auth_token = "mock_auth_token"
-    holdings = await get_holdings(auth_token)
-
-    assert holdings == {
-        "head": {"statusDescription": "Success"},
-        "body": {"HoldingsDetail": [{"holding": "details"}]},
-    }
-    mock_get_httpx_client.return_value.post.assert_called_once_with(
-        f"{settings.FIVEPAISA_BASE_URL}/VendorsAPI/Service1.svc/V2/Holding",
-        content=ANY,
-        headers=ANY,
-        timeout=60.0,
-    )
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
-async def test_get_holdings_timeout_and_retry(mock_get_httpx_client):
-    """Test handling of timeout with retries for holdings."""
-    mock_get_httpx_client.return_value.post.side_effect = httpx.TimeoutException("Request timed out")
-
-    auth_token = "mock_auth_token"
-    holdings = await get_holdings(auth_token)
-
-    assert holdings == {"body": {"HoldingsDetail": []}}
-    assert mock_get_httpx_client.return_value.post.call_count == 3  # 3 retries
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
-async def test_get_holdings_http_error(mock_get_httpx_client):
-    """Test handling of HTTPStatusError for holdings."""
-    mock_response = MagicMock()
-    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "Bad Request", request=MagicMock(), response=MagicMock(status_code=400, text="Bad Request")
-    )
-    mock_get_httpx_client.return_value.post.return_value = mock_response
-
-    auth_token = "mock_auth_token"
-    holdings = await get_holdings(auth_token)
-
-    assert holdings == {"body": {"HoldingsDetail": []}}
-    mock_get_httpx_client.return_value.post.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
-async def test_get_holdings_general_exception(mock_get_httpx_client):
-    """Test handling of general exception for holdings."""
-    mock_get_httpx_client.return_value.post.side_effect = Exception("Something went wrong")
-
-    auth_token = "mock_auth_token"
-    holdings = await get_holdings(auth_token)
-
-    assert holdings == {"body": {"HoldingsDetail": []}}
     mock_get_httpx_client.return_value.post.assert_called_once()

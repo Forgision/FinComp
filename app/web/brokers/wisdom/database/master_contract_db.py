@@ -12,6 +12,7 @@ from app.core.schemas import get_db
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
+from app.core.config import settings
 
 class Base(DeclarativeBase):
     pass

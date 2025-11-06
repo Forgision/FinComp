@@ -140,71 +140,70 @@ class ExecutionEngine:
         Process a single order based on current quote
         Determines if order should be executed based on price type
         """
-        with SessionLocal() as db_session:
-            try:
-                ltp = Decimal(str(quote.get('ltp', 0)))
-                bid = Decimal(str(quote.get('bid', 0)))
-                ask = Decimal(str(quote.get('ask', 0)))
+        try:
+            ltp = Decimal(str(quote.get('ltp', 0)))
+            bid = Decimal(str(quote.get('bid', 0)))
+            ask = Decimal(str(quote.get('ask', 0)))
 
-                if ltp <= 0:
-                    logger.warning(f"Invalid LTP for order {order.orderid}: {ltp}")
-                    return
+            if ltp <= 0:
+                logger.warning(f"Invalid LTP for order {order.orderid}: {ltp}")
+                return
 
-                # Determine if order should be executed based on price type
-                should_execute = False
-                execution_price = None
+            # Determine if order should be executed based on price type
+            should_execute = False
+            execution_price = None
 
-                if order.price_type == 'MARKET':
-                    # Market orders execute immediately at bid/ask (more realistic)
-                    # BUY: Execute at ask price (pay seller's asking price)
-                    # SELL: Execute at bid price (receive buyer's bid price)
-                    # If bid/ask is 0, fall back to LTP
+            if order.price_type == 'MARKET':
+                # Market orders execute immediately at bid/ask (more realistic)
+                # BUY: Execute at ask price (pay seller's asking price)
+                # SELL: Execute at bid price (receive buyer's bid price)
+                # If bid/ask is 0, fall back to LTP
+                should_execute = True
+                if order.action == 'BUY':
+                    execution_price = ask if ask > 0 else ltp
+                else:  # SELL
+                    execution_price = bid if bid > 0 else ltp
+
+            elif order.price_type == 'LIMIT':
+                # Limit BUY: Execute if LTP <= Limit Price (you get filled at LTP or better)
+                # Limit SELL: Execute if LTP >= Limit Price (you get filled at LTP or better)
+                if order.action == 'BUY' and ltp <= order.price:
                     should_execute = True
-                    if order.action == 'BUY':
-                        execution_price = ask if ask > 0 else ltp
-                    else:  # SELL
-                        execution_price = bid if bid > 0 else ltp
+                    execution_price = ltp  # Execute at current market price (LTP), which is better than limit
+                elif order.action == 'SELL' and ltp >= order.price:
+                    should_execute = True
+                    execution_price = ltp  # Execute at current market price (LTP), which is better than limit
 
-                elif order.price_type == 'LIMIT':
-                    # Limit BUY: Execute if LTP <= Limit Price (you get filled at LTP or better)
-                    # Limit SELL: Execute if LTP >= Limit Price (you get filled at LTP or better)
-                    if order.action == 'BUY' and ltp <= order.price:
+            elif order.price_type == 'SL':
+                # Stop Loss Limit order
+                # SL BUY: When LTP >= trigger price, order activates. Execute at LTP if LTP <= limit price
+                # SL SELL: When LTP <= trigger price, order activates. Execute at LTP if LTP >= limit price
+                if order.action == 'BUY' and ltp >= order.trigger_price:
+                    if ltp <= order.price:
                         should_execute = True
-                        execution_price = ltp  # Execute at current market price (LTP), which is better than limit
-                    elif order.action == 'SELL' and ltp >= order.price:
+                        execution_price = ltp  # Execute at current market price (LTP)
+                elif order.action == 'SELL' and ltp <= order.trigger_price:
+                    if ltp >= order.price:
                         should_execute = True
-                        execution_price = ltp  # Execute at current market price (LTP), which is better than limit
+                        execution_price = ltp  # Execute at current market price (LTP)
 
-                elif order.price_type == 'SL':
-                    # Stop Loss Limit order
-                    # SL BUY: When LTP >= trigger price, order activates. Execute at LTP if LTP <= limit price
-                    # SL SELL: When LTP <= trigger price, order activates. Execute at LTP if LTP >= limit price
-                    if order.action == 'BUY' and ltp >= order.trigger_price:
-                        if ltp <= order.price:
-                            should_execute = True
-                            execution_price = ltp  # Execute at current market price (LTP)
-                    elif order.action == 'SELL' and ltp <= order.trigger_price:
-                        if ltp >= order.price:
-                            should_execute = True
-                            execution_price = ltp  # Execute at current market price (LTP)
+            elif order.price_type == 'SL-M':
+                # Stop Loss Market order
+                # BUY: Execute at market when LTP >= trigger price
+                # SELL: Execute at market when LTP <= trigger price
+                if order.action == 'BUY' and ltp >= order.trigger_price:
+                    should_execute = True
+                    execution_price = ltp
+                elif order.action == 'SELL' and ltp <= order.trigger_price:
+                    should_execute = True
+                    execution_price = ltp
 
-                elif order.price_type == 'SL-M':
-                    # Stop Loss Market order
-                    # BUY: Execute at market when LTP >= trigger price
-                    # SELL: Execute at market when LTP <= trigger price
-                    if order.action == 'BUY' and ltp >= order.trigger_price:
-                        should_execute = True
-                        execution_price = ltp
-                    elif order.action == 'SELL' and ltp <= order.trigger_price:
-                        should_execute = True
-                        execution_price = ltp
+            # Execute the order if conditions are met
+            if should_execute:
+                self._execute_order(order, execution_price)
 
-                # Execute the order if conditions are met
-                if should_execute:
-                    self._execute_order(order, execution_price)
-
-            except Exception as e:
-                logger.error(f"Error processing order {order.orderid}: {e}")
+        except Exception as e:
+            logger.error(f"Error processing order {order.orderid}: {e}")
 
     def _execute_order(self, order, execution_price):
         """

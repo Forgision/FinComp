@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 import pytz
 
-from app.sandbox.fund_manager import FundManager, is_option, is_future
+from app.algo.sandbox.fund_manager import FundManager, is_option, is_future
 from app.core.schemas.sandbox_db import SandboxFunds
 
 class TestFundManager:
@@ -14,7 +14,7 @@ class TestFundManager:
         user_id = "test_user"
 
         with patch('app.sandbox.fund_manager.db_session') as mock_db_session,\
-             patch('app.sandbox.fund_manager.get_config', return_value='10000000.00') as mock_get_config:
+             patch('app.sandbox.fund_manager.get_config', return_value='10000000.00'):
 
             mock_query = MagicMock()
             mock_db_session.query.return_value.filter_by.return_value = mock_query

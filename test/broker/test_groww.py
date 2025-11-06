@@ -511,7 +511,7 @@ class TestGrowwData:
     ):
         """Test get_valid_interval based on Groww's time-based constraints."""
         result = self.broker_data.get_valid_interval(start_time, end_time, requested_interval)
-        assert "weeks" in intervals["data"]
+        assert "weeks" in result["data"]
 
     @patch("app.web.brokers.groww.api.data.get_api_response")
     def test_get_quotes_single_symbol_success(self, mock_get_api_response, mock_get_br_symbol, mock_get_token):
@@ -918,7 +918,7 @@ class TestGrowwOrder:
 
         # Mock db_session and SymToken for symbol conversion
         with patch("app.web.brokers.groww.api.order_api.db_session") as mock_db_session, \
-             patch("app.web.brokers.groww.api.order_api.SymToken") as mock_symtoken, \
+             patch("app.web.brokers.groww.api.order_api.SymToken"), \
              patch("app.web.brokers.groww.api.order_api.get_oa_symbol") as mock_get_oa_symbol:
 
             mock_db_session.return_value.__enter__.return_value.query.return_value.filter.return_value.first.return_value = None

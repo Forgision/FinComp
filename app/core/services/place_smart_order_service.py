@@ -18,7 +18,6 @@ from app.utils.constants import (
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
 from sqlalchemy.orm import Session
-from app.core.schemas import get_db
 
 from .telegram_alert_service import telegram_alert_service
 
@@ -48,7 +47,6 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
         del analyzer_request['apikey']
     analyzer_request['api_type'] = 'placesmartorder'
 
-    db = next(get_db())
     # Log to analyzer database
     await async_log_analyzer(analyzer_request, error_response, 'placesmartorder')
 

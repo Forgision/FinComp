@@ -14,7 +14,7 @@ from sqlalchemy import (
     String,
     select
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped
 
 from app.core.schemas import get_db
 from app.utils.logging import logger

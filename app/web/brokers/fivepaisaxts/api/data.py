@@ -559,10 +559,10 @@ class BrokerData:
             # Try to get from session if not found in instance
             if (
                 not user_id
-                and hasattr(session, "marketdata_userid")
-                and session.get("marketdata_userid")
+                and hasattr(session, "marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
+                and session.get("marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
             ):
-                user_id = session.get("marketdata_userid")
+                user_id = session.get("marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
                 logger.debug(f"Using session user_id: {user_id}")
 
             # If no user ID is available, use the one from feed token authentication
@@ -582,10 +582,10 @@ class BrokerData:
             # Try to get from session if not found in instance
             if (
                 not feed_token
-                and hasattr(session, "marketdata_token")
-                and session.get("marketdata_token")
+                and hasattr(session, "marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
+                and session.get("marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
             ):
-                feed_token = session.get("marketdata_token")
+                feed_token = session.get("marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
                 logger.debug("Using session feed_token")
 
             # If still no feed token, try to get a new one

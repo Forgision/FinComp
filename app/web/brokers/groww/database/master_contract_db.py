@@ -490,7 +490,7 @@ def process_groww_data(output_path):
             'strike_price': float,  # Convert to numeric later
             'tick_size': float,  # Convert to numeric later
         }
-        df = pd.read_csv(file_path, low_memory=False, dtype=str)
+        df = pd.read_csv(file_path, low_memory=False, dtype=dtype_dict)
 
         logger.info(f"Loaded {len(df)} instruments from CSV file")
         logger.info("CSV columns: {")

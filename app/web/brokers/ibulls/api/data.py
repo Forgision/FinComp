@@ -9,6 +9,7 @@ from app.web.brokers.ibulls.database.master_contract_db import SymToken
 from app.web.brokers.ibulls.baseurl import MARKET_DATA_URL
 from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
+from app.core.schemas import SessionLocal
 
 
 def get_api_response(endpoint, auth, method="GET", payload='', feed_token=None, params=None):
@@ -113,7 +114,7 @@ class BrokerData:
             raise Exception(f"Unknown exchange segment: {exchange}")
 
         # Get exchange_token from app.core.schemas
-        with db_session() as session:
+        with SessionLocal() as session:
             symbol_info = session.query(SymToken).filter(
                 SymToken.exchange == exchange,
                 SymToken.brsymbol == br_symbol
@@ -262,7 +263,7 @@ class BrokerData:
             if not exchange_segment:
                 raise Exception(f"Unsupported exchange: {exchange}")
              # Get exchange_token from app.core.schemas
-            with db_session() as session:
+            with SessionLocal() as session:
                 symbol_info = session.query(SymToken).filter(
                     SymToken.exchange == exchange,
                     SymToken.brsymbol == br_symbol
@@ -483,7 +484,7 @@ class BrokerData:
                 user_id = self.user_id
                 logger.debug(f"Using instance user_id: {user_id}")
 
-            with db_session() as session:
+            with SessionLocal() as session:
                 # Try to get from session if not found in instance
                 if not user_id and hasattr(session, 'marketdata_userid') and session.get('marketdata_userid'):
                     user_id = session.get('marketdata_userid')
@@ -547,7 +548,7 @@ class BrokerData:
 
             # Get exchange_token from app.core.schemas
             logger.info("Querying database for symbol token...")
-            with db_session() as session:
+            with SessionLocal() as session:
                 symbol_info = session.query(SymToken).filter(
                     SymToken.exchange == exchange,
                     SymToken.brsymbol == br_symbol

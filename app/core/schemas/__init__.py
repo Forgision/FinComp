@@ -3,7 +3,7 @@
 # app/db/base.py
 from typing import Callable
 from sqlalchemy import NullPool, create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 from app.utils.logging import logger

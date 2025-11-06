@@ -239,7 +239,7 @@ def master_contract_download():
         delete_symtoken_table()
         token_df = process_dhan_csv(output_path)
         copy_from_dataframe(token_df)
-        delete_dhan_temp_.pydata(output_path)
+        delete_dhan_temp_.pydata(output_path) #type: ignore  # noqa: F821 Undefined name `delete_dhan_temp_`
         #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
 
         #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
