@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
-from app.core.schemas import Base, SessionLocal, ENSURE_TABLE_REGISTRY
+from app.core.schemas import AsyncSessionLocal, Base, INIT_DB_REGISTRY
 from app.utils.logging import logger
 
 
@@ -64,41 +64,42 @@ class Settings(Base):
         return None
 
 
-def ensure_table():
-    with SessionLocal() as db_session:
+async def ensure_table():
+    async with AsyncSessionLocal() as db_session:
         # Create default settings if not exists
-        if not db_session.query(Settings).first():
+        result = await db_session.execute(select(Settings))
+        if result.scalars().first() is None:
             logger.info("Creating default settings (Live Mode)")
             default_settings = Settings(analyze_mode=False)
             db_session.add(default_settings)
-            db_session.commit()
+            await db_session.commit()
 
             
-ENSURE_TABLE_REGISTRY['settings_db'] = ensure_table
+INIT_DB_REGISTRY['settings_db'] = ensure_table
 
 
-def get_settings() -> Settings:
+async def get_settings(db: AsyncSessionLocal) -> Settings:
     """Get settings from the database"""
-    with SessionLocal() as db:    
-        settings_instance = db.execute(select(Settings)).scalar_one_or_none()
-        if not settings_instance:
-            settings_instance = Settings()
-            db.add(settings_instance)
-            db.commit()
-        return settings_instance
+    result = await db.execute(select(Settings))
+    settings_instance = result.scalars().first()
+    if not settings_instance:
+        settings_instance = Settings()
+        db.add(settings_instance)
+        await db.commit()
+    return settings_instance
 
 
-def get_analyze_mode() -> bool:
+async def get_analyze_mode(db: AsyncSessionLocal) -> bool:
     """Get current analyze mode setting"""
-    return get_settings().analyze_mode
+    settings = await get_settings(db)
+    return settings.analyze_mode
 
 
-def set_analyze_mode(mode: bool):
+async def set_analyze_mode(db: AsyncSessionLocal, mode: bool):
     """Set analyze mode setting"""
-    with SessionLocal() as db:
-        settings_instance = get_settings()
-        settings_instance.analyze_mode = mode
-        db.commit()
+    settings_instance = await get_settings(db)
+    settings_instance.analyze_mode = mode
+    await db.commit()
 
 
 def _get_encryption_key() -> bytes:
@@ -131,78 +132,87 @@ def _decrypt_password(encrypted_password: str) -> Optional[str]:
         return None
 
 
-def get_smtp_settings() -> dict:
+async def get_smtp_settings(db: AsyncSessionLocal) -> dict:
     """Get SMTP configuration"""
-    settings_instance = get_settings()
+    settings_instance = await get_settings(db)
 
     return {
-        'smtp_server': settings_instance.smtp_server,
-        'smtp_port': settings_instance.smtp_port,
-        'smtp_username': settings_instance.smtp_username,
-        'smtp_password': settings_instance.smtp_password,
-        'smtp_use_tls': settings_instance.smtp_use_tls,
-        'smtp_from_email': settings_instance.smtp_from_email,
-        'smtp_helo_hostname': settings_instance.smtp_helo_hostname
+        "smtp_server": settings_instance.smtp_server,
+        "smtp_port": settings_instance.smtp_port,
+        "smtp_username": settings_instance.smtp_username,
+        "smtp_password": settings_instance.smtp_password,
+        "smtp_use_tls": settings_instance.smtp_use_tls,
+        "smtp_from_email": settings_instance.smtp_from_email,
+        "smtp_helo_hostname": settings_instance.smtp_helo_hostname,
     }
 
 
-def set_smtp_settings(smtp_server: Optional[str] = None, smtp_port: Optional[int] = None,
-                     smtp_username: Optional[str] = None, smtp_password: Optional[str] = None,
-                     smtp_use_tls: Optional[bool] = None, smtp_from_email: Optional[str] = None,
-                     smtp_helo_hostname: Optional[str] = None):
+async def set_smtp_settings(
+    db: AsyncSessionLocal,
+    smtp_server: Optional[str] = None,
+    smtp_port: Optional[int] = None,
+    smtp_username: Optional[str] = None,
+    smtp_password: Optional[str] = None,
+    smtp_use_tls: Optional[bool] = None,
+    smtp_from_email: Optional[str] = None,
+    smtp_helo_hostname: Optional[str] = None,
+):
     """Set SMTP configuration"""
-    with SessionLocal() as db:
-        settings_instance = get_settings()
+    settings_instance = await get_settings(db)
 
-        if smtp_server is not None:
-            settings_instance.smtp_server = smtp_server
-        if smtp_port is not None:
-            settings_instance.smtp_port = smtp_port
-        if smtp_username is not None:
-            settings_instance.smtp_username = smtp_username
-        if smtp_password is not None:
-            settings_instance.smtp_password_encrypted = _encrypt_password(smtp_password)
-        if smtp_use_tls is not None:
-            settings_instance.smtp_use_tls = smtp_use_tls
-        if smtp_from_email is not None:
-            settings_instance.smtp_from_email = smtp_from_email
-        if smtp_helo_hostname is not None:
-            settings_instance.smtp_helo_hostname = smtp_helo_hostname
+    if smtp_server is not None:
+        settings_instance.smtp_server = smtp_server
+    if smtp_port is not None:
+        settings_instance.smtp_port = smtp_port
+    if smtp_username is not None:
+        settings_instance.smtp_username = smtp_username
+    if smtp_password is not None:
+        settings_instance.smtp_password_encrypted = _encrypt_password(smtp_password)
+    if smtp_use_tls is not None:
+        settings_instance.smtp_use_tls = smtp_use_tls
+    if smtp_from_email is not None:
+        settings_instance.smtp_from_email = smtp_from_email
+    if smtp_helo_hostname is not None:
+        settings_instance.smtp_helo_hostname = smtp_helo_hostname
 
-        db.commit()
-        logger.info("SMTP settings updated successfully")
+    await db.commit()
+    logger.info("SMTP settings updated successfully")
 
 
-def get_security_settings() -> dict:
+async def get_security_settings(db: AsyncSessionLocal) -> dict:
     """Get security configuration"""
-    s = get_settings()
+    s = await get_settings(db)
 
     return {
-        '404_threshold': s.security_404_threshold,
-        '404_ban_duration': s.security_404_ban_duration,
-        'api_threshold': s.security_api_threshold,
-        'api_ban_duration': s.security_api_ban_duration,
-        'repeat_offender_limit': s.security_repeat_offender_limit
+        "404_threshold": s.security_404_threshold,
+        "404_ban_duration": s.security_404_ban_duration,
+        "api_threshold": s.security_api_threshold,
+        "api_ban_duration": s.security_api_ban_duration,
+        "repeat_offender_limit": s.security_repeat_offender_limit,
     }
 
 
-def set_security_settings(threshold_404: Optional[int] = None, ban_duration_404: Optional[int] = None,
-                         threshold_api: Optional[int] = None, ban_duration_api: Optional[int] = None,
-                         repeat_offender_limit: Optional[int] = None):
+async def set_security_settings(
+    db: AsyncSessionLocal,
+    threshold_404: Optional[int] = None,
+    ban_duration_404: Optional[int] = None,
+    threshold_api: Optional[int] = None,
+    ban_duration_api: Optional[int] = None,
+    repeat_offender_limit: Optional[int] = None,
+):
     """Set security configuration"""
-    with SessionLocal() as db:
-        settings_instance = get_settings()
+    settings_instance = await get_settings(db)
 
-        if threshold_404 is not None:
-            settings_instance.security_404_threshold = threshold_404
-        if ban_duration_404 is not None:
-            settings_instance.security_404_ban_duration = ban_duration_404
-        if threshold_api is not None:
-            settings_instance.security_api_threshold = threshold_api
-        if ban_duration_api is not None:
-            settings_instance.security_api_ban_duration = ban_duration_api
-        if repeat_offender_limit is not None:
-            settings_instance.security_repeat_offender_limit = repeat_offender_limit
+    if threshold_404 is not None:
+        settings_instance.security_404_threshold = threshold_404
+    if ban_duration_404 is not None:
+        settings_instance.security_404_ban_duration = ban_duration_404
+    if threshold_api is not None:
+        settings_instance.security_api_threshold = threshold_api
+    if ban_duration_api is not None:
+        settings_instance.security_api_ban_duration = ban_duration_api
+    if repeat_offender_limit is not None:
+        settings_instance.security_repeat_offender_limit = repeat_offender_limit
 
-        db.commit()
-        logger.info("Security settings updated successfully")
+    await db.commit()
+    logger.info("Security settings updated successfully")

@@ -45,11 +45,11 @@ class ResetPassword(BaseModel):
     password: str
 
 @auth_router.get("/login", response_class=HTMLResponse, name="auth.login")
-async def login_get(request: Request):
-    if find_admin_user() is None:
-        return RedirectResponse(url='/setup', status_code=status.HTTP_32_FOUND)
-    if 'user' in request.session:
-        return RedirectResponse(url='/auth/broker', status_code=status.HTTP_302_FOUND)
+async def login_get(request: Request, db=Depends(get_db)):
+    if await find_admin_user(db) is None:
+        return RedirectResponse(url="/setup", status_code=status.HTTP_302_FOUND)
+    if "user" in request.session:
+        return RedirectResponse(url="/auth/broker", status_code=status.HTTP_302_FOUND)
     if request.session.get('logged_in'):
         return RedirectResponse(url='/dashboard', status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse("login.html", {"request": request})
@@ -58,8 +58,8 @@ async def login_get(request: Request):
 @limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
 async def login_post(request: Request, db = Depends(get_db), username: str = Form(...), password: str = Form(...)):
-    if authenticate_user(username, password):
-        request.session['user'] = username
+    if await authenticate_user(db, username, password):
+        request.session["user"] = username
         logger.info(f"Login success for user: {username}")
         return JSONResponse(content={'status': 'success'}, status_code=200)
     else:
@@ -100,9 +100,9 @@ async def reset_password_get(request: Request):
 @limiter.limit(settings.RESET_RATE_LIMIT)
 async def reset_password_post(request: Request, db = Depends(get_db), step: str = Form(...), email: str = Form(None), totp_code: str = Form(None), token: str = Form(None), password: str = Form(None)):
     if step == 'email':
-        user = find_user_by_email(db, email)
+        user = await find_user_by_email(db, email)
         if user:
-            request.session['reset_email'] = email
+            request.session["reset_email"] = email
         return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": True, "method_selected": False, "email": email})
 
     elif step == 'select_totp':
@@ -110,10 +110,10 @@ async def reset_password_post(request: Request, db = Depends(get_db), step: str 
         return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": True, "method_selected": 'totp', "totp_verified": False, "email": email})
 
     elif step == 'select_email':
-        user = find_user_by_email(db, email)
-        request.session['reset_method'] = 'email'
+        user = await find_user_by_email(db, email)
+        request.session["reset_method"] = "email"
 
-        smtp_settings = get_smtp_settings(db)
+        smtp_settings = await get_smtp_settings(db)
         if not smtp_settings or not smtp_settings.get('smtp_server'):
             return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": True, "method_selected": False, "email": email, "error": "Email reset is not available. Please use TOTP authentication."})
 
@@ -132,7 +132,7 @@ async def reset_password_post(request: Request, db = Depends(get_db), step: str 
         return templates.TemplateResponse('reset_password.html', {"request": request, "email_sent": True, "method_selected": 'email', "email_verified": False, "email": email})
 
     elif step == 'totp':
-        user = find_user_by_email(db, email)
+        user = await find_user_by_email(db, email)
         if user and user.verify_totp(totp_code):
             token = secrets.token_urlsafe(32)
             request.session['reset_token'] = token
@@ -146,11 +146,11 @@ async def reset_password_post(request: Request, db = Depends(get_db), step: str 
         if not valid_token or email != request.session.get('reset_email'):
             return RedirectResponse(url='/auth/reset-password', status_code=status.HTTP_302_FOUND)
 
-        user = find_user_by_email(db, email)
+        user = await find_user_by_email(db, email)
         if user:
             user.set_password(password)
-            db.commit()
-            request.session.pop('reset_token', None)
+            await db.commit()
+            request.session.pop("reset_token", None)
             request.session.pop('reset_email', None)
             request.session.pop('reset_method', None)
             request.session.pop('email_reset_token', None)

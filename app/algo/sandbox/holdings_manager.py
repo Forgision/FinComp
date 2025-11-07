@@ -17,7 +17,7 @@ import pytz
 
 from app.core.services.quotes_service import get_quotes
 from app.core.schemas.auth_db import ApiKeys, decrypt_token
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.sandbox_db import (
     SandboxHoldings,
     SandboxPositions,
@@ -43,7 +43,7 @@ class HoldingsManager:
             tuple: (success: bool, response: dict, status_code: int)
         """
         try:
-            with SessionLocal() as db_session:
+            with AsyncSessionLocal() as db_session:
                 # Get all holdings, excluding zero-quantity holdings
                 holdings = db_session.query(SandboxHoldings).filter_by(user_id=self.user_id).filter(
                     SandboxHoldings.quantity != 0
@@ -110,7 +110,7 @@ class HoldingsManager:
         Process T+1 settlement - move CNC positions to holdings
         Should be called daily after market close
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                     ist = pytz.timezone('Asia/Kolkata')
                     today = datetime.now(ist).date()
@@ -229,7 +229,7 @@ class HoldingsManager:
 
     def _update_holdings_mtm(self, holdings):
         """Update MTM for all holdings with live quotes"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 if not holdings:
                     return
@@ -304,7 +304,7 @@ class HoldingsManager:
 
     def _fetch_quote(self, symbol, exchange):
         """Fetch real-time quote for a symbol using API key"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 # Get any user's API key for fetching quotes
                 api_key_obj = db_session.query(ApiKeys).first()
@@ -335,7 +335,7 @@ class HoldingsManager:
 
 def process_all_t1_settlements():
     """Process T+1 settlement for all users"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             # Get all unique users with CNC positions
             ist = pytz.timezone('Asia/Kolkata')

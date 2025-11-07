@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 from app.core.config import settings
 
@@ -45,7 +45,7 @@ class AnalyzerLog(Base):
 
 async def async_log_analyzer(request_data, response_data, api_type='placeorder'):
     """Asynchronously log analyzer request"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             # Serialize JSON data for storage
             request_json = json.dumps(request_data)

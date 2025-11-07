@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 
 
@@ -280,7 +280,7 @@ def init_default_config():
             'description': 'Delay between multi-leg smart orders - Range: 0.1-10 seconds (for future use)'
         }
     ]
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         for config in default_configs:
             try:
                 existing = db_session.execute(select(SandboxConfig).filter_by(config_key=config['config_key'])).scalar_one_or_none()
@@ -299,7 +299,7 @@ def init_default_config():
 
 def get_config(config_key, default=None):
     """Get configuration value by key"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
             if config:
@@ -312,7 +312,7 @@ def get_config(config_key, default=None):
 
 def set_config(config_key, config_value, description=None):
     """Set configuration value"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             config = db_session.execute(select(SandboxConfig).filter_by(config_key=config_key)).scalar_one_or_none()
             if config:
@@ -337,7 +337,7 @@ def set_config(config_key, config_value, description=None):
 
 def get_all_configs():
     """Get all configuration values"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             configs = db_session.execute(select(SandboxConfig)).scalars().all()
             return {config.config_key: {

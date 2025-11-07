@@ -1,4 +1,4 @@
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.chartink_db import ChartinkStrategy, ChartinkSymbolMapping
 from app.utils.logging import logger
 from sqlalchemy import select
@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 def create_strategy(name, webhook_id, user_id, is_intraday=True, start_time=None, end_time=None, squareoff_time=None):
     """Create a new strategy"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             strategy = ChartinkStrategy(
                 name=name,
@@ -28,7 +28,7 @@ def create_strategy(name, webhook_id, user_id, is_intraday=True, start_time=None
 
 def get_strategy(strategy_id):
     """Get strategy by ID"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             q = select(ChartinkStrategy).filter_by(id=strategy_id)
             return db_session.execute(q).scalars().all()
@@ -39,7 +39,7 @@ def get_strategy(strategy_id):
 
 def get_strategy_by_webhook_id(webhook_id):
     """Get strategy by webhook ID"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             stmt = select(ChartinkStrategy).filter_by(webhook_id=webhook_id)
             return db_session.execute(stmt).scalars().all()
@@ -50,7 +50,7 @@ def get_strategy_by_webhook_id(webhook_id):
 
 def get_all_strategies():
     """Get all strategies"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             stmt = select(ChartinkStrategy)
             return db_session.execute(stmt).scalars().all()
@@ -61,7 +61,7 @@ def get_all_strategies():
 
 def get_user_strategies(user_id):
     """Get all strategies for a user"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             stmt = select(ChartinkStrategy).filter_by(user_id=user_id)
             return db_session.execute(stmt).scalars().all()
@@ -72,7 +72,7 @@ def get_user_strategies(user_id):
 
 def delete_strategy(strategy_id):
     """Delete a strategy"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             q = select(ChartinkStrategy).filter_by(id=strategy_id)
             strategy = db_session.execute(q).scalars().first()
@@ -88,7 +88,7 @@ def delete_strategy(strategy_id):
 
 def toggle_strategy(strategy_id):
     """Toggle strategy active status"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             strategy = db_session.get(ChartinkStrategy, strategy_id)
             if strategy:
@@ -103,7 +103,7 @@ def toggle_strategy(strategy_id):
 
 def update_strategy_times(strategy_id, start_time=None, end_time=None, squareoff_time=None):
     """Update strategy trading times"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             strategy = db_session.get(ChartinkStrategy, strategy_id)
             if strategy:
@@ -123,7 +123,7 @@ def update_strategy_times(strategy_id, start_time=None, end_time=None, squareoff
 
 def add_symbol_mapping(strategy_id, chartink_symbol, exchange, quantity, product_type):
     """Add symbol mapping to strategy"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             mapping = ChartinkSymbolMapping(
                 strategy_id=strategy_id,
@@ -142,7 +142,7 @@ def add_symbol_mapping(strategy_id, chartink_symbol, exchange, quantity, product
 
 def bulk_add_symbol_mappings(strategy_id, mappings):
     """Add multiple symbol mappings at once"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             for mapping_data in mappings:
                 mapping = ChartinkSymbolMapping(
@@ -162,7 +162,7 @@ def bulk_add_symbol_mappings(strategy_id, mappings):
 
 def get_symbol_mappings(strategy_id):
     """Get all symbol mappings for a strategy"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             stmt = select(ChartinkSymbolMapping).filter_by(strategy_id=strategy_id)
             return db_session.execute(stmt).scalars().all()
@@ -172,7 +172,7 @@ def get_symbol_mappings(strategy_id):
 
 def delete_symbol_mapping(mapping_id):
     """Delete a symbol mapping"""
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             mapping = db_session.get(ChartinkSymbolMapping, mapping_id)
             if mapping:

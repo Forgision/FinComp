@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from . import engine, Base, SessionLocal as SessionLocal
+from . import engine, Base, AsyncSessionLocal as AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def init_db():
 
 def init_broker_status(broker):
     """Initialize status for a broker when they login"""
-    session = SessionLocal()
+    session = AsyncSessionLocal()
     try:
         # Check if status already exists
         stmt = select(MasterContractStatus).filter_by(broker=broker)
@@ -59,7 +59,7 @@ def init_broker_status(broker):
 
 def update_status(broker, status, message, total_symbols=None):
     """Update the download status for a broker"""
-    session = SessionLocal()
+    session = AsyncSessionLocal()
     try:
         stmt = select(MasterContractStatus).filter_by(broker=broker)
         broker_status = session.execute(stmt).scalars().first()
@@ -95,7 +95,7 @@ def update_status(broker, status, message, total_symbols=None):
 
 def get_status(broker):
     """Get the current status for a broker"""
-    session = SessionLocal()
+    session = AsyncSessionLocal()
     try:
         stmt = select(MasterContractStatus).filter_by(broker=broker)
         status = session.execute(stmt).scalars().first()
@@ -133,7 +133,7 @@ def get_status(broker):
 
 def check_if_ready(broker):
     """Check if master contracts are ready for a broker"""
-    session = SessionLocal()
+    session = AsyncSessionLocal()
     try:
         stmt = select(MasterContractStatus).filter_by(broker=broker)
         status = session.execute(stmt).scalars().first()

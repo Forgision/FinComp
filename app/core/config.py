@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     TELEGRAM_KEY_SALT: str = 'telegram-openalgo-salt'
 
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///db/openalgo.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///db/openalgo.db"
     LATENCY_DATABASE_URL: str = "sqlite:///db/latency.db"
-    LOGS_DATABASE_URL: str = "sqlite:///db/logs.db"
+    LOGS_DATABASE_URL: str = "sqlite+aiosqlite:///db/logs.db"
     SANDBOX_DATABASE_URL: str = "sqlite:///db/sandbox.db"
     TELEGRAM_DATABASE_URL: str = "sqlite:///db/telegram.db"
 

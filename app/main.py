@@ -12,9 +12,10 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 
+from app.core.schemas import initizing_databases
 from app.core.config import settings
 from app.utils.logging import logger
-from app.utils.traffic_logger import TrafficLoggerMiddleware
+from app.core.middleware import TrafficLoggerMiddleware # Updated import
 from app.core.services.limiter_service import limiter
 from app.utils.web.socketio import sio
 from app.web.frontend.routes.analyzer import analyzer_router
@@ -62,9 +63,10 @@ class CsrfSettings(BaseModel):
 #     return CsrfSettings()
 
 
-def setup_environment():
+async def setup_environment():
     """Initializes the application environment, database, and plugins."""
     logger.info("Starting environment setup...")
+    await initizing_databases()
     # load_broker_auth_functions()
     # ensure_auth_tables_exists()
     # ensure_user_tables_exists()
@@ -85,7 +87,7 @@ async def lifespan(app: FastAPI):
     """
     Handles application startup and shutdown events.
     """
-    setup_environment()
+    await setup_environment()
     start_websocket_server()
     separate_str = "=" * 60
     logger.info(separate_str)
@@ -179,5 +181,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content=content
     )
 
+_app.add_middleware(TrafficLoggerMiddleware)
+
 app = socketio.ASGIApp(sio, _app)
-app = TrafficLoggerMiddleware(app)

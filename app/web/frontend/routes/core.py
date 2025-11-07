@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse
 from app.web.frontend import templates
 
+from app.core.schemas import AsyncSessionLocal, get_db
 from app.core.schemas.auth_db import upsert_api_key
 from app.core.schemas.user_db import add_user, find_admin_user
 from app.utils.auth_utils import generate_api_key
@@ -25,8 +26,8 @@ async def faq(request: Request, _=Depends(invalidate_session_if_invalid)):
     return templates.TemplateResponse("faq.html", {"request": request})
 
 @core_router.get("/setup")
-async def setup_form(request: Request):
-    if find_admin_user() is not None:
+async def setup_form(request: Request, db_session: AsyncSessionLocal = Depends(get_db)):
+    if await find_admin_user(db_session) is not None:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("setup.html", {"request": request})
 

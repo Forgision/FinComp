@@ -8,7 +8,8 @@ from datetime import datetime, timedelta, tzinfo
 
 import pytz
 from sqlalchemy import func, select, delete
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from app.core.schemas.analyzer_db import AnalyzerLog
 from app.core.schemas.settings_db import get_analyze_mode, set_analyze_mode
@@ -16,7 +17,7 @@ from app.utils.api_analyzer import get_analyzer_stats
 from app.utils.logging import logger
 
 
-async def get_analyzer_status(db: Session, analyzer_data: dict, api_key: str):
+async def get_analyzer_status(db: AsyncSession, analyzer_data: dict, api_key: str):
     """Get analyzer mode status and statistics"""
     try:
         is_enabled = get_analyze_mode()
@@ -32,7 +33,7 @@ async def get_analyzer_status(db: Session, analyzer_data: dict, api_key: str):
         return False, {"status": "error", "message": "Internal server error"}, 500
 
 
-async def toggle_analyzer_mode(db: Session, analyzer_data: dict, api_key: str):
+async def toggle_analyzer_mode(db: AsyncSession, analyzer_data: dict, api_key: str):
     """Toggle analyzer mode on/off"""
     try:
         current_mode = get_analyze_mode()
@@ -93,7 +94,7 @@ def format_request(req: AnalyzerLog, ist: tzinfo):
         return None
 
 
-def get_recent_requests(db: Session):
+def get_recent_requests(db: AsyncSession):
     """Get recent analyzer requests"""
     try:
         ist = pytz.timezone('Asia/Kolkata')
@@ -112,7 +113,7 @@ def get_recent_requests(db: Session):
         return []
 
 
-def get_filtered_requests(db: Session, start_date=None, end_date=None):
+def get_filtered_requests(db: AsyncSession, start_date=None, end_date=None):
     """Get analyzer requests with date filtering"""
     try:
         ist = pytz.timezone('Asia/Kolkata')
@@ -182,7 +183,7 @@ def generate_csv(requests: list) -> str:
         return ""
 
 
-def clear_analyzer_logs(db: Session):
+def clear_analyzer_logs(db: AsyncSession):
     """Clear analyzer logs"""
     try:
         # Delete all logs older than 24 hours

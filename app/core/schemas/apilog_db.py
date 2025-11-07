@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 
 
@@ -23,7 +23,7 @@ class OrderLog(Base):
 
 
 async def async_log_order(api_type, request_data, response_data):
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             # Serialize JSON data for storage
             request_json = json.dumps(request_data)

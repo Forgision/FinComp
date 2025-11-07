@@ -10,14 +10,13 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    create_engine,
     select,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, scoped_session, sessionmaker, Session
-from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
-from app.core.schemas import ENSURE_TABLE_REGISTRY
+from app.core.schemas import INIT_DB_REGISTRY, make_db_connection
 from app.core.config import settings
 from app.core.schemas.settings_db import get_security_settings
 from app.utils.logging import logger
@@ -25,31 +24,32 @@ from app.utils.logging import logger
 # Use a separate database for logs
 LOGS_DATABASE_URL = settings.LOGS_DATABASE_URL
 
-# Conditionally create engine based on DB type
-if LOGS_DATABASE_URL and 'sqlite' in LOGS_DATABASE_URL:
-    logs_engine = create_engine(
-        LOGS_DATABASE_URL,
-        poolclass=NullPool,
-        connect_args={'check_same_thread': False}
-    )
-else:
-    logs_engine = create_engine(
-        LOGS_DATABASE_URL,
-        pool_size=50,
-        max_overflow=100,
-        pool_timeout=10
-    )
+# # Conditionally create engine based on DB type
+# if LOGS_DATABASE_URL and 'sqlite' in LOGS_DATABASE_URL:
+#     logs_engine = create_engine(
+#         LOGS_DATABASE_URL,
+#         poolclass=NullPool,
+#         connect_args={'check_same_thread': False}
+#     )
+# else:
+#     logs_engine = create_engine(
+#         LOGS_DATABASE_URL,
+#         pool_size=50,
+#         max_overflow=100,
+#         pool_timeout=10
+#     )
 
-LogSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=logs_engine)
-LogsSession = scoped_session(LogSessionLocal)
+# LogSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=logs_engine)
+# LogsSession = scoped_session(LogSessionLocal)
 
-def get_logs_db():
-    db = LogsSession()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_logs_db():
+#     db = LogsSession()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
+logs_engine, LogSessionLocal, get_logs_db = make_db_connection(LOGS_DATABASE_URL)
 class LogBase(DeclarativeBase):
     pass
 
@@ -99,39 +99,41 @@ class InvalidAPIKeyTracker(LogBase):
     last_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     api_keys_tried: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-def log_request(db: Session, client_ip: str, method: str, path: str, status_code: int, duration_ms: float, host: Optional[str] = None, error: Optional[str] = None, user_id: Optional[int] = None) -> bool:
+async def log_request(db: AsyncSession, client_ip: str, method: str, path: str, status_code: int, duration_ms: float, host: Optional[str] = None, error: Optional[str] = None, user_id: Optional[int] = None) -> bool:
     try:
         log = TrafficLog(client_ip=client_ip, method=method, path=path, status_code=status_code, duration_ms=duration_ms, host=host, error=error, user_id=user_id)
         db.add(log)
-        db.commit()
+        await db.commit()
         return True
     except Exception as e:
         logger.error(f"Error logging traffic: {str(e)}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def get_recent_logs(db: Session, limit: int = 100) -> List[TrafficLog]:
+async def get_recent_logs(db: AsyncSession, limit: int = 100) -> List[TrafficLog]:
     try:
         stmt = select(TrafficLog).order_by(TrafficLog.timestamp.desc()).limit(limit)
-        return list(db.execute(stmt).scalars().all())
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
     except Exception as e:
         logger.error(f"Error getting recent logs: {str(e)}")
         return []
 
-def get_stats(db: Session) -> dict:
+async def get_stats(db: AsyncSession) -> dict:
     try:
-        total_requests = db.query(func.count(TrafficLog.id)).scalar() or 0
-        error_requests = db.query(func.count(TrafficLog.id)).filter(TrafficLog.status_code >= 400).scalar() or 0
-        avg_duration = db.query(func.avg(TrafficLog.duration_ms)).scalar() or 0
+        total_requests = (await db.execute(select(func.count(TrafficLog.id)))).scalar_one_or_none() or 0
+        error_requests = (await db.execute(select(func.count(TrafficLog.id)).filter(TrafficLog.status_code >= 400))).scalar_one_or_none() or 0
+        avg_duration = (await db.execute(select(func.avg(TrafficLog.duration_ms)))).scalar_one_or_none() or 0
         return {'total_requests': total_requests, 'error_requests': error_requests, 'avg_duration': round(float(avg_duration), 2)}
     except Exception as e:
         logger.error(f"Error getting traffic stats: {str(e)}")
         return {'total_requests': 0, 'error_requests': 0, 'avg_duration': 0}
 
-def is_ip_banned(db: Session, ip_address: str) -> bool:
+async def is_ip_banned(db: AsyncSession, ip_address: str) -> bool:
     try:
         stmt = select(IPBan).filter_by(ip_address=ip_address)
-        ban = db.execute(stmt).scalars().first()
+        result = await db.execute(stmt)
+        ban = result.scalars().first()
         if not ban:
             return False
         if ban.is_permanent:
@@ -139,15 +141,15 @@ def is_ip_banned(db: Session, ip_address: str) -> bool:
         if ban.expires_at and datetime.utcnow() < ban.expires_at:
             return True
         if ban.expires_at and datetime.utcnow() >= ban.expires_at:
-            db.delete(ban)
-            db.commit()
+            await db.delete(ban)
+            await db.commit()
         return False
     except Exception as e:
         logger.error(f"Error checking IP ban status: {e}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def ban_ip(db: Session, ip_address: str, reason: str, duration_hours: int = 24, permanent: bool = False, created_by: str = 'system') -> bool:
+async def ban_ip(db: AsyncSession, ip_address: str, reason: str, duration_hours: int = 24, permanent: bool = False, created_by: str = 'system') -> bool:
     try:
         if ip_address in ['127.0.0.1', '::1', 'localhost']:
             logger.warning(f"Attempted to ban localhost IP {ip_address} - ignoring")
@@ -157,7 +159,8 @@ def ban_ip(db: Session, ip_address: str, reason: str, duration_hours: int = 24, 
         repeat_limit = security_settings['repeat_offender_limit']
 
         stmt = select(IPBan).filter_by(ip_address=ip_address)
-        existing_ban = db.execute(stmt).scalars().first()
+        result = await db.execute(stmt)
+        existing_ban = result.scalars().first()
 
         if existing_ban:
             existing_ban.ban_count += 1
@@ -174,44 +177,47 @@ def ban_ip(db: Session, ip_address: str, reason: str, duration_hours: int = 24, 
             ban = IPBan(ip_address=ip_address, ban_reason=reason, is_permanent=permanent, expires_at=None if permanent else datetime.utcnow() + timedelta(hours=duration_hours), created_by=created_by)
             db.add(ban)
 
-        db.commit()
+        await db.commit()
         logger.info(f"IP {ip_address} banned: {reason}")
         return True
     except Exception as e:
         logger.error(f"Error banning IP {ip_address}: {e}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def unban_ip(db: Session, ip_address: str) -> bool:
+async def unban_ip(db: AsyncSession, ip_address: str) -> bool:
     try:
         stmt = select(IPBan).filter_by(ip_address=ip_address)
-        ban = db.execute(stmt).scalars().first()
+        result = await db.execute(stmt)
+        ban = result.scalars().first()
         if ban:
-            db.delete(ban)
-            db.commit()
+            await db.delete(ban)
+            await db.commit()
             logger.info(f"IP {ip_address} unbanned")
             return True
         return False
     except Exception as e:
         logger.error(f"Error unbanning IP: {e}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def get_all_bans(db: Session) -> List[IPBan]:
+async def get_all_bans(db: AsyncSession) -> List[IPBan]:
     try:
-        stmt = select(IPBan).filter(IPBan.is_permanent.is_(False), IPBan.expires_at < datetime.utcnow())
-        expired = db.execute(stmt).scalars().all()
+        stmt_delete = select(IPBan).filter(IPBan.is_permanent.is_(False), IPBan.expires_at < datetime.utcnow())
+        result_delete = await db.execute(stmt_delete)
+        expired = result_delete.scalars().all()
         for ban in expired:
-            db.delete(ban)
-        db.commit()
-        return list(db.execute(select(IPBan)).scalars().all())
+            await db.delete(ban)
+        await db.commit()
+        result_select = await db.execute(select(IPBan))
+        return list(result_select.scalars().all())
     except Exception as e:
         logger.error(f"Error getting IP bans: {e}")
         return []
 
-def track_404(db: Session, ip_address: str, path: str) -> bool:
+async def track_404(db: AsyncSession, ip_address: str, path: str) -> bool:
     try:
-        if is_ip_banned(db, ip_address):
+        if await is_ip_banned(db, ip_address):
             return False
 
         security_settings = get_security_settings()
@@ -220,7 +226,8 @@ def track_404(db: Session, ip_address: str, path: str) -> bool:
         now = datetime.utcnow()
 
         stmt = select(Error404Tracker).filter_by(ip_address=ip_address)
-        tracker = db.execute(stmt).scalars().first()
+        result = await db.execute(stmt)
+        tracker = result.scalars().first()
 
         if tracker:
             if (now - tracker.first_error_at).days >= 1:
@@ -236,37 +243,39 @@ def track_404(db: Session, ip_address: str, path: str) -> bool:
             tracker.last_error_at = now
             if tracker.error_count >= threshold_404:
                 if ip_address not in ['127.0.0.1', '::1', 'localhost']:
-                    ban_ip(db, ip_address=ip_address, reason=f"Exceeded 404 threshold: {tracker.error_count} errors in 24 hours", duration_hours=ban_duration_404, created_by='404_detector')
-                    db.delete(tracker)
+                    await ban_ip(db, ip_address=ip_address, reason=f"Exceeded 404 threshold: {tracker.error_count} errors in 24 hours", duration_hours=ban_duration_404, created_by='404_detector')
+                    await db.delete(tracker)
         else:
             tracker = Error404Tracker(ip_address=ip_address, error_count=1, paths_attempted=json.dumps([path]))
             db.add(tracker)
 
-        db.commit()
+        await db.commit()
         return True
     except Exception as e:
         logger.error(f"Error tracking 404: {e}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def get_suspicious_ips(db: Session, min_errors: int = 5) -> List[Error404Tracker]:
+async def get_suspicious_ips(db: AsyncSession, min_errors: int = 5) -> List[Error404Tracker]:
     try:
         cutoff = datetime.utcnow() - timedelta(days=1)
         stmt_delete = select(Error404Tracker).filter(Error404Tracker.first_error_at < cutoff)
-        old_entries = db.execute(stmt_delete).scalars().all()
+        result_delete = await db.execute(stmt_delete)
+        old_entries = result_delete.scalars().all()
         for entry in old_entries:
-            db.delete(entry)
-        db.commit()
+            await db.delete(entry)
+        await db.commit()
 
         stmt_select = select(Error404Tracker).filter(Error404Tracker.error_count >= min_errors).order_by(Error404Tracker.error_count.desc())
-        return list(db.execute(stmt_select).scalars().all())
+        result_select = await db.execute(stmt_select)
+        return list(result_select.scalars().all())
     except Exception as e:
         logger.error(f"Error getting suspicious IPs: {e}")
         return []
 
-def track_invalid_api_key(db: Session, ip_address: str, api_key_hash: Optional[str] = None) -> bool:
+async def track_invalid_api_key(db: AsyncSession, ip_address: str, api_key_hash: Optional[str] = None) -> bool:
     try:
-        if is_ip_banned(db, ip_address):
+        if await is_ip_banned(db, ip_address):
             return False
 
         security_settings = get_security_settings()
@@ -275,7 +284,8 @@ def track_invalid_api_key(db: Session, ip_address: str, api_key_hash: Optional[s
         now = datetime.utcnow()
 
         stmt = select(InvalidAPIKeyTracker).filter_by(ip_address=ip_address)
-        tracker = db.execute(stmt).scalars().first()
+        result = await db.execute(stmt)
+        tracker = result.scalars().first()
 
         if tracker:
             if (now - tracker.first_attempt_at).days >= 1:
@@ -292,41 +302,45 @@ def track_invalid_api_key(db: Session, ip_address: str, api_key_hash: Optional[s
             tracker.last_attempt_at = now
             if tracker.attempt_count >= threshold_api:
                 if ip_address not in ['127.0.0.1', '::1', 'localhost']:
-                    if ban_ip(db, ip_address=ip_address, reason=f"Exceeded invalid API key threshold: {tracker.attempt_count} attempts in 24 hours", duration_hours=ban_duration_api, created_by='api_key_detector'):
-                        db.delete(tracker)
+                    if await ban_ip(db, ip_address=ip_address, reason=f"Exceeded invalid API key threshold: {tracker.attempt_count} attempts in 24 hours", duration_hours=ban_duration_api, created_by='api_key_detector'):
+                        await db.delete(tracker)
         else:
             tracker = InvalidAPIKeyTracker(ip_address=ip_address, attempt_count=1, api_keys_tried=json.dumps([api_key_hash] if api_key_hash else []))
             db.add(tracker)
 
-        db.commit()
+        await db.commit()
         return True
     except Exception as e:
         logger.error(f"Error tracking invalid API key: {e}")
-        db.rollback()
+        await db.rollback()
         return False
 
-def get_suspicious_api_users(db: Session, min_attempts: int = 3) -> List[InvalidAPIKeyTracker]:
+async def get_suspicious_api_users(db: AsyncSession, min_attempts: int = 3) -> List[InvalidAPIKeyTracker]:
     try:
         cutoff = datetime.utcnow() - timedelta(days=1)
         stmt_delete = select(InvalidAPIKeyTracker).filter(InvalidAPIKeyTracker.first_attempt_at < cutoff)
-        old_entries = db.execute(stmt_delete).scalars().all()
+        result_delete = await db.execute(stmt_delete)
+        old_entries = result_delete.scalars().all()
         for entry in old_entries:
-            db.delete(entry)
-        db.commit()
+            await db.delete(entry)
+        await db.commit()
 
         stmt_select = select(InvalidAPIKeyTracker).filter(InvalidAPIKeyTracker.attempt_count >= min_attempts).order_by(InvalidAPIKeyTracker.attempt_count.desc())
-        return list(db.execute(stmt_select).scalars().all())
+        result_select = await db.execute(stmt_select)
+        return list(result_select.scalars().all())
     except Exception as e:
         logger.error(f"Error getting suspicious API users: {e}")
         return []
 
-def init_logs_db():
-    db_path = LOGS_DATABASE_URL.replace('sqlite:///', '')
+async def ensure_table():
+    db_path = LOGS_DATABASE_URL.replace('sqlite+aiosqlite:///', '')
     db_dir = os.path.dirname(db_path)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
     logger.info(f"Initializing Traffic Logs DB at: {LOGS_DATABASE_URL}")
-    LogBase.metadata.create_all(bind=logs_engine)
+    
+    async with logs_engine.begin() as conn:
+        await conn.run_sync(LogBase.metadata.create_all)
     
 
-ENSURE_TABLE_REGISTRY['logs_db'] = init_logs_db
+INIT_DB_REGISTRY['logs_db'] = ensure_table

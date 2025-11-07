@@ -2,7 +2,7 @@
 
 from sqlalchemy import select
 from app.core.schemas.symbol import SymToken
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 
 
 def search_symbols(symbol: str, exchange: str):
@@ -17,6 +17,6 @@ def search_symbols(symbol: str, exchange: str):
         A list of matching SymToken objects.
     """
     
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         stmt = select(SymToken).filter(SymToken.symbol == symbol, SymToken.exchange == exchange)
         return db_session.execute(stmt).scalars().all()

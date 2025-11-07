@@ -4,7 +4,7 @@ from typing import Optional
 import pyotp
 from jose import JWTError, jwt
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.schemas.user_db import User
@@ -24,15 +24,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def authenticate_user(username: str, password: str, db: Session) -> Optional[User]:
+async def authenticate_user(username: str, password: str, db: AsyncSession) -> Optional[User]:
     stmt = select(User).where(User.username == username)
-    user = db.execute(stmt).scalar_one_or_none()
+    user = await db.execute(stmt).scalar_one_or_none()
     if not user or not verify_password(password, user.password_hash):
         return None
     return user
 
 
-def get_current_user(token: str, db: Session) -> Optional[User]:
+async def get_current_user(token: str, db: AsyncSession) -> Optional[User]:
     try:
         payload = jwt.decode(token, settings.APP_KEY, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
@@ -42,15 +42,15 @@ def get_current_user(token: str, db: Session) -> Optional[User]:
         return None
 
     stmt = select(User).where(User.username == username)
-    user = db.execute(stmt).scalar_one_or_none()
+    user = await db.execute(stmt).scalar_one_or_none()
     return user
 
 
-def register_user(username: str, email: str, password: str, db: Session) -> User:
+async def register_user(username: str, email: str, password: str, db: AsyncSession) -> User:
     totp_secret = pyotp.random_base32()
     new_user = User(username=username, email=email, totp_secret=totp_secret)
     new_user.set_password(password)
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
     return new_user

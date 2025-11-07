@@ -10,30 +10,11 @@ from app.core.schemas.auth_db import upsert_api_key
 from app.core.schemas import get_db
 from app.core.schemas.user_db import add_user, find_user_by_username
 from app.utils.logging import logger
-from app.utils.session import check_session_validity_fastapi
 from app.utils.web.security import (
     generate_api_key,  # Assuming this path based on design principles
 )
 
 core_router = APIRouter()
-
-@core_router.get('/')
-async def home(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return JSONResponse(content={"message": "Welcome to OpenAlgo!"})
-
-@core_router.get('/download')
-async def download(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return JSONResponse(content={"message": "Download page."})
-
-@core_router.get('/faq')
-async def faq(request: Request, db: Session = Depends(get_db), _: bool = Depends(check_session_validity_fastapi)):
-    return JSONResponse(content={"message": "FAQ page."})
-
-@core_router.get('/setup')
-async def get_setup(request: Request, db: Session = Depends(get_db)):
-    if find_user_by_username(db) is not None:
-        return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
-    return JSONResponse(content={"message": "Setup page."})
 
 @core_router.post('/setup')
 async def post_setup(

@@ -6,7 +6,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship, Session
 from sqlalchemy.sql import func
 
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class StrategySymbolMapping(Base):
 
 def create_strategy(name: str, webhook_id: str, user_id: str, is_intraday: bool = True, trading_mode: str = 'LONG', start_time: Optional[str] = None, end_time: Optional[str] = None, squareoff_time: Optional[str] = None, platform: str = 'tradingview') -> Optional[Strategy]:
     """Create a new strategy"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             strategy = Strategy(
                 name=name,
@@ -73,7 +73,7 @@ def create_strategy(name: str, webhook_id: str, user_id: str, is_intraday: bool 
 
 def get_strategy(strategy_id: int) -> Optional[Strategy]:
     """Get strategy by ID"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             return db.get(Strategy, strategy_id)
         except Exception as e:
@@ -82,7 +82,7 @@ def get_strategy(strategy_id: int) -> Optional[Strategy]:
 
 def get_strategy_by_webhook_id(webhook_id: str) -> Optional[Strategy]:
     """Get strategy by webhook ID"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             return db.execute(select(Strategy).filter_by(webhook_id=webhook_id)).scalar_one_or_none()
         except Exception as e:
@@ -91,7 +91,7 @@ def get_strategy_by_webhook_id(webhook_id: str) -> Optional[Strategy]:
 
 def get_all_strategies() -> List[Strategy]:
     """Get all strategies"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             return list(db.execute(select(Strategy)).scalars().all())
         except Exception as e:
@@ -100,7 +100,7 @@ def get_all_strategies() -> List[Strategy]:
 
 def get_user_strategies(user_id: str) -> List[Strategy]:
     """Get all strategies for a user"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             logger.info(f"Fetching strategies for user: {user_id}")
             strategies = list(db.execute(select(Strategy).filter_by(user_id=user_id)).scalars().all())
@@ -112,7 +112,7 @@ def get_user_strategies(user_id: str) -> List[Strategy]:
 
 def delete_strategy(strategy_id: int) -> bool:
     """Delete strategy and its symbol mappings"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             strategy = get_strategy(strategy_id)
             if not strategy:
@@ -128,7 +128,7 @@ def delete_strategy(strategy_id: int) -> bool:
 
 def toggle_strategy(strategy_id: int) -> Optional[Strategy]:
     """Toggle strategy active status"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             strategy = get_strategy(strategy_id)
             if not strategy:
@@ -144,7 +144,7 @@ def toggle_strategy(strategy_id: int) -> Optional[Strategy]:
 
 def update_strategy_times(strategy_id: int, start_time: Optional[str] = None, end_time: Optional[str] = None, squareoff_time: Optional[str] = None) -> bool:
     """Update strategy trading times"""
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         try:
             strategy = db.get(Strategy, strategy_id)
             if strategy:

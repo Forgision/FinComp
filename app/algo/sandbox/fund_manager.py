@@ -26,7 +26,7 @@ from app.core.schemas.sandbox_db import (
     SandboxPositions,
     get_config,
 )
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.symbol import SymToken
 from app.utils.logging import logger
 
@@ -54,7 +54,7 @@ class FundManager:
 
     def initialize_funds(self):
         """Initialize funds for a new user"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 # Check if user already has funds
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
@@ -88,7 +88,7 @@ class FundManager:
     def get_funds(self):
         """Get current fund status for user"""
         try:
-            with SessionLocal() as db_session:
+            with AsyncSessionLocal() as db_session:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
                 if not funds:
@@ -154,7 +154,7 @@ class FundManager:
 
     def _reset_funds(self, funds):
         """Reset funds to starting capital"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 logger.info(f"Resetting funds for user {self.user_id}")
 
@@ -183,7 +183,7 @@ class FundManager:
 
     def check_margin_available(self, required_margin):
         """Check if user has sufficient margin available"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -204,7 +204,7 @@ class FundManager:
 
     def block_margin(self, amount, description=""):
         """Block margin for a trade"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -232,7 +232,7 @@ class FundManager:
 
     def release_margin(self, amount, realized_pnl: Decimal = Decimal('0'), description=""):
         """Release blocked margin and update P&L"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -267,7 +267,7 @@ class FundManager:
         Reduces used_margin without crediting available_balance
         (the money is now represented in holdings value, not available cash)
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -295,7 +295,7 @@ class FundManager:
         Credit sale proceeds from selling CNC holdings
         Increases available_balance when holdings are sold
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -319,7 +319,7 @@ class FundManager:
 
     def update_unrealized_pnl(self, unrealized_pnl):
         """Update unrealized P&L from open positions"""
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 funds = db_session.query(SandboxFunds).filter_by(user_id=self.user_id).first()
 
@@ -342,7 +342,7 @@ class FundManager:
 
     def calculate_margin_required(self, symbol, exchange, product, quantity, price, action=None):
         """Calculate margin required for a trade based on leverage rules"""
-        with SessionLocal() as db:
+        with AsyncSessionLocal() as db:
             try:
                 quantity = abs(int(quantity))
                 price = Decimal(str(price))
@@ -422,7 +422,7 @@ def reset_all_user_funds():
     Reset funds for all users (called by scheduler on configured reset day/time)
     This is the scheduled auto-reset function that runs independently of user actions.
     """
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             logger.info("=== AUTO-RESET: Starting scheduled fund reset for all users ===")
 

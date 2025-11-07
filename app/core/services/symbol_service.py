@@ -1,7 +1,7 @@
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.symbol import SymToken
 from sqlalchemy.exc import NoResultFound
@@ -32,7 +32,7 @@ def get_symbol_info_with_auth(
     """
     try:
         # Query the database for the symbol
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             result = db_session.query(SymToken).filter(
                 SymToken.symbol == symbol,
                 SymToken.exchange == exchange
@@ -110,7 +110,7 @@ def get_symbol_info(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             AUTH_TOKEN, broker_name = get_auth_token_broker(db_session, provided_api_key=api_key, include_feed_token=False)
         if AUTH_TOKEN is None:
             error_response = {

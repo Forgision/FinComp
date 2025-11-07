@@ -23,7 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.core.config import settings
-from app.core.schemas import Base, engine, ENSURE_TABLE_REGISTRY
+from app.core.schemas import Base, INIT_DB_REGISTRY, AsyncSessionLocal
 from app.utils.logging import logger
 
 # Database configuration
@@ -148,24 +148,25 @@ class UserPreference(Base):
     user: Mapped["TelegramUser"] = relationship("TelegramUser", back_populates="preferences")
 
 
-def ensure_table():
+async def ensure_table():
     """Initialize the database with required tables"""
     try:
         # Create default bot config if not exists
-        with Session(engine) as session:
+        async with AsyncSessionLocal() as session:
             stmt = select(BotConfig).filter_by(id=1)
-            config = session.execute(stmt).scalars().first()
+            result = await session.execute(stmt)
+            config = result.scalars().first()
             if not config:
                 default_config = BotConfig(id=1)
                 session.add(default_config)
-                session.commit()
+                await session.commit()
 
         logger.info("Telegram database initialized successfully")
     except Exception as e:
         logger.exception(f"Failed to initialize database: {str(e)}")
 
 # Add to registry to ensure table exist before app start
-ENSURE_TABLE_REGISTRY['telegram_db'] = ensure_table
+INIT_DB_REGISTRY['telegram_db'] = ensure_table
 
 
 def get_telegram_user(db: Session, telegram_id: int) -> Optional[Dict]:

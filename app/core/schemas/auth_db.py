@@ -14,7 +14,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from sqlalchemy.sql import func
 
 from app.core.config import settings
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 
 # Initialize Argon2 hasher
@@ -125,7 +125,7 @@ def upsert_auth(
     user_id: Optional[str] = None,
     revoke: bool = False,
 ):
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         encrypted_token = encrypt_token(auth_token)
         encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
 
@@ -178,7 +178,7 @@ def get_auth_token(name: str) -> Optional[str]:
 
 
 def get_auth_token_dbquery(name: str) -> Optional[Auth]:
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         if not name:
             logger.debug("get_auth_token_dbquery called with empty/None name")
             return None
@@ -195,7 +195,7 @@ def get_auth_token_dbquery(name: str) -> Optional[Auth]:
 
 
 def get_feed_token(name: str) -> Optional[str]:
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         if not name:
             logger.debug("get_feed_token called with empty/None name, returning None")
             return None
@@ -333,7 +333,7 @@ def get_broker_name(db: Session, provided_api_key: str) -> Optional[str]:
 
 
 def get_auth_token_broker(provided_api_key: str, include_feed_token: bool = False):
-    with SessionLocal() as db:
+    with AsyncSessionLocal() as db:
         user_id = verify_api_key(db, provided_api_key)
 
         if user_id:

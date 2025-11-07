@@ -20,7 +20,7 @@ from decimal import Decimal
 import pytz
 
 from app.core.services.quotes_service import get_quotes
-from app.core.schemas import SessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
@@ -47,7 +47,7 @@ class ExecutionEngine:
         """
         try:
             # Get all pending orders
-            with SessionLocal() as db_session:
+            with AsyncSessionLocal() as db_session:
                 pending_orders = db_session.query(SandboxOrders).filter_by(order_status='open').all()
 
                 if not pending_orders:
@@ -103,7 +103,7 @@ class ExecutionEngine:
         Fetch real-time quote for a symbol using API key
         Returns dict with ltp, high, low, open, close, etc.
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 # Get any user's API key for fetching quotes
                 from app.core.schemas.auth_db import ApiKeys, decrypt_token
@@ -209,7 +209,7 @@ class ExecutionEngine:
         """
         Execute an order - create trade, update positions, release/adjust margin
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 logger.info(f"Executing order {order.orderid}: {order.symbol} {order.action} {order.quantity} @ {execution_price}")
 
@@ -269,7 +269,7 @@ class ExecutionEngine:
         or during immediate execution (for MARKET orders). We only need to release margin when
         positions are closed/reduced.
         """
-        with SessionLocal() as db_session:
+        with AsyncSessionLocal() as db_session:
             try:
                 fund_manager = FundManager(order.user_id)
 

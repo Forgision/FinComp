@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.schemas import Base, SessionLocal
+from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 
 class SymToken(Base):
@@ -49,7 +49,7 @@ def enhanced_search_symbols(query: str, exchange: Optional[str] = None) -> List[
     Returns:
         List[SymToken]: List of matching SymToken objects
     """
-    with SessionLocal() as db_session:
+    with AsyncSessionLocal() as db_session:
         try:
             # Split the query into terms and clean them
             terms = [term.strip().upper() for term in query.split() if term.strip()]
