@@ -3,7 +3,7 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import Auth, get_auth_token_broker, verify_api_key
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.logging import logger
 from sqlalchemy import select
@@ -21,12 +21,13 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     module_path = None
     try:
-        module_path = f'broker.{broker_name}.api.data'
+        module_path = f"broker.{broker_name}.api.data"
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
+
 
 def get_depth_with_auth(
     auth_token: str,
@@ -34,7 +35,7 @@ def get_depth_with_auth(
     broker: str,
     symbol: str,
     exchange: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get market depth for a symbol using provided auth tokens.
@@ -55,14 +56,15 @@ def get_depth_with_auth(
     """
     broker_module = import_broker_module(broker)
     if broker_module is None:
-        return False, {
-            'status': 'error',
-            'message': 'Broker-specific module not found'
-        }, 404
+        return (
+            False,
+            {"status": "error", "message": "Broker-specific module not found"},
+            404,
+        )
 
     try:
         # Initialize broker's data handler based on broker's requirements
-        if hasattr(broker_module.BrokerData.__init__, '__code__'):
+        if hasattr(broker_module.BrokerData.__init__, "__code__"):
             # Check number of parameters the broker's __init__ accepts
             param_count = broker_module.BrokerData.__init__.__code__.co_argcount
             if param_count > 3:  # More than self, auth_token, and feed_token
@@ -78,32 +80,28 @@ def get_depth_with_auth(
         depth = data_handler.get_depth(symbol, exchange)
 
         if depth is None:
-            return False, {
-                'status': 'error',
-                'message': 'Failed to fetch market depth'
-            }, 500
+            return (
+                False,
+                {"status": "error", "message": "Failed to fetch market depth"},
+                500,
+            )
 
-        return True, {
-            'status': 'success',
-            'data': depth
-        }, 200
+        return True, {"status": "success", "data": depth}, 200
     except Exception as e:
         logger.error(f"Error in broker_module.get_depth: {e}")
         traceback.print_exc()
-        return False, {
-            'status': 'error',
-            'message': str(e)
-        }, 500
+        return False, {"status": "error", "message": str(e)}, 500
 
-def get_depth(
-    db: Session,
+
+async def get_depth(
+    db: AsyncSession,
     symbol: str,
     exchange: str,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     feed_token: Optional[str] = None,
     broker: Optional[str] = None,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get market depth for a symbol.
@@ -126,50 +124,51 @@ def get_depth(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        auth_info = get_auth_token_broker(db, provided_api_key=api_key, include_feed_token=True)
+        auth_info = await get_auth_token_broker(
+            db, provided_api_key=api_key, include_feed_token=True
+        )
         if len(auth_info) == 3:
             AUTH_TOKEN, FEED_TOKEN, broker_name = auth_info
         else:
-            return False, {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }, 403
+            return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
 
         # Get user_id from auth database
         extracted_user_id = None
         try:
-            extracted_user_id = verify_api_key(db, provided_api_key=api_key)  # Get the actual user_id from API key
+            extracted_user_id = await verify_api_key(
+                db, provided_api_key=api_key
+            )  # Get the actual user_id from API key
             if extracted_user_id:
                 stmt = select(Auth).where(Auth.name == extracted_user_id)
-                auth_obj = db.execute(stmt).scalar_one_or_none()
+                result = await db.execute(stmt)
+                auth_obj = result.scalar_one_or_none()
                 if auth_obj and auth_obj.user_id:
                     extracted_user_id = auth_obj.user_id
         except Exception as e:
             logger.warning(f"Could not fetch user_id: {e}")
 
-        return get_depth_with_auth(
-            AUTH_TOKEN if AUTH_TOKEN is not None else '',
+        return await get_depth_with_auth(
+            AUTH_TOKEN if AUTH_TOKEN is not None else "",
             FEED_TOKEN,
-            broker_name if broker_name is not None else '',
+            broker_name if broker_name is not None else "",
             symbol,
             exchange,
-            extracted_user_id
+            extracted_user_id,
         )
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
         return get_depth_with_auth(
-            auth_token,
-            feed_token,
-            broker,
-            symbol,
-            exchange,
-            user_id
+            auth_token, feed_token, broker, symbol, exchange, user_id
         )
 
     # Case 3: Invalid parameters
     else:
-        return False, {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
-        }, 400
+        return (
+            False,
+            {
+                "status": "error",
+                "message": "Either api_key or both auth_token and broker must be provided",
+            },
+            400,
+        )

@@ -4,7 +4,7 @@ import io
 import qrcode
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.schemas.auth_db import upsert_api_key
 from app.core.schemas import get_db
@@ -22,19 +22,19 @@ async def post_setup(
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    if find_user_by_username(db) is not None:
+    if await find_user_by_username(db) is not None:
         return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
 
     # Add the new admin user
-    user = add_user(db, username, email, password, is_admin=True)
+    user = await add_user(db, username, email, password, is_admin=True)
     if user:
         logger.info(f"New admin user {username} created successfully")
 
         # Automatically generate and save API key
         api_key = generate_api_key()
-        key_id = upsert_api_key(db, username, api_key)
+        key_id = await upsert_api_key(db, username, api_key)
         if not key_id:
             logger.error(f"Failed to create API key for user {username}")
         else:

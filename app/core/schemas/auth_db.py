@@ -15,8 +15,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.models import auth
-from app.core.schemas import Base, AsyncSessionLocal
+from app.core.schemas import Base
 from app.utils.logging import logger
 
 # Initialize Argon2 hasher
@@ -203,11 +202,9 @@ async def get_feed_token(db: AsyncSession, name: str) -> Optional[str]:
     cache_key = f"feed-{name}"
     cached_obj = feed_token_cache.get(cache_key)
     if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
-        return (
-            decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
-        )
+        return decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
 
-    auth_obj = get_feed_token_dbquery(db, name)
+    auth_obj = await get_feed_token_dbquery(db, name)
     if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
         feed_token_cache[cache_key] = auth_obj
         return decrypt_token(auth_obj.feed_token) if auth_obj.feed_token else None
@@ -310,7 +307,9 @@ async def verify_api_key(db: AsyncSession, provided_api_key: str) -> Optional[st
     return None
 
 
-async def get_username_by_apikey(db: AsyncSession, provided_api_key: str) -> Optional[str]:
+async def get_username_by_apikey(
+    db: AsyncSession, provided_api_key: str
+) -> Optional[str]:
     return await verify_api_key(db, provided_api_key)
 
 
@@ -318,7 +317,7 @@ async def get_broker_name(db: AsyncSession, provided_api_key: str) -> Optional[s
     if provided_api_key in broker_cache:
         return broker_cache[provided_api_key]
 
-    user_id = verify_api_key(db, provided_api_key)
+    user_id = await verify_api_key(db, provided_api_key)
 
     if user_id:
         stmt = select(Auth).where(Auth.name == user_id)
@@ -332,7 +331,9 @@ async def get_broker_name(db: AsyncSession, provided_api_key: str) -> Optional[s
     return None
 
 
-async def get_auth_token_broker(db: AsyncSession, provided_api_key: str, include_feed_token: bool = False):
+async def get_auth_token_broker(
+    db: AsyncSession, provided_api_key: str, include_feed_token: bool = False
+):
     user_id = await verify_api_key(db, provided_api_key)
 
     if user_id:

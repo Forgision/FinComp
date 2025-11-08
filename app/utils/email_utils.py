@@ -1,26 +1,25 @@
-"""
-Email Utility Functions for OpenAlgo
-
-This module provides email sending functionality for SMTP configuration testing
-and password reset notifications.
-"""
-
+import asyncio
 import smtplib
 import ssl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from app.core.schemas.settings_db import get_smtp_settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .logging import logger
+from app.core.schemas.settings_db import get_smtp_settings
+from app.utils.logging import logger
 
 
 class EmailSendError(Exception):
     """Custom exception for email sending errors"""
+
     pass
 
-def send_test_email(recipient_email, db, sender_name="OpenAlgo Admin"):
+
+async def send_test_email(
+    recipient_email, db: AsyncSession, sender_name="OpenAlgo Admin"
+):
     """
     Send a test email to verify SMTP configuration.
 
@@ -33,21 +32,29 @@ def send_test_email(recipient_email, db, sender_name="OpenAlgo Admin"):
         dict: Result dictionary with success status and message
     """
     try:
-        smtp_settings = get_smtp_settings(db)
+        smtp_settings = await get_smtp_settings(db)
         if not smtp_settings:
             return {
-                'success': False,
-                'message': 'SMTP settings not configured. Please configure SMTP settings first.'
+                "success": False,
+                "message": "SMTP settings not configured. Please configure SMTP settings first.",
             }
 
         # Validate required settings
-        required_fields = ['smtp_server', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_from_email']
-        missing_fields = [field for field in required_fields if not smtp_settings.get(field)]
+        required_fields = [
+            "smtp_server",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "smtp_from_email",
+        ]
+        missing_fields = [
+            field for field in required_fields if not smtp_settings.get(field)
+        ]
 
         if missing_fields:
             return {
-                'success': False,
-                'message': f'Missing required SMTP settings: {", ".join(missing_fields)}'
+                "success": False,
+                "message": f'Missing required SMTP settings: {", ".join(missing_fields)}',
             }
 
         # Create test email content
@@ -145,20 +152,20 @@ If you didn't request this test, please contact your system administrator.
         """
 
         # Send the email
-        result = send_email(
+        result = await send_email(
             recipient_email=recipient_email,
             subject=subject,
             text_content=text_content,
             html_content=html_content,
             smtp_settings=smtp_settings,
-            db=db
+            db=db,
         )
 
-        if result['success']:
+        if result["success"]:
             logger.info(f"Test email sent successfully to {recipient_email}")
             return {
-                'success': True,
-                'message': f'Test email sent successfully to {recipient_email}. Please check your inbox (and spam folder).'
+                "success": True,
+                "message": f"Test email sent successfully to {recipient_email}. Please check your inbox (and spam folder).",
             }
         else:
             return result
@@ -166,12 +173,12 @@ If you didn't request this test, please contact your system administrator.
     except Exception as e:
         error_msg = f"Failed to send test email: {str(e)}"
         logger.error(error_msg)
-        return {
-            'success': False,
-            'message': error_msg
-        }
+        return {"success": False, "message": error_msg}
 
-def send_password_reset_email(recipient_email, reset_link, db, user_name="User"):
+
+async def send_password_reset_email(
+    recipient_email, reset_link, db: AsyncSession, user_name="User"
+):
     """
     Send password reset email.
 
@@ -185,12 +192,9 @@ def send_password_reset_email(recipient_email, reset_link, db, user_name="User")
         dict: Result dictionary with success status and message
     """
     try:
-        smtp_settings = get_smtp_settings(db)
+        smtp_settings = await get_smtp_settings(db)
         if not smtp_settings:
-            return {
-                'success': False,
-                'message': 'SMTP not configured'
-            }
+            return {"success": False, "message": "SMTP not configured"}
 
         subject = "OpenAlgo Password Reset Request"
 
@@ -273,24 +277,24 @@ This is an automated email from OpenAlgo.
 For security reasons, please do not reply to this email.
         """
 
-        return send_email(
+        return await send_email(
             recipient_email=recipient_email,
             subject=subject,
             text_content=text_content,
             html_content=html_content,
             smtp_settings=smtp_settings,
-            db=db
+            db=db,
         )
 
     except Exception as e:
         error_msg = f"Failed to send password reset email: {str(e)}"
         logger.error(error_msg)
-        return {
-            'success': False,
-            'message': error_msg
-        }
+        return {"success": False, "message": error_msg}
 
-def send_email(recipient_email, subject, text_content, db, html_content=None, smtp_settings=None):
+
+async def send_email(
+    recipient_email, subject, text_content, db, html_content=None, smtp_settings=None
+):
     """
     Generic email sending function.
 
@@ -305,120 +309,120 @@ def send_email(recipient_email, subject, text_content, db, html_content=None, sm
     Returns:
         dict: Result dictionary with success status and message
     """
-    try:
-        if not smtp_settings:
-            smtp_settings = get_smtp_settings(db)
+
+    def _send_email_sync():
+        try:
             if not smtp_settings:
-                return {
-                    'success': False,
-                    'message': 'SMTP settings not configured'
-                }
+                # This part is tricky because we are in a sync function
+                # We will rely on the caller to have passed the settings
+                return {"success": False, "message": "SMTP settings not configured"}
 
-        # Create message
-        message = MIMEMultipart("alternative")
-        message["Subject"] = subject
-        message["From"] = smtp_settings['smtp_from_email']
-        message["To"] = recipient_email
+            # Create message
+            message = MIMEMultipart("alternative")
+            message["Subject"] = subject
+            message["From"] = smtp_settings["smtp_from_email"]
+            message["To"] = recipient_email
 
-        # Add text content
-        text_part = MIMEText(text_content, "plain")
-        message.attach(text_part)
+            # Add text content
+            text_part = MIMEText(text_content, "plain")
+            message.attach(text_part)
 
-        # Add HTML content if provided
-        if html_content:
-            html_part = MIMEText(html_content, "html")
-            message.attach(html_part)
+            # Add HTML content if provided
+            if html_content:
+                html_part = MIMEText(html_content, "html")
+                message.attach(html_part)
 
-        # Determine connection method based on port and settings
-        smtp_port = smtp_settings['smtp_port']
-        use_tls = smtp_settings.get('smtp_use_tls', True)
+            # Determine connection method based on port and settings
+            smtp_port = smtp_settings["smtp_port"]
+            use_tls = smtp_settings.get("smtp_use_tls", True)
 
-        # Create SSL context
-        context = ssl.create_default_context()
-        # For Gmail relay, we might need to be less strict about certificates
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+            # Create SSL context
+            context = ssl.create_default_context()
+            # For Gmail relay, we might need to be less strict about certificates
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
 
-        # Choose connection method based on port
-        if smtp_port == 465:
-            # Port 465 uses SSL from the start (SMTPS)
-            logger.info(f"Using SMTP_SSL for port {smtp_port}")
-            server = smtplib.SMTP_SSL(smtp_settings['smtp_server'], smtp_port, context=context)
-        else:
-            # Port 587 or others use SMTP with STARTTLS
-            logger.info(f"Using SMTP with STARTTLS for port {smtp_port}")
-            server = smtplib.SMTP(smtp_settings['smtp_server'], smtp_port)
+            # Choose connection method based on port
+            if smtp_port == 465:
+                # Port 465 uses SSL from the start (SMTPS)
+                logger.info(f"Using SMTP_SSL for port {smtp_port}")
+                server = smtplib.SMTP_SSL(
+                    smtp_settings["smtp_server"], smtp_port, context=context
+                )
+            else:
+                # Port 587 or others use SMTP with STARTTLS
+                logger.info(f"Using SMTP with STARTTLS for port {smtp_port}")
+                server = smtplib.SMTP(smtp_settings["smtp_server"], smtp_port)
 
-            # Enable TLS if configured
-            if use_tls:
-                server.starttls(context=context)
+                # Enable TLS if configured
+                if use_tls:
+                    server.starttls(context=context)
 
-        # Enable debug output for troubleshooting (uncomment if needed)
-        # server.set_debuglevel(1)
+            # Enable debug output for troubleshooting (uncomment if needed)
+            # server.set_debuglevel(1)
 
-        # Set HELO hostname if specified
-        if smtp_settings.get('smtp_helo_hostname'):
-            logger.info(f"Setting HELO hostname: {smtp_settings['smtp_helo_hostname']}")
-            try:
-                server.ehlo(smtp_settings['smtp_helo_hostname'])
-            except Exception as e:
-                logger.warning(f"EHLO with custom hostname failed, trying HELO: {e}")
+            # Set HELO hostname if specified
+            if smtp_settings.get("smtp_helo_hostname"):
+                logger.info(
+                    f"Setting HELO hostname: {smtp_settings['smtp_helo_hostname']}"
+                )
                 try:
-                    server.helo(smtp_settings['smtp_helo_hostname'])
-                except Exception as e2:
-                    logger.warning(f"HELO with custom hostname failed: {e2}")
+                    server.ehlo(smtp_settings["smtp_helo_hostname"])
+                except Exception as e:
+                    logger.warning(
+                        f"EHLO with custom hostname failed, trying HELO: {e}"
+                    )
+                    try:
+                        server.helo(smtp_settings["smtp_helo_hostname"])
+                    except Exception as e2:
+                        logger.warning(f"HELO with custom hostname failed: {e2}")
 
-        # Login and send email
-        server.login(smtp_settings['smtp_username'], smtp_settings['smtp_password'])
-        server.sendmail(smtp_settings['smtp_from_email'], recipient_email, message.as_string())
-        server.quit()
+            # Login and send email
+            server.login(smtp_settings["smtp_username"], smtp_settings["smtp_password"])
+            server.sendmail(
+                smtp_settings["smtp_from_email"], recipient_email, message.as_string()
+            )
+            server.quit()
 
-        logger.info(f"Email sent successfully to {recipient_email}")
-        return {
-            'success': True,
-            'message': 'Email sent successfully'
-        }
+            logger.info(f"Email sent successfully to {recipient_email}")
+            return {"success": True, "message": "Email sent successfully"}
 
-    except smtplib.SMTPAuthenticationError as e:
-        error_msg = "SMTP Authentication failed. Please check your username and password."
-        logger.error(f"SMTP Auth Error: {e}")
-        return {
-            'success': False,
-            'message': error_msg
-        }
-    except smtplib.SMTPServerDisconnected as e:
-        error_msg = "SMTP Server disconnected. Please check your server settings."
-        logger.error(f"SMTP Disconnected: {e}")
-        return {
-            'success': False,
-            'message': error_msg
-        }
-    except smtplib.SMTPException as e:
-        error_str = str(e)
-        logger.error(f"SMTP Exception: {e}")
+        except smtplib.SMTPAuthenticationError as e:
+            error_msg = (
+                "SMTP Authentication failed. Please check your username and password."
+            )
+            logger.error(f"SMTP Auth Error: {e}")
+            return {"success": False, "message": error_msg}
+        except smtplib.SMTPServerDisconnected as e:
+            error_msg = "SMTP Server disconnected. Please check your server settings."
+            logger.error(f"SMTP Disconnected: {e}")
+            return {"success": False, "message": error_msg}
+        except smtplib.SMTPException as e:
+            error_str = str(e)
+            logger.error(f"SMTP Exception: {e}")
 
-        # Provide specific guidance for common Gmail errors
-        if "Mail relay denied" in error_str and "smtp-relay.gmail.com" in smtp_settings.get('smtp_server', ''):
-            error_msg = """Gmail Workspace relay denied. Solutions:
-            1. Register your server IP (49.207.195.248) in Google Admin Console → Apps → Gmail → SMTP relay
-            2. Or switch to personal Gmail: smtp.gmail.com:587 with App Password
-            3. See: https://support.google.com/a/answer/6140680"""
-        elif "Authentication failed" in error_str:
-            error_msg = "SMTP Authentication failed. For Gmail, use App Password instead of regular password."
-        else:
-            error_msg = f"SMTP Error: {error_str}"
+            # Provide specific guidance for common Gmail errors
+            if (
+                "Mail relay denied" in error_str
+                and "smtp-relay.gmail.com" in smtp_settings.get("smtp_server", "")
+            ):
+                error_msg = """Gmail Workspace relay denied. Solutions:
+                1. Register your server IP (49.207.195.248) in Google Admin Console → Apps → Gmail → SMTP relay
+                2. Or switch to personal Gmail: smtp.gmail.com:587 with App Password
+                3. See: https://support.google.com/a/answer/6140680"""
+            elif "Authentication failed" in error_str:
+                error_msg = "SMTP Authentication failed. For Gmail, use App Password instead of regular password."
+            else:
+                error_msg = f"SMTP Error: {error_str}"
 
-        return {
-            'success': False,
-            'message': error_msg
-        }
-    except Exception as e:
-        error_msg = f"Failed to send email: {str(e)}"
-        logger.error(f"Email sending failed: {e}")
-        return {
-            'success': False,
-            'message': error_msg
-        }
+            return {"success": False, "message": error_msg}
+        except Exception as e:
+            error_msg = f"Failed to send email: {str(e)}"
+            logger.error(f"Email sending failed: {e}")
+            return {"success": False, "message": error_msg}
+
+    return await asyncio.to_thread(_send_email_sync)
+
 
 def validate_smtp_settings(smtp_settings):
     """
@@ -431,18 +435,26 @@ def validate_smtp_settings(smtp_settings):
         dict: Validation result
     """
     try:
-        required_fields = ['smtp_server', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_from_email']
-        missing_fields = [field for field in required_fields if not smtp_settings.get(field)]
+        required_fields = [
+            "smtp_server",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "smtp_from_email",
+        ]
+        missing_fields = [
+            field for field in required_fields if not smtp_settings.get(field)
+        ]
 
         if missing_fields:
             return {
-                'success': False,
-                'message': f'Missing required fields: {", ".join(missing_fields)}'
+                "success": False,
+                "message": f'Missing required fields: {", ".join(missing_fields)}',
             }
 
         # Test connection without sending email
-        smtp_port = smtp_settings['smtp_port']
-        use_tls = smtp_settings.get('smtp_use_tls', True)
+        smtp_port = smtp_settings["smtp_port"]
+        use_tls = smtp_settings.get("smtp_use_tls", True)
 
         # Create SSL context
         context = ssl.create_default_context()
@@ -452,35 +464,31 @@ def validate_smtp_settings(smtp_settings):
         # Choose connection method based on port
         if smtp_port == 465:
             # Port 465 uses SSL from the start (SMTPS)
-            server = smtplib.SMTP_SSL(smtp_settings['smtp_server'], smtp_port, context=context)
+            server = smtplib.SMTP_SSL(
+                smtp_settings["smtp_server"], smtp_port, context=context
+            )
         else:
             # Port 587 or others use SMTP with STARTTLS
-            server = smtplib.SMTP(smtp_settings['smtp_server'], smtp_port)
+            server = smtplib.SMTP(smtp_settings["smtp_server"], smtp_port)
 
             # Enable TLS if configured
             if use_tls:
                 server.starttls(context=context)
 
         # Set HELO hostname if specified
-        if smtp_settings.get('smtp_helo_hostname'):
+        if smtp_settings.get("smtp_helo_hostname"):
             try:
-                server.ehlo(smtp_settings['smtp_helo_hostname'])
+                server.ehlo(smtp_settings["smtp_helo_hostname"])
             except Exception:
                 try:
-                    server.helo(smtp_settings['smtp_helo_hostname'])
+                    server.helo(smtp_settings["smtp_helo_hostname"])
                 except Exception:
                     pass  # Continue without custom HELO
 
-        server.login(smtp_settings['smtp_username'], smtp_settings['smtp_password'])
+        server.login(smtp_settings["smtp_username"], smtp_settings["smtp_password"])
         server.quit()
 
-        return {
-            'success': True,
-            'message': 'SMTP connection successful'
-        }
+        return {"success": True, "message": "SMTP connection successful"}
 
     except Exception as e:
-        return {
-            'success': False,
-            'message': f'SMTP validation failed: {str(e)}'
-        }
+        return {"success": False, "message": f"SMTP validation failed: {str(e)}"}

@@ -19,6 +19,7 @@ from app.utils.logging import logger
 @dataclass
 class CacheStats:
     """Statistics for cache performance monitoring"""
+
     hits: int = 0
     misses: int = 0
     db_queries: int = 0
@@ -36,20 +37,22 @@ class CacheStats:
     def to_dict(self) -> Dict[str, Any]:
         """Convert stats to dictionary for API response"""
         return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'hit_rate': f"{self.get_hit_rate():.2f}%",
-            'db_queries': self.db_queries,
-            'bulk_queries': self.bulk_queries,
-            'cache_loads': self.cache_loads,
-            'last_loaded': self.last_loaded.isoformat() if self.last_loaded else None,
-            'total_symbols': self.total_symbols,
-            'memory_usage_mb': f"{self.memory_usage_mb:.2f}"
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": f"{self.get_hit_rate():.2f}%",
+            "db_queries": self.db_queries,
+            "bulk_queries": self.bulk_queries,
+            "cache_loads": self.cache_loads,
+            "last_loaded": self.last_loaded.isoformat() if self.last_loaded else None,
+            "total_symbols": self.total_symbols,
+            "memory_usage_mb": f"{self.memory_usage_mb:.2f}",
         }
+
 
 @dataclass
 class SymbolData:
     """Lightweight symbol data structure for in-memory storage"""
+
     symbol: str
     brsymbol: str
     name: str
@@ -61,6 +64,7 @@ class SymbolData:
     lotsize: Optional[int] = None
     instrumenttype: Optional[str] = None
     tick_size: Optional[float] = None
+
 
 class BrokerSymbolCache:
     """
@@ -91,7 +95,7 @@ class BrokerSymbolCache:
 
         logger.info("BrokerSymbolCache initialized")
 
-    def load_all_symbols(self, broker: str) -> bool:
+    async def load_all_symbols(self, broker: str) -> bool:
         """
         Load all symbols for the active broker into memory
         This is called once after master contract download
@@ -104,9 +108,9 @@ class BrokerSymbolCache:
             self.clear_cache()
 
             # Query all symbols from app.core.schemas
-            with AsyncSessionLocal() as db_session:
+            async with AsyncSessionLocal() as db_session:
                 stmt = select(SymToken)
-                symbols = db_session.scalars(stmt).all()
+                symbols = (await db_session.scalars(stmt)).all()
 
             if not symbols:
                 logger.warning(f"No symbols found in database for broker: {broker}")
@@ -126,7 +130,7 @@ class BrokerSymbolCache:
                     strike=sym.strike,
                     lotsize=sym.lotsize,
                     instrumenttype=sym.instrumenttype,
-                    tick_size=sym.tick_size
+                    tick_size=sym.tick_size,
                 )
 
                 # Store in primary dict
@@ -143,7 +147,7 @@ class BrokerSymbolCache:
             self.cache_loaded = True
             self.stats.total_symbols = len(symbols)
             self.stats.cache_loads += 1
-            self.stats.last_loaded = datetime.now(pytz.timezone('Asia/Kolkata'))
+            self.stats.last_loaded = datetime.now(pytz.timezone("Asia/Kolkata"))
 
             # Calculate memory usage (rough estimate)
             self.stats.memory_usage_mb = (
@@ -169,15 +173,18 @@ class BrokerSymbolCache:
     def _set_session_timing(self):
         """Set session start and next reset time from SESSION_EXPIRY_TIME env variable"""
         from app.core.config import settings
-        now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
+
+        now_ist = datetime.now(pytz.timezone("Asia/Kolkata"))
         self.session_start = now_ist
 
         # Get session expiry time from settings
         expiry_time = settings.SESSION_EXPIRY_TIME
         try:
-            hour, minute = map(int, expiry_time.split(':'))
+            hour, minute = map(int, expiry_time.split(":"))
         except ValueError:
-            logger.warning(f"Invalid SESSION_EXPIRY_TIME format: {expiry_time}. Using default 03:00")
+            logger.warning(
+                f"Invalid SESSION_EXPIRY_TIME format: {expiry_time}. Using default 03:00"
+            )
             hour, minute = 3, 0
 
         # Calculate next expiry time
@@ -186,14 +193,16 @@ class BrokerSymbolCache:
             next_reset += timedelta(days=1)
 
         self.next_reset_time = next_reset
-        logger.info(f"Cache valid until: {self.next_reset_time} (Session expiry: {expiry_time})")
+        logger.info(
+            f"Cache valid until: {self.next_reset_time} (Session expiry: {expiry_time})"
+        )
 
     def is_cache_valid(self) -> bool:
         """Check if cache is still valid (before session expiry reset)"""
         if not self.cache_loaded or not self.next_reset_time:
             return False
 
-        now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
+        now_ist = datetime.now(pytz.timezone("Asia/Kolkata"))
         return now_ist < self.next_reset_time
 
     def get_token(self, symbol: str, exchange: str) -> Optional[str]:
@@ -267,7 +276,9 @@ class BrokerSymbolCache:
         self.stats.misses += 1
         return None
 
-    def get_tokens_bulk(self, symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
+    def get_tokens_bulk(
+        self, symbol_exchange_pairs: List[Tuple[str, str]]
+    ) -> List[Optional[str]]:
         """
         Bulk retrieve tokens for multiple symbol-exchange pairs
         Optimized for performance with single pass
@@ -287,7 +298,9 @@ class BrokerSymbolCache:
 
         return results
 
-    def get_symbols_bulk(self, token_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
+    def get_symbols_bulk(
+        self, token_exchange_pairs: List[Tuple[str, str]]
+    ) -> List[Optional[str]]:
         """
         Bulk retrieve symbols for multiple token-exchange pairs
         """
@@ -306,7 +319,9 @@ class BrokerSymbolCache:
 
         return results
 
-    def search_symbols(self, query: str, exchange: Optional[str] = None, limit: int = 50) -> List[SymbolData]:
+    def search_symbols(
+        self, query: str, exchange: Optional[str] = None, limit: int = 50
+    ) -> List[SymbolData]:
         """
         Search symbols by partial match
         Returns list of matching SymbolData objects
@@ -320,9 +335,11 @@ class BrokerSymbolCache:
                 continue
 
             # Check for match in symbol, brsymbol, or name
-            if (query_upper in symbol_data.symbol.upper() or
-                query_upper in symbol_data.brsymbol.upper() or
-                (symbol_data.name and query_upper in symbol_data.name.upper())):
+            if (
+                query_upper in symbol_data.symbol.upper()
+                or query_upper in symbol_data.brsymbol.upper()
+                or (symbol_data.name and query_upper in symbol_data.name.upper())
+            ):
                 matches.append(symbol_data)
 
                 if len(matches) >= limit:
@@ -344,17 +361,23 @@ class BrokerSymbolCache:
     def get_cache_info(self) -> Dict[str, Any]:
         """Get cache information for monitoring"""
         return {
-            'active_broker': self.active_broker,
-            'cache_loaded': self.cache_loaded,
-            'total_symbols': self.stats.total_symbols,
-            'cache_valid': self.is_cache_valid(),
-            'session_start': self.session_start.isoformat() if self.session_start else None,
-            'next_reset': self.next_reset_time.isoformat() if self.next_reset_time else None,
-            'stats': self.stats.to_dict()
+            "active_broker": self.active_broker,
+            "cache_loaded": self.cache_loaded,
+            "total_symbols": self.stats.total_symbols,
+            "cache_valid": self.is_cache_valid(),
+            "session_start": (
+                self.session_start.isoformat() if self.session_start else None
+            ),
+            "next_reset": (
+                self.next_reset_time.isoformat() if self.next_reset_time else None
+            ),
+            "stats": self.stats.to_dict(),
         }
+
 
 # Global cache instance (singleton pattern)
 _cache_instance: Optional[BrokerSymbolCache] = None
+
 
 def get_cache() -> BrokerSymbolCache:
     """Get or create the global cache instance"""
@@ -363,8 +386,9 @@ def get_cache() -> BrokerSymbolCache:
         _cache_instance = BrokerSymbolCache()
     return _cache_instance
 
+
 # Public API - Drop-in replacement for existing token_db functions
-def get_token(symbol: str, exchange: str) -> Optional[str]:
+async def get_token(symbol: str, exchange: str) -> Optional[str]:
     """
     Get token for a given symbol and exchange
     First checks cache, falls back to database if needed
@@ -379,9 +403,10 @@ def get_token(symbol: str, exchange: str) -> Optional[str]:
 
     # Fallback to database query
     cache.stats.db_queries += 1
-    return get_token_dbquery(symbol, exchange)
+    return await get_token_dbquery(symbol, exchange)
 
-def get_symbol(token: str, exchange: str) -> Optional[str]:
+
+async def get_symbol(token: str, exchange: str) -> Optional[str]:
     """
     Get symbol for a given token and exchange
     """
@@ -393,9 +418,10 @@ def get_symbol(token: str, exchange: str) -> Optional[str]:
             return result
 
     cache.stats.db_queries += 1
-    return get_symbol_dbquery(token, exchange)
+    return await get_symbol_dbquery(token, exchange)
 
-def get_br_symbol(symbol: str, exchange: str) -> Optional[str]:
+
+async def get_br_symbol(symbol: str, exchange: str) -> Optional[str]:
     """
     Get broker symbol for a given symbol and exchange
     """
@@ -407,9 +433,10 @@ def get_br_symbol(symbol: str, exchange: str) -> Optional[str]:
             return result
 
     cache.stats.db_queries += 1
-    return get_br_symbol_dbquery(symbol, exchange)
+    return await get_br_symbol_dbquery(symbol, exchange)
 
-def get_oa_symbol(brsymbol: str, exchange: str) -> Optional[str]:
+
+async def get_oa_symbol(brsymbol: str, exchange: str) -> Optional[str]:
     """
     Get OpenAlgo symbol for a given broker symbol and exchange
     """
@@ -421,9 +448,10 @@ def get_oa_symbol(brsymbol: str, exchange: str) -> Optional[str]:
             return result
 
     cache.stats.db_queries += 1
-    return get_oa_symbol_dbquery(brsymbol, exchange)
+    return await get_oa_symbol_dbquery(brsymbol, exchange)
 
-def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
+
+async def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
     """
     Get broker exchange for a given symbol and exchange
     """
@@ -435,96 +463,108 @@ def get_brexchange(symbol: str, exchange: str) -> Optional[str]:
             return result
 
     cache.stats.db_queries += 1
-    return get_brexchange_dbquery(symbol, exchange)
+    return await get_brexchange_dbquery(symbol, exchange)
+
 
 # Database fallback functions (imported from original token_db)
-def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
+async def get_token_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for token by symbol and exchange"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-            sym_token = db_session.scalars(stmt).first()
+            sym_token = (await db_session.scalars(stmt)).first()
             return sym_token.token if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
 
-def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
+
+async def get_symbol_dbquery(token: str, exchange: str) -> Optional[str]:
     """Query database for symbol by token and exchange"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(SymToken).filter_by(token=token, exchange=exchange)
-            sym_token = db_session.scalars(stmt).first()
+            sym_token = (await db_session.scalars(stmt)).first()
             return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
 
-def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
+
+async def get_br_symbol_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker symbol"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-            sym_token = db_session.scalars(stmt).first()
+            sym_token = (await db_session.scalars(stmt)).first()
             return sym_token.brsymbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
 
-def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
+
+async def get_oa_symbol_dbquery(brsymbol: str, exchange: str) -> Optional[str]:
     """Query database for OpenAlgo symbol"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(SymToken).filter_by(brsymbol=brsymbol, exchange=exchange)
-            sym_token = db_session.scalars(stmt).first()
+            sym_token = (await db_session.scalars(stmt)).first()
             return sym_token.symbol if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
 
-def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
+
+async def get_brexchange_dbquery(symbol: str, exchange: str) -> Optional[str]:
     """Query database for broker exchange"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(SymToken).filter_by(symbol=symbol, exchange=exchange)
-            sym_token = db_session.scalars(stmt).first()
+            sym_token = (await db_session.scalars(stmt)).first()
             return sym_token.brexchange if sym_token else None
     except Exception as e:
         logger.error(f"Error while querying the database: {e}")
         return None
 
-def get_symbol_count() -> int:
+
+async def get_symbol_count() -> int:
     """Get the total count of symbols in the database"""
     try:
-        with AsyncSessionLocal() as db_session:
+        async with AsyncSessionLocal() as db_session:
             stmt = select(func.count(SymToken.id))
-            count = db_session.execute(stmt).scalar_one()
+            count = (await db_session.execute(stmt)).scalar_one()
             return count
     except Exception as e:
         logger.error(f"Error while counting symbols: {e}")
         return 0
 
+
 # Cache management functions
-def load_cache_for_broker(broker: str) -> bool:
+async def load_cache_for_broker(broker: str) -> bool:
     """
     Load cache for a specific broker
     Called after master contract download completes
     """
     cache = get_cache()
-    return cache.load_all_symbols(broker)
+    return await cache.load_all_symbols(broker)
+
 
 def clear_cache():
     """Clear the cache - useful for manual refresh"""
     cache = get_cache()
     cache.clear_cache()
 
+
 def get_cache_stats() -> Dict[str, Any]:
     """Get cache statistics for monitoring"""
     cache = get_cache()
     return cache.get_cache_info()
 
+
 # Bulk operations for performance
-def get_tokens_bulk(symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
+async def get_tokens_bulk(
+    symbol_exchange_pairs: List[Tuple[str, str]],
+) -> List[Optional[str]]:
     """Bulk retrieve tokens - optimized for performance"""
     cache = get_cache()
 
@@ -535,10 +575,13 @@ def get_tokens_bulk(symbol_exchange_pairs: List[Tuple[str, str]]) -> List[Option
     results = []
     for symbol, exchange in symbol_exchange_pairs:
         cache.stats.db_queries += 1
-        results.append(get_token_dbquery(symbol, exchange))
+        results.append(await get_token_dbquery(symbol, exchange))
     return results
 
-def get_symbols_bulk(token_exchange_pairs: List[Tuple[str, str]]) -> List[Optional[str]]:
+
+async def get_symbols_bulk(
+    token_exchange_pairs: List[Tuple[str, str]],
+) -> List[Optional[str]]:
     """Bulk retrieve symbols - optimized for performance"""
     cache = get_cache()
 
@@ -549,11 +592,14 @@ def get_symbols_bulk(token_exchange_pairs: List[Tuple[str, str]]) -> List[Option
     results = []
     for token, exchange in token_exchange_pairs:
         cache.stats.db_queries += 1
-        results.append(get_symbol_dbquery(token, exchange))
+        results.append(await get_symbol_dbquery(token, exchange))
     return results
 
+
 # Search functionality
-def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+async def search_symbols(
+    query: str, exchange: Optional[str] = None, limit: int = 50
+) -> List[Dict[str, Any]]:
     """
     Search symbols with cache support
     Returns list of symbol dictionaries
@@ -564,33 +610,33 @@ def search_symbols(query: str, exchange: Optional[str] = None, limit: int = 50) 
         results = cache.search_symbols(query, exchange, limit)
         return [
             {
-                'symbol': s.symbol,
-                'brsymbol': s.brsymbol,
-                'name': s.name,
-                'exchange': s.exchange,
-                'token': s.token,
-                'instrumenttype': s.instrumenttype
+                "symbol": s.symbol,
+                "brsymbol": s.brsymbol,
+                "name": s.name,
+                "exchange": s.exchange,
+                "token": s.token,
+                "instrumenttype": s.instrumenttype,
             }
             for s in results
         ]
 
     # Fallback to database search
-    
+
     try:
-        stmt = select(SymToken).filter(SymToken.symbol.like(f'%{query}%'))
+        stmt = select(SymToken).filter(SymToken.symbol.like(f"%{query}%"))
         if exchange:
             stmt = stmt.filter_by(exchange=exchange)
 
-        with AsyncSessionLocal() as db_session:
-            results = db_session.scalars(stmt.limit(limit)).all()
+        async with AsyncSessionLocal() as db_session:
+            results = (await db_session.scalars(stmt.limit(limit))).all()
         return [
             {
-                'symbol': r.symbol,
-                'brsymbol': r.brsymbol,
-                'name': r.name,
-                'exchange': r.exchange,
-                'token': r.token,
-                'instrumenttype': r.instrumenttype
+                "symbol": r.symbol,
+                "brsymbol": r.brsymbol,
+                "name": r.name,
+                "exchange": r.exchange,
+                "token": r.token,
+                "instrumenttype": r.instrumenttype,
             }
             for r in results
         ]

@@ -1,9 +1,7 @@
-import logging
 import os
 
-from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, distinct
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 from sqlalchemy.future import select
 

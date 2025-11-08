@@ -4,7 +4,7 @@ import json
 import httpx  # Import httpx
 import jwt
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
@@ -73,7 +73,7 @@ async def broker_root(request: Request):
 @broker_router.api_route("/{broker}/callback", methods=["GET", "POST"])
 @limiter.limit(settings.LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(settings.LOGIN_RATE_LIMIT_HOUR)
-async def broker_callback(broker: str, request: Request, db: Session = Depends(get_db)):
+async def broker_callback(broker: str, request: Request, db: AsyncSession = Depends(get_db)):
     logger.info(f'Broker callback initiated for: {broker}')
     logger.debug(f'Session contents: {dict(request.session)}')
     logger.info(f'Session has user key: {"user" in request.session}')
@@ -490,7 +490,7 @@ async def broker_callback(broker: str, request: Request, db: Session = Depends(g
 
         if broker =='angel' or broker == 'compositedge' or broker == 'pocketful' or broker == 'definedge':
             if broker == 'compositedge' and 'user' not in request.session:
-                admin_user = user_service.get_user_by_username(db, username="admin") # Corrected function call and added username parameter
+                admin_user = await user_service.get_user_by_username(db, username="admin") # Corrected function call and added username parameter
                 if admin_user:
                     username = admin_user.username
                     request.session['user'] = username

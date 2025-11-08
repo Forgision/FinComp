@@ -9,7 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.web.backend.schemas.order_schemas import OrderData
 from app.core.services.telegram_alert_service import telegram_alert_service
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
@@ -26,7 +26,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     try:
-        module_path = f'app.web.broker.{broker_name}.api.order_api'
+        module_path = f"app.web.broker.{broker_name}.api.order_api"
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -34,7 +34,9 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         return None
 
 
-async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
+async def emit_analyzer_error(
+    db: AsyncSession, request_data: Dict[str, Any], error_message: str
+) -> Dict[str, Any]:
     """
     Helper function to emit analyzer error events
 
@@ -45,36 +47,31 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     Returns:
         Error response dictionary
     """
-    error_response = {
-        'mode': 'analyze',
-        'status': 'error',
-        'message': error_message
-    }
+    error_response = {"mode": "analyze", "status": "error", "message": error_message}
 
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
-    if 'apikey' in analyzer_request:
-        del analyzer_request['apikey']
-    analyzer_request['api_type'] = 'placeorder'
+    if "apikey" in analyzer_request:
+        del analyzer_request["apikey"]
+    analyzer_request["api_type"] = "placeorder"
 
     # Log to analyzer database
-    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'placeorder')
+    await async_log_analyzer(db, analyzer_request, error_response, "placeorder")
 
     # Emit socket event
-    await sio.emit('analyzer_update', {
-        'request': analyzer_request,
-        'response': error_response
-    })
+    await sio.emit(
+        "analyzer_update", {"request": analyzer_request, "response": error_response}
+    )
 
     return error_response
 
 
 async def place_order_with_auth(
-    db: Session,
+    db: AsyncSession,
     order_data: Dict[str, Any],
     auth_token: str,
     broker: str,
-    original_data: Dict[str, Any]
+    original_data: Dict[str, Any],
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Place an order using provided auth token.
@@ -92,20 +89,20 @@ async def place_order_with_auth(
         - HTTP status code (int)
     """
     order_request_data = copy.deepcopy(original_data)
-    if 'apikey' in order_request_data:
-        order_request_data.pop('apikey', None)
+    if "apikey" in order_request_data:
+        order_request_data.pop("apikey", None)
 
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_place_order
 
         # Get API key from original data
-        api_key = original_data.get('apikey')
+        api_key = original_data.get("apikey")
         if not api_key:
             error_response = {
-                'status': 'error',
-                'message': 'API key required for sandbox mode',
-                'mode': 'analyze'
+                "status": "error",
+                "message": "API key required for sandbox mode",
+                "mode": "analyze",
             }
             return False, error_response, 400
 
@@ -116,58 +113,64 @@ async def place_order_with_auth(
     broker_module = import_broker_module(broker)
     if broker_module is None:
         error_response = {
-            'status': 'error',
-            'message': 'Broker-specific module not found'
+            "status": "error",
+            "message": "Broker-specific module not found",
         }
-        await async_log_order('placeorder', original_data, error_response)
+        await async_log_order("placeorder", original_data, error_response)
         return False, error_response, 404
 
     try:
         # Call the broker's place_order_api function
         res, response_data, order_id = broker_module.place_order_api(
-            order_data, auth_token)
+            order_data, auth_token
+        )
     except Exception as e:
         logger.error(f"Error in broker_module.place_order_api: {e}")
         traceback.print_exc()
         error_response = {
-            'status': 'error',
-            'message': 'Failed to place order due to internal error'
+            "status": "error",
+            "message": "Failed to place order due to internal error",
         }
-        await async_log_order('placeorder', original_data, error_response)
+        await async_log_order("placeorder", original_data, error_response)
         return False, error_response, 500
 
     if res.status == 200:
-        await sio.emit('order_event', {
-            'symbol': order_data['symbol'],
-            'action': order_data['action'],
-            'orderid': order_id,
-            'exchange': order_data.get('exchange', 'Unknown'),
-            'price_type': order_data.get('price_type', 'Unknown'),
-            'product_type': order_data.get('product_type', 'Unknown'),
-            'mode': 'live'
-        })
-        order_response_data = {'status': 'success', 'orderid': order_id}
-        await async_log_order('placeorder', order_request_data, order_response_data)
+        await sio.emit(
+            "order_event",
+            {
+                "symbol": order_data["symbol"],
+                "action": order_data["action"],
+                "orderid": order_id,
+                "exchange": order_data.get("exchange", "Unknown"),
+                "price_type": order_data.get("price_type", "Unknown"),
+                "product_type": order_data.get("product_type", "Unknown"),
+                "mode": "live",
+            },
+        )
+        order_response_data = {"status": "success", "orderid": order_id}
+        await async_log_order("placeorder", order_request_data, order_response_data)
         # Send Telegram alert asynchronously
-        await telegram_alert_service.send_order_alert(db, 'placeorder', order_data, order_response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(
+            db, "placeorder", order_data, order_response_data, order_data.get("apikey")
+        )
         return True, order_response_data, 200
     else:
-        message = response_data.get('message', 'Failed to place order') if isinstance(
-            response_data, dict) else 'Failed to place order'
-        error_response = {
-            'status': 'error',
-            'message': message
-        }
-        await async_log_order('placeorder', original_data, error_response)
+        message = (
+            response_data.get("message", "Failed to place order")
+            if isinstance(response_data, dict)
+            else "Failed to place order"
+        )
+        error_response = {"status": "error", "message": message}
+        await async_log_order("placeorder", original_data, error_response)
         return False, error_response, res.status if res.status != 200 else 500
 
 
 async def place_order(
-    db: Session,
+    db: AsyncSession,
     order_data: OrderData,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
-    broker: Optional[str] = None
+    broker: Optional[str] = None,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Place an order with the broker.
@@ -191,36 +194,34 @@ async def place_order(
     original_data = copy.deepcopy(order_dict)
 
     if api_key:
-        original_data['apikey'] = api_key
+        original_data["apikey"] = api_key
 
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        auth_details = get_auth_token_broker(db, api_key)
+        auth_details = await get_auth_token_broker(db, api_key)
         if not auth_details or len(auth_details) < 2:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
+            error_response = {"status": "error", "message": "Invalid openalgo apikey"}
             return False, error_response, 403
         AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
         if AUTH_TOKEN is None or broker_name is None:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
+            error_response = {"status": "error", "message": "Invalid openalgo apikey"}
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return await place_order_with_auth(db, order_dict, AUTH_TOKEN, broker_name, original_data)
+        return await place_order_with_auth(
+            db, order_dict, AUTH_TOKEN, broker_name, original_data
+        )
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return await place_order_with_auth(db, order_dict, auth_token, broker, original_data)
+        return await place_order_with_auth(
+            db, order_dict, auth_token, broker, original_data
+        )
 
     # Case 3: Invalid parameters
     else:
         error_response = {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
+            "status": "error",
+            "message": "Either api_key or both auth_token and broker must be provided",
         }
         return False, error_response, 400

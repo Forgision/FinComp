@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.schemas.master_contract_cache_hook import (
     get_cache_health,
@@ -22,7 +22,7 @@ master_contract_status_router = APIRouter(
 @master_contract_status_router.get("/status")
 async def get_master_contract_status(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Get the current master contract download status"""
@@ -49,7 +49,7 @@ async def get_master_contract_status(
 @master_contract_status_router.get("/ready")
 async def check_master_contract_ready(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Check if master contracts are ready for trading"""
@@ -78,7 +78,7 @@ async def check_master_contract_ready(
 
 @master_contract_status_router.get("/cache/status")
 async def get_cache_status(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Get the current symbol cache status and statistics"""
@@ -103,7 +103,7 @@ async def get_cache_status(
 
 @master_contract_status_router.get("/cache/health")
 async def get_cache_health_fastapi(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Get cache health metrics and recommendations"""
@@ -130,7 +130,7 @@ async def get_cache_health_fastapi(
 @master_contract_status_router.post("/cache/reload")
 async def reload_cache_fastapi(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Manually trigger cache reload"""
@@ -171,7 +171,7 @@ async def reload_cache_fastapi(
 
 @master_contract_status_router.post("/cache/clear")
 async def clear_cache_fastapi(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: Dict[str, Any] = Depends(check_session_validity_fastapi)
 ):
     """Manually clear the cache"""

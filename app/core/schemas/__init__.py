@@ -59,16 +59,33 @@ class DBConnectionTuple(NamedTuple):
 def make_db_connection(
     config: DBConnectionConfig,
 ) -> DBConnectionTuple:
-    """
-    Create an asynchronous SQLAlchemy engine and session factory and return:
-        (engine, AsyncSessionLocal, dependency_get_db)
+    """Create an asynchronous SQLAlchemy engine and session factory.
 
+    Usage:
+        config = DBConnectionConfig(
+            database_url="postgresql+asyncpg://user:pass@localhost/dbname",
+            echo=False,
+            pool_size=50
+        )
+        engine, session_maker, get_db = make_db_connection(config)
+
+        # Use the session maker
+        async with session_maker() as session:
+            # Perform database operations
+            await session.execute(...)
+
+        # Use as FastAPI dependency
+        @app.get("/items")
+        async def get_items(db: AsyncSession = Depends(get_db)):
+            result = await db.execute(...)
+            return result
     Args:
         config: Configuration object for the database connection.
 
     Returns:
         DBConnectionTuple: A named tuple containing the AsyncEngine,
                            async_sessionmaker, and the dependency function.
+                           (engine, AsyncSessionLocal, dependency_get_db)
     """
     if not config.database_url:
         raise ValueError("database_url must be provided in DBConnectionConfig")
@@ -100,6 +117,15 @@ def make_db_connection(
                 "poolclass": NullPool,
             }
         )
+        if not config.database_url.startswith("sqlite+aiosqlite"):
+            config = DBConnectionConfig(
+                database_url=f"sqlite+aiosqlite:///{config.database_url.split('///')[-1]}",
+                echo=config.echo,
+                pool_size=config.pool_size,
+                max_overflow=config.max_overflow,
+                pool_timeout=config.pool_timeout,
+            )
+
     else:
         logger.info(f"Creating async engine with pooling for {log_database_url}.")
         engine_args.update(

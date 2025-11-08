@@ -9,8 +9,8 @@ from datetime import date, datetime
 import pytz
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.schemas.apilog_db import OrderLog
 
@@ -78,10 +78,10 @@ def format_log_entry(log, ist):
         }
 
 # move to logs in db
-def get_filtered_logs(db: Session, start_date: date = None, end_date: date = None, search_query: str = None, page: int = None, per_page: int = None):
+async def get_filtered_logs(db: AsyncSession, start_date: date = None, end_date: date = None, search_query: str = None, page: int = None, per_page: int = None):
     """Get filtered logs with pagination"""
     ist = pytz.timezone('Asia/Kolkata')
-    query = db.query(OrderLog) # Use db.query instead of OrderLog.query
+    query = select(OrderLog)
 
     try:
         # Apply date filters if provided
@@ -105,7 +105,7 @@ def get_filtered_logs(db: Session, start_date: date = None, end_date: date = Non
             )
 
         # Get total count
-        total_logs = query.count()
+        total_logs = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
 
         # Calculate total pages only if pagination is enabled
         if page is not None and per_page is not None:
@@ -119,7 +119,7 @@ def get_filtered_logs(db: Session, start_date: date = None, end_date: date = Non
             query = query.order_by(OrderLog.created_at.desc())
 
         # Format logs
-        logs = [format_log_entry(log, ist) for log in query.all()]
+        logs = [format_log_entry(log, ist) for log in (await db.execute(query)).scalars().all()]
         logger.info(f"Retrieved {len(logs)} logs")
 
         return logs, total_pages, total_logs
@@ -205,7 +205,7 @@ def generate_csv(logs):
 @log_router.get("/")
 async def view_logs(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     # The check_session_validity_fastapi dependency will handle session validation
     # and potentially redirect if not valid.
     # For now, let's assume it works as a dependency that raises HTTPException on failure.
@@ -219,7 +219,7 @@ async def view_logs(
         per_page = 20
 
         # Get filtered logs
-        logs, total_pages, _ = get_filtered_logs(
+        logs, total_pages, _ = await get_filtered_logs(
             db=db,
             start_date=start_date,
             end_date=end_date,
@@ -261,7 +261,7 @@ async def view_logs(
 @log_router.get("/export")
 async def export_logs(
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     session_valid: bool = Depends(check_session_validity_fastapi),
     start_date: date = Query(None),
     end_date: date = Query(None),
@@ -275,7 +275,7 @@ async def export_logs(
         logger.info(f"Export parameters - start_date: {start_date}, end_date: {end_date}, search: {search}")
 
         # Get all logs without pagination
-        logs, _, total = get_filtered_logs(
+        logs, _, total = await get_filtered_logs(
             db=db,
             start_date=start_date,
             end_date=end_date,

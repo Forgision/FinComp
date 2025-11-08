@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.services.cancel_all_order_service import cancel_all_orders
@@ -92,9 +92,9 @@ def generate_positions_csv(positions_data: list[dict]) -> str:
     return output.getvalue()
 
 @orders_router.get("/orderbook")
-async def orderbook(request: Request, db: Session = Depends(get_db)):
+async def orderbook(request: Request, db: AsyncSession = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(db, login_username)
+    auth_token = await get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -105,8 +105,8 @@ async def orderbook(request: Request, db: Session = Depends(get_db)):
         logger.error("Broker not set in session")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not set in session")
 
-    if get_analyze_mode():
-        api_key = get_api_key_for_tradingview(login_username)
+    if await get_analyze_mode(db):
+        api_key = await get_api_key_for_tradingview(db, login_username)
         if api_key:
             success, response, status_code_service = await get_orderbook(api_key=api_key)
         else:
@@ -128,9 +128,9 @@ async def orderbook(request: Request, db: Session = Depends(get_db)):
     return JSONResponse(content={"order_data": order_data, "order_stats": order_stats})
 
 @orders_router.get("/tradebook")
-async def tradebook(request: Request, db: Session = Depends(get_db)):
+async def tradebook(request: Request, db: AsyncSession = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(db, login_username)
+    auth_token = await get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -141,8 +141,8 @@ async def tradebook(request: Request, db: Session = Depends(get_db)):
         logger.error("Broker not set in session")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not set in session")
 
-    if get_analyze_mode():
-        api_key = get_api_key_for_tradingview(login_username)
+    if await get_analyze_mode(db):
+        api_key = await get_api_key_for_tradingview(db, login_username)
         if api_key:
             success, response, status_code_service = await get_tradebook(api_key=api_key)
         else:
@@ -162,9 +162,9 @@ async def tradebook(request: Request, db: Session = Depends(get_db)):
     return JSONResponse(content={"tradebook_data": tradebook_data})
 
 @orders_router.get("/positions")
-async def positions(request: Request, db: Session = Depends(get_db)):
+async def positions(request: Request, db: AsyncSession = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(db, login_username)
+    auth_token = await get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -175,8 +175,8 @@ async def positions(request: Request, db: Session = Depends(get_db)):
         logger.error("Broker not set in session")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not set in session")
 
-    if get_analyze_mode():
-        api_key = get_api_key_for_tradingview(login_username)
+    if await get_analyze_mode(db):
+        api_key = await get_api_key_for_tradingview(db, login_username)
         if api_key:
             success, response, status_code_service = await get_positionbook(api_key=api_key)
         else:
@@ -196,9 +196,9 @@ async def positions(request: Request, db: Session = Depends(get_db)):
     return JSONResponse(content={"positions_data": positions_data})
 
 @orders_router.get("/holdings", name="orders.holdings")
-async def holdings(request: Request, db: Session = Depends(get_db)):
+async def holdings(request: Request, db: AsyncSession = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(db, login_username)
+    auth_token = await get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -209,8 +209,8 @@ async def holdings(request: Request, db: Session = Depends(get_db)):
         logger.error("Broker not set in session")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Broker not set in session")
 
-    if get_analyze_mode():
-        api_key = get_api_key_for_tradingview(login_username)
+    if await get_analyze_mode(db):
+        api_key = await get_api_key_for_tradingview(db, login_username)
         if api_key:
             success, response, status_code_service = await get_holdings(api_key=api_key)
         else:
@@ -232,7 +232,7 @@ async def holdings(request: Request, db: Session = Depends(get_db)):
     return JSONResponse(content={"holdings_data": holdings_data, "portfolio_stats": portfolio_stats})
 
 @orders_router.get("/orderbook/export")
-async def export_orderbook(request: Request, db: Session = Depends(get_db)):
+async def export_orderbook(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         broker = request.session.get('broker')
         if not broker:
@@ -247,7 +247,7 @@ async def export_orderbook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -272,7 +272,7 @@ async def export_orderbook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error exporting orderbook: {str(e)}")
 
 @orders_router.get("/tradebook/export")
-async def export_tradebook(request: Request, db: Session = Depends(get_db)):
+async def export_tradebook(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         broker = request.session.get('broker')
         if not broker:
@@ -287,7 +287,7 @@ async def export_tradebook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -312,7 +312,7 @@ async def export_tradebook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error exporting tradebook: {str(e)}")
 
 @orders_router.get("/positions/export")
-async def export_positions(request: Request, db: Session = Depends(get_db)):
+async def export_positions(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         broker = request.session.get('broker')
         if not broker:
@@ -329,7 +329,7 @@ async def export_positions(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -354,7 +354,7 @@ async def export_positions(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error exporting positions: {str(e)}")
 
 @orders_router.post("/close_position")
-async def close_position_route(request: Request, db: Session = Depends(get_db)):
+async def close_position_route(request: Request, db: AsyncSession = Depends(get_db)):
     """Close a specific position - uses broker API in live mode, placesmartorder service in analyze mode"""
     try:
         data = await request.json()
@@ -369,11 +369,11 @@ async def close_position_route(request: Request, db: Session = Depends(get_db)):
             )
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
-        if get_analyze_mode():
-            api_key = get_api_key_for_tradingview(login_username)
+        if await get_analyze_mode(db):
+            api_key = await get_api_key_for_tradingview(db, login_username)
 
             if not api_key:
                 raise HTTPException(
@@ -463,11 +463,11 @@ async def close_position_route(request: Request, db: Session = Depends(get_db)):
         )
 
 @orders_router.post("/close_all_positions")
-async def close_all_positions_route(request: Request, db: Session = Depends(get_db)):
+async def close_all_positions_route(request: Request, db: AsyncSession = Depends(get_db)):
     """Close all open positions using the broker API"""
     try:
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
         if not auth_token or not broker_name:
@@ -477,8 +477,8 @@ async def close_all_positions_route(request: Request, db: Session = Depends(get_
             )
 
         api_key = None
-        if get_analyze_mode():
-            api_key = get_api_key_for_tradingview(login_username)
+        if await get_analyze_mode(db):
+            api_key = await get_api_key_for_tradingview(db, login_username)
 
         success, response_data, status_code_service = await close_position(
             position_data={},
@@ -505,11 +505,11 @@ async def close_all_positions_route(request: Request, db: Session = Depends(get_
         )
 
 @orders_router.post("/cancel_all_orders")
-async def cancel_all_orders_ui(request: Request, db: Session = Depends(get_db)):
+async def cancel_all_orders_ui(request: Request, db: AsyncSession = Depends(get_db)):
     """Cancel all open orders using the broker API from UI"""
     try:
         login_username = request.session.get('user')
-        auth_token = get_auth_token(db, login_username)
+        auth_token = await get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
         if not auth_token or not broker_name:
@@ -519,8 +519,8 @@ async def cancel_all_orders_ui(request: Request, db: Session = Depends(get_db)):
             )
 
         api_key = None
-        if get_analyze_mode():
-            api_key = get_api_key_for_tradingview(login_username)
+        if await get_analyze_mode(db):
+            api_key = await get_api_key_for_tradingview(db, login_username)
 
         success, response_data, status_code_service = await cancel_all_orders(
             order_data={},

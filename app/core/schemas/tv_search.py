@@ -5,7 +5,7 @@ from app.core.schemas.symbol import SymToken
 from app.core.schemas import AsyncSessionLocal
 
 
-def search_symbols(symbol: str, exchange: str):
+async def search_symbols(symbol: str, exchange: str):
     """
     Searches for symbols matching the given symbol and exchange.
 
@@ -16,7 +16,10 @@ def search_symbols(symbol: str, exchange: str):
     Returns:
         A list of matching SymToken objects.
     """
-    
-    with AsyncSessionLocal() as db_session:
-        stmt = select(SymToken).filter(SymToken.symbol == symbol, SymToken.exchange == exchange)
-        return db_session.execute(stmt).scalars().all()
+
+    async with AsyncSessionLocal() as db_session:
+        stmt = select(SymToken).filter(
+            SymToken.symbol == symbol, SymToken.exchange == exchange
+        )
+        result = await db_session.execute(stmt)
+        return result.scalars().all()

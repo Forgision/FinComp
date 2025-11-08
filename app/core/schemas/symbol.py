@@ -11,13 +11,17 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.schemas import Base, AsyncSessionLocal
+from app.core.schemas import Base
 from app.utils.logging import logger
 
+
 class SymToken(Base):
-    __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
+    __tablename__ = "symtoken"
+    id: Mapped[int] = mapped_column(
+        Integer, Sequence("symtoken_id_seq"), primary_key=True
+    )
     symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
     brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String)
@@ -32,65 +36,68 @@ class SymToken(Base):
 
     # Composite indices for improved search performance
     __table_args__ = (
-        Index('idx_symbol_exchange', 'symbol', 'exchange'),
-        Index('idx_symbol_name', 'symbol', 'name'),
-        Index('idx_brsymbol_exchange', 'brsymbol', 'exchange'),
+        Index("idx_symbol_exchange", "symbol", "exchange"),
+        Index("idx_symbol_name", "symbol", "name"),
+        Index("idx_brsymbol_exchange", "brsymbol", "exchange"),
     )
 
-def enhanced_search_symbols(query: str, exchange: Optional[str] = None) -> List[SymToken]:
+
+async def enhanced_search_symbols(
+    db: AsyncSession, query: str, exchange: Optional[str] = None
+) -> List[SymToken]:
     """
     Enhanced search function that searches across multiple fields
     and supports partial matching with multiple terms
 
     Args:
+        db (AsyncSession): The database session.
         query (str): Search query string
         exchange (str, optional): Exchange to filter by
 
     Returns:
         List[SymToken]: List of matching SymToken objects
     """
-    with AsyncSessionLocal() as db_session:
-        try:
-            # Split the query into terms and clean them
-            terms = [term.strip().upper() for term in query.split() if term.strip()]
+    try:
+        # Split the query into terms and clean them
+        terms = [term.strip().upper() for term in query.split() if term.strip()]
 
-            # Base query
-            stmt = select(SymToken)
+        # Base query
+        stmt = select(SymToken)
 
-            # If exchange is specified, filter by it
-            if exchange:
-                stmt = stmt.filter(SymToken.exchange == exchange)
+        # If exchange is specified, filter by it
+        if exchange:
+            stmt = stmt.filter(SymToken.exchange == exchange)
 
-            # Create conditions for each term
-            all_conditions = []
-            for term in terms:
-                # Number detection for more accurate strike price and token searches
-                try:
-                    num_term = float(term)
-                    term_conditions = or_(
-                        SymToken.symbol.ilike(f'%{term}%'),
-                        SymToken.brsymbol.ilike(f'%{term}%'),
-                        SymToken.name.ilike(f'%{term}%'),
-                        SymToken.token.ilike(f'%{term}%'),
-                        SymToken.strike == num_term
-                    )
-                except ValueError:
-                    term_conditions = or_(
-                        SymToken.symbol.ilike(f'%{term}%'),
-                        SymToken.brsymbol.ilike(f'%{term}%'),
-                        SymToken.name.ilike(f'%{term}%'),
-                        SymToken.token.ilike(f'%{term}%')
-                    )
-                all_conditions.append(term_conditions)
+        # Create conditions for each term
+        all_conditions = []
+        for term in terms:
+            # Number detection for more accurate strike price and token searches
+            try:
+                num_term = float(term)
+                term_conditions = or_(
+                    SymToken.symbol.ilike(f"%{term}%"),
+                    SymToken.brsymbol.ilike(f"%{term}%"),
+                    SymToken.name.ilike(f"%{term}%"),
+                    SymToken.token.ilike(f"%{term}%"),
+                    SymToken.strike == num_term,
+                )
+            except ValueError:
+                term_conditions = or_(
+                    SymToken.symbol.ilike(f"%{term}%"),
+                    SymToken.brsymbol.ilike(f"%{term}%"),
+                    SymToken.name.ilike(f"%{term}%"),
+                    SymToken.token.ilike(f"%{term}%"),
+                )
+            all_conditions.append(term_conditions)
 
-            # Combine all conditions with AND
-            if all_conditions:
-                stmt = stmt.filter(and_(*all_conditions))
+        # Combine all conditions with AND
+        if all_conditions:
+            stmt = stmt.filter(and_(*all_conditions))
 
-            # Execute query - no limit to show all matching results
-            results = db_session.execute(stmt).scalars().all()
-            return list(results)
+        # Execute query - no limit to show all matching results
+        results = await db.execute(stmt)
+        return list(results.scalars().all())
 
-        except Exception as e:
-            logger.error(f"Error in enhanced search: {str(e)}")
-            return []
+    except Exception as e:
+        logger.error(f"Error in enhanced search: {str(e)}")
+        return []

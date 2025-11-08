@@ -14,13 +14,14 @@ from app.core.schemas import get_db
 
 def get_session_expiry_time():
     """Get session expiry time set to 3 AM IST next day"""
-    now_utc = datetime.now(pytz.timezone('UTC'))
-    now_ist = now_utc.astimezone(pytz.timezone('Asia/Kolkata'))
+    now_utc = datetime.now(pytz.timezone("UTC"))
+    now_ist = now_utc.astimezone(pytz.timezone("Asia/Kolkata"))
 
     # Get configured expiry time or default to 3 AM
     from app.core.config import settings
+
     expiry_time = settings.SESSION_EXPIRY_TIME
-    hour, minute = map(int, expiry_time.split(':'))
+    hour, minute = map(int, expiry_time.split(":"))
 
     target_time_ist = now_ist.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
@@ -32,33 +33,35 @@ def get_session_expiry_time():
     logger.debug(f"Session expiry time set to: {target_time_ist}")
     return remaining_time
 
+
 def set_session_login_time(request: Request):
     """Set the session login time in IST for FastAPI"""
-    now_utc = datetime.now(pytz.timezone('UTC'))
-    now_ist = now_utc.astimezone(pytz.timezone('Asia/Kolkata'))
-    request.session['login_time'] = now_ist.isoformat()
+    now_utc = datetime.now(pytz.timezone("UTC"))
+    now_ist = now_utc.astimezone(pytz.timezone("Asia/Kolkata"))
+    request.session["login_time"] = now_ist.isoformat()
     logger.info(f"Session login time set to: {now_ist}")
+
 
 async def is_session_valid_fastapi(request: Request) -> bool:
     """Check if the current session is valid for FastAPI"""
-    if not request.session.get('logged_in'):
+    if not request.session.get("logged_in"):
         logger.debug("Session invalid: 'logged_in' flag not set")
         return False
 
     # If no login time is set, consider session invalid
-    if 'login_time' not in request.session:
+    if "login_time" not in request.session:
         logger.debug("Session invalid: 'login_time' not in session")
         return False
 
-    now_utc = datetime.now(pytz.timezone('UTC'))
-    now_ist = now_utc.astimezone(pytz.timezone('Asia/Kolkata'))
+    now_utc = datetime.now(pytz.timezone("UTC"))
+    now_ist = now_utc.astimezone(pytz.timezone("Asia/Kolkata"))
 
     # Parse login time
-    login_time = datetime.fromisoformat(request.session['login_time'])
+    login_time = datetime.fromisoformat(request.session["login_time"])
 
     # Get configured expiry time
     expiry_time = settings.SESSION_EXPIRY_TIME
-    hour, minute = map(int, expiry_time.split(':'))
+    hour, minute = map(int, expiry_time.split(":"))
 
     # Get today's expiry time
     daily_expiry = now_ist.replace(hour=hour, minute=minute, second=0, microsecond=0)
@@ -68,17 +71,26 @@ async def is_session_valid_fastapi(request: Request) -> bool:
         logger.info(f"Session expired at {daily_expiry} IST")
         return False
 
-    logger.debug(f"Session valid. Current time: {now_ist}, Login time: {login_time}, Daily expiry: {daily_expiry}")
+    logger.debug(
+        f"Session valid. Current time: {now_ist}, Login time: {login_time}, Daily expiry: {daily_expiry}"
+    )
     return True
+
 
 async def revoke_user_tokens_fastapi(request: Request, db: AsyncSession):
     """Revoke auth tokens for the current user when session expires for FastAPI"""
-    if 'user' in request.session:
-        username = request.session.get('user')
+    if "user" in request.session:
+        username = request.session.get("user")
         try:
             # Local import to avoid circular dependencies
-            from app.core.schemas.auth_db import auth_cache, feed_token_cache, upsert_auth
-            from app.core.schemas.master_contract_cache_hook import clear_cache_on_logout
+            from app.core.schemas.auth_db import (
+                auth_cache,
+                feed_token_cache,
+                upsert_auth,
+            )
+            from app.core.schemas.master_contract_cache_hook import (
+                clear_cache_on_logout,
+            )
 
             # Clear cache entries first to prevent stale data access
             cache_key_auth = f"auth-{username}"
@@ -99,11 +111,20 @@ async def revoke_user_tokens_fastapi(request: Request, db: AsyncSession):
             if inserted_id is not None:
                 logger.info(f"Auto-expiry: Revoked auth tokens for user: {username}")
             else:
-                logger.error(f"Auto-expiry: Failed to revoke auth tokens for user: {username}")
+                logger.error(
+                    f"Auto-expiry: Failed to revoke auth tokens for user: {username}"
+                )
         except Exception as e:
-            logger.error(f"Error revoking tokens during auto-expiry for user {username}: {e}")
+            logger.error(
+                f"Error revoking tokens during auto-expiry for user {username}: {e}"
+            )
 
-async def check_session_validity_fastapi(request: Request, db: Session = Depends(get_db), func: Optional[str] = Query(None)) -> str:
+
+async def check_session_validity_fastapi(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    func: Optional[str] = Query(None),
+) -> str:
     """
     FastAPI dependency to check session validity.
     Raises HTTPException if session is invalid, otherwise returns user data.
@@ -118,30 +139,35 @@ async def check_session_validity_fastapi(request: Request, db: Session = Depends
         if request.url.path.startswith("/api"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired or invalid. Please log in again."
+                detail="Session expired or invalid. Please log in again.",
             )
         # For web UI, redirect
         else:
             # This redirect won't work directly as a dependency that raises.
             # Routes calling this dependency would need to handle the RedirectResponse.
             # However, for API routes, HTTPException is appropriate.
-            logger.warning("Attempted to redirect from FastAPI dependency, this might not work as expected for non-API routes.")
+            logger.warning(
+                "Attempted to redirect from FastAPI dependency, this might not work as expected for non-API routes."
+            )
             raise HTTPException(
                 status_code=status.HTTP_302_FOUND,
                 detail="Redirecting to login",
-                headers={"Location": "/auth/login"}
+                headers={"Location": "/auth/login"},
             )
 
-    user_data = request.session.get('user')
+    user_data = request.session.get("user")
     if not user_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session is invalid or user not found."
+            detail="Session is invalid or user not found.",
         )
     logger.debug("Session validated successfully for FastAPI.")
     return user_data
 
-async def invalidate_session_if_invalid(request: Request, db: Session = Depends(get_db)):
+
+async def invalidate_session_if_invalid(
+    request: Request, db: AsyncSession = Depends(get_db)
+):
     """
     FastAPI dependency to invalidate session if invalid without raising HTTPException.
     """

@@ -11,7 +11,7 @@ from app.utils.logging import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.schemas.auth_db import get_api_key_for_tradingview
@@ -178,9 +178,9 @@ def validate_strategy_name(name):
 
     return True, name
 
-def schedule_squareoff(strategy_id: int, db: Session):
+async def schedule_squareoff(strategy_id: int, db: AsyncSession):
     """Schedule squareoff for intraday strategy"""
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy or not strategy.is_intraday or not strategy.squareoff_time:
         return
 
@@ -206,25 +206,25 @@ def schedule_squareoff(strategy_id: int, db: Session):
     except Exception as e:
         logger.error(f'Error scheduling squareoff for strategy {strategy_id}: {str(e)}')
 
-def squareoff_positions(strategy_id: int):
+async def squareoff_positions(strategy_id: int):
     """Square off all positions for intraday strategy"""
     try:
         # Need a new session for background task
-        db = next(get_db())
-        strategy = get_strategy(db, strategy_id)
+        async with get_db() as db:
+            strategy = await get_strategy(db, strategy_id)
         if not strategy or not strategy.is_intraday:
-            db.close()
+            await db.close()
             return
 
         # Get API key for authentication
         api_key = get_api_key_for_tradingview(db, strategy.user_id)
         if not api_key:
             logger.error(f'No API key found for strategy {strategy_id}')
-            db.close()
+            await db.close()
             return
 
         # Get all symbol mappings
-        mappings = get_symbol_mappings(db, strategy_id)
+        mappings = await get_symbol_mappings(db, strategy_id)
 
         for mapping in mappings:
             # Use placesmartorder with quantity=0 and position_size=0 for squareoff
@@ -251,12 +251,12 @@ def squareoff_positions(strategy_id: int):
         logger.error(f'Error in squareoff_positions for strategy {strategy_id}: {str(e)}')
 
 @chartink_router.get('/', name= "chartink_bp.index")
-async def index(request: Request, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def index(request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """List all strategies"""
     if not user_id:
         return RedirectResponse(url=request.url_for('auth.login'))
 
-    strategies = get_user_strategies(db, user_id)  # Get only user's strategies
+    strategies = await get_user_strategies(db, user_id)  # Get only user's strategies
     return JSONResponse(content=[s.as_dict() for s in strategies])
 
 @chartink_router.get('/new')
@@ -274,7 +274,7 @@ async def new_strategy_post(
     end_time: str = Form(None),
     squareoff_time: str = Form(None),
     user_id: str = Depends(check_session_validity_fastapi),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Create new strategy"""
     if not user_id:
@@ -307,7 +307,7 @@ async def new_strategy_post(
         webhook_id = str(uuid.uuid4())
 
         # Create strategy with user ID
-        strategy = create_strategy(
+        strategy = await create_strategy(
             db=db,
             name=name,
             webhook_id=webhook_id,
@@ -332,12 +332,12 @@ async def new_strategy_post(
         return JSONResponse(content={'status': 'error', 'message': f'Error creating strategy: {str(e)}'}, status_code=500)
 
 @chartink_router.get('/{strategy_id}')
-async def view_strategy(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def view_strategy(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """View strategy details"""
     if not user_id:
         return RedirectResponse(url=request.url_for('auth.login'))
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
@@ -352,12 +352,12 @@ async def view_strategy(strategy_id: int, request: Request, user_id: str = Depen
     })
 
 @chartink_router.post('/{strategy_id}/delete')
-async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """Delete a strategy"""
     if not user_id:
         return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy:
         return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
 
@@ -372,7 +372,7 @@ async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_s
             scheduler.remove_job(job_id)
 
         # Delete strategy and its mappings
-        if delete_strategy(db, strategy_id):
+        if await delete_strategy(db, strategy_id):
             return JSONResponse(status_code=200, content={'status': 'success'})
         else:
             return JSONResponse(status_code=500, content={'status': 'error', 'error': 'Failed to delete strategy'})
@@ -381,12 +381,12 @@ async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_s
         return JSONResponse(status_code=500, content={'status': 'error', 'error': str(e)})
 
 @chartink_router.get('/{strategy_id}/configure')
-async def configure_symbols_get(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def configure_symbols_get(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """Configure symbols for strategy"""
     if not user_id:
         return RedirectResponse(url=request.url_for('auth.login'))
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
@@ -406,7 +406,7 @@ async def configure_symbols_post(
     strategy_id: int,
     request: Request,
     user_id: str = Depends(check_session_validity_fastapi),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     # For form data, if not JSON
     symbol: str = Form(None),
     exchange: str = Form(None),
@@ -418,7 +418,7 @@ async def configure_symbols_post(
     if not user_id:
         return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy:
         return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
 
@@ -458,7 +458,7 @@ async def configure_symbols_post(
                 })
 
             if mappings:
-                bulk_add_symbol_mappings(db, strategy_id, mappings)
+                await bulk_add_symbol_mappings(db, strategy_id, mappings)
                 return JSONResponse(status_code=200, content={'status': 'success'})
 
         # Handle single symbol
@@ -493,7 +493,7 @@ async def configure_symbols_post(
             if quantity_single <= 0:
                 raise ValueError('Quantity must be greater than 0')
 
-            mapping = add_symbol_mapping(
+            mapping = await add_symbol_mapping(
                 db=db,
                 strategy_id=strategy_id,
                 chartink_symbol=symbol_single,
@@ -513,34 +513,34 @@ async def configure_symbols_post(
         return JSONResponse(status_code=400, content={'status': 'error', 'error': error_msg})
 
 @chartink_router.post('/{strategy_id}/symbol/{mapping_id}/delete')
-async def delete_symbol(strategy_id: int, mapping_id: int, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def delete_symbol(strategy_id: int, mapping_id: int, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """Delete symbol mapping"""
     if not user_id:
         return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy or strategy.user_id != user_id:
         return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
 
     try:
-        delete_symbol_mapping(db, mapping_id)
+        await delete_symbol_mapping(db, mapping_id)
         return JSONResponse(status_code=200, content={'status': 'success'})
     except Exception as e:
         logger.error(f'Error deleting symbol mapping: {str(e)}')
         return JSONResponse(status_code=400, content={'status': 'error', 'error': str(e)})
 
 @chartink_router.post('/{strategy_id}/toggle')
-async def toggle_strategy_route(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def toggle_strategy_route(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """Toggle strategy active status"""
     if not user_id:
         return RedirectResponse(url=request.url_for('auth.login'))
 
-    strategy = get_strategy(db, strategy_id)
+    strategy = await get_strategy(db, strategy_id)
     if not strategy or strategy.user_id != user_id:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
     try:
-        strategy = toggle_strategy(db, strategy_id)
+        strategy = await toggle_strategy(db, strategy_id)
         if strategy:
             # Flash messages are not directly supported in FastAPI, will log and redirect
             status = 'activated' if strategy.is_active else 'deactivated'
@@ -553,12 +553,12 @@ async def toggle_strategy_route(strategy_id: int, request: Request, user_id: str
     return RedirectResponse(url=chartink_router.url_path_for('view_strategy', strategy_id=strategy_id), status_code=302)
 
 @chartink_router.get('/search')
-async def search_symbols(query: str, exchange: str = None, user_id: str = Depends(check_session_validity_fastapi), db: Session = Depends(get_db)):
+async def search_symbols(query: str, exchange: str = None, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
     """Search symbols endpoint"""
     if not query:
         return JSONResponse(status_code=200, content={'results': []})
 
-    results = enhanced_search_symbols(db, query, exchange)
+    results = await enhanced_search_symbols(db, query, exchange)
     return JSONResponse(status_code=200, content={
         'results': [{
             'symbol': result.symbol,
@@ -568,11 +568,11 @@ async def search_symbols(query: str, exchange: str = None, user_id: str = Depend
     })
 
 @chartink_router.post('/webhook/{webhook_id}')
-async def webhook(webhook_id: str, request: Request, db: Session = Depends(get_db)):
+async def webhook(webhook_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Handle webhook from Chartink"""
     try:
         # Get strategy by webhook ID
-        strategy = get_strategy_by_webhook_id(db, webhook_id)
+        strategy = await get_strategy_by_webhook_id(db, webhook_id)
         if not strategy:
             logger.error(f'Strategy not found for webhook ID: {webhook_id}')
             return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Invalid webhook ID'})
@@ -654,7 +654,7 @@ async def webhook(webhook_id: str, request: Request, db: Session = Depends(get_d
             return JSONResponse(status_code=400, content={'status': 'error', 'error': 'No symbols received'})
 
         # Get symbol mappings
-        mappings = get_symbol_mappings(db, strategy.id)
+        mappings = await get_symbol_mappings(db, strategy.id)
         if not mappings:
             logger.error(f'No symbol mappings found for strategy {strategy.id}')
             return JSONResponse(status_code=400, content={'status': 'error', 'error': 'No symbol mappings configured'})

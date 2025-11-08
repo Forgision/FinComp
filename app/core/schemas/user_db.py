@@ -10,6 +10,7 @@ from cachetools import (
 from sqlalchemy import Boolean, Integer, String, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.schemas import AsyncSessionLocal, Base
@@ -23,8 +24,9 @@ PASSWORD_PEPPER = settings.API_KEY_PEPPER  # We'll use the same pepper for consi
 # Define a cache for the usernames with a max size and a 30-second TTL
 username_cache: TTLCache = TTLCache(maxsize=1024, ttl=30)
 
+
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
@@ -32,7 +34,9 @@ class User(Base):
     totp_secret: Mapped[str] = mapped_column(String(32), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    def __init__(self, username: str, email: str, totp_secret: str, is_admin: bool = False):
+    def __init__(
+        self, username: str, email: str, totp_secret: str, is_admin: bool = False
+    ):
         self.username = username
         self.email = email
         self.totp_secret = totp_secret
@@ -62,8 +66,7 @@ class User(Base):
     def get_totp_uri(self) -> str:
         """Get the TOTP URI for QR code generation"""
         return pyotp.totp.TOTP(self.totp_secret).provisioning_uri(
-            name=self.email,
-            issuer_name="OpenAlgo"
+            name=self.email, issuer_name="OpenAlgo"
         )
 
     def verify_totp(self, token: str) -> bool:
@@ -73,7 +76,7 @@ class User(Base):
 
 
 async def add_user(
-    db_session: AsyncSessionLocal,
+    db_session: AsyncSession,
     username: str,
     email: str,
     password: str,
@@ -96,8 +99,9 @@ async def add_user(
         await db_session.rollback()
         return None  # Return None instead of False
 
+
 async def authenticate_user(
-    db_session: AsyncSessionLocal, username: str, password: str
+    db_session: AsyncSession, username: str, password: str
 ) -> bool:
     """Authenticate user with Argon2 hashed password"""
     cache_key = f"user-{username}"
@@ -122,19 +126,20 @@ async def authenticate_user(
     username_cache[cache_key] = None  # Cache the None value to prevent repeated lookups
     return False
 
-async def find_user_by_email(
-    db_session: AsyncSessionLocal, email: str
-) -> Optional[User]:
+
+async def find_user_by_email(db_session: AsyncSession, email: str) -> Optional[User]:
     """Find user by email for password reset"""
     stmt = select(User).filter_by(email=email)
     result = await db_session.execute(stmt)
     return result.scalars().first()
 
-async def find_admin_user(db_session: AsyncSessionLocal) -> Optional[User]:
+
+async def find_admin_user(db_session: AsyncSession) -> Optional[User]:
     """Find admin user"""
     stmt = select(User).filter_by(is_admin=True)
     result = await db_session.execute(stmt)
     return result.scalars().first()
+
 
 async def rehash_all_passwords():
     """
@@ -155,9 +160,8 @@ async def rehash_all_passwords():
                 pass
         await db_session.commit()
 
-async def delete_user_by_username(
-    db_session: AsyncSessionLocal, username: str
-) -> bool:
+
+async def delete_user_by_username(db_session: AsyncSession, username: str) -> bool:
     """Delete a user by username."""
     stmt = select(User).filter_by(username=username)
     result = await db_session.execute(stmt)

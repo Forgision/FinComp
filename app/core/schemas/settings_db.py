@@ -6,6 +6,7 @@ from typing import Optional
 from cryptography.fernet import Fernet
 from sqlalchemy import Boolean, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.schemas import AsyncSessionLocal, Base, INIT_DB_REGISTRY
@@ -13,7 +14,7 @@ from app.utils.logging import logger
 
 
 class Settings(Base):
-    __tablename__ = 'settings'
+    __tablename__ = "settings"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     analyze_mode: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -24,7 +25,9 @@ class Settings(Base):
     smtp_password_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     smtp_use_tls: Mapped[bool] = mapped_column(Boolean, default=True)
     smtp_from_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    smtp_helo_hostname: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    smtp_helo_hostname: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
 
     # Security Settings
     security_404_threshold: Mapped[int] = mapped_column(Integer, default=20)
@@ -33,16 +36,22 @@ class Settings(Base):
     security_api_ban_duration: Mapped[int] = mapped_column(Integer, default=48)
     security_repeat_offender_limit: Mapped[int] = mapped_column(Integer, default=3)
 
-    def __init__(self, analyze_mode: bool = False,
-                 smtp_server: Optional[str] = None, smtp_port: Optional[int] = None,
-                 smtp_username: Optional[str] = None, smtp_password_encrypted: Optional[str] = None,
-                 smtp_use_tls: bool = True, smtp_from_email: Optional[str] = None,
-                 smtp_helo_hostname: Optional[str] = None,
-                 security_404_threshold: int = 20,
-                 security_404_ban_duration: int = 24,
-                 security_api_threshold: int = 10,
-                 security_api_ban_duration: int = 48,
-                 security_repeat_offender_limit: int = 3):
+    def __init__(
+        self,
+        analyze_mode: bool = False,
+        smtp_server: Optional[str] = None,
+        smtp_port: Optional[int] = None,
+        smtp_username: Optional[str] = None,
+        smtp_password_encrypted: Optional[str] = None,
+        smtp_use_tls: bool = True,
+        smtp_from_email: Optional[str] = None,
+        smtp_helo_hostname: Optional[str] = None,
+        security_404_threshold: int = 20,
+        security_404_ban_duration: int = 24,
+        security_api_threshold: int = 10,
+        security_api_ban_duration: int = 48,
+        security_repeat_offender_limit: int = 3,
+    ):
         self.analyze_mode = analyze_mode
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
@@ -74,11 +83,11 @@ async def ensure_table():
             db_session.add(default_settings)
             await db_session.commit()
 
-            
-INIT_DB_REGISTRY['settings_db'] = ensure_table
+
+INIT_DB_REGISTRY["settings_db"] = ensure_table
 
 
-async def get_settings(db: AsyncSessionLocal) -> Settings:
+async def get_settings(db: AsyncSession) -> Settings:
     """Get settings from the database"""
     result = await db.execute(select(Settings))
     settings_instance = result.scalars().first()
@@ -89,13 +98,13 @@ async def get_settings(db: AsyncSessionLocal) -> Settings:
     return settings_instance
 
 
-async def get_analyze_mode(db: AsyncSessionLocal) -> bool:
+async def get_analyze_mode(db: AsyncSession) -> bool:
     """Get current analyze mode setting"""
     settings = await get_settings(db)
     return settings.analyze_mode
 
 
-async def set_analyze_mode(db: AsyncSessionLocal, mode: bool):
+async def set_analyze_mode(db: AsyncSession, mode: bool):
     """Set analyze mode setting"""
     settings_instance = await get_settings(db)
     settings_instance.analyze_mode = mode
@@ -132,7 +141,7 @@ def _decrypt_password(encrypted_password: str) -> Optional[str]:
         return None
 
 
-async def get_smtp_settings(db: AsyncSessionLocal) -> dict:
+async def get_smtp_settings(db: AsyncSession) -> dict:
     """Get SMTP configuration"""
     settings_instance = await get_settings(db)
 
@@ -148,7 +157,7 @@ async def get_smtp_settings(db: AsyncSessionLocal) -> dict:
 
 
 async def set_smtp_settings(
-    db: AsyncSessionLocal,
+    db: AsyncSession,
     smtp_server: Optional[str] = None,
     smtp_port: Optional[int] = None,
     smtp_username: Optional[str] = None,
@@ -179,7 +188,7 @@ async def set_smtp_settings(
     logger.info("SMTP settings updated successfully")
 
 
-async def get_security_settings(db: AsyncSessionLocal) -> dict:
+async def get_security_settings(db: AsyncSession) -> dict:
     """Get security configuration"""
     s = await get_settings(db)
 
@@ -193,7 +202,7 @@ async def get_security_settings(db: AsyncSessionLocal) -> dict:
 
 
 async def set_security_settings(
-    db: AsyncSessionLocal,
+    db: AsyncSession,
     threshold_404: Optional[int] = None,
     ban_duration_404: Optional[int] = None,
     threshold_api: Optional[int] = None,

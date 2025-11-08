@@ -1,5 +1,6 @@
 import traceback
 from typing import Any, Dict, Optional, Tuple
+from sqlalchemy import select
 
 from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.auth_db import get_auth_token_broker
@@ -9,11 +10,8 @@ from sqlalchemy.exc import NoResultFound
 from app.utils.logging import logger
 
 
-def get_symbol_info_with_auth(
-    symbol: str,
-    exchange: str,
-    auth_token: str,
-    broker: str
+async def get_symbol_info_with_auth(
+    symbol: str, exchange: str, auth_token: str, broker: str
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get symbol information using provided auth token.
@@ -32,64 +30,60 @@ def get_symbol_info_with_auth(
     """
     try:
         # Query the database for the symbol
-        with AsyncSessionLocal() as db_session:
-            result = db_session.query(SymToken).filter(
-                SymToken.symbol == symbol,
-                SymToken.exchange == exchange
-            ).first()
+        async with AsyncSessionLocal() as db_session:
+            stmt = select(SymToken).filter(
+                SymToken.symbol == symbol, SymToken.exchange == exchange
+            )
+            result = await db_session.execute(stmt)
+            result = result.scalars().first()
 
         if result is None:
             error_response = {
-                'status': 'error',
-                'message': f'Symbol {symbol} not found in exchange {exchange}'
+                "status": "error",
+                "message": f"Symbol {symbol} not found in exchange {exchange}",
             }
             return False, error_response, 404
 
         # Transform the SymToken object to a dictionary
         symbol_info = {
-            'id': result.id,
-            'symbol': result.symbol,
-            'brsymbol': result.brsymbol,
-            'name': result.name,
-            'exchange': result.exchange,
-            'brexchange': result.brexchange,
-            'token': result.token,
-            'expiry': result.expiry,
-            'strike': result.strike,
-            'lotsize': result.lotsize,
-            'instrumenttype': result.instrumenttype,
-            'tick_size': result.tick_size
+            "id": result.id,
+            "symbol": result.symbol,
+            "brsymbol": result.brsymbol,
+            "name": result.name,
+            "exchange": result.exchange,
+            "brexchange": result.brexchange,
+            "token": result.token,
+            "expiry": result.expiry,
+            "strike": result.strike,
+            "lotsize": result.lotsize,
+            "instrumenttype": result.instrumenttype,
+            "tick_size": result.tick_size,
         }
 
-        response_data = {
-            'data': symbol_info,
-            'status': 'success'
-        }
+        response_data = {"data": symbol_info, "status": "success"}
 
         return True, response_data, 200
 
     except NoResultFound:
         error_response = {
-            'status': 'error',
-            'message': f'Symbol {symbol} not found in exchange {exchange}'
+            "status": "error",
+            "message": f"Symbol {symbol} not found in exchange {exchange}",
         }
         return False, error_response, 404
 
     except Exception as e:
         logger.error(f"Error retrieving symbol information: {e}")
         traceback.print_exc()
-        error_response = {
-            'status': 'error',
-            'message': str(e)
-        }
+        error_response = {"status": "error", "message": str(e)}
         return False, error_response, 500
 
-def get_symbol_info(
+
+async def get_symbol_info(
     symbol: str,
     exchange: str,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
-    broker: Optional[str] = None
+    broker: Optional[str] = None,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get symbol information for a given symbol and exchange.
@@ -110,31 +104,32 @@ def get_symbol_info(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        with AsyncSessionLocal() as db_session:
-            AUTH_TOKEN, broker_name = get_auth_token_broker(db_session, provided_api_key=api_key, include_feed_token=False)
+        async with AsyncSessionLocal() as db_session:
+            AUTH_TOKEN, broker_name = await get_auth_token_broker(
+                db_session, provided_api_key=api_key, include_feed_token=False
+            )
         if AUTH_TOKEN is None:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
+            error_response = {"status": "error", "message": "Invalid openalgo apikey"}
             return False, error_response, 403
 
-        return get_symbol_info_with_auth(symbol, exchange, AUTH_TOKEN, broker_name)
+        return await get_symbol_info_with_auth(
+            symbol, exchange, AUTH_TOKEN, broker_name
+        )
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_symbol_info_with_auth(symbol, exchange, auth_token, broker)
+        return await get_symbol_info_with_auth(symbol, exchange, auth_token, broker)
 
     # Case 3: No authentication required for this endpoint
     # Symbol information can be accessed without authentication
     elif not api_key and not auth_token and not broker:
         # Use a dummy auth token and broker since they're not used in the actual implementation
-        return get_symbol_info_with_auth(symbol, exchange, "", "")
+        return await get_symbol_info_with_auth(symbol, exchange, "", "")
 
     # Case 4: Invalid parameters
     else:
         error_response = {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
+            "status": "error",
+            "message": "Either api_key or both auth_token and broker must be provided",
         }
         return False, error_response, 400

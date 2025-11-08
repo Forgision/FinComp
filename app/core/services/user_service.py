@@ -1,55 +1,55 @@
 import pyotp
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from app.core.schemas.user_db import User
-from app.utils.web.security import password_to_hash
 
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str):
+    result = await db.execute(select(User).filter(User.username == username))
+    return result.scalars().first()
 
-def create_user(db: Session, username: str, email: str, password: str, is_admin: bool = False):
-    password_hash = password_to_hash(password)
-    db_user = User(username=username, email=email, password_hash=password_hash, is_admin=is_admin)
+
+async def create_user(
+    db: AsyncSession, username: str, email: str, password: str, is_admin: bool = False
+):
+    db_user = User(username=username, email=email, is_admin=is_admin)
+    db_user.set_password(password)
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
     return db_user
 
-def get_total_users_count(db: Session) -> int:
+
+async def get_total_users_count(db: AsyncSession) -> int:
     """
     Returns the total number of users in the database.
     """
-    return db.query(User).count()
+    result = await db.execute(select(func.count()).select_from(User))
+    return result.scalar_one()
 
 
-def create_admin_user(db: Session, username: str, email: str, password: str):
+async def create_admin_user(db: AsyncSession, username: str, email: str, password: str):
     """
     Creates the initial admin user, hashes the password, and generates a TOTP secret.
     """
-    if get_total_users_count(db) > 0:
+    if await get_total_users_count(db) > 0:
         return None  # Admin user already exists
-
-    password_hash = password_to_hash(password)
 
     # Generate TOTP secret
     totp_secret = pyotp.random_base32()
 
-    user = User(
-        username=username,
-        email=email,
-        password_hash=password_hash,
-        is_admin=True,
-        totp_secret=totp_secret
-    )
+    user = User(username=username, email=email, is_admin=True, totp_secret=totp_secret)
+    user.set_password(password)
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     # In a real app, you would also create and store the API key here
     # and associate it with the user.
 
     return user
+
 
 def get_totp_uri(user: User) -> str:
     """

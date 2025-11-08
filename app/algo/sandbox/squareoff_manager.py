@@ -11,6 +11,7 @@ Features:
 """
 
 from datetime import datetime, time
+from sqlalchemy import select
 
 import pytz
 
@@ -29,30 +30,30 @@ class SquareOffManager:
     """Manages automatic square-off of MIS positions"""
 
     def __init__(self):
-        self.ist = pytz.timezone('Asia/Kolkata')
+        self.ist = pytz.timezone("Asia/Kolkata")
 
         # Load square-off times from config
         self.square_off_times = {
-            'NSE': self._parse_time(get_config('nse_bse_square_off_time', '15:15')),
-            'BSE': self._parse_time(get_config('nse_bse_square_off_time', '15:15')),
-            'NFO': self._parse_time(get_config('nse_bse_square_off_time', '15:15')),
-            'BFO': self._parse_time(get_config('nse_bse_square_off_time', '15:15')),
-            'CDS': self._parse_time(get_config('cds_bcd_square_off_time', '16:45')),
-            'BCD': self._parse_time(get_config('cds_bcd_square_off_time', '16:45')),
-            'MCX': self._parse_time(get_config('mcx_square_off_time', '23:30')),
-            'NCDEX': self._parse_time(get_config('ncdex_square_off_time', '17:00')),
+            "NSE": self._parse_time(get_config("nse_bse_square_off_time", "15:15")),
+            "BSE": self._parse_time(get_config("nse_bse_square_off_time", "15:15")),
+            "NFO": self._parse_time(get_config("nse_bse_square_off_time", "15:15")),
+            "BFO": self._parse_time(get_config("nse_bse_square_off_time", "15:15")),
+            "CDS": self._parse_time(get_config("cds_bcd_square_off_time", "16:45")),
+            "BCD": self._parse_time(get_config("cds_bcd_square_off_time", "16:45")),
+            "MCX": self._parse_time(get_config("mcx_square_off_time", "23:30")),
+            "NCDEX": self._parse_time(get_config("ncdex_square_off_time", "17:00")),
         }
 
     def _parse_time(self, time_str):
         """Parse time string (HH:MM) to time object"""
         try:
-            hour, minute = map(int, time_str.split(':'))
+            hour, minute = map(int, time_str.split(":"))
             return time(hour=hour, minute=minute)
         except Exception as e:
             logger.error(f"Error parsing time '{time_str}': {e}")
             return time(15, 15)  # Default to 3:15 PM
 
-    def check_and_square_off(self):
+    async def check_and_square_off(self):
         """
         Check if it's time to square-off positions and execute
         Should be called frequently (e.g., every minute)
@@ -62,12 +63,17 @@ class SquareOffManager:
             current_time = now.time()
 
             # Step 1: Cancel all open MIS orders past square-off time
-            self._cancel_open_mis_orders(current_time)
+            await self._cancel_open_mis_orders(current_time)
 
             # Step 2: Get all open MIS positions (quantity != 0)
-            with AsyncSessionLocal() as db_session:
-                mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
-                    .filter(SandboxPositions.quantity != 0).all()
+            async with AsyncSessionLocal() as db_session:
+                stmt = (
+                    select(SandboxPositions)
+                    .filter_by(product="MIS")
+                    .filter(SandboxPositions.quantity != 0)
+                )
+                result = await db_session.execute(stmt)
+                mis_positions = result.scalars().all()
 
             if not mis_positions:
                 logger.debug("No MIS positions to square-off")
@@ -81,7 +87,9 @@ class SquareOffManager:
                 square_off_time = self.square_off_times.get(exchange)
 
                 if not square_off_time:
-                    logger.warning(f"No square-off time configured for exchange {exchange}")
+                    logger.warning(
+                        f"No square-off time configured for exchange {exchange}"
+                    )
                     continue
 
                 # Check if current time has passed square-off time
@@ -89,25 +97,30 @@ class SquareOffManager:
                     positions_to_close.append(position)
 
             if positions_to_close:
-                logger.info(f"Found {len(positions_to_close)} MIS positions to square-off")
-                self._square_off_positions(positions_to_close)
+                logger.info(
+                    f"Found {len(positions_to_close)} MIS positions to square-off"
+                )
+                await self._square_off_positions(positions_to_close)
             else:
-                logger.debug(f"No positions due for square-off at {current_time.strftime('%H:%M')}")
+                logger.debug(
+                    f"No positions due for square-off at {current_time.strftime('%H:%M')}"
+                )
 
         except Exception as e:
             logger.error(f"Error checking square-off conditions: {e}")
 
-    def _cancel_open_mis_orders(self, current_time):
+    async def _cancel_open_mis_orders(self, current_time):
         """Cancel all open MIS orders past their exchange's square-off time"""
         try:
             from sandbox.order_manager import OrderManager
 
             # Get all open MIS orders
-            with AsyncSessionLocal() as db_session:
-                open_orders = db_session.query(SandboxOrders).filter_by(
-                    product='MIS',
-                    order_status='open'
-                ).all()
+            async with AsyncSessionLocal() as db_session:
+                stmt = select(SandboxOrders).filter_by(
+                    product="MIS", order_status="open"
+                )
+                result = await db_session.execute(stmt)
+                open_orders = result.scalars().all()
 
             if not open_orders:
                 return
@@ -125,24 +138,32 @@ class SquareOffManager:
                 if current_time >= square_off_time:
                     try:
                         order_manager = OrderManager(order.user_id)
-                        success, response, status_code = order_manager.cancel_order(order.orderid)
+                        success, response, status_code = order_manager.cancel_order(
+                            order.orderid
+                        )
 
                         if success:
-                            logger.info(f"Auto-cancelled MIS order {order.orderid} for {order.symbol} past square-off time")
+                            logger.info(
+                                f"Auto-cancelled MIS order {order.orderid} for {order.symbol} past square-off time"
+                            )
                             cancelled_count += 1
                         else:
-                            logger.error(f"Failed to cancel MIS order {order.orderid}: {response.get('message', 'Unknown error')}")
+                            logger.error(
+                                f"Failed to cancel MIS order {order.orderid}: {response.get('message', 'Unknown error')}"
+                            )
 
                     except Exception as e:
                         logger.error(f"Error cancelling MIS order {order.orderid}: {e}")
 
             if cancelled_count > 0:
-                logger.info(f"Auto-cancelled {cancelled_count} open MIS orders past square-off time")
+                logger.info(
+                    f"Auto-cancelled {cancelled_count} open MIS orders past square-off time"
+                )
 
         except Exception as e:
             logger.error(f"Error in _cancel_open_mis_orders: {e}")
 
-    def _square_off_positions(self, positions):
+    async def _square_off_positions(self, positions):
         """Square-off a list of positions"""
         success_count = 0
         error_count = 0
@@ -150,10 +171,8 @@ class SquareOffManager:
         for position in positions:
             try:
                 pm = PositionManager(position.user_id)
-                success, response, status_code = pm.close_position(
-                    position.symbol,
-                    position.exchange,
-                    position.product
+                success, response, status_code = await pm.close_position(
+                    position.symbol, position.exchange, position.product
                 )
 
                 if success:
@@ -173,23 +192,33 @@ class SquareOffManager:
                 logger.error(f"Error squaring-off position {position.symbol}: {e}")
                 error_count += 1
 
-        logger.info(f"Square-off completed: {success_count} successful, {error_count} failed")
+        logger.info(
+            f"Square-off completed: {success_count} successful, {error_count} failed"
+        )
 
-    def force_square_off_all_mis(self):
+    async def force_square_off_all_mis(self):
         """Force square-off all MIS positions immediately"""
         try:
-            with AsyncSessionLocal() as db_session:
-                mis_positions = db_session.query(SandboxPositions).filter_by(product='MIS')\
-                    .filter(SandboxPositions.quantity != 0).all()
+            async with AsyncSessionLocal() as db_session:
+                stmt = (
+                    select(SandboxPositions)
+                    .filter_by(product="MIS")
+                    .filter(SandboxPositions.quantity != 0)
+                )
+                result = await db_session.execute(stmt)
+                mis_positions = result.scalars().all()
 
             if not mis_positions:
                 logger.info("No MIS positions to force square-off")
                 return True, "No positions to square-off"
 
             logger.warning(f"Force squaring-off {len(mis_positions)} MIS positions")
-            self._square_off_positions(mis_positions)
+            await self._square_off_positions(mis_positions)
 
-            return True, f"Force square-off initiated for {len(mis_positions)} positions"
+            return (
+                True,
+                f"Force square-off initiated for {len(mis_positions)} positions",
+            )
 
         except Exception as e:
             logger.error(f"Error force squaring-off positions: {e}")
@@ -232,10 +261,12 @@ class SquareOffManager:
                 time_to_square_off = self.get_time_to_square_off(exchange)
 
                 status[exchange] = {
-                    'square_off_time': square_off_time.strftime('%H:%M'),
-                    'current_time': current_time.strftime('%H:%M'),
-                    'time_remaining_seconds': int(time_to_square_off) if time_to_square_off else 0,
-                    'is_past_square_off': current_time >= square_off_time
+                    "square_off_time": square_off_time.strftime("%H:%M"),
+                    "current_time": current_time.strftime("%H:%M"),
+                    "time_remaining_seconds": (
+                        int(time_to_square_off) if time_to_square_off else 0
+                    ),
+                    "is_past_square_off": current_time >= square_off_time,
                 }
 
             return status
@@ -245,15 +276,16 @@ class SquareOffManager:
             return {}
 
 
-def run_square_off_check():
+async def run_square_off_check():
     """Run one cycle of square-off check"""
     som = SquareOffManager()
-    som.check_and_square_off()
+    await som.check_and_square_off()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    import asyncio
+
     """Run square-off manager in standalone mode"""
-    import time as time_module
 
     logger.info("Starting Sandbox Square-Off Manager")
 
@@ -270,11 +302,14 @@ if __name__ == '__main__':
     # Run check every minute
     check_interval = 60  # 1 minute
 
-    try:
-        while True:
-            run_square_off_check()
-            time_module.sleep(check_interval)
-    except KeyboardInterrupt:
-        logger.info("Square-off manager stopped by user")
-    except Exception as e:
-        logger.error(f"Square-off manager error: {e}")
+    async def main():
+        try:
+            while True:
+                await run_square_off_check()
+                await asyncio.sleep(check_interval)
+        except KeyboardInterrupt:
+            logger.info("Square-off manager stopped by user")
+        except Exception as e:
+            logger.error(f"Square-off manager error: {e}")
+
+    asyncio.run(main())

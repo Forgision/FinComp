@@ -8,13 +8,15 @@ from app.core.schemas.apilog_db import async_log_order
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.logging import logger
 from app.utils.web.socketio import sio
 
 
-async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) -> Dict[str, Any]:
+async def emit_analyzer_error(
+    db: AsyncSession, request_data: Dict[str, Any], error_message: str
+) -> Dict[str, Any]:
     """
     Helper function to emit analyzer error events
 
@@ -25,26 +27,21 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     Returns:
         Error response dictionary
     """
-    error_response = {
-        'mode': 'analyze',
-        'status': 'error',
-        'message': error_message
-    }
+    error_response = {"mode": "analyze", "status": "error", "message": error_message}
 
     # Store complete request data without apikey
     analyzer_request = request_data.copy()
-    if 'apikey' in analyzer_request:
-        del analyzer_request['apikey']
-    analyzer_request['api_type'] = 'cancelallorder'
+    if "apikey" in analyzer_request:
+        del analyzer_request["apikey"]
+    analyzer_request["api_type"] = "cancelallorder"
 
     # Log to analyzer database
-    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'cancelallorder')
+    await async_log_analyzer(db, analyzer_request, error_response, "cancelallorder")
 
     # Emit socket event
-    await sio.emit('analyzer_update', {
-        'request': analyzer_request,
-        'response': error_response
-    })
+    await sio.emit(
+        "analyzer_update", {"request": analyzer_request, "response": error_response}
+    )
 
     return error_response
 
@@ -61,7 +58,7 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     module_path = None
     try:
-        module_path = f'broker.{broker_name}.api.order_api'
+        module_path = f"broker.{broker_name}.api.order_api"
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
@@ -70,11 +67,11 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
 
 
 async def cancel_all_orders_with_auth(
-    db: Session,
+    db: AsyncSession,
     order_data: Dict[str, Any],
     auth_token: str,
     broker: str,
-    original_data: Dict[str, Any]
+    original_data: Dict[str, Any],
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Cancel all orders using provided auth token.
@@ -92,96 +89,106 @@ async def cancel_all_orders_with_auth(
         - HTTP status code (int)
     """
     order_request_data = copy.deepcopy(original_data)
-    if 'apikey' in order_request_data:
-        order_request_data.pop('apikey', None)
+    if "apikey" in order_request_data:
+        order_request_data.pop("apikey", None)
 
     # If in analyze mode, route to sandbox for virtual trading
     if get_analyze_mode() is True:
         from app.core.services.sandbox_service import sandbox_cancel_all_orders
 
-        api_key = original_data.get('apikey')
+        api_key = original_data.get("apikey")
         if not api_key:
-            return False, await emit_analyzer_error(original_data, 'API key required for sandbox mode'), 400
+            return (
+                False,
+                await emit_analyzer_error(
+                    original_data, "API key required for sandbox mode"
+                ),
+                400,
+            )
 
         # Route to sandbox cancel all orders
         success, response_data, status_code = await sandbox_cancel_all_orders(
-            db,
-            order_data,
-            api_key,
-            original_data
+            db, order_data, api_key, original_data
         )
 
         # Store complete request data without apikey
         analyzer_request = order_request_data.copy()
-        analyzer_request['api_type'] = 'cancelallorder'
+        analyzer_request["api_type"] = "cancelallorder"
 
         # Log to analyzer database with complete request and response
-        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'cancelallorder')
+        await async_log_analyzer(db, analyzer_request, response_data, "cancelallorder")
 
         # Emit socket event for toast notification
-        await sio.emit('analyzer_update', {
-            'request': analyzer_request,
-            'response': response_data
-        })
+        await sio.emit(
+            "analyzer_update", {"request": analyzer_request, "response": response_data}
+        )
 
         # Send Telegram alert for analyze mode
-        await telegram_alert_service.send_order_alert(db, 'cancelallorder', order_data, response_data, order_data.get('apikey'))
+        await telegram_alert_service.send_order_alert(
+            db, "cancelallorder", order_data, response_data, order_data.get("apikey")
+        )
         return success, response_data, status_code
 
     broker_module = import_broker_module(broker)
     if broker_module is None:
         error_response = {
-            'status': 'error',
-            'message': 'Broker-specific module not found'
+            "status": "error",
+            "message": "Broker-specific module not found",
         }
-        await async_log_order('cancelallorder', original_data, error_response)
+        await async_log_order("cancelallorder", original_data, error_response)
         return False, error_response, 404
 
     try:
         # Use the dynamically imported module's function to cancel all orders
         canceled_orders, failed_cancellations = broker_module.cancel_all_orders_api(
-            order_data, auth_token)
+            order_data, auth_token
+        )
     except Exception as e:
         logger.error(f"Error in broker_module.cancel_all_orders_api: {e}")
         traceback.print_exc()
         error_response = {
-            'status': 'error',
-            'message': 'Failed to cancel all orders due to internal error'
+            "status": "error",
+            "message": "Failed to cancel all orders due to internal error",
         }
-        await async_log_order('cancelallorder', original_data, error_response)
+        await async_log_order("cancelallorder", original_data, error_response)
         return False, error_response, 500
 
     # Emit events for each canceled order
     for orderid in canceled_orders:
-        await sio.emit('cancel_order_event', {
-            'status': 'success',
-            'orderid': orderid,
-            'mode': 'live'
-        })
+        await sio.emit(
+            "cancel_order_event",
+            {"status": "success", "orderid": orderid, "mode": "live"},
+        )
 
     # Prepare response data
     response_data = {
-        'status': 'success',
-        'canceled_orders': canceled_orders,
-        'failed_cancellations': failed_cancellations,
-        'message': f'Canceled {len(canceled_orders)} orders. Failed to cancel {len(failed_cancellations)} orders.'
+        "status": "success",
+        "canceled_orders": canceled_orders,
+        "failed_cancellations": failed_cancellations,
+        "message": f"Canceled {len(canceled_orders)} orders. Failed to cancel {len(failed_cancellations)} orders.",
     }
 
     # Log the action asynchronously
-    await async_log_order('cancelallorder', order_request_data, response_data)
+    await async_log_order("cancelallorder", order_request_data, response_data)
 
     # Send Telegram alert for live mode
-    await telegram_alert_service.send_order_alert(db, 'cancelallorder', order_data or {}, response_data, (order_data or {}).get('apikey'))
+    await telegram_alert_service.send_order_alert(
+        db,
+        "cancelallorder",
+        order_data or {},
+        response_data,
+        (order_data or {}).get("apikey"),
+    )
 
     return True, response_data, 200
 
 
 async def cancel_all_orders(
-    db: Session,
+    db: AsyncSession,
     order_data: Dict[str, Any] | None = None,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
-    broker: Optional[str] = None
+    broker: Optional[str] = None,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Cancel all open orders.
@@ -204,39 +211,37 @@ async def cancel_all_orders(
 
     original_data = copy.deepcopy(order_data)
     if api_key:
-        original_data['apikey'] = api_key
+        original_data["apikey"] = api_key
 
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
         # Add API key to order data
-        order_data['apikey'] = api_key
+        order_data["apikey"] = api_key
 
-        auth_details = get_auth_token_broker(db, provided_api_key=api_key)
+        auth_details = await get_auth_token_broker(db, provided_api_key=api_key)
         if not auth_details or len(auth_details) < 2:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
+            error_response = {"status": "error", "message": "Invalid openalgo apikey"}
             return False, error_response, 403
         AUTH_TOKEN, broker_name = auth_details[0], auth_details[1]
         if AUTH_TOKEN is None or broker_name is None:
-            error_response = {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }
+            error_response = {"status": "error", "message": "Invalid openalgo apikey"}
             # Skip logging for invalid API keys to prevent database flooding
             return False, error_response, 403
 
-        return await cancel_all_orders_with_auth(db, order_data, AUTH_TOKEN, broker_name, original_data)
+        return await cancel_all_orders_with_auth(
+            db, order_data, AUTH_TOKEN, broker_name, original_data
+        )
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return await cancel_all_orders_with_auth(db, order_data, auth_token, broker, original_data)
+        return await cancel_all_orders_with_auth(
+            db, order_data, auth_token, broker, original_data
+        )
 
     # Case 3: Invalid parameters
     else:
         error_response = {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
+            "status": "error",
+            "message": "Either api_key or both auth_token and broker must be provided",
         }
         return False, error_response, 400
