@@ -265,7 +265,7 @@ async def logout(request: Request, db = Depends(get_db)):
             logger.info("Cleared symbol cache on logout")
         except Exception as cache_error:
             logger.error(f"Error clearing symbol cache on logout: {cache_error}")
-        inserted_id = upsert_auth(username, "", "", revoke=True)
+        inserted_id = upsert_auth(db=db, username, "", "", revoke=True)
         if inserted_id is not None:
             logger.info(f"Database Upserted record with ID: {inserted_id}")
             logger.info(f'Auth Revoked in the Database for user: {username}')

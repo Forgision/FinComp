@@ -5,6 +5,8 @@ Automatically loads symbols into memory cache after successful master contract d
 
 import time
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.schemas.token_db import load_cache_for_broker
 from app.core.schemas.token_db_enhanced import get_cache, get_cache_stats
 from app.utils.logging import logger
@@ -72,7 +74,7 @@ async def load_symbols_to_cache(broker: str) -> bool:
 
         return False
 
-async def hook_into_master_contract_download(broker: str):
+async def hook_into_master_contract_download(db: AsyncSession, broker: str):
     """
     Hook function to be called after master contract download completes
     This should be integrated into the existing master contract download flow
@@ -92,9 +94,7 @@ async def hook_into_master_contract_download(broker: str):
             from app.web.backend.routes.python_strategy import (
                 restore_strategies_after_login,
             )
-            from app.core.schemas import get_db
 
-            db = next(get_db())
             logger.info("Attempting to restore Python strategies after master contract download")
             success, message = restore_strategies_after_login(db, None)
             logger.info(f"Python strategy restoration result: {message}")

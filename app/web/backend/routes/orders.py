@@ -94,7 +94,7 @@ def generate_positions_csv(positions_data: list[dict]) -> str:
 @orders_router.get("/orderbook")
 async def orderbook(request: Request, db: Session = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(login_username)
+    auth_token = get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -130,7 +130,7 @@ async def orderbook(request: Request, db: Session = Depends(get_db)):
 @orders_router.get("/tradebook")
 async def tradebook(request: Request, db: Session = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(login_username)
+    auth_token = get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -164,7 +164,7 @@ async def tradebook(request: Request, db: Session = Depends(get_db)):
 @orders_router.get("/positions")
 async def positions(request: Request, db: Session = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(login_username)
+    auth_token = get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -198,7 +198,7 @@ async def positions(request: Request, db: Session = Depends(get_db)):
 @orders_router.get("/holdings", name="orders.holdings")
 async def holdings(request: Request, db: Session = Depends(get_db)):
     login_username = request.session.get('user')
-    auth_token = get_auth_token(login_username)
+    auth_token = get_auth_token(db, login_username)
 
     if auth_token is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -247,7 +247,7 @@ async def export_orderbook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -287,7 +287,7 @@ async def export_tradebook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -329,7 +329,7 @@ async def export_positions(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error loading broker-specific modules")
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")
@@ -369,7 +369,7 @@ async def close_position_route(request: Request, db: Session = Depends(get_db)):
             )
 
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
         if get_analyze_mode():
@@ -467,7 +467,7 @@ async def close_all_positions_route(request: Request, db: Session = Depends(get_
     """Close all open positions using the broker API"""
     try:
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
         if not auth_token or not broker_name:
@@ -509,7 +509,7 @@ async def cancel_all_orders_ui(request: Request, db: Session = Depends(get_db)):
     """Cancel all open orders using the broker API from UI"""
     try:
         login_username = request.session.get('user')
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
         broker_name = request.session.get('broker')
 
         if not auth_token or not broker_name:

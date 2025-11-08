@@ -10,10 +10,12 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.models import auth
 from app.core.schemas import Base, AsyncSessionLocal
 from app.utils.logging import logger
 
@@ -117,50 +119,50 @@ def decrypt_token(encrypted_token: str) -> Optional[str]:
         return None
 
 
-def upsert_auth(
+async def upsert_auth(
+    db: AsyncSession,
     name: str,
     auth_token: str,
     broker: str,
     feed_token: Optional[str] = None,
     user_id: Optional[str] = None,
     revoke: bool = False,
-):
-    with AsyncSessionLocal() as db:
-        encrypted_token = encrypt_token(auth_token)
-        encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
+) -> int:
+    encrypted_token = encrypt_token(auth_token)
+    encrypted_feed_token = encrypt_token(feed_token) if feed_token else None
 
-        stmt = select(Auth).where(Auth.name == name)
-        auth_obj = db.execute(stmt).scalar_one_or_none()
+    stmt = select(Auth).where(Auth.name == name)
+    auth_obj = (await db.execute(stmt)).scalar_one_or_none()
 
-        if auth_obj:
-            auth_obj.auth = encrypted_token
-            auth_obj.feed_token = encrypted_feed_token
-            auth_obj.broker = broker
-            auth_obj.user_id = user_id
-            auth_obj.is_revoked = revoke
-            if revoke:
-                cache_key_auth = f"auth-{name}"
-                cache_key_feed = f"feed-{name}"
-                if cache_key_auth in auth_cache:
-                    del auth_cache[cache_key_auth]
-                if cache_key_feed in feed_token_cache:
-                    del feed_token_cache[cache_key_feed]
-                logger.info(f"Cleared cache entries for revoked tokens of user: {name}")
-        else:
-            auth_obj = Auth(
-                name=name,
-                auth=encrypted_token,
-                feed_token=encrypted_feed_token,
-                broker=broker,
-                user_id=user_id,
-                is_revoked=revoke,
-            )
-            db.add(auth_obj)
-        db.commit()
-        return auth_obj.id
+    if auth_obj:
+        auth_obj.auth = encrypted_token
+        auth_obj.feed_token = encrypted_feed_token
+        auth_obj.broker = broker
+        auth_obj.user_id = user_id
+        auth_obj.is_revoked = revoke
+        if revoke:
+            cache_key_auth = f"auth-{name}"
+            cache_key_feed = f"feed-{name}"
+            if cache_key_auth in auth_cache:
+                del auth_cache[cache_key_auth]
+            if cache_key_feed in feed_token_cache:
+                del feed_token_cache[cache_key_feed]
+            logger.info(f"Cleared cache entries for revoked tokens of user: {name}")
+    else:
+        auth_obj = Auth(
+            name=name,
+            auth=encrypted_token,
+            feed_token=encrypted_feed_token,
+            broker=broker,
+            user_id=user_id,
+            is_revoked=revoke,
+        )
+        db.add(auth_obj)
+    await db.commit()
+    return auth_obj.id
 
 
-def get_auth_token(name: str) -> Optional[str]:
+async def get_auth_token(db: AsyncSession, name: str) -> Optional[str]:
     if not name:
         logger.debug("get_auth_token called with empty/None name, returning None")
         return None
@@ -170,57 +172,55 @@ def get_auth_token(name: str) -> Optional[str]:
     if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
         return decrypt_token(cached_obj.auth)
 
-    auth_obj = get_auth_token_dbquery(name)
+    auth_obj = await get_auth_token_dbquery(db, name)
     if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
         auth_cache[cache_key] = auth_obj
         return decrypt_token(auth_obj.auth)
     return None
 
 
-def get_auth_token_dbquery(name: str) -> Optional[Auth]:
-    with AsyncSessionLocal() as db:
-        if not name:
-            logger.debug("get_auth_token_dbquery called with empty/None name")
-            return None
+async def get_auth_token_dbquery(db: AsyncSession, name: str) -> Optional[Auth]:
+    if not name:
+        logger.debug("get_auth_token_dbquery called with empty/None name")
+        return None
 
-        stmt = select(Auth).where(Auth.name == name)
-        auth_obj = db.execute(stmt).scalar_one_or_none()
+    stmt = select(Auth).where(Auth.name == name)
+    auth_obj = (await db.execute(stmt)).scalar_one_or_none()
 
-        if auth_obj and not auth_obj.is_revoked:
-            return auth_obj
-        else:
-            if name:
-                logger.warning(f"No valid auth token found for name '{name}'.")
+    if auth_obj and not auth_obj.is_revoked:
+        return auth_obj
+    else:
+        if name:
+            logger.warning(f"No valid auth token found for name '{name}'.")
     return None
 
 
-def get_feed_token(name: str) -> Optional[str]:
-    with AsyncSessionLocal() as db:
-        if not name:
-            logger.debug("get_feed_token called with empty/None name, returning None")
-            return None
+async def get_feed_token(db: AsyncSession, name: str) -> Optional[str]:
+    if not name:
+        logger.debug("get_feed_token called with empty/None name, returning None")
+        return None
 
-        cache_key = f"feed-{name}"
-        cached_obj = feed_token_cache.get(cache_key)
-        if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
-            return (
-                decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
-            )
+    cache_key = f"feed-{name}"
+    cached_obj = feed_token_cache.get(cache_key)
+    if isinstance(cached_obj, Auth) and not cached_obj.is_revoked:
+        return (
+            decrypt_token(cached_obj.feed_token) if cached_obj.feed_token else None
+        )
 
-        auth_obj = get_feed_token_dbquery(db, name)
-        if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
-            feed_token_cache[cache_key] = auth_obj
-            return decrypt_token(auth_obj.feed_token) if auth_obj.feed_token else None
+    auth_obj = get_feed_token_dbquery(db, name)
+    if isinstance(auth_obj, Auth) and not auth_obj.is_revoked:
+        feed_token_cache[cache_key] = auth_obj
+        return decrypt_token(auth_obj.feed_token) if auth_obj.feed_token else None
     return None
 
 
-def get_feed_token_dbquery(db: Session, name: str) -> Optional[Auth]:
+async def get_feed_token_dbquery(db: AsyncSession, name: str) -> Optional[Auth]:
     if not name:
         logger.debug("get_feed_token_dbquery called with empty/None name")
         return None
 
     stmt = select(Auth).where(Auth.name == name)
-    auth_obj = db.execute(stmt).scalar_one_or_none()
+    auth_obj = (await db.execute(stmt)).scalar_one_or_none()
 
     if auth_obj and not auth_obj.is_revoked:
         return auth_obj
@@ -230,13 +230,13 @@ def get_feed_token_dbquery(db: Session, name: str) -> Optional[Auth]:
         return None
 
 
-def get_user_id(db: Session, name: str) -> Optional[str]:
+async def get_user_id(db: AsyncSession, name: str) -> Optional[str]:
     if not name:
         logger.debug("get_user_id called with empty/None name")
         return None
 
     stmt = select(Auth).where(Auth.name == name)
-    auth_obj = db.execute(stmt).scalar_one_or_none()
+    auth_obj = (await db.execute(stmt)).scalar_one_or_none()
 
     if auth_obj and not auth_obj.is_revoked:
         return auth_obj.user_id
@@ -246,13 +246,13 @@ def get_user_id(db: Session, name: str) -> Optional[str]:
         return None
 
 
-def upsert_api_key(db: Session, user_id: str, api_key: str):
+async def upsert_api_key(db: AsyncSession, user_id: str, api_key: str):
     peppered_key = api_key + PEPPER
     hashed_key = ph.hash(peppered_key)
     encrypted_key = encrypt_token(api_key)
 
     stmt = select(ApiKeys).where(ApiKeys.user_id == user_id)
-    api_key_obj = db.execute(stmt).scalar_one_or_none()
+    api_key_obj = (await db.execute(stmt)).scalar_one_or_none()
 
     if api_key_obj:
         api_key_obj.api_key_hash = hashed_key
@@ -262,25 +262,25 @@ def upsert_api_key(db: Session, user_id: str, api_key: str):
             user_id=user_id, api_key_hash=hashed_key, api_key_encrypted=encrypted_key
         )
         db.add(api_key_obj)
-    db.commit()
+    await db.commit()
     return api_key_obj.id
 
 
-def get_api_key(db: Session, user_id: str) -> bool:
+async def get_api_key(db: AsyncSession, user_id: str) -> bool:
     stmt = select(ApiKeys).where(ApiKeys.user_id == user_id)
-    api_key_obj = db.execute(stmt).scalar_one_or_none()
+    api_key_obj = (await db.execute(stmt)).scalar_one_or_none()
     return api_key_obj is not None
 
 
-def get_api_key_for_tradingview(db: Session, user_id: str) -> Optional[str]:
+async def get_api_key_for_tradingview(db: AsyncSession, user_id: str) -> Optional[str]:
     stmt = select(ApiKeys).where(ApiKeys.user_id == user_id)
-    api_key_obj = db.execute(stmt).scalar_one_or_none()
+    api_key_obj = (await db.execute(stmt)).scalar_one_or_none()
     if api_key_obj and api_key_obj.api_key_encrypted:
         return decrypt_token(api_key_obj.api_key_encrypted)
     return None
 
 
-def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
+async def verify_api_key(db: AsyncSession, provided_api_key: str) -> Optional[str]:
     import hashlib
     from flask import has_request_context
     from app.core.schemas.traffic_db import track_invalid_api_key
@@ -289,7 +289,7 @@ def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
     peppered_key = provided_api_key + PEPPER
 
     stmt = select(ApiKeys)
-    api_keys = db.execute(stmt).scalars().all()
+    api_keys = (await db.execute(stmt)).scalars().all()
 
     for api_key_obj in api_keys:
         try:
@@ -303,18 +303,18 @@ def verify_api_key(db: Session, provided_api_key: str) -> Optional[str]:
         if client_ip is None:
             client_ip = "127.0.0.1"
         api_key_hash = hashlib.sha256(provided_api_key.encode()).hexdigest()[:16]
-        track_invalid_api_key(db, client_ip, api_key_hash)
+        await track_invalid_api_key(db, client_ip, api_key_hash)
     except Exception as track_error:
         logger.warning(f"Could not track invalid API key attempt: {track_error}")
 
     return None
 
 
-def get_username_by_apikey(db: Session, provided_api_key: str) -> Optional[str]:
-    return verify_api_key(db, provided_api_key)
+async def get_username_by_apikey(db: AsyncSession, provided_api_key: str) -> Optional[str]:
+    return await verify_api_key(db, provided_api_key)
 
 
-def get_broker_name(db: Session, provided_api_key: str) -> Optional[str]:
+async def get_broker_name(db: AsyncSession, provided_api_key: str) -> Optional[str]:
     if provided_api_key in broker_cache:
         return broker_cache[provided_api_key]
 
@@ -322,7 +322,7 @@ def get_broker_name(db: Session, provided_api_key: str) -> Optional[str]:
 
     if user_id:
         stmt = select(Auth).where(Auth.name == user_id)
-        auth_obj = db.execute(stmt).scalar_one_or_none()
+        auth_obj = (await db.execute(stmt)).scalar_one_or_none()
         if auth_obj and not auth_obj.is_revoked:
             broker_cache[provided_api_key] = auth_obj.broker
             return auth_obj.broker
@@ -332,43 +332,42 @@ def get_broker_name(db: Session, provided_api_key: str) -> Optional[str]:
     return None
 
 
-def get_auth_token_broker(provided_api_key: str, include_feed_token: bool = False):
-    with AsyncSessionLocal() as db:
-        user_id = verify_api_key(db, provided_api_key)
+async def get_auth_token_broker(db: AsyncSession, provided_api_key: str, include_feed_token: bool = False):
+    user_id = await verify_api_key(db, provided_api_key)
 
-        if user_id:
-            try:
-                stmt = select(Auth).where(Auth.name == user_id)
-                auth_obj = db.execute(stmt).scalar_one_or_none()
-                if auth_obj and not auth_obj.is_revoked:
-                    decrypted_token = decrypt_token(auth_obj.auth)
-                    if include_feed_token:
-                        decrypted_feed_token = (
-                            decrypt_token(auth_obj.feed_token)
-                            if auth_obj.feed_token
-                            else None
-                        )
-                        return decrypted_token, decrypted_feed_token, auth_obj.broker
-                    return decrypted_token, auth_obj.broker
-                else:
-                    logger.warning(
-                        f"No valid auth token or broker found for user_id '{user_id}'."
+    if user_id:
+        try:
+            stmt = select(Auth).where(Auth.name == user_id)
+            auth_obj = (await db.execute(stmt)).scalar_one_or_none()
+            if auth_obj and not auth_obj.is_revoked:
+                decrypted_token = decrypt_token(auth_obj.auth)
+                if include_feed_token:
+                    decrypted_feed_token = (
+                        decrypt_token(auth_obj.feed_token)
+                        if auth_obj.feed_token
+                        else None
                     )
-                    return (None, None, None) if include_feed_token else (None, None)
-            except Exception as e:
-                logger.error(
-                    f"Error while querying the database for auth token and broker: {e}"
+                    return decrypted_token, decrypted_feed_token, auth_obj.broker
+                return decrypted_token, auth_obj.broker
+            else:
+                logger.warning(
+                    f"No valid auth token or broker found for user_id '{user_id}'."
                 )
                 return (None, None, None) if include_feed_token else (None, None)
-        else:
+        except Exception as e:
+            logger.error(
+                f"Error while querying the database for auth token and broker: {e}"
+            )
             return (None, None, None) if include_feed_token else (None, None)
+    else:
+        return (None, None, None) if include_feed_token else (None, None)
 
 
-def delete_api_key_by_username(db: Session, user_id: str) -> bool:
+async def delete_api_key_by_username(db: AsyncSession, user_id: str) -> bool:
     stmt = select(ApiKeys).where(ApiKeys.user_id == user_id)
-    api_key_obj = db.execute(stmt).scalar_one_or_none()
+    api_key_obj = (await db.execute(stmt)).scalar_one_or_none()
     if api_key_obj:
-        db.delete(api_key_obj)
-        db.commit()
+        await db.delete(api_key_obj)
+        await db.commit()
         return True
     return False

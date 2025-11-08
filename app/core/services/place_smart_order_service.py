@@ -48,7 +48,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'placesmartorder'
 
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'placesmartorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'placesmartorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -176,7 +176,7 @@ async def place_smart_order_with_auth(
         analyzer_request['api_type'] = 'placesmartorder'
 
         # Log to analyzer database with complete request and response
-        await async_log_analyzer(analyzer_request, response_data, 'placesmartorder')
+        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'placesmartorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {

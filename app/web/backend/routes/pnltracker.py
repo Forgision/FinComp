@@ -97,7 +97,7 @@ async def get_pnl_data(
 
         # Get auth token from session - same as orders.py
         login_username = request.session['user']
-        auth_token = get_auth_token(login_username)
+        auth_token = get_auth_token(db, login_username)
 
         if auth_token is None:
             logger.warning(f"No auth token found for user {login_username}")

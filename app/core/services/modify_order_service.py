@@ -38,7 +38,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'modifyorder'
     
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'modifyorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'modifyorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {

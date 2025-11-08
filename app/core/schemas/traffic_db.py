@@ -16,42 +16,41 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
-from app.core.schemas import INIT_DB_REGISTRY, make_db_connection
+from app.core.schemas import INIT_DB_REGISTRY, make_db_connection, DBConnectionConfig
 from app.core.config import settings
 from app.core.schemas.settings_db import get_security_settings
 from app.utils.logging import logger
 
-# Use a separate database for logs
+
 LOGS_DATABASE_URL = settings.LOGS_DATABASE_URL
 
-# # Conditionally create engine based on DB type
-# if LOGS_DATABASE_URL and 'sqlite' in LOGS_DATABASE_URL:
-#     logs_engine = create_engine(
-#         LOGS_DATABASE_URL,
-#         poolclass=NullPool,
-#         connect_args={'check_same_thread': False}
-#     )
-# else:
-#     logs_engine = create_engine(
-#         LOGS_DATABASE_URL,
-#         pool_size=50,
-#         max_overflow=100,
-#         pool_timeout=10
-#     )
 
-# LogSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=logs_engine)
-# LogsSession = scoped_session(LogSessionLocal)
+logs_db_config = DBConnectionConfig(
+    database_url=LOGS_DATABASE_URL,
+    echo=False,
+)
 
-# def get_logs_db():
-#     db = LogsSession()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
 
-logs_engine, LogSessionLocal, get_logs_db = make_db_connection(LOGS_DATABASE_URL)
+logs_engine, LogSessionLocal, get_logs_db = make_db_connection(logs_db_config)
+
+
 class LogBase(DeclarativeBase):
     pass
+
+
+async def init_log_db():
+    db_path = LOGS_DATABASE_URL.replace('sqlite+aiosqlite:///', '')
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    logger.info(f"Initializing Traffic Logs DB at: {LOGS_DATABASE_URL}")
+    
+    async with logs_engine.begin() as conn:
+        await conn.run_sync(LogBase.metadata.create_all)
+    
+
+INIT_DB_REGISTRY['logs_db'] = init_log_db
+
 
 class TrafficLog(LogBase):
     __tablename__ = 'traffic_logs'
@@ -155,7 +154,7 @@ async def ban_ip(db: AsyncSession, ip_address: str, reason: str, duration_hours:
             logger.warning(f"Attempted to ban localhost IP {ip_address} - ignoring")
             return False
 
-        security_settings = get_security_settings()
+        security_settings = await get_security_settings(db)
         repeat_limit = security_settings['repeat_offender_limit']
 
         stmt = select(IPBan).filter_by(ip_address=ip_address)
@@ -220,7 +219,7 @@ async def track_404(db: AsyncSession, ip_address: str, path: str) -> bool:
         if await is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings()
+        security_settings = await get_security_settings(db)
         threshold_404 = security_settings['404_threshold']
         ban_duration_404 = security_settings['404_ban_duration']
         now = datetime.utcnow()
@@ -278,7 +277,7 @@ async def track_invalid_api_key(db: AsyncSession, ip_address: str, api_key_hash:
         if await is_ip_banned(db, ip_address):
             return False
 
-        security_settings = get_security_settings()
+        security_settings = await get_security_settings(db)
         threshold_api = security_settings['api_threshold']
         ban_duration_api = security_settings['api_ban_duration']
         now = datetime.utcnow()
@@ -331,16 +330,3 @@ async def get_suspicious_api_users(db: AsyncSession, min_attempts: int = 3) -> L
     except Exception as e:
         logger.error(f"Error getting suspicious API users: {e}")
         return []
-
-async def ensure_table():
-    db_path = LOGS_DATABASE_URL.replace('sqlite+aiosqlite:///', '')
-    db_dir = os.path.dirname(db_path)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-    logger.info(f"Initializing Traffic Logs DB at: {LOGS_DATABASE_URL}")
-    
-    async with logs_engine.begin() as conn:
-        await conn.run_sync(LogBase.metadata.create_all)
-    
-
-INIT_DB_REGISTRY['logs_db'] = ensure_table

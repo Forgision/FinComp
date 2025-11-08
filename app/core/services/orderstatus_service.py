@@ -36,7 +36,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'orderstatus'
 
     # Log to analyzer database
-    await async_log_analyzer( analyzer_request, error_response, 'orderstatus')
+    await async_log_analyzer(db: AsyncSession,  analyzer_request, error_response, 'orderstatus')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -124,7 +124,7 @@ async def get_order_status_with_auth(
         if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
-            await async_log_analyzer(request_data, error_response, 'orderstatus')
+            await async_log_analyzer(db: AsyncSession, request_data, error_response, 'orderstatus')
             # Emit socket event
             await sio.emit('analyzer_update', {
                 'request': request_data,
@@ -171,7 +171,7 @@ async def get_order_status_with_auth(
         if is_analyze_mode is True:
             error_response['mode'] = 'analyze'
             # Log to analyzer database
-            await async_log_analyzer(request_data, error_response, 'orderstatus')
+            await async_log_analyzer(db: AsyncSession, request_data, error_response, 'orderstatus')
             # Emit socket event
             await sio.emit('analyzer_update', {
                 'request': request_data,
@@ -262,7 +262,7 @@ async def get_order_status_with_auth(
         analyzer_request['api_type'] = 'orderstatus'
 
         # Log to analyzer database
-        await async_log_analyzer(analyzer_request, response_data, 'orderstatus')
+        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'orderstatus')
         logger.debug("[OrderStatus] Logged to analyzer database")
 
         # Emit socket event for toast notification

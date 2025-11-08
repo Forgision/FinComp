@@ -38,7 +38,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'cancelallorder'
 
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'cancelallorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'cancelallorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -116,7 +116,7 @@ async def cancel_all_orders_with_auth(
         analyzer_request['api_type'] = 'cancelallorder'
 
         # Log to analyzer database with complete request and response
-        await async_log_analyzer(analyzer_request, response_data, 'cancelallorder')
+        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'cancelallorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {

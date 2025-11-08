@@ -3,7 +3,7 @@ from typing import Optional
 
 import pytz
 from fastapi import Depends, HTTPException, Request, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 
@@ -71,7 +71,7 @@ async def is_session_valid_fastapi(request: Request) -> bool:
     logger.debug(f"Session valid. Current time: {now_ist}, Login time: {login_time}, Daily expiry: {daily_expiry}")
     return True
 
-async def revoke_user_tokens_fastapi(request: Request, db: Session):
+async def revoke_user_tokens_fastapi(request: Request, db: AsyncSession):
     """Revoke auth tokens for the current user when session expires for FastAPI"""
     if 'user' in request.session:
         username = request.session.get('user')
@@ -95,7 +95,7 @@ async def revoke_user_tokens_fastapi(request: Request, db: Session):
                 logger.error(f"Error clearing symbol cache: {cache_error}")
 
             # Revoke the auth token in database
-            inserted_id = upsert_auth(username, "", "", revoke=True)
+            inserted_id = await upsert_auth(db, username, "", "", revoke=True)
             if inserted_id is not None:
                 logger.info(f"Auto-expiry: Revoked auth tokens for user: {username}")
             else:

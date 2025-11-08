@@ -7,8 +7,6 @@ from sqlalchemy.sql import func
 
 from . import Base
 
-logger = logging.getLogger(__name__)
-
 class ChartinkStrategy(Base):
     """Model for Chartink strategies"""
     __tablename__ = 'chartink_strategies'

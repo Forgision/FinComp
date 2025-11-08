@@ -5,6 +5,7 @@ from threading import Thread
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.schemas.auth_db import get_feed_token as db_get_feed_token
 from app.core.schemas.auth_db import upsert_auth
@@ -30,7 +31,7 @@ def mask_api_credential(credential, show_chars=4):
 
     return credential[:show_chars] + '*' * (len(credential) - show_chars)
 
-def async_master_contract_download(broker):
+async def async_master_contract_download(broker):
     """
     Asynchronously download the master contract and emit a WebSocket event upon completion,
     with the 'broker' parameter specifying the broker for which to download the contract.
@@ -73,7 +74,7 @@ def async_master_contract_download(broker):
                 hook_into_master_contract_download,
             )
             logger.info(f"Loading symbols into memory cache for broker: {broker}")
-            hook_into_master_contract_download(broker)
+            await hook_into_master_contract_download(broker)
         except Exception as cache_error:
             logger.error(f"Failed to load symbols into cache: {cache_error}")
             # Don't fail the whole process if cache loading fails
@@ -110,7 +111,7 @@ async def handle_auth_success(request: Request, db, auth_token, user_session_key
     logger.info(f"User {user_session_key} logged in successfully with broker {broker}")
 
     # Store auth token in database
-    inserted_id = upsert_auth(user_session_key, auth_token, broker, feed_token=feed_token, user_id=user_id)
+    inserted_id = await upsert_auth(db=db, name = user_session_key, auth_token = auth_token, broker = broker, feed_token=feed_token, user_id=user_id)
     if inserted_id:
         logger.info(f"Database record upserted with ID: {inserted_id}")
         # Initialize master contract status for this broker
@@ -134,7 +135,7 @@ def generate_api_key():
     # Generate 32 bytes of random data and encode as hex
     return secrets.token_hex(32)
 
-def get_feed_token(request: Request):
+async def get_feed_token(request: Request, db: AsyncSession):
     """
     Get the feed token from session or database.
     Returns None if feed token doesn't exist or broker doesn't support it.
@@ -144,6 +145,6 @@ def get_feed_token(request: Request):
 
     # If not in session but user is logged in, try to get from app.core.schemas
     if 'logged_in' in request.session and request.session['logged_in'] and 'user_session_key' in request.session:
-        return db_get_feed_token(request.session['user_session_key'])
+        return await db_get_feed_token(request.session['user_session_key'], db)
 
     return None

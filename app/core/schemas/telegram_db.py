@@ -668,7 +668,7 @@ def get_user_credentials(db: Session, telegram_id: int) -> Optional[Dict]:
 def get_auth_token_by_username(db: Session, username: str):
     """Helper function to get auth token - imports here to avoid circular imports"""
     from app.core.schemas.auth_db import get_auth_token
-    return get_auth_token(name=username)
+    return get_auth_token(db, db, db, db, name=username)
 
 
 # Cleanup function

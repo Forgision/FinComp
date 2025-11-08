@@ -47,7 +47,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'basketorder'
 
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'basketorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'basketorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -277,7 +277,7 @@ async def process_basket_order_with_auth(
         analyzer_request['api_type'] = 'basketorder'
 
         # Log to analyzer database
-        await async_log_analyzer(analyzer_request, response_data, 'basketorder')
+        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'basketorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {

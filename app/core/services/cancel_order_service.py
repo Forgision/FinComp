@@ -40,7 +40,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'cancelorder'
     
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'cancelorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'cancelorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {

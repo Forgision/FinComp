@@ -672,6 +672,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ipykernel" },
     { name = "ruff" },
 ]
 
@@ -828,7 +829,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.14.3" }]
+dev = [
+    { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "ruff", specifier = ">=0.14.3" },
+]
 
 [[package]]
 name = "flask"

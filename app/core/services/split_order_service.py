@@ -41,7 +41,7 @@ async def emit_analyzer_error(request_data: Dict[str, Any], error_message: str) 
     analyzer_request['api_type'] = 'splitorder'
 
     # Log to analyzer database
-    await async_log_analyzer(analyzer_request, error_response, 'splitorder')
+    await async_log_analyzer(db: AsyncSession, analyzer_request, error_response, 'splitorder')
 
     # Emit socket event
     await sio.emit('analyzer_update', {
@@ -258,7 +258,7 @@ async def split_order_with_auth(
         analyzer_request['api_type'] = 'splitorder'
 
         # Log to analyzer database
-        await async_log_analyzer(analyzer_request, response_data, 'splitorder')
+        await async_log_analyzer(db: AsyncSession, analyzer_request, response_data, 'splitorder')
 
         # Emit socket event for toast notification
         await sio.emit('analyzer_update', {

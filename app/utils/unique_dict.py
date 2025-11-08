@@ -1,6 +1,5 @@
 import json
-from typing import Any, Iterable, Mapping, Tuple
-
+from typing import Any, Iterable, Mapping
 
 class UniqueEnumDict(dict):
     """
@@ -187,42 +186,3 @@ class UniqueEnumDict(dict):
             if v == item:
                 return True
         return False
-
-
-# Create enum-like dict (no new keys allowed after init, values can be changed)
-Status = UniqueEnumDict(SUCCESS=200, NOT_FOUND=404, ERROR=500, allow_new_keys=True)
-
-print(Status.SUCCESS)           # 200 (dot access)
-print(Status["NOT_FOUND"])      # 404 (mapping access)
-print(Status.get_key(500))      # "ERROR" (reverse lookup)
-
-# Update an existing value (allowed by default)
-Status.SUCCESS = 201
-print(Status.SUCCESS)           # 201
-
-# Try to add a key (will raise because allow_new_keys=False)
-try:
-    Status.NEW = 999
-except TypeError as e:
-    print("cannot add new key:", e)
-
-# Serialize
-print(Status.to_json(indent=2))
-
-# Make fully immutable (no new keys, no value mutation)
-try:
-    Status.SUCCESS = 200
-except TypeError as e:
-    print("cannot change value after freeze:", e)
-    
-try:
-    Status.SUCCESS_NEW = 200
-except TypeError as e:
-    print("Duplicate failed", e)
-
-Status.freeze()
-
-try:
-    Status.SUCCESS_NEW_FREEZE = 200
-except TypeError as e:
-    print("Duplicate failed", e)

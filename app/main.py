@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
+from typing import cast # Added import
 
 import socketio
 from app.web.frontend import templates
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response # Ensure Response is imported
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 # from fastapi_csrf_protect.flexible import CsrfProtect
 from pydantic import BaseModel
@@ -100,7 +101,14 @@ async def lifespan(app: FastAPI):
 
 _app = FastAPI(debug=settings.APP_DEBUG, lifespan=lifespan)
 _app.state.limiter = limiter
-_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Wrapper to make _rate_limit_exceeded_handler compatible with FastAPI's ExceptionHandler type
+async def _fastapi_compatible_rate_limit_handler(request: Request, exc: Exception) -> Response:
+    # We know that when this handler is invoked for RateLimitExceeded, exc will be of that type.
+    # The type checker is being strict about the declared type in the function signature.
+    return _rate_limit_exceeded_handler(request, cast(RateLimitExceeded, exc))
+
+_app.add_exception_handler(RateLimitExceeded, _fastapi_compatible_rate_limit_handler)
 
 # Mount static files
 _app.mount("/static", StaticFiles(directory="app/web/frontend/static"), name="static")
@@ -165,7 +173,7 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
         content = BaseErrorResponse(
-            message="Rate limit exceeded. Please try again later.", 
+            message="Rate limit exceeded. Please try again later.",
             code="RATE_LIMIT_EXCEEDED",
             details=None
         ).model_dump()
@@ -174,7 +182,11 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         if isinstance(exc.detail, dict):
             content = exc.detail
         else:
-            content = BaseErrorResponse(message=exc.detail).model_dump()
+            content = BaseErrorResponse(
+                message=exc.detail,
+                code=f"HTTP_{exc.status_code}", # Provide a default code
+                details=None # Provide default details
+            ).model_dump()
 
     return JSONResponse(
         status_code=exc.status_code,
