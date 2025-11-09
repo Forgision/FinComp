@@ -6,7 +6,12 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-from app.core.schemas.traffic_db import LogSessionLocal, log_request, track_404, is_ip_banned
+from app.core.schemas.traffic_db import (
+    LogSessionLocal,
+    log_request,
+    track_404,
+    is_ip_banned,
+)
 from app.utils.logging import logger
 
 
@@ -18,10 +23,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         return response
 
+
 class TrafficLoggerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
+
         # Extract client IP
         client_ip = request.client.host if request.client else "unknown"
 
@@ -73,10 +79,13 @@ class TrafficLoggerMiddleware(BaseHTTPMiddleware):
                 error=error_message,
                 user_id=user_id,
             )
-        
-        logger.debug(f"Request: {request.method} {request.url.path} - "
-              f"Status: {response.status_code} - Time: {process_time:.4f}s")
+
+        logger.debug(
+            f"Request: {request.method} {request.url.path} - "
+            f"Status: {response.status_code} - Time: {process_time:.4f}s"
+        )
         return response
+
 
 class ContentSecurityPolicyMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, csp_policy: str = None):

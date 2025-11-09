@@ -17,7 +17,8 @@ def sha256_hash(text):
     Returns:
         str: SHA256 hexadecimal hash of the input text
     """
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
 
 def authenticate_broker(userid, password, totp_code):
     """
@@ -67,13 +68,11 @@ def authenticate_broker(userid, password, totp_code):
             "password": sha256_hash(password),  # Convert password to SHA256
             "TOTP": totp_code if totp_code else "",  # Include TOTP if provided
             "vendorCode": vendor_code,
-            "apiKey": api_key
+            "apiKey": api_key,
         }
 
         # Set headers for the API request
-        headers = {
-            'Content-Type': 'application/json'
-        }
+        headers = {"Content-Type": "application/json"}
 
         logger.info(f"Attempting Firstock authentication for user: {userid}")
         logger.info(f"Vendor Code: {vendor_code}")
@@ -88,24 +87,27 @@ def authenticate_broker(userid, password, totp_code):
         if response.status_code == 200:
             data = response.json()
 
-            if data.get('status') == "success":
+            if data.get("status") == "success":
                 # Extract the session token from successful response
-                token_data = data.get('data', {})
-                susertoken = token_data.get('susertoken') or token_data.get('jKey')
+                token_data = data.get("data", {})
+                susertoken = token_data.get("susertoken") or token_data.get("jKey")
 
                 if susertoken:
                     logger.info("Firstock authentication successful")
                     return susertoken, None
                 else:
-                    return None, "Authentication successful but no session token received"
+                    return (
+                        None,
+                        "Authentication successful but no session token received",
+                    )
             else:
                 # Handle failure response structure
-                error_msg = data.get('message', 'Authentication failed')
-                error_details = data.get('error', {})
+                error_msg = data.get("message", "Authentication failed")
+                error_details = data.get("error", {})
 
                 if isinstance(error_details, dict):
-                    field_error = error_details.get('field', '')
-                    error_message = error_details.get('message', '')
+                    field_error = error_details.get("field", "")
+                    error_message = error_details.get("message", "")
                     if field_error and error_message:
                         error_msg = f"Field '{field_error}': {error_message}"
 
@@ -116,7 +118,9 @@ def authenticate_broker(userid, password, totp_code):
             # Bad request - missing or invalid fields
             try:
                 error_data = response.json()
-                error_msg = error_data.get('error', {}).get('message', 'Bad request - check required fields')
+                error_msg = error_data.get("error", {}).get(
+                    "message", "Bad request - check required fields"
+                )
                 return None, f"Bad Request: {error_msg}"
             except json.JSONDecodeError:
                 return None, "Bad Request: Missing or invalid required fields"

@@ -15,11 +15,27 @@ from app.utils.web.socketio import socketio  # Import SocketIO
 
 # Define the headers as provided
 headers = [
-    "Fytoken", "Symbol Details", "Exchange Instrument type", "Minimum lot size",
-    "Tick size", "ISIN", "Trading Session", "Last update date", "Expiry date",
-    "Symbol ticker", "Exchange", "Segment", "Scrip code", "Underlying symbol",
-    "Underlying scrip code", "Strike price", "Option type", "Underlying FyToken",
-    "Reserved column1", "Reserved column2", "Reserved column3"
+    "Fytoken",
+    "Symbol Details",
+    "Exchange Instrument type",
+    "Minimum lot size",
+    "Tick size",
+    "ISIN",
+    "Trading Session",
+    "Last update date",
+    "Expiry date",
+    "Symbol ticker",
+    "Exchange",
+    "Segment",
+    "Scrip code",
+    "Underlying symbol",
+    "Underlying scrip code",
+    "Strike price",
+    "Option type",
+    "Underlying FyToken",
+    "Reserved column1",
+    "Reserved column2",
+    "Reserved column3",
 ]
 
 # Data types for each header
@@ -53,12 +69,20 @@ class Base(DeclarativeBase):
 
 
 class SymToken(Base):
-    __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
-    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
+    __tablename__ = "symtoken"
+    id: Mapped[int] = mapped_column(
+        Integer, Sequence("symtoken_id_seq"), primary_key=True
+    )
+    symbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
+    brsymbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
     name: Mapped[str] = mapped_column(String)
-    exchange: Mapped[str] = mapped_column(String, index=True)  # Include this column in a composite index
+    exchange: Mapped[str] = mapped_column(
+        String, index=True
+    )  # Include this column in a composite index
     brexchange: Mapped[str] = mapped_column(String, index=True)
     token: Mapped[str] = mapped_column(String, index=True)  # Indexed for performance
     expiry: Mapped[str] = mapped_column(String)
@@ -68,12 +92,14 @@ class SymToken(Base):
     tick_size: Mapped[float] = mapped_column(Float)
 
     # Define a composite index on symbol and exchange columns
-    __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
+    __table_args__ = (Index("idx_symbol_exchange", "symbol", "exchange"),)
+
 
 def init_db():
     db = next(get_db())
     logger.info("Initializing Master Contract DB")
     Base.metadata.create_all(bind=db.get_bind())
+
 
 def delete_symtoken_table():
     db = next(get_db())
@@ -81,31 +107,36 @@ def delete_symtoken_table():
     db.query(SymToken).delete()
     db.commit()
 
+
 def copy_from_dataframe(df):
     db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
-    data_dict = df.to_dict(orient='records')
+    data_dict = df.to_dict(orient="records")
 
     # Retrieve existing tokens to filter them out from the insert
-    existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}
+    existing_tokens = {
+        result.token for result in db.execute(select(SymToken.token)).scalars().all()
+    }
 
     # Filter out data_dict entries with tokens that already exist
-    filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
+    filtered_data_dict = [
+        row for row in data_dict if row["token"] not in existing_tokens
+    ]
 
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
             db.bulk_insert_mappings(SymToken, filtered_data_dict)
             db.commit()
-            logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
+            logger.info(
+                f"Bulk insert completed successfully with {len(filtered_data_dict)} new records."
+            )
         else:
             logger.info("No new records to insert.")
     except Exception as e:
         logger.error(f"Error during bulk insert: {e}")
         db.rollback()
-
-
 
 
 def download_csv_pocketful_data(output_path):
@@ -130,7 +161,9 @@ def download_csv_pocketful_data(output_path):
             extracted_path = Path(output_path)
             zip_file.extractall(extracted_path)
             extracted_files = zip_file.namelist()
-            downloaded_files.extend([str(extracted_path / name) for name in extracted_files])
+            downloaded_files.extend(
+                [str(extracted_path / name) for name in extracted_files]
+            )
             logger.info("Extraction successful!")
     except httpx.HTTPError as e:
         logger.error(f"Failed to download ZIP archive. HTTP Error: {e}")
@@ -141,18 +174,20 @@ def download_csv_pocketful_data(output_path):
 
     return downloaded_files
 
+
 def reformat_symbol_detail(s):
     parts = s.split()  # Split the string into parts
     # Reorder and format the parts to match the desired output
     # Assuming the format is consistent and always "Name DD Mon YY FUT"
     return f"{parts[0]}{parts[3]}{parts[2].upper()}{parts[1]}{parts[4]}"
 
+
 def process_pocketful_nse_csv(path):
     """
     Processes the pocketful CSV file to fit the existing database schema and performs exchange name mapping.
     """
     logger.info("Processing pocketful NSE CSV Data")
-    file_path = f'{path}/NSECompactScrip.csv'
+    file_path = f"{path}/NSECompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
@@ -160,26 +195,33 @@ def process_pocketful_nse_csv(path):
     df.columns = df.columns.str.strip().str.lower()
 
     # Check expected column exists
-    required_cols = ['instrument_name', 'trading_symbol', 'company_name', 'exchange',
-                     'exchange_token', 'lot_size', 'tick_size']
+    required_cols = [
+        "instrument_name",
+        "trading_symbol",
+        "company_name",
+        "exchange",
+        "exchange_token",
+        "lot_size",
+        "tick_size",
+    ]
     for col in required_cols:
         if col not in df.columns:
             raise KeyError(f"Missing expected column: {col}")
 
-    filter_df = df[df['instrument_name'].isin(['EQ'])]
+    filter_df = df[df["instrument_name"].isin(["EQ"])]
 
     token_df = pd.DataFrame()
-    token_df['symbol'] = filter_df['trading_symbol'].str.replace('-EQ', '', regex=True)
-    token_df['brsymbol'] = filter_df['trading_symbol']
-    token_df['name'] = filter_df['company_name']
-    token_df['exchange'] = filter_df['exchange']
-    token_df['brexchange'] = filter_df['exchange']
-    token_df['token'] = filter_df['exchange_token']
-    token_df['expiry'] = ''
-    token_df['strike'] = 0.0
-    token_df['lotsize'] = filter_df['lot_size']
-    token_df['instrumenttype'] = 'EQ'
-    token_df['tick_size'] = filter_df['tick_size']
+    token_df["symbol"] = filter_df["trading_symbol"].str.replace("-EQ", "", regex=True)
+    token_df["brsymbol"] = filter_df["trading_symbol"]
+    token_df["name"] = filter_df["company_name"]
+    token_df["exchange"] = filter_df["exchange"]
+    token_df["brexchange"] = filter_df["exchange"]
+    token_df["token"] = filter_df["exchange_token"]
+    token_df["expiry"] = ""
+    token_df["strike"] = 0.0
+    token_df["lotsize"] = filter_df["lot_size"]
+    token_df["instrumenttype"] = "EQ"
+    token_df["tick_size"] = filter_df["tick_size"]
 
     return token_df
 
@@ -189,7 +231,7 @@ def process_pocketful_bse_csv(path):
     Processes the pocketful CSV file to fit the existing database schema and performs exchange name mapping.
     """
     logger.info("Processing pocketful BSE CSV Data")
-    file_path = f'{path}/BSECompactScrip.csv'
+    file_path = f"{path}/BSECompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
@@ -200,25 +242,26 @@ def process_pocketful_bse_csv(path):
     # )
 
     token_df = pd.DataFrame()
-    token_df['symbol'] = df['trading_symbol'].str.replace(r'-.*$', '', regex=True)
-    token_df['brsymbol'] = df['trading_symbol']
-    token_df['name'] = df['company_name']
-    token_df['exchange'] = df['exchange']
-    token_df['brexchange'] = df['exchange']
-    token_df['token'] = df['exchange_token']
-    token_df['expiry'] = ''
-    token_df['strike'] = 0.0
-    token_df['lotsize'] = df['lot_size']
-    token_df['instrumenttype'] = df['instrument_name']
-    token_df['tick_size'] = df['tick_size']
+    token_df["symbol"] = df["trading_symbol"].str.replace(r"-.*$", "", regex=True)
+    token_df["brsymbol"] = df["trading_symbol"]
+    token_df["name"] = df["company_name"]
+    token_df["exchange"] = df["exchange"]
+    token_df["brexchange"] = df["exchange"]
+    token_df["token"] = df["exchange_token"]
+    token_df["expiry"] = ""
+    token_df["strike"] = 0.0
+    token_df["lotsize"] = df["lot_size"]
+    token_df["instrumenttype"] = df["instrument_name"]
+    token_df["tick_size"] = df["tick_size"]
 
-    token_df['exchange'] = df['segment'].map({
-        'IDX': 'BSE_INDEX'
-    }).fillna(df['exchange'])
+    token_df["exchange"] = (
+        df["segment"].map({"IDX": "BSE_INDEX"}).fillna(df["exchange"])
+    )
 
-    token_df['symbol'] = token_df['symbol'].replace({'SNSX50': 'SENSEX50'})
+    token_df["symbol"] = token_df["symbol"].replace({"SNSX50": "SENSEX50"})
 
     return token_df
+
 
 def process_pocketful_nfo_csv(path):
     """
@@ -226,117 +269,117 @@ def process_pocketful_nfo_csv(path):
     using the actual expiry date instead of what's embedded in the trading_symbol.
     """
     logger.info("Processing pocketful NFO CSV Data")
-    file_path = f'{path}/NFOCompactScrip.csv'
+    file_path = f"{path}/NFOCompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
     # Convert 'expiry' column to datetime format
-    df['Expiry Date'] = pd.to_datetime(df['expiry'], errors='coerce')
+    df["Expiry Date"] = pd.to_datetime(df["expiry"], errors="coerce")
 
     # Helper to format expiry as DDMMMYY (e.g., 26JUN25)
     def format_expiry(expiry):
-        return expiry.strftime('%d%b%y').upper() if pd.notnull(expiry) else ''
+        return expiry.strftime("%d%b%y").upper() if pd.notnull(expiry) else ""
 
     def build_symbol(row):
         try:
-            expiry_str = format_expiry(row['Expiry Date'])
-            if row['option_type'] == 'XX':
+            expiry_str = format_expiry(row["Expiry Date"])
+            if row["option_type"] == "XX":
                 return f"{row['company_name']}{expiry_str}FUT"
-            elif row['option_type'] in ['CE', 'PE']:
-                strike = float(row['strike'])
+            elif row["option_type"] in ["CE", "PE"]:
+                strike = float(row["strike"])
                 strike_str = str(int(strike)) if strike.is_integer() else str(strike)
-                return f"{row['company_name']}{expiry_str}{strike_str}{row['option_type']}"
+                return (
+                    f"{row['company_name']}{expiry_str}{strike_str}{row['option_type']}"
+                )
             else:
-                return row['trading_symbol']
+                return row["trading_symbol"]
         except Exception as e:
             logger.error(f"Error building symbol: {row}, Error: {e}")
-            return row['trading_symbol']
+            return row["trading_symbol"]
 
     # Build the symbol column
-    df['symbol'] = df.apply(build_symbol, axis=1)
+    df["symbol"] = df.apply(build_symbol, axis=1)
 
     # Create token_df with relevant columns
-    token_df = df[['symbol']].copy()
-    token_df['brsymbol'] = df['trading_symbol'].values
-    token_df['name'] = df['company_name'].values
-    token_df['exchange'] = df['exchange'].values
-    token_df['brexchange'] = df['exchange'].values
-    token_df['token'] = df['exchange_token'].values
-    token_df['expiry'] = df['Expiry Date'].dt.strftime('%d-%b-%y').str.upper()
-    token_df['strike'] = df['strike'].values
-    token_df['lotsize'] = df['lot_size'].values
-    token_df['instrumenttype'] = df['option_type'].map({
-        'XX': 'FUT',
-        'CE': 'CE',
-        'PE': 'PE'
-    })
-    token_df['tick_size'] = df['tick_size'].values
+    token_df = df[["symbol"]].copy()
+    token_df["brsymbol"] = df["trading_symbol"].values
+    token_df["name"] = df["company_name"].values
+    token_df["exchange"] = df["exchange"].values
+    token_df["brexchange"] = df["exchange"].values
+    token_df["token"] = df["exchange_token"].values
+    token_df["expiry"] = df["Expiry Date"].dt.strftime("%d-%b-%y").str.upper()
+    token_df["strike"] = df["strike"].values
+    token_df["lotsize"] = df["lot_size"].values
+    token_df["instrumenttype"] = df["option_type"].map(
+        {"XX": "FUT", "CE": "CE", "PE": "PE"}
+    )
+    token_df["tick_size"] = df["tick_size"].values
 
     return token_df
+
 
 def process_pocketful_bfo_csv(path):
     """
     Processes the Pocketful BFO CSV file to fit the existing database schema and performs exchange name mapping.
     """
     logger.info("Processing pocketful BFO CSV Data")
-    file_path = f'{path}/BFOCompactScrip.csv'
+    file_path = f"{path}/BFOCompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
     # Convert 'expiry' column to datetime format
-    df['Expiry Date'] = pd.to_datetime(df['expiry'], errors='coerce')
+    df["Expiry Date"] = pd.to_datetime(df["expiry"], errors="coerce")
 
     # Normalize Instrument Type to Option Type
-    df.loc[df['instrument_name'].isin(['SF', 'IF']), 'option_type'] = 'XX'
+    df.loc[df["instrument_name"].isin(["SF", "IF"]), "option_type"] = "XX"
 
     # Helper to format expiry as DDMMMYY (e.g., 26JUN25)
     def format_expiry(expiry):
-        return expiry.strftime('%d%b%y').upper() if pd.notnull(expiry) else ''
+        return expiry.strftime("%d%b%y").upper() if pd.notnull(expiry) else ""
 
     # Function to build symbol using known fields
     def build_symbol(row):
         try:
-            expiry_str = format_expiry(row['Expiry Date'])
-            company = row['company_name']
-            strike = str(row['strike']).replace('.', '')
-            option_type = row['option_type']
+            expiry_str = format_expiry(row["Expiry Date"])
+            company = row["company_name"]
+            strike = str(row["strike"]).replace(".", "")
+            option_type = row["option_type"]
 
-            if option_type == 'XX':
+            if option_type == "XX":
                 return f"{company}{expiry_str}FUT"
-            elif option_type in ['CE', 'PE']:
-                strike_str = str(int(float(strike))) if float(strike).is_integer() else strike
+            elif option_type in ["CE", "PE"]:
+                strike_str = (
+                    str(int(float(strike))) if float(strike).is_integer() else strike
+                )
                 return f"{company}{expiry_str}{strike_str}{option_type}"
             else:
-                return row['trading_symbol']
+                return row["trading_symbol"]
         except Exception as e:
             logger.error(f"Error processing row: {row}, Error: {e}")
-            return row['trading_symbol']
+            return row["trading_symbol"]
 
     # Apply symbol formatting to all types
-    df['symbol'] = df.apply(lambda row: build_symbol(row), axis=1)
+    df["symbol"] = df.apply(lambda row: build_symbol(row), axis=1)
 
     # Create token_df with required columns
-    token_df = df[['symbol']].copy()
-    token_df['brsymbol'] = df['trading_symbol'].values
-    token_df['name'] = df['company_name'].values
-    token_df['exchange'] = df['exchange'].values
-    token_df['brexchange'] = df['exchange'].values
-    token_df['token'] = df['exchange_token'].values
-    token_df['expiry'] = df['Expiry Date'].dt.strftime('%d-%b-%y').str.upper()
-    token_df['strike'] = df['strike'].values
-    token_df['lotsize'] = df['lot_size'].values
-    token_df['instrumenttype'] = df['option_type'].map({
-        'XX': 'FUT',
-        'CE': 'CE',
-        'PE': 'PE'
-    })
-    token_df['tick_size'] = df['tick_size'].values
+    token_df = df[["symbol"]].copy()
+    token_df["brsymbol"] = df["trading_symbol"].values
+    token_df["name"] = df["company_name"].values
+    token_df["exchange"] = df["exchange"].values
+    token_df["brexchange"] = df["exchange"].values
+    token_df["token"] = df["exchange_token"].values
+    token_df["expiry"] = df["Expiry Date"].dt.strftime("%d-%b-%y").str.upper()
+    token_df["strike"] = df["strike"].values
+    token_df["lotsize"] = df["lot_size"].values
+    token_df["instrumenttype"] = df["option_type"].map(
+        {"XX": "FUT", "CE": "CE", "PE": "PE"}
+    )
+    token_df["tick_size"] = df["tick_size"].values
 
     # Drop rows where 'symbol' is NaN
-    token_df_cleaned = token_df.dropna(subset=['symbol'])
+    token_df_cleaned = token_df.dropna(subset=["symbol"])
 
     return token_df_cleaned
-
 
 
 def process_pocketful_mcx_csv(path):
@@ -344,58 +387,56 @@ def process_pocketful_mcx_csv(path):
     Processes the pocketful MCX CSV file to fit the existing database schema and performs exchange name mapping.
     """
     logger.info("Processing pocketful MCX CSV Data")
-    file_path = f'{path}/MCXCompactScrip.csv'
+    file_path = f"{path}/MCXCompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
     # Remove unwanted instruments
-    df = df[df['instrument_name'] != 'COM']
+    df = df[df["instrument_name"] != "COM"]
 
     # Convert 'expiry' column to datetime and store as 'Expiry Date'
-    df['Expiry Date'] = pd.to_datetime(df['expiry'], errors='coerce')
+    df["Expiry Date"] = pd.to_datetime(df["expiry"], errors="coerce")
 
     # Normalize Instrument Type to Option Type
-    df.loc[df['instrument_name'].isin(['FUTCOM', 'FUTIDX']), 'option_type'] = 'XX'
+    df.loc[df["instrument_name"].isin(["FUTCOM", "FUTIDX"]), "option_type"] = "XX"
 
     # Helper to format expiry as DDMMMYY (e.g., 26JUN25)
     def format_expiry(expiry):
-        return expiry.strftime('%d%b%y').upper() if pd.notnull(expiry) else ''
+        return expiry.strftime("%d%b%y").upper() if pd.notnull(expiry) else ""
 
     # Define the function to reformat symbol details
     def reformat_symbol_detail(row):
         try:
-            expiry_str = format_expiry(row['Expiry Date'])
-            strike = float(row['strike'])
+            expiry_str = format_expiry(row["Expiry Date"])
+            strike = float(row["strike"])
             strike_str = str(int(strike)) if strike.is_integer() else str(strike)
-            if row['option_type'] == 'XX':
+            if row["option_type"] == "XX":
                 return f"{row['trading_symbol']}{expiry_str}FUT"
-            elif row['option_type'] in ['CE', 'PE']:
+            elif row["option_type"] in ["CE", "PE"]:
                 return f"{row['trading_symbol']}{expiry_str}{strike_str}{row['option_type']}"
             else:
-                return row['trading_symbol']
+                return row["trading_symbol"]
         except Exception as e:
             logger.error(f"Error processing row: {row}, Error: {e}")
-            return row['trading_symbol']  # fallback to just the symbol
+            return row["trading_symbol"]  # fallback to just the symbol
 
     # Apply the symbol formatting for all rows based on option_type
-    df['symbol'] = df.apply(reformat_symbol_detail, axis=1)
+    df["symbol"] = df.apply(reformat_symbol_detail, axis=1)
 
     # Create token_df with required columns
-    token_df = df[['symbol']].copy()
-    token_df['brsymbol'] = df['trading_symbol'].values
-    token_df['name'] = df['trading_symbol'].values
-    token_df['exchange'] = df['exchange'].values
-    token_df['brexchange'] = df['exchange'].values
-    token_df['token'] = df['exchange_token'].values
-    token_df['expiry'] = df['Expiry Date'].dt.strftime('%d-%b-%y').str.upper()
-    token_df['strike'] = df['strike'].values
-    token_df['lotsize'] = df['lot_size'].values
-    token_df['instrumenttype'] = df['option_type'].map({
-        'XX': 'FUT',
-        'CE': 'CE',
-        'PE': 'PE'
-    })
-    token_df['tick_size'] = df['tick_size'].values
+    token_df = df[["symbol"]].copy()
+    token_df["brsymbol"] = df["trading_symbol"].values
+    token_df["name"] = df["trading_symbol"].values
+    token_df["exchange"] = df["exchange"].values
+    token_df["brexchange"] = df["exchange"].values
+    token_df["token"] = df["exchange_token"].values
+    token_df["expiry"] = df["Expiry Date"].dt.strftime("%d-%b-%y").str.upper()
+    token_df["strike"] = df["strike"].values
+    token_df["lotsize"] = df["lot_size"].values
+    token_df["instrumenttype"] = df["option_type"].map(
+        {"XX": "FUT", "CE": "CE", "PE": "PE"}
+    )
+    token_df["tick_size"] = df["tick_size"].values
 
     return token_df
 
@@ -405,61 +446,70 @@ def process_pocketful_indices_csv(path):
     Processes the pocketful CSV file to fit the existing database schema and performs exchange name mapping.
     """
     logger.info("Processing pocketful INDICES CSV Data")
-    file_path = f'{path}/NSECompactScrip.csv'
+    file_path = f"{path}/NSECompactScrip.csv"
 
     df = pd.read_csv(file_path)
 
     # Create an explicit copy to avoid SettingWithCopyWarning
-    filter_df = df[df['segment'].isin(['INDICES'])].copy()
+    filter_df = df[df["segment"].isin(["INDICES"])].copy()
 
     # Use standard assignment instead of .loc to improve readability
-    filter_df['symbol'] = filter_df['trading_symbol'].map({
-        'Nifty 50': 'NIFTY',
-        'Nifty Bank': 'BANKNIFTY',
-        'India VIX': 'INDIAVIX',
-        'Nifty Fin Service': 'FINNIFTY',
-        'NIFTY MID SELECT': 'MIDCPNIFTY',
-        'Nifty Next 50': 'NIFTYNXT50'
-    }).fillna(filter_df['trading_symbol'])
+    filter_df["symbol"] = (
+        filter_df["trading_symbol"]
+        .map(
+            {
+                "Nifty 50": "NIFTY",
+                "Nifty Bank": "BANKNIFTY",
+                "India VIX": "INDIAVIX",
+                "Nifty Fin Service": "FINNIFTY",
+                "NIFTY MID SELECT": "MIDCPNIFTY",
+                "Nifty Next 50": "NIFTYNXT50",
+            }
+        )
+        .fillna(filter_df["trading_symbol"])
+    )
 
     # Create token_df with the relevant columns
-    token_df = filter_df[['symbol']].copy()
-    token_df['brsymbol'] = filter_df['trading_symbol'].values
-    token_df['name'] = filter_df['trading_symbol'].values
-    token_df['exchange'] = filter_df['segment'].map({
-        'INDICES': 'NSE_INDEX',
-        'IDX': 'BSE_INDEX'
-    }).fillna(filter_df['exchange'])
-    token_df['brexchange'] = filter_df['exchange'].values
-    token_df['token'] = filter_df['exchange_token'].values
-    token_df['expiry'] = ''
-    token_df['strike'] = 0.0
-    token_df['lotsize'] = filter_df['lot_size'].values
-    token_df['instrumenttype'] = filter_df['instrument_name'].map({
-        'FUT': 'FUT',
-        'CE': 'CE',
-        'PE': 'PE'
-    }).fillna(filter_df['instrument_name'])
-    token_df['tick_size'] = filter_df['tick_size'].values
+    token_df = filter_df[["symbol"]].copy()
+    token_df["brsymbol"] = filter_df["trading_symbol"].values
+    token_df["name"] = filter_df["trading_symbol"].values
+    token_df["exchange"] = (
+        filter_df["segment"]
+        .map({"INDICES": "NSE_INDEX", "IDX": "BSE_INDEX"})
+        .fillna(filter_df["exchange"])
+    )
+    token_df["brexchange"] = filter_df["exchange"].values
+    token_df["token"] = filter_df["exchange_token"].values
+    token_df["expiry"] = ""
+    token_df["strike"] = 0.0
+    token_df["lotsize"] = filter_df["lot_size"].values
+    token_df["instrumenttype"] = (
+        filter_df["instrument_name"]
+        .map({"FUT": "FUT", "CE": "CE", "PE": "PE"})
+        .fillna(filter_df["instrument_name"])
+    )
+    token_df["tick_size"] = filter_df["tick_size"].values
     return token_df
-    token_df['brsymbol'] = filter_df['trading_symbol'].values
-    token_df['name'] = filter_df['trading_symbol'].values
-    token_df['exchange'] = filter_df['segment'].map({
-        'INDICES': 'NSE_INDEX',
-        'IDX': 'BSE_INDEX'
-    }).fillna(filter_df['exchange'])
-    token_df['brexchange'] = filter_df['exchange'].values
-    token_df['token'] = filter_df['exchange_token'].values
+    token_df["brsymbol"] = filter_df["trading_symbol"].values
+    token_df["name"] = filter_df["trading_symbol"].values
+    token_df["exchange"] = (
+        filter_df["segment"]
+        .map({"INDICES": "NSE_INDEX", "IDX": "BSE_INDEX"})
+        .fillna(filter_df["exchange"])
+    )
+    token_df["brexchange"] = filter_df["exchange"].values
+    token_df["token"] = filter_df["exchange_token"].values
 
     # Convert 'Expiry Date' to desired format
-    token_df['expiry'] = ''
-    token_df['strike'] = 0.0
-    token_df['lotsize'] = filter_df['lot_size'].values
-    token_df['instrumenttype'] = filter_df['segment'].map({
-        'INDICES': 'NSE_INDEX',
-        'IDX': 'BSE_INDEX'
-    }).fillna(filter_df['exchange'])
-    token_df['tick_size'] = 0.01
+    token_df["expiry"] = ""
+    token_df["strike"] = 0.0
+    token_df["lotsize"] = filter_df["lot_size"].values
+    token_df["instrumenttype"] = (
+        filter_df["segment"]
+        .map({"INDICES": "NSE_INDEX", "IDX": "BSE_INDEX"})
+        .fillna(filter_df["exchange"])
+    )
+    token_df["tick_size"] = 0.01
 
     # logger.info("Unique trading_symbols before replacement:")
     # logger.info(f"{filter_df['trading_symbol'].unique()}")
@@ -468,8 +518,6 @@ def process_pocketful_indices_csv(path):
     # logger.info(f"{filter_df['symbol'].unique()}")
 
     return token_df
-
-
 
 
 def delete_pocketful_temp_data(output_path):
@@ -484,8 +532,7 @@ def delete_pocketful_temp_data(output_path):
 def master_contract_download():
     logger.info("Downloading Master Contract")
 
-
-    output_path = 'tmp'
+    output_path = "tmp"
     try:
         download_csv_pocketful_data(output_path)
         delete_symtoken_table()
@@ -505,18 +552,25 @@ def master_contract_download():
         copy_from_dataframe(token_df)
         delete_pocketful_temp_data(output_path)
 
-        return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
-
+        return socketio.emit(
+            "master_contract_download",
+            {"status": "success", "message": "Successfully Downloaded"},
+        )
 
     except Exception as e:
         logger.info(f"{e}")
-        return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
+        return socketio.emit(
+            "master_contract_download", {"status": "error", "message": str(e)}
+        )
         logger.info(f"{e}")
-        return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
-
+        return socketio.emit(
+            "master_contract_download", {"status": "error", "message": str(e)}
+        )
 
 
 def search_symbols(symbol, exchange):
     db = next(get_db())
-    stmt = select(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange)
+    stmt = select(SymToken).filter(
+        SymToken.symbol.like(f"%{symbol}%"), SymToken.exchange == exchange
+    )
     return db.scalars(stmt).all()

@@ -2,6 +2,7 @@
 
 import base64
 from typing import Optional
+from cryptography.fernet import InvalidToken
 
 from cryptography.fernet import Fernet
 from sqlalchemy import Boolean, Integer, String, Text, select
@@ -137,7 +138,13 @@ def _decrypt_password(encrypted_password: str) -> Optional[str]:
     try:
         decrypted = f.decrypt(encrypted_password.encode())
         return decrypted.decode()
-    except Exception:
+    except InvalidToken:
+        logger.warning("Failed to decrypt SMTP password: Invalid Token")
+        return None
+    except Exception as e:
+        logger.warning(
+            f"An unexpected error occurred during SMTP password decryption: {e}"
+        )
         return None
 
 

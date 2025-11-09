@@ -16,4 +16,3 @@ def authenticate_broker(code):
         return BROKER_API_SECRET, None
     except Exception as e:
         return None, f"An exception occurred: {str(e)}"
-

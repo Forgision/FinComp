@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.utils.logging import logger
 
 # Set the correct event loop policy for Windows to avoid ZeroMQ warnings
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Global flag to track if the WebSocket server has been started
@@ -26,6 +26,7 @@ def should_start_websocket() -> bool:
     """
     return True
 
+
 def cleanup_websocket_server():
     """Clean up WebSocket server resources - cross-platform compatible"""
     global _websocket_proxy_instance, _websocket_thread
@@ -40,22 +41,32 @@ def cleanup_websocket_server():
 
             # Try to close the server gracefully
             try:
-                if hasattr(_websocket_proxy_instance, 'server') and _websocket_proxy_instance.server:
+                if (
+                    hasattr(_websocket_proxy_instance, "server")
+                    and _websocket_proxy_instance.server
+                ):
                     try:
                         _websocket_proxy_instance.server.close()
                     except Exception as e:
                         logger.warning(f"Error closing server handle: {e}")
 
                 # Close ZMQ resources immediately
-                if hasattr(_websocket_proxy_instance, 'socket') and _websocket_proxy_instance.socket:
+                if (
+                    hasattr(_websocket_proxy_instance, "socket")
+                    and _websocket_proxy_instance.socket
+                ):
                     try:
                         import zmq
+
                         _websocket_proxy_instance.socket.setsockopt(zmq.LINGER, 0)
                         _websocket_proxy_instance.socket.close()
                     except Exception as e:
                         logger.warning(f"Error closing ZMQ socket: {e}")
 
-                if hasattr(_websocket_proxy_instance, 'context') and _websocket_proxy_instance.context:
+                if (
+                    hasattr(_websocket_proxy_instance, "context")
+                    and _websocket_proxy_instance.context
+                ):
                     try:
                         _websocket_proxy_instance.context.term()
                     except Exception as e:
@@ -117,7 +128,7 @@ def start_websocket_server():
     # Start the WebSocket server in a daemon thread
     _websocket_thread = threading.Thread(
         target=run_websocket_server,
-        daemon=False  # Changed to False so we can properly clean up
+        daemon=False,  # Changed to False so we can properly clean up
     )
     _websocket_thread.start()
 
@@ -126,5 +137,6 @@ def start_websocket_server():
 
     logger.info("WebSocket proxy server thread started")
     return _websocket_thread
+
 
 # Removing Flask-specific integration function

@@ -1,14 +1,14 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
 
 from app.core.schemas.token_db import get_br_symbol
 
 
-def transform_data(data,token):
+def transform_data(data, token):
     """
     Transforms the new API request structure to the current expected structure.
     """
-    symbol = get_br_symbol(data["symbol"],data["exchange"])
+    symbol = get_br_symbol(data["symbol"], data["exchange"])
 
     # For MARKET orders, price should be "0"
     price = "0" if data["pricetype"] == "MARKET" else str(data.get("price", "0"))
@@ -24,15 +24,12 @@ def transform_data(data,token):
         "trgprc": str(data.get("trigger_price", "0")),
         "dscqty": str(data.get("disclosed_quantity", "0")),
         "prd": map_product_type(data["product"]),
-        "trantype": 'B' if data["action"] == "BUY" else 'S',
+        "trantype": "B" if data["action"] == "BUY" else "S",
         "prctyp": map_order_type(data["pricetype"]),
         "mkt_protection": "0",
         "ret": "DAY",
-        "ordersource": "API"
+        "ordersource": "API",
     }
-
-
-
 
     return transformed
 
@@ -51,7 +48,7 @@ def transform_modify_order_data(data, token):
         "prc": price,  # Price (0 for market orders)
         "prctyp": map_order_type(data["pricetype"]),
         "ret": "DAY",  # Retention type
-        "dscqty": str(data.get("disclosed_quantity", "0"))
+        "dscqty": str(data.get("disclosed_quantity", "0")),
     }
 
     # Add trigger price only for SL orders
@@ -65,7 +62,6 @@ def transform_modify_order_data(data, token):
     return modify_payload
 
 
-
 def map_order_type(pricetype):
     """
     Maps the new pricetype to the existing order type.
@@ -74,9 +70,10 @@ def map_order_type(pricetype):
         "MARKET": "MKT",
         "LIMIT": "LMT",
         "SL": "SL-LMT",
-        "SL-M": "SL-MKT"
+        "SL-M": "SL-MKT",
     }
     return order_type_mapping.get(pricetype, "MARKET")  # Default to MARKET if not found
+
 
 def map_product_type(product):
     """
@@ -90,7 +87,6 @@ def map_product_type(product):
     return product_type_mapping.get(product, "I")  # Default to DELIVERY if not found
 
 
-
 def reverse_map_product_type(product):
     """
     Maps the new product type to the existing product type.
@@ -101,4 +97,3 @@ def reverse_map_product_type(product):
         "I": "MIS",
     }
     return reverse_product_type_mapping.get(product)
-

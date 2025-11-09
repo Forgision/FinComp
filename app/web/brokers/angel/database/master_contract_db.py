@@ -1,28 +1,37 @@
-#database/master_contract_db.py
+# database/master_contract_db.py
 
 import os
 from datetime import datetime
 
 import pandas as pd
 import requests
-from sqlalchemy import (mapped_column, Float, Index, Integer, Sequence, String,
-                        select)
-from sqlalchemy.orm import (DeclarativeBase, Mapped)
+from sqlalchemy import mapped_column, Float, Index, Integer, Sequence, String, select
+from sqlalchemy.orm import DeclarativeBase, Mapped
 
 from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.web.socketio import sio  # Import SocketIO
 
+
 class Base(DeclarativeBase):
     pass
 
+
 class SymToken(Base):
-    __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
-    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
+    __tablename__ = "symtoken"
+    id: Mapped[int] = mapped_column(
+        Integer, Sequence("symtoken_id_seq"), primary_key=True
+    )
+    symbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
+    brsymbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
     name: Mapped[str] = mapped_column(String, nullable=True)
-    exchange: Mapped[str] = mapped_column(String, index=True)  # Include this column in a composite index
+    exchange: Mapped[str] = mapped_column(
+        String, index=True
+    )  # Include this column in a composite index
     brexchange: Mapped[str] = mapped_column(String, index=True)
     token: Mapped[str] = mapped_column(String, index=True)  # Indexed for performance
     expiry: Mapped[str] = mapped_column(String, nullable=True)
@@ -32,12 +41,14 @@ class SymToken(Base):
     tick_size: Mapped[float] = mapped_column(Float, nullable=True)
 
     # Define a composite index on symbol and exchange columns
-    __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
+    __table_args__ = (Index("idx_symbol_exchange", "symbol", "exchange"),)
+
 
 def init_db():
     db = next(get_db())
     logger.info("Initializing Master Contract DB")
     Base.metadata.create_all(bind=db.get_bind())
+
 
 def delete_symtoken_table():
     db = next(get_db())
@@ -45,29 +56,37 @@ def delete_symtoken_table():
     db.query(SymToken).delete()
     db.commit()
 
+
 def copy_from_dataframe(df):
     db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
-    data_dict = df.to_dict(orient='records')
+    data_dict = df.to_dict(orient="records")
 
     # Retrieve existing tokens to filter them out from the insert
-    existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}
+    existing_tokens = {
+        result.token for result in db.execute(select(SymToken.token)).scalars().all()
+    }
 
     # Filter out data_dict entries with tokens that already exist
-    filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
+    filtered_data_dict = [
+        row for row in data_dict if row["token"] not in existing_tokens
+    ]
 
     # Insert in bulk the filtered records
     try:
         if filtered_data_dict:  # Proceed only if there's anything to insert
             db.bulk_insert_mappings(SymToken, filtered_data_dict)
             db.commit()
-            logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
+            logger.info(
+                f"Bulk insert completed successfully with {len(filtered_data_dict)} new records."
+            )
         else:
             logger.info("No new records to insert.")
     except Exception as e:
         logger.error(f"Error during bulk insert: {e}")
         db.rollback()
+
 
 def download_json_angel_data(url, output_path):
     """
@@ -76,7 +95,7 @@ def download_json_angel_data(url, output_path):
     logger.info("Downloading JSON data")
     response = requests.get(url, timeout=10)  # timeout after 10 seconds
     if response.status_code == 200:  # Successful download
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(response.content)
         logger.info("Download complete")
     else:
@@ -84,17 +103,17 @@ def download_json_angel_data(url, output_path):
 
 
 def reformat_symbol(row):
-    symbol = row['symbol']
-    instrument_type = row['instrumenttype']
+    symbol = row["symbol"]
+    instrument_type = row["instrumenttype"]
 
-    if instrument_type == 'FUT':
+    if instrument_type == "FUT":
         # For FUT, remove the spaces and append 'FUT' at the end
-        parts = symbol.split(' ')
+        parts = symbol.split(" ")
         if len(parts) == 5:  # Make sure the symbol has the correct format
             symbol = parts[0] + parts[2] + parts[3] + parts[4] + parts[1]
-    elif instrument_type in ['CE', 'PE']:
+    elif instrument_type in ["CE", "PE"]:
         # For CE/PE, rearrange the parts and remove spaces
-        parts = symbol.split(' ')
+        parts = symbol.split(" ")
         if len(parts) == 6:  # Make sure the symbol has the correct format
             symbol = parts[0] + parts[3] + parts[4] + parts[5] + parts[1] + parts[2]
     else:
@@ -106,10 +125,11 @@ def reformat_symbol(row):
 def convert_date(date_str):
     # Convert from '19MAR2024' to '19-MAR-24'
     try:
-        return datetime.strptime(date_str, '%d%b%Y').strftime('%d-%b-%y')
+        return datetime.strptime(date_str, "%d%b%Y").strftime("%d-%b-%y")
     except ValueError:
         # Return the original date if it doesn't match the format
         return date_str
+
 
 def process_angel_json(path):
     """
@@ -125,96 +145,169 @@ def process_angel_json(path):
 
     # Rename the columns based on the database schema
     # Assuming that the JSON structure matches the sample response provided
-    df = df.rename(columns={
-        'exch_seg': 'exchange',
-        'instrumenttype': 'instrumenttype',
-        'lotsize': 'lotsize',
-        'strike': 'strike',
-        'symbol': 'symbol',
-        'token': 'token',
-        'name': 'name',
-        'tick_size': 'tick_size'
-    })
+    df = df.rename(
+        columns={
+            "exch_seg": "exchange",
+            "instrumenttype": "instrumenttype",
+            "lotsize": "lotsize",
+            "strike": "strike",
+            "symbol": "symbol",
+            "token": "token",
+            "name": "name",
+            "tick_size": "tick_size",
+        }
+    )
 
     # Reformat 'symbol' column if needed (based on the given reformat_symbol function)
-    #df['symbol'] = df.apply(lambda row: reformat_symbol(row), axis=1)
-
+    # df['symbol'] = df.apply(lambda row: reformat_symbol(row), axis=1)
 
     # Assuming 'brsymbol' and 'brexchange' are not present in the JSON and are the same as 'symbol' and 'exchange'
-    df['brsymbol'] = df['symbol']
-    df['brexchange'] = df['exchange']
+    df["brsymbol"] = df["symbol"]
+    df["brexchange"] = df["exchange"]
 
-     # Update exchange names based on the instrument type
-    df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'NSE'), 'exchange'] = 'NSE_INDEX'
-    df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'BSE'), 'exchange'] = 'BSE_INDEX'
-    df.loc[(df['instrumenttype'] == 'AMXIDX') & (df['exchange'] == 'MCX'), 'exchange'] = 'MCX_INDEX'
+    # Update exchange names based on the instrument type
+    df.loc[
+        (df["instrumenttype"] == "AMXIDX") & (df["exchange"] == "NSE"), "exchange"
+    ] = "NSE_INDEX"
+    df.loc[
+        (df["instrumenttype"] == "AMXIDX") & (df["exchange"] == "BSE"), "exchange"
+    ] = "BSE_INDEX"
+    df.loc[
+        (df["instrumenttype"] == "AMXIDX") & (df["exchange"] == "MCX"), "exchange"
+    ] = "MCX_INDEX"
 
     # Reformat 'symbol' based on 'brsymbol'
-    df['symbol'] = df['symbol'].str.replace('-EQ|-BE|-MF|-SG', '', regex=True)
-
+    df["symbol"] = df["symbol"].str.replace("-EQ|-BE|-MF|-SG", "", regex=True)
 
     # Assuming the 'expiry' field in the JSON is in the format '19MAR2024'
-    df['expiry'] = df['expiry'].apply(lambda x: convert_date(x) if pd.notnull(x) else x)
-    df['expiry'] = df['expiry'].str.upper()
-
-
-
+    df["expiry"] = df["expiry"].apply(lambda x: convert_date(x) if pd.notnull(x) else x)
+    df["expiry"] = df["expiry"].str.upper()
 
     # Convert 'strike' to float, 'lotsize' to int, and 'tick_size' to float as per the database schema
-    df['strike'] = df['strike'].astype(float) / 100
-    df.loc[(df['instrumenttype'] == 'OPTCUR') & (df['exchange'] == 'CDS'), 'strike'] = df['strike'].astype(float) / 100000
-    df.loc[(df['instrumenttype'] == 'OPTIRC') & (df['exchange'] == 'CDS'), 'strike'] = df['strike'].astype(float) / 100000
+    df["strike"] = df["strike"].astype(float) / 100
+    df.loc[(df["instrumenttype"] == "OPTCUR") & (df["exchange"] == "CDS"), "strike"] = (
+        df["strike"].astype(float) / 100000
+    )
+    df.loc[(df["instrumenttype"] == "OPTIRC") & (df["exchange"] == "CDS"), "strike"] = (
+        df["strike"].astype(float) / 100000
+    )
 
-
-    df['lotsize'] = df['lotsize'].astype(int)
-    df['tick_size'] = df['tick_size'].astype(float) / 100  # Divide tick_size by 100
+    df["lotsize"] = df["lotsize"].astype(int)
+    df["tick_size"] = df["tick_size"].astype(float) / 100  # Divide tick_size by 100
 
     # Futures Symbol Update in CDS and MCX Exchanges
-    df.loc[(df['instrumenttype'] == 'FUTCUR') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
-    df.loc[(df['instrumenttype'] == 'FUTIRC') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
-    df.loc[(df['instrumenttype'] == 'FUTCOM') & (df['exchange'] == 'MCX'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
+    df.loc[(df["instrumenttype"] == "FUTCUR") & (df["exchange"] == "CDS"), "symbol"] = (
+        df["name"] + df["expiry"].str.replace("-", "", regex=False) + "FUT"
+    )
+    df.loc[(df["instrumenttype"] == "FUTIRC") & (df["exchange"] == "CDS"), "symbol"] = (
+        df["name"] + df["expiry"].str.replace("-", "", regex=False) + "FUT"
+    )
+    df.loc[(df["instrumenttype"] == "FUTCOM") & (df["exchange"] == "MCX"), "symbol"] = (
+        df["name"] + df["expiry"].str.replace("-", "", regex=False) + "FUT"
+    )
     # Options Symbol Update in CDS and MCX Exchanges
-    df.loc[(df['instrumenttype'] == 'OPTCUR') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + df['symbol'].str[-2:]
-    df.loc[(df['instrumenttype'] == 'OPTIRC') & (df['exchange'] == 'CDS'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + df['symbol'].str[-2:]
-    df.loc[(df['instrumenttype'] == 'OPTFUT') & (df['exchange'] == 'MCX'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + df['symbol'].str[-2:]
+    df.loc[(df["instrumenttype"] == "OPTCUR") & (df["exchange"] == "CDS"), "symbol"] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + df["symbol"].str[-2:]
+    )
+    df.loc[(df["instrumenttype"] == "OPTIRC") & (df["exchange"] == "CDS"), "symbol"] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + df["symbol"].str[-2:]
+    )
+    df.loc[(df["instrumenttype"] == "OPTFUT") & (df["exchange"] == "MCX"), "symbol"] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + df["symbol"].str[-2:]
+    )
 
     # BFO Index Futures Symbol Update (SENSEX, BANKEX, etc.)
     # Format: SYMBOL[DDMMMYY]FUT
     # Example: SENSEX28MAR24FUT
-    df.loc[(df['instrumenttype'] == 'FUTIDX') & (df['exchange'] == 'BFO'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
+    df.loc[(df["instrumenttype"] == "FUTIDX") & (df["exchange"] == "BFO"), "symbol"] = (
+        df["name"] + df["expiry"].str.replace("-", "", regex=False) + "FUT"
+    )
 
     # BFO Stock Futures Symbol Update (RELIANCE, TCS, etc.)
     # Format: SYMBOL[DDMMMYY]FUT
     # Example: RELIANCE30OCT25FUT
-    df.loc[(df['instrumenttype'] == 'FUTSTK') & (df['exchange'] == 'BFO'), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + 'FUT'
+    df.loc[(df["instrumenttype"] == "FUTSTK") & (df["exchange"] == "BFO"), "symbol"] = (
+        df["name"] + df["expiry"].str.replace("-", "", regex=False) + "FUT"
+    )
 
     # BFO Index Options Symbol Update (SENSEX, BANKEX, etc.)
     # Format: SYMBOL[DDMMMYY][StrikePrice][CE/PE]
     # Example: SENSEX28MAR2475000CE
-    df.loc[(df['instrumenttype'] == 'OPTIDX') & (df['exchange'] == 'BFO') & (df['symbol'].str.endswith('CE', na=False)), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + 'CE'
-    df.loc[(df['instrumenttype'] == 'OPTIDX') & (df['exchange'] == 'BFO') & (df['symbol'].str.endswith('PE', na=False)), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + 'PE'
+    df.loc[
+        (df["instrumenttype"] == "OPTIDX")
+        & (df["exchange"] == "BFO")
+        & (df["symbol"].str.endswith("CE", na=False)),
+        "symbol",
+    ] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + "CE"
+    )
+    df.loc[
+        (df["instrumenttype"] == "OPTIDX")
+        & (df["exchange"] == "BFO")
+        & (df["symbol"].str.endswith("PE", na=False)),
+        "symbol",
+    ] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + "PE"
+    )
 
     # BFO Stock Options Symbol Update (RELIANCE, TCS, etc.)
     # Format: SYMBOL[DDMMMYY][StrikePrice][CE/PE]
     # Example: RELIANCE30OCT251330PE
-    df.loc[(df['instrumenttype'] == 'OPTSTK') & (df['exchange'] == 'BFO') & (df['symbol'].str.endswith('CE', na=False)), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + 'CE'
-    df.loc[(df['instrumenttype'] == 'OPTSTK') & (df['exchange'] == 'BFO') & (df['symbol'].str.endswith('PE', na=False)), 'symbol'] = df['name'] + df['expiry'].str.replace('-', '', regex=False) + df['strike'].astype(str).str.replace(r'\.0', '', regex=True) + 'PE'
+    df.loc[
+        (df["instrumenttype"] == "OPTSTK")
+        & (df["exchange"] == "BFO")
+        & (df["symbol"].str.endswith("CE", na=False)),
+        "symbol",
+    ] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + "CE"
+    )
+    df.loc[
+        (df["instrumenttype"] == "OPTSTK")
+        & (df["exchange"] == "BFO")
+        & (df["symbol"].str.endswith("PE", na=False)),
+        "symbol",
+    ] = (
+        df["name"]
+        + df["expiry"].str.replace("-", "", regex=False)
+        + df["strike"].astype(str).str.replace(r"\.0", "", regex=True)
+        + "PE"
+    )
 
     # Common Index Symbol Formats
 
-    df['symbol'] = df['symbol'].replace({
-    'Nifty 50': 'NIFTY',
-    'Nifty Next 50': 'NIFTYNXT50',
-    'Nifty Fin Service': 'FINNIFTY',
-    'Nifty Bank': 'BANKNIFTY',
-    'NIFTY MID SELECT': 'MIDCPNIFTY',
-    'India VIX': 'INDIAVIX',
-    'SNSX50': 'SENSEX50'
-    })
-
+    df["symbol"] = df["symbol"].replace(
+        {
+            "Nifty 50": "NIFTY",
+            "Nifty Next 50": "NIFTYNXT50",
+            "Nifty Fin Service": "FINNIFTY",
+            "Nifty Bank": "BANKNIFTY",
+            "NIFTY MID SELECT": "MIDCPNIFTY",
+            "India VIX": "INDIAVIX",
+            "SNSX50": "SENSEX50",
+        }
+    )
 
     # Return the processed DataFrame
     return df
+
 
 def delete_angel_temp_data(output_path):
     try:
@@ -231,29 +324,34 @@ def delete_angel_temp_data(output_path):
 
 def master_contract_download():
     logger.info("Downloading Master Contract")
-    url = 'https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json'
-    output_path = 'tmp/angel.json'
+    url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
+    output_path = "tmp/angel.json"
     try:
-        download_json_angel_data(url,output_path)
+        download_json_angel_data(url, output_path)
         token_df = process_angel_json(output_path)
         delete_angel_temp_data(output_path)
-        #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
+        # token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
 
-        #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
+        # token_df = token_df.drop_duplicates(subset='symbol', keep='first')
 
         delete_symtoken_table()  # Consider the implications of this action
         copy_from_dataframe(token_df)
 
-        return sio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
-
+        return sio.emit(
+            "master_contract_download",
+            {"status": "success", "message": "Successfully Downloaded"},
+        )
 
     except Exception as e:
         logger.info(f"{str(e)}")
-        return sio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
-
+        return sio.emit(
+            "master_contract_download", {"status": "error", "message": str(e)}
+        )
 
 
 def search_symbols(symbol, exchange):
     db = next(get_db())
-    stmt = select(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange)
+    stmt = select(SymToken).filter(
+        SymToken.symbol.like(f"%{symbol}%"), SymToken.exchange == exchange
+    )
     return db.scalars(stmt).all()

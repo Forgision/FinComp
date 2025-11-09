@@ -38,18 +38,18 @@ STRATEGY_RATE_LIMIT = settings.STRATEGY_RATE_LIMIT
 chartink_router = APIRouter(prefix="/chartink", tags=["chartink"])
 
 # Initialize scheduler for time-based controls
-scheduler = BackgroundScheduler(timezone=pytz.timezone('Asia/Kolkata'))
+scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
 scheduler.start()
 
 # Get base URL from environment or default to localhost
-BASE_URL = settings.HOST_SERVER or 'http://localhost:8000'
+BASE_URL = settings.HOST_SERVER or "http://localhost:8000"
 
 # Valid exchanges
-VALID_EXCHANGES = ['NSE', 'BSE']
+VALID_EXCHANGES = ["NSE", "BSE"]
 
 # Separate queues for different order types
 regular_order_queue = queue.Queue()  # For placeorder (up to 10/sec)
-smart_order_queue = queue.Queue()    # For placesmartorder (1/sec)
+smart_order_queue = queue.Queue()  # For placesmartorder (1/sec)
 
 # Order processor state
 order_processor_running = False
@@ -74,13 +74,20 @@ def process_orders():
                 try:
                     # Use httpx.Client for synchronous call in a thread
                     with httpx.Client() as client:
-                        response = client.post(f'{BASE_URL}/api/v1/placesmartorder', json=smart_order['payload'])
+                        response = client.post(
+                            f"{BASE_URL}/api/v1/placesmartorder",
+                            json=smart_order["payload"],
+                        )
                     if response.is_success:
-                        logger.info(f'Smart order placed for {smart_order["payload"]["symbol"]} in strategy {smart_order["payload"]["strategy"]}')
+                        logger.info(
+                            f"Smart order placed for {smart_order['payload']['symbol']} in strategy {smart_order['payload']['strategy']}"
+                        )
                     else:
-                        logger.error(f'Error placing smart order for {smart_order["payload"]["symbol"]}: {response.text}')
+                        logger.error(
+                            f"Error placing smart order for {smart_order['payload']['symbol']}: {response.text}"
+                        )
                 except Exception as e:
-                    logger.error(f'Error placing smart order: {str(e)}')
+                    logger.error(f"Error placing smart order: {str(e)}")
 
                 # Always wait 1 second after smart order
                 time_module.sleep(1)
@@ -106,14 +113,21 @@ def process_orders():
                     try:
                         # Use httpx.Client for synchronous call in a thread
                         with httpx.Client() as client:
-                            response = client.post(f'{BASE_URL}/api/v1/placeorder', json=regular_order['payload'])
+                            response = client.post(
+                                f"{BASE_URL}/api/v1/placeorder",
+                                json=regular_order["payload"],
+                            )
                         if response.is_success:
-                            logger.info(f'Regular order placed for {regular_order["payload"]["symbol"]} in strategy {regular_order["payload"]["strategy"]}')
+                            logger.info(
+                                f"Regular order placed for {regular_order['payload']['symbol']} in strategy {regular_order['payload']['strategy']}"
+                            )
                             last_regular_orders.append(now)
                         else:
-                            logger.error(f'Error placing regular order for {regular_order["payload"]["symbol"]}: {response.text}')
+                            logger.error(
+                                f"Error placing regular order for {regular_order['payload']['symbol']}: {response.text}"
+                            )
                     except Exception as e:
-                        logger.error(f'Error placing regular order: {str(e)}')
+                        logger.error(f"Error placing regular order: {str(e)}")
 
                 except queue.Empty:
                     time_module.sleep(0.1)  # No orders to process
@@ -122,11 +136,12 @@ def process_orders():
                 time_module.sleep(0.1)
 
         except Exception as e:
-            logger.error(f'Error in order processor: {str(e)}')
+            logger.error(f"Error in order processor: {str(e)}")
             time_module.sleep(0.1)  # Prevent tight loop on error
 
     with order_processor_lock:
         order_processor_running = False
+
 
 def ensure_order_processor():
     """Ensure order processor is running"""
@@ -138,45 +153,54 @@ def ensure_order_processor():
             thread = threading.Thread(target=process_orders, daemon=True)
             thread.start()
 
+
 def queue_order(endpoint, payload):
     """Add order to appropriate processing queue"""
     ensure_order_processor()
 
-    if endpoint == 'placesmartorder':
-        smart_order_queue.put({'endpoint': endpoint, 'payload': payload})
+    if endpoint == "placesmartorder":
+        smart_order_queue.put({"endpoint": endpoint, "payload": payload})
     else:  # placeorder
-        regular_order_queue.put({'endpoint': endpoint, 'payload': payload})
+        regular_order_queue.put({"endpoint": endpoint, "payload": payload})
+
 
 def validate_strategy_times(start_time, end_time, squareoff_time):
     """Validate strategy time settings"""
     try:
-        start = datetime.strptime(start_time, '%H:%M').time()
-        end = datetime.strptime(end_time, '%H:%M').time()
-        squareoff = datetime.strptime(squareoff_time, '%H:%M').time()
+        start = datetime.strptime(start_time, "%H:%M").time()
+        end = datetime.strptime(end_time, "%H:%M").time()
+        squareoff = datetime.strptime(squareoff_time, "%H:%M").time()
 
         if start >= end:
-            return False, 'Start time must be before end time'
+            return False, "Start time must be before end time"
         if end >= squareoff:
-            return False, 'End time must be before square off time'
+            return False, "End time must be before square off time"
 
         return True, None
     except ValueError:
-        return False, 'Invalid time format'
+        return False, "Invalid time format"
+
 
 def validate_strategy_name(name):
     """Validate strategy name format"""
     if not name:
-        return False, 'Strategy name is required'
+        return False, "Strategy name is required"
 
     # Add prefix if not present
-    if not name.startswith('chartink_'):
-        name = f'chartink_{name}'
+    if not name.startswith("chartink_"):
+        name = f"chartink_{name}"
 
     # Check for valid characters
-    if not all(c.isalnum() or c in ['-', '_', ' '] for c in name.replace('chartink_', '')):
-        return False, 'Strategy name can only contain letters, numbers, spaces, hyphens and underscores'
+    if not all(
+        c.isalnum() or c in ["-", "_", " "] for c in name.replace("chartink_", "")
+    ):
+        return (
+            False,
+            "Strategy name can only contain letters, numbers, spaces, hyphens and underscores",
+        )
 
     return True, name
+
 
 async def schedule_squareoff(strategy_id: int, db: AsyncSession):
     """Schedule squareoff for intraday strategy"""
@@ -185,8 +209,8 @@ async def schedule_squareoff(strategy_id: int, db: AsyncSession):
         return
 
     try:
-        hours, minutes = map(int, strategy.squareoff_time.split(':'))
-        job_id = f'squareoff_{strategy_id}'
+        hours, minutes = map(int, strategy.squareoff_time.split(":"))
+        job_id = f"squareoff_{strategy_id}"
 
         # Remove existing job if any
         if scheduler.get_job(job_id):
@@ -195,16 +219,19 @@ async def schedule_squareoff(strategy_id: int, db: AsyncSession):
         # Add new job
         scheduler.add_job(
             squareoff_positions,
-            'cron',
+            "cron",
             hour=hours,
             minute=minutes,
             args=[strategy_id],
             id=job_id,
-            timezone=pytz.timezone('Asia/Kolkata')
+            timezone=pytz.timezone("Asia/Kolkata"),
         )
-        logger.info(f'Scheduled squareoff for strategy {strategy_id} at {hours}:{minutes}')
+        logger.info(
+            f"Scheduled squareoff for strategy {strategy_id} at {hours}:{minutes}"
+        )
     except Exception as e:
-        logger.error(f'Error scheduling squareoff for strategy {strategy_id}: {str(e)}')
+        logger.error(f"Error scheduling squareoff for strategy {strategy_id}: {str(e)}")
+
 
 async def squareoff_positions(strategy_id: int):
     """Square off all positions for intraday strategy"""
@@ -219,7 +246,7 @@ async def squareoff_positions(strategy_id: int):
         # Get API key for authentication
         api_key = get_api_key_for_tradingview(db, strategy.user_id)
         if not api_key:
-            logger.error(f'No API key found for strategy {strategy_id}')
+            logger.error(f"No API key found for strategy {strategy_id}")
             await db.close()
             return
 
@@ -229,43 +256,57 @@ async def squareoff_positions(strategy_id: int):
         for mapping in mappings:
             # Use placesmartorder with quantity=0 and position_size=0 for squareoff
             payload = {
-                'apikey': api_key,
-                'strategy': strategy.name,
-                'symbol': mapping.chartink_symbol,
-                'exchange': mapping.exchange,
-                'action': 'SELL',  # Direction doesn't matter for closing
-                'product': mapping.product_type,
-                'pricetype': 'MARKET',
-                'quantity': '0',
-                'position_size': '0',  # This will close the position
-                'price': '0',
-                'trigger_price': '0',
-                'disclosed_quantity': '0'
+                "apikey": api_key,
+                "strategy": strategy.name,
+                "symbol": mapping.chartink_symbol,
+                "exchange": mapping.exchange,
+                "action": "SELL",  # Direction doesn't matter for closing
+                "product": mapping.product_type,
+                "pricetype": "MARKET",
+                "quantity": "0",
+                "position_size": "0",  # This will close the position
+                "price": "0",
+                "trigger_price": "0",
+                "disclosed_quantity": "0",
             }
 
             # Queue the order instead of executing directly
-            queue_order('placesmartorder', payload)
+            queue_order("placesmartorder", payload)
         db.close()
 
     except Exception as e:
-        logger.error(f'Error in squareoff_positions for strategy {strategy_id}: {str(e)}')
+        logger.error(
+            f"Error in squareoff_positions for strategy {strategy_id}: {str(e)}"
+        )
 
-@chartink_router.get('/', name= "chartink_bp.index")
-async def index(request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.get("/", name="chartink_bp.index")
+async def index(
+    request: Request,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """List all strategies"""
     if not user_id:
-        return RedirectResponse(url=request.url_for('auth.login'))
+        return RedirectResponse(url=request.url_for("auth.login"))
 
     strategies = await get_user_strategies(db, user_id)  # Get only user's strategies
     return JSONResponse(content=[s.as_dict() for s in strategies])
 
-@chartink_router.get('/new')
-async def new_strategy_get(request: Request, user_id: str = Depends(check_session_validity_fastapi)):
-    if not user_id:
-        return RedirectResponse(url=request.url_for('auth.login'))
-    return JSONResponse(content={'message': 'GET not supported. Please POST to create a new strategy.'}, status_code=405)
 
-@chartink_router.post('/new')
+@chartink_router.get("/new")
+async def new_strategy_get(
+    request: Request, user_id: str = Depends(check_session_validity_fastapi)
+):
+    if not user_id:
+        return RedirectResponse(url=request.url_for("auth.login"))
+    return JSONResponse(
+        content={"message": "GET not supported. Please POST to create a new strategy."},
+        status_code=405,
+    )
+
+
+@chartink_router.post("/new")
 async def new_strategy_post(
     request: Request,
     name: str = Form(...),
@@ -274,12 +315,12 @@ async def new_strategy_post(
     end_time: str = Form(None),
     squareoff_time: str = Form(None),
     user_id: str = Depends(check_session_validity_fastapi),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Create new strategy"""
     if not user_id:
         logger.error("No user_id found in session")
-        return RedirectResponse(url=request.url_for('auth.login'))
+        return RedirectResponse(url=request.url_for("auth.login"))
 
     try:
         # Validate strategy name
@@ -287,21 +328,33 @@ async def new_strategy_post(
         is_valid_name, name_result = validate_strategy_name(name)
         if not is_valid_name:
             logger.error(name_result)
-            return JSONResponse(content={'status': 'error', 'message': name_result}, status_code=400)
+            return JSONResponse(
+                content={"status": "error", "message": name_result}, status_code=400
+            )
         name = name_result  # Use the validated and prefixed name
 
-        is_intraday = (type == 'intraday')
+        is_intraday = type == "intraday"
 
         if is_intraday:
             if not all([start_time, end_time, squareoff_time]):
-                logger.error('All time fields are required for intraday strategy')
-                return JSONResponse(content={'status': 'error', 'message': 'All time fields are required for intraday strategy'}, status_code=400)
+                logger.error("All time fields are required for intraday strategy")
+                return JSONResponse(
+                    content={
+                        "status": "error",
+                        "message": "All time fields are required for intraday strategy",
+                    },
+                    status_code=400,
+                )
 
             # Validate time settings
-            is_valid, error_msg = validate_strategy_times(start_time, end_time, squareoff_time)
+            is_valid, error_msg = validate_strategy_times(
+                start_time, end_time, squareoff_time
+            )
             if not is_valid:
                 logger.error(error_msg)
-                return JSONResponse(content={'status': 'error', 'message': error_msg}, status_code=400)
+                return JSONResponse(
+                    content={"status": "error", "message": error_msg}, status_code=400
+                )
 
         # Generate unique webhook ID
         webhook_id = str(uuid.uuid4())
@@ -315,7 +368,7 @@ async def new_strategy_post(
             is_intraday=is_intraday,
             start_time=start_time,
             end_time=end_time,
-            squareoff_time=squareoff_time
+            squareoff_time=squareoff_time,
         )
 
         if strategy:
@@ -323,19 +376,39 @@ async def new_strategy_post(
             if is_intraday and squareoff_time:
                 schedule_squareoff(strategy.id, db)
 
-            return RedirectResponse(url=chartink_router.url_path_for('view_strategy', strategy_id=strategy.id), status_code=302)
+            return RedirectResponse(
+                url=chartink_router.url_path_for(
+                    "view_strategy", strategy_id=strategy.id
+                ),
+                status_code=302,
+            )
         else:
-            logger.error('Error creating strategy')
-            return JSONResponse(content={'status': 'error', 'message': 'Error creating strategy'}, status_code=500)
+            logger.error("Error creating strategy")
+            return JSONResponse(
+                content={"status": "error", "message": "Error creating strategy"},
+                status_code=500,
+            )
     except Exception as e:
-        logger.error(f'Error creating strategy: {str(e)}')
-        return JSONResponse(content={'status': 'error', 'message': f'Error creating strategy: {str(e)}'}, status_code=500)
+        logger.error(f"Error creating strategy: {str(e)}")
+        return JSONResponse(
+            content={
+                "status": "error",
+                "message": f"Error creating strategy: {str(e)}",
+            },
+            status_code=500,
+        )
 
-@chartink_router.get('/{strategy_id}')
-async def view_strategy(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.get("/{strategy_id}")
+async def view_strategy(
+    strategy_id: int,
+    request: Request,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """View strategy details"""
     if not user_id:
-        return RedirectResponse(url=request.url_for('auth.login'))
+        return RedirectResponse(url=request.url_for("auth.login"))
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy:
@@ -346,45 +419,69 @@ async def view_strategy(strategy_id: int, request: Request, user_id: str = Depen
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     symbol_mappings = get_symbol_mappings(db, strategy_id)
-    return JSONResponse(content={
-        "strategy": strategy.as_dict(),
-        "symbol_mappings": [m.as_dict() for m in symbol_mappings]
-    })
+    return JSONResponse(
+        content={
+            "strategy": strategy.as_dict(),
+            "symbol_mappings": [m.as_dict() for m in symbol_mappings],
+        }
+    )
 
-@chartink_router.post('/{strategy_id}/delete')
-async def delete_strategy_route(strategy_id: int, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.post("/{strategy_id}/delete")
+async def delete_strategy_route(
+    strategy_id: int,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """Delete a strategy"""
     if not user_id:
-        return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
+        return JSONResponse(
+            status_code=401, content={"status": "error", "error": "Session expired"}
+        )
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy:
-        return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
+        return JSONResponse(
+            status_code=404, content={"status": "error", "error": "Strategy not found"}
+        )
 
     # Check if strategy belongs to user
     if strategy.user_id != user_id:
-        return JSONResponse(status_code=403, content={'status': 'error', 'error': 'Unauthorized'})
+        return JSONResponse(
+            status_code=403, content={"status": "error", "error": "Unauthorized"}
+        )
 
     try:
         # Remove squareoff job if exists
-        job_id = f'squareoff_{strategy_id}'
+        job_id = f"squareoff_{strategy_id}"
         if scheduler.get_job(job_id):
             scheduler.remove_job(job_id)
 
         # Delete strategy and its mappings
         if await delete_strategy(db, strategy_id):
-            return JSONResponse(status_code=200, content={'status': 'success'})
+            return JSONResponse(status_code=200, content={"status": "success"})
         else:
-            return JSONResponse(status_code=500, content={'status': 'error', 'error': 'Failed to delete strategy'})
+            return JSONResponse(
+                status_code=500,
+                content={"status": "error", "error": "Failed to delete strategy"},
+            )
     except Exception as e:
-        logger.error(f'Error deleting strategy {strategy_id}: {str(e)}')
-        return JSONResponse(status_code=500, content={'status': 'error', 'error': str(e)})
+        logger.error(f"Error deleting strategy {strategy_id}: {str(e)}")
+        return JSONResponse(
+            status_code=500, content={"status": "error", "error": str(e)}
+        )
 
-@chartink_router.get('/{strategy_id}/configure')
-async def configure_symbols_get(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.get("/{strategy_id}/configure")
+async def configure_symbols_get(
+    strategy_id: int,
+    request: Request,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """Configure symbols for strategy"""
     if not user_id:
-        return RedirectResponse(url=request.url_for('auth.login'))
+        return RedirectResponse(url=request.url_for("auth.login"))
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy:
@@ -395,13 +492,16 @@ async def configure_symbols_get(strategy_id: int, request: Request, user_id: str
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     symbol_mappings = get_symbol_mappings(db, strategy_id)
-    return JSONResponse(content={
-        "strategy": strategy.as_dict(),
-        "symbol_mappings": [m.as_dict() for m in symbol_mappings],
-        "exchanges": VALID_EXCHANGES
-    })
+    return JSONResponse(
+        content={
+            "strategy": strategy.as_dict(),
+            "symbol_mappings": [m.as_dict() for m in symbol_mappings],
+            "exchanges": VALID_EXCHANGES,
+        }
+    )
 
-@chartink_router.post('/{strategy_id}/configure')
+
+@chartink_router.post("/{strategy_id}/configure")
 async def configure_symbols_post(
     strategy_id: int,
     request: Request,
@@ -412,86 +512,106 @@ async def configure_symbols_post(
     exchange: str = Form(None),
     quantity: str = Form(None),
     product_type: str = Form(None),
-    symbols: str = Form(None) # For bulk upload
+    symbols: str = Form(None),  # For bulk upload
 ):
     """Configure symbols for strategy"""
     if not user_id:
-        return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
+        return JSONResponse(
+            status_code=401, content={"status": "error", "error": "Session expired"}
+        )
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy:
-        return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
+        return JSONResponse(
+            status_code=404, content={"status": "error", "error": "Strategy not found"}
+        )
 
     # Check if strategy belongs to user
     if strategy.user_id != user_id:
-        return JSONResponse(status_code=403, content={'status': 'error', 'error': 'Unauthorized'})
+        return JSONResponse(
+            status_code=403, content={"status": "error", "error": "Unauthorized"}
+        )
 
     try:
-        data = await request.json() if request.headers.get('content-type') == 'application/json' else {
-            "symbol": symbol, "exchange": exchange, "quantity": quantity, "product_type": product_type, "symbols": symbols
-        }
+        data = (
+            await request.json()
+            if request.headers.get("content-type") == "application/json"
+            else {
+                "symbol": symbol,
+                "exchange": exchange,
+                "quantity": quantity,
+                "product_type": product_type,
+                "symbols": symbols,
+            }
+        )
 
         logger.info(f"Received data: {data}")
 
         # Handle bulk symbols
-        if 'symbols' in data and data['symbols'] is not None:
-            symbols_text = data.get('symbols')
+        if "symbols" in data and data["symbols"] is not None:
+            symbols_text = data.get("symbols")
             mappings = []
 
-            for line in symbols_text.strip().split('\n'):
+            for line in symbols_text.strip().split("\n"):
                 if not line.strip():
                     continue
 
-                parts = line.strip().split(',')
+                parts = line.strip().split(",")
                 if len(parts) != 4:
-                    raise ValueError(f'Invalid format in line: {line}')
+                    raise ValueError(f"Invalid format in line: {line}")
 
                 symbol_bulk, exchange_bulk, quantity_bulk, product_bulk = parts
                 if exchange_bulk not in VALID_EXCHANGES:
-                    raise ValueError(f'Invalid exchange: {exchange_bulk}')
+                    raise ValueError(f"Invalid exchange: {exchange_bulk}")
 
-                mappings.append({
-                    'chartink_symbol': symbol_bulk.strip(),
-                    'exchange': exchange_bulk.strip(),
-                    'quantity': int(quantity_bulk),
-                    'product_type': product_bulk.strip()
-                })
+                mappings.append(
+                    {
+                        "chartink_symbol": symbol_bulk.strip(),
+                        "exchange": exchange_bulk.strip(),
+                        "quantity": int(quantity_bulk),
+                        "product_type": product_bulk.strip(),
+                    }
+                )
 
             if mappings:
                 await bulk_add_symbol_mappings(db, strategy_id, mappings)
-                return JSONResponse(status_code=200, content={'status': 'success'})
+                return JSONResponse(status_code=200, content={"status": "success"})
 
         # Handle single symbol
         else:
-            symbol_single = data.get('symbol')
-            exchange_single = data.get('exchange')
-            quantity_single = data.get('quantity')
-            product_type_single = data.get('product_type')
+            symbol_single = data.get("symbol")
+            exchange_single = data.get("exchange")
+            quantity_single = data.get("quantity")
+            product_type_single = data.get("product_type")
 
-            logger.info(f"Processing single symbol: symbol={symbol_single}, exchange={exchange_single}, quantity={quantity_single}, product_type={product_type_single}")
+            logger.info(
+                f"Processing single symbol: symbol={symbol_single}, exchange={exchange_single}, quantity={quantity_single}, product_type={product_type_single}"
+            )
 
-            if not all([symbol_single, exchange_single, quantity_single, product_type_single]):
+            if not all(
+                [symbol_single, exchange_single, quantity_single, product_type_single]
+            ):
                 missing = []
                 if not symbol_single:
-                    missing.append('symbol')
+                    missing.append("symbol")
                 if not exchange_single:
-                    missing.append('exchange')
+                    missing.append("exchange")
                 if not quantity_single:
-                    missing.append('quantity')
+                    missing.append("quantity")
                 if not product_type_single:
-                    missing.append('product_type')
-                raise ValueError(f'Missing required fields: {", ".join(missing)}')
+                    missing.append("product_type")
+                raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
             if exchange_single not in VALID_EXCHANGES:
-                raise ValueError(f'Invalid exchange: {exchange_single}')
+                raise ValueError(f"Invalid exchange: {exchange_single}")
 
             try:
                 quantity_single = int(quantity_single)
             except ValueError:
-                raise ValueError('Quantity must be a valid number')
+                raise ValueError("Quantity must be a valid number")
 
             if quantity_single <= 0:
-                raise ValueError('Quantity must be greater than 0')
+                raise ValueError("Quantity must be greater than 0")
 
             mapping = await add_symbol_mapping(
                 db=db,
@@ -499,41 +619,61 @@ async def configure_symbols_post(
                 chartink_symbol=symbol_single,
                 exchange=exchange_single,
                 quantity=quantity_single,
-                product_type=product_type_single
+                product_type=product_type_single,
             )
 
             if mapping:
-                return JSONResponse(status_code=200, content={'status': 'success'})
+                return JSONResponse(status_code=200, content={"status": "success"})
             else:
-                raise ValueError('Failed to add symbol mapping')
+                raise ValueError("Failed to add symbol mapping")
 
     except Exception as e:
         error_msg = str(e)
-        logger.error(f'Error configuring symbols: {error_msg}')
-        return JSONResponse(status_code=400, content={'status': 'error', 'error': error_msg})
+        logger.error(f"Error configuring symbols: {error_msg}")
+        return JSONResponse(
+            status_code=400, content={"status": "error", "error": error_msg}
+        )
 
-@chartink_router.post('/{strategy_id}/symbol/{mapping_id}/delete')
-async def delete_symbol(strategy_id: int, mapping_id: int, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.post("/{strategy_id}/symbol/{mapping_id}/delete")
+async def delete_symbol(
+    strategy_id: int,
+    mapping_id: int,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """Delete symbol mapping"""
     if not user_id:
-        return JSONResponse(status_code=401, content={'status': 'error', 'error': 'Session expired'})
+        return JSONResponse(
+            status_code=401, content={"status": "error", "error": "Session expired"}
+        )
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy or strategy.user_id != user_id:
-        return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Strategy not found'})
+        return JSONResponse(
+            status_code=404, content={"status": "error", "error": "Strategy not found"}
+        )
 
     try:
         await delete_symbol_mapping(db, mapping_id)
-        return JSONResponse(status_code=200, content={'status': 'success'})
+        return JSONResponse(status_code=200, content={"status": "success"})
     except Exception as e:
-        logger.error(f'Error deleting symbol mapping: {str(e)}')
-        return JSONResponse(status_code=400, content={'status': 'error', 'error': str(e)})
+        logger.error(f"Error deleting symbol mapping: {str(e)}")
+        return JSONResponse(
+            status_code=400, content={"status": "error", "error": str(e)}
+        )
 
-@chartink_router.post('/{strategy_id}/toggle')
-async def toggle_strategy_route(strategy_id: int, request: Request, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.post("/{strategy_id}/toggle")
+async def toggle_strategy_route(
+    strategy_id: int,
+    request: Request,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """Toggle strategy active status"""
     if not user_id:
-        return RedirectResponse(url=request.url_for('auth.login'))
+        return RedirectResponse(url=request.url_for("auth.login"))
 
     strategy = await get_strategy(db, strategy_id)
     if not strategy or strategy.user_id != user_id:
@@ -543,129 +683,184 @@ async def toggle_strategy_route(strategy_id: int, request: Request, user_id: str
         strategy = await toggle_strategy(db, strategy_id)
         if strategy:
             # Flash messages are not directly supported in FastAPI, will log and redirect
-            status = 'activated' if strategy.is_active else 'deactivated'
-            logger.info(f'Strategy {status} successfully')
+            status = "activated" if strategy.is_active else "deactivated"
+            logger.info(f"Strategy {status} successfully")
         else:
-            logger.error('Error toggling strategy')
+            logger.error("Error toggling strategy")
     except Exception as e:
-        logger.error(f'Error toggling strategy: {str(e)}')
+        logger.error(f"Error toggling strategy: {str(e)}")
 
-    return RedirectResponse(url=chartink_router.url_path_for('view_strategy', strategy_id=strategy_id), status_code=302)
+    return RedirectResponse(
+        url=chartink_router.url_path_for("view_strategy", strategy_id=strategy_id),
+        status_code=302,
+    )
 
-@chartink_router.get('/search')
-async def search_symbols(query: str, exchange: str = None, user_id: str = Depends(check_session_validity_fastapi), db: AsyncSession = Depends(get_db)):
+
+@chartink_router.get("/search")
+async def search_symbols(
+    query: str,
+    exchange: str = None,
+    user_id: str = Depends(check_session_validity_fastapi),
+    db: AsyncSession = Depends(get_db),
+):
     """Search symbols endpoint"""
     if not query:
-        return JSONResponse(status_code=200, content={'results': []})
+        return JSONResponse(status_code=200, content={"results": []})
 
     results = await enhanced_search_symbols(db, query, exchange)
-    return JSONResponse(status_code=200, content={
-        'results': [{
-            'symbol': result.symbol,
-            'name': result.name,
-            'exchange': result.exchange
-        } for result in results]
-    })
+    return JSONResponse(
+        status_code=200,
+        content={
+            "results": [
+                {
+                    "symbol": result.symbol,
+                    "name": result.name,
+                    "exchange": result.exchange,
+                }
+                for result in results
+            ]
+        },
+    )
 
-@chartink_router.post('/webhook/{webhook_id}')
-async def webhook(webhook_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+
+@chartink_router.post("/webhook/{webhook_id}")
+async def webhook(
+    webhook_id: str, request: Request, db: AsyncSession = Depends(get_db)
+):
     """Handle webhook from Chartink"""
     try:
         # Get strategy by webhook ID
         strategy = await get_strategy_by_webhook_id(db, webhook_id)
         if not strategy:
-            logger.error(f'Strategy not found for webhook ID: {webhook_id}')
-            return JSONResponse(status_code=404, content={'status': 'error', 'error': 'Invalid webhook ID'})
+            logger.error(f"Strategy not found for webhook ID: {webhook_id}")
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "error": "Invalid webhook ID"},
+            )
 
         if not strategy.is_active:
-            logger.info(f'Strategy {strategy.id} is inactive, ignoring webhook')
-            return JSONResponse(status_code=200, content={'status': 'success', 'message': 'Strategy is inactive'})
+            logger.info(f"Strategy {strategy.id} is inactive, ignoring webhook")
+            return JSONResponse(
+                status_code=200,
+                content={"status": "success", "message": "Strategy is inactive"},
+            )
 
         # Parse webhook data
         data = await request.json()
         if not data:
-            logger.error(f'No data received in webhook for strategy {strategy.id}')
-            return JSONResponse(status_code=400, content={'status': 'error', 'error': 'No data received'})
+            logger.error(f"No data received in webhook for strategy {strategy.id}")
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "error": "No data received"},
+            )
 
-        logger.info(f'Received webhook data: {data}')
+        logger.info(f"Received webhook data: {data}")
 
         # Determine action from scan name first to apply correct time checks
-        scan_name = data.get('scan_name', '').upper()
-        if 'BUY' in scan_name:
-            action = 'BUY'
+        scan_name = data.get("scan_name", "").upper()
+        if "BUY" in scan_name:
+            action = "BUY"
             use_smart_order = False
             is_entry_order = True
-        elif 'SELL' in scan_name:
-            action = 'SELL'
+        elif "SELL" in scan_name:
+            action = "SELL"
             use_smart_order = True
             is_entry_order = False
-        elif 'SHORT' in scan_name:
-            action = 'SELL'  # For short entry
+        elif "SHORT" in scan_name:
+            action = "SELL"  # For short entry
             use_smart_order = False
             is_entry_order = True
-        elif 'COVER' in scan_name:
-            action = 'BUY'   # For short cover
+        elif "COVER" in scan_name:
+            action = "BUY"  # For short cover
             use_smart_order = True
             is_entry_order = False
         else:
-            error_msg = 'No valid action keyword (BUY/SELL/SHORT/COVER) found in scan name'
+            error_msg = (
+                "No valid action keyword (BUY/SELL/SHORT/COVER) found in scan name"
+            )
             logger.error(error_msg)
-            return JSONResponse(status_code=400, content={'status': 'error', 'error': error_msg})
+            return JSONResponse(
+                status_code=400, content={"status": "error", "error": error_msg}
+            )
 
         # Time validations for intraday strategies
         if strategy.is_intraday:
-            current_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+            current_time = datetime.now(pytz.timezone("Asia/Kolkata")).time()
 
             # Convert strategy times to time objects
-            start_time = datetime.strptime(strategy.start_time, '%H:%M').time()
-            end_time = datetime.strptime(strategy.end_time, '%H:%M').time()
-            squareoff_time = datetime.strptime(strategy.squareoff_time, '%H:%M').time()
+            start_time = datetime.strptime(strategy.start_time, "%H:%M").time()
+            end_time = datetime.strptime(strategy.end_time, "%H:%M").time()
+            squareoff_time = datetime.strptime(strategy.squareoff_time, "%H:%M").time()
 
             # Check if before start time for all orders
             if current_time < start_time:
-                logger.info(f'Strategy {strategy.id} received webhook before start time, ignoring')
-                return JSONResponse(status_code=400, content={
-                    'status': 'error',
-                    'error': 'Cannot place orders before start time'
-                })
+                logger.info(
+                    f"Strategy {strategy.id} received webhook before start time, ignoring"
+                )
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "status": "error",
+                        "error": "Cannot place orders before start time",
+                    },
+                )
 
             # Check if after squareoff time for all orders
             if current_time >= squareoff_time:
-                logger.info(f'Strategy {strategy.id} received webhook after squareoff time, ignoring')
-                return JSONResponse(status_code=400, content={
-                    'status': 'error',
-                    'error': 'Cannot place orders after squareoff time'
-                })
+                logger.info(
+                    f"Strategy {strategy.id} received webhook after squareoff time, ignoring"
+                )
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "status": "error",
+                        "error": "Cannot place orders after squareoff time",
+                    },
+                )
 
             # For entry orders (BUY/SHORT), check end time
             if is_entry_order and current_time >= end_time:
-                logger.info(f'Strategy {strategy.id} received entry order after end time, ignoring')
-                return JSONResponse(status_code=400, content={
-                    'status': 'error',
-                    'error': 'Cannot place entry orders after end time'
-                })
+                logger.info(
+                    f"Strategy {strategy.id} received entry order after end time, ignoring"
+                )
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "status": "error",
+                        "error": "Cannot place entry orders after end time",
+                    },
+                )
 
         # Get symbols and trigger prices
-        symbols = data.get('stocks', '').split(',')
+        symbols = data.get("stocks", "").split(",")
         # trigger_prices = data.get('trigger_prices', '').split(',') # Not used in Flask version
 
         if not symbols:
-            logger.error('No symbols received in webhook')
-            return JSONResponse(status_code=400, content={'status': 'error', 'error': 'No symbols received'})
+            logger.error("No symbols received in webhook")
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "error": "No symbols received"},
+            )
 
         # Get symbol mappings
         mappings = await get_symbol_mappings(db, strategy.id)
         if not mappings:
-            logger.error(f'No symbol mappings found for strategy {strategy.id}')
-            return JSONResponse(status_code=400, content={'status': 'error', 'error': 'No symbol mappings configured'})
+            logger.error(f"No symbol mappings found for strategy {strategy.id}")
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "error": "No symbol mappings configured"},
+            )
 
         mapping_dict = {m.chartink_symbol: m for m in mappings}
 
         # Get API key from app.core.schemas
         api_key = get_api_key_for_tradingview(db, strategy.user_id)
         if not api_key:
-            logger.error(f'No API key found for user {strategy.user_id}')
-            return JSONResponse(status_code=401, content={'status': 'error', 'error': 'No API key found'})
+            logger.error(f"No API key found for user {strategy.user_id}")
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error", "error": "No API key found"},
+            )
 
         # Process each symbol
         processed_symbols = []
@@ -676,55 +871,62 @@ async def webhook(webhook_id: str, request: Request, db: AsyncSession = Depends(
 
             mapping = mapping_dict.get(symbol)
             if not mapping:
-                logger.warning(f'No mapping found for symbol {symbol} in strategy {strategy.id}')
+                logger.warning(
+                    f"No mapping found for symbol {symbol} in strategy {strategy.id}"
+                )
                 continue
 
             # Prepare base payload
             payload = {
-                'apikey': api_key,
-                'strategy': strategy.name,
-                'symbol': mapping.chartink_symbol,
-                'exchange': mapping.exchange,
-                'action': action,
-                'product': mapping.product_type,
-                'pricetype': 'MARKET'
+                "apikey": api_key,
+                "strategy": strategy.name,
+                "symbol": mapping.chartink_symbol,
+                "exchange": mapping.exchange,
+                "action": action,
+                "product": mapping.product_type,
+                "pricetype": "MARKET",
             }
 
             # Add quantity based on order type
             if use_smart_order:
                 # For SELL and COVER, use smart order with quantity=0 and position_size=0
-                payload.update({
-                    'quantity': '0',
-                    'position_size': '0',
-                    'price': '0',
-                    'trigger_price': '0',
-                    'disclosed_quantity': '0'
-                })
-                endpoint = 'placesmartorder'
+                payload.update(
+                    {
+                        "quantity": "0",
+                        "position_size": "0",
+                        "price": "0",
+                        "trigger_price": "0",
+                        "disclosed_quantity": "0",
+                    }
+                )
+                endpoint = "placesmartorder"
             else:
                 # For BUY and SHORT, use regular order with configured quantity
-                payload.update({
-                    'quantity': str(mapping.quantity)
-                })
-                endpoint = 'placeorder'
+                payload.update({"quantity": str(mapping.quantity)})
+                endpoint = "placeorder"
 
-            logger.info(f'Queueing {endpoint} with payload: {payload}')
+            logger.info(f"Queueing {endpoint} with payload: {payload}")
 
             # Queue the order instead of executing directly
             queue_order(endpoint, payload)
             processed_symbols.append(symbol)
 
         if processed_symbols:
-            return JSONResponse(status_code=200, content={
-                'status': 'success',
-                'message': f'Orders queued for symbols: {", ".join(processed_symbols)}'
-            })
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "success",
+                    "message": f"Orders queued for symbols: {', '.join(processed_symbols)}",
+                },
+            )
         else:
-            return JSONResponse(status_code=200, content={
-                'status': 'warning',
-                'message': 'No orders were queued'
-            })
+            return JSONResponse(
+                status_code=200,
+                content={"status": "warning", "message": "No orders were queued"},
+            )
 
     except Exception as e:
-        logger.error(f'Error processing webhook: {str(e)}')
-        return JSONResponse(status_code=500, content={'status': 'error', 'error': str(e)})
+        logger.error(f"Error processing webhook: {str(e)}")
+        return JSONResponse(
+            status_code=500, content={"status": "error", "error": str(e)}
+        )

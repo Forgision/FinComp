@@ -1,17 +1,16 @@
-
 class DefinedgeExchangeMapper:
     """Maps OpenAlgo exchange codes to DefinEdge-specific exchange types"""
 
     # Exchange mapping for DefinEdge broker (as per API docs)
     EXCHANGE_MAP = {
-        'NSE': 'NSE',
-        'BSE': 'BSE',
-        'NFO': 'NFO',
-        'BFO': 'BFO',
-        'CDS': 'CDS',
-        'MCX': 'MCX',
-        'NSE_INDEX': 'NSE',
-        'BSE_INDEX': 'BSE'
+        "NSE": "NSE",
+        "BSE": "BSE",
+        "NFO": "NFO",
+        "BFO": "BFO",
+        "CDS": "CDS",
+        "MCX": "MCX",
+        "NSE_INDEX": "NSE",
+        "BSE_INDEX": "BSE",
     }
 
     @staticmethod
@@ -35,17 +34,17 @@ class DefinedgeCapabilityRegistry:
     """
 
     # DefinEdge broker capabilities
-    exchanges = ['NSE', 'BSE', 'NFO', 'BFO', 'MCX', 'CDS']
-    subscription_modes = ['t', 'd']  # 't': touchline (LTP+Quote), 'd': depth
+    exchanges = ["NSE", "BSE", "NFO", "BFO", "MCX", "CDS"]
+    subscription_modes = ["t", "d"]  # 't': touchline (LTP+Quote), 'd': depth
 
     # Depth support - DefinEdge supports 5 level depth for all exchanges
     depth_support = {
-        'NSE': [5],
-        'BSE': [5],
-        'NFO': [5],
-        'BFO': [5],
-        'MCX': [5],
-        'CDS': [5]
+        "NSE": [5],
+        "BSE": [5],
+        "NFO": [5],
+        "BFO": [5],
+        "MCX": [5],
+        "CDS": [5],
     }
 
     @classmethod

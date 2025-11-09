@@ -21,9 +21,11 @@ core_router = APIRouter()
 async def download(request: Request, _=Depends(invalidate_session_if_invalid)):
     return templates.TemplateResponse("download.html", {"request": request})
 
+
 @core_router.get("/faq")
 async def faq(request: Request, _=Depends(invalidate_session_if_invalid)):
     return templates.TemplateResponse("faq.html", {"request": request})
+
 
 @core_router.get("/setup")
 async def setup_form(request: Request, db_session: AsyncSessionLocal = Depends(get_db)):
@@ -31,12 +33,13 @@ async def setup_form(request: Request, db_session: AsyncSessionLocal = Depends(g
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("setup.html", {"request": request})
 
+
 @core_router.post("/setup")
 async def setup_submit(
     request: Request,
     username: str = Form(...),
     email: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
 ):
     if find_admin_user() is not None:
         return RedirectResponse(url="/login", status_code=303)
@@ -56,17 +59,26 @@ async def setup_submit(
         qr.add_data(user.get_totp_uri())
         qr.make(fit=True)
         img_buffer = io.BytesIO()
-        qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
+        qr.make_image(fill_color="black", back_color="white").save(
+            img_buffer, format="PNG"
+        )
         qr_code = base64.b64encode(img_buffer.getvalue()).decode()
 
         request.session["totp_setup"] = True
         request.session["username"] = username
         request.session["qr_code"] = qr_code
         request.session["totp_secret"] = user.totp_secret
-        request.session["flash_messages"] = [("success", "Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.")]
-        
+        request.session["flash_messages"] = [
+            (
+                "success",
+                "Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.",
+            )
+        ]
+
         return RedirectResponse(url="/login", status_code=303)
     else:
         logger.error(f"Failed to create admin user {username}")
-        request.session["flash_messages"] = [("error", "User already exists or an error occurred")]
+        request.session["flash_messages"] = [
+            ("error", "User already exists or an error occurred")
+        ]
         return RedirectResponse(url="/setup", status_code=303)

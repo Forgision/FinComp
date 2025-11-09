@@ -14,8 +14,8 @@ def get_margin_data(auth_token):
 
         # Set up headers with authentication token
         headers = {
-            'Accept': 'application/json',
-            'Authorization': f'Bearer {auth_token}'
+            "Accept": "application/json",
+            "Authorization": f"Bearer {auth_token}",
         }
 
         # Get the shared httpx client with connection pooling
@@ -26,7 +26,9 @@ def get_margin_data(auth_token):
 
         # Check if the request was successful
         if response.status_code != 200:
-            logger.error(f"Error fetching margin data: HTTP {{response.status_code}} - {response.text}")
+            logger.error(
+                f"Error fetching margin data: HTTP {{response.status_code}} - {response.text}"
+            )
             return {}
 
         # Parse the JSON response
@@ -34,12 +36,12 @@ def get_margin_data(auth_token):
         logger.info(f"Funds Details: {response_data}")
 
         # Check if the response was successful according to Groww's status field
-        if response_data.get('status') != 'SUCCESS':
+        if response_data.get("status") != "SUCCESS":
             logger.info(f"Error fetching margin data: {response_data.get('status')}")
             return {}
 
         # Extract the margin data from the payload
-        margin_data = response_data.get('payload', {})
+        margin_data = response_data.get("payload", {})
 
         if not margin_data:
             logger.error("Error fetching margin data: Empty payload")
@@ -62,46 +64,42 @@ def get_margin_data(auth_token):
             total_realised = 0
 
         # Extract equity and F&O margin details
-        equity_margin_details = margin_data.get('equity_margin_details', {})
-        fno_margin_details = margin_data.get('fno_margin_details', {})
+        equity_margin_details = margin_data.get("equity_margin_details", {})
+        fno_margin_details = margin_data.get("fno_margin_details", {})
 
         # Construct and return the processed margin data in the standard format
         # Map Groww API response fields to the expected structure
         processed_margin_data = {
             # Use clear_cash as available cash
-            "availablecash": "{:.2f}".format(margin_data.get('clear_cash', 0)),
-
+            "availablecash": "{:.2f}".format(margin_data.get("clear_cash", 0)),
             # Use collateral_available for collateral
-            "collateral": "{:.2f}".format(margin_data.get('collateral_available', 0)),
-
+            "collateral": "{:.2f}".format(margin_data.get("collateral_available", 0)),
             # Use calculated or fetched unrealized P&L
             "m2munrealized": "{:.2f}".format(total_unrealised),
-
             # Use calculated or fetched realized P&L
             "m2mrealized": "{:.2f}".format(total_realised),
-
             # Use net_margin_used for utilized debits
-            "utiliseddebits": "{:.2f}".format(margin_data.get('net_margin_used', 0)),
-
+            "utiliseddebits": "{:.2f}".format(margin_data.get("net_margin_used", 0)),
             # Additional Groww-specific fields that might be useful
-            "brokerage_and_charges": "{:.2f}".format(margin_data.get('brokerage_and_charges', 0)),
-            "adhoc_margin": "{:.2f}".format(margin_data.get('adhoc_margin', 0)),
-
+            "brokerage_and_charges": "{:.2f}".format(
+                margin_data.get("brokerage_and_charges", 0)
+            ),
+            "adhoc_margin": "{:.2f}".format(margin_data.get("adhoc_margin", 0)),
             # Add equity and F&O specific balances for additional details
             "equity_cnc_balance": "{:.2f}".format(
-                equity_margin_details.get('cnc_balance_available', 0)
+                equity_margin_details.get("cnc_balance_available", 0)
             ),
             "equity_mis_balance": "{:.2f}".format(
-                equity_margin_details.get('mis_balance_available', 0)
+                equity_margin_details.get("mis_balance_available", 0)
             ),
             "fno_futures_balance": "{:.2f}".format(
-                fno_margin_details.get('future_balance_available', 0)
+                fno_margin_details.get("future_balance_available", 0)
             ),
             "fno_option_buy_balance": "{:.2f}".format(
-                fno_margin_details.get('option_buy_balance_available', 0)
+                fno_margin_details.get("option_buy_balance_available", 0)
             ),
             "fno_option_sell_balance": "{:.2f}".format(
-                fno_margin_details.get('option_sell_balance_available', 0)
+                fno_margin_details.get("option_sell_balance_available", 0)
             ),
         }
         return processed_margin_data

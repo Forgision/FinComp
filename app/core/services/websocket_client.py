@@ -43,11 +43,11 @@ class WebSocketClient:
         # Message handling
         self.message_queue = Queue()
         self.callbacks = {
-            'market_data': [],
-            'auth': [],
-            'subscribe': [],
-            'unsubscribe': [],
-            'error': []
+            "market_data": [],
+            "auth": [],
+            "subscribe": [],
+            "unsubscribe": [],
+            "error": [],
         }
 
         # Subscription tracking
@@ -118,7 +118,9 @@ class WebSocketClient:
         self.authenticated = False
         logger.info("Disconnected from WebSocket server")
 
-    def subscribe(self, symbols: List[Dict[str, str]], mode: str = "Quote") -> Dict[str, Any]:
+    def subscribe(
+        self, symbols: List[Dict[str, str]], mode: str = "Quote"
+    ) -> Dict[str, Any]:
         """
         Subscribe to market data for symbols
 
@@ -130,23 +132,15 @@ class WebSocketClient:
             Dict with subscription status
         """
         if not self.connected or not self.authenticated:
-            return {
-                'status': 'error',
-                'message': 'Not connected or authenticated'
-            }
+            return {"status": "error", "message": "Not connected or authenticated"}
 
         try:
-            subscription_msg = {
-                "action": "subscribe",
-                "symbols": symbols,
-                "mode": mode
-            }
+            subscription_msg = {"action": "subscribe", "symbols": symbols, "mode": mode}
 
             # Send subscription request
             if self.loop and self.ws:
                 future = asyncio.run_coroutine_threadsafe(
-                    self.ws.send(json.dumps(subscription_msg)),
-                    self.loop
+                    self.ws.send(json.dumps(subscription_msg)), self.loop
                 )
                 future.result(timeout=5)
 
@@ -159,25 +153,24 @@ class WebSocketClient:
                         self.active_subscriptions[key].add(mode)
 
                 return {
-                    'status': 'success',
-                    'message': f'Subscribed to {len(symbols)} symbols',
-                    'symbols': symbols,
-                    'mode': mode
+                    "status": "success",
+                    "message": f"Subscribed to {len(symbols)} symbols",
+                    "symbols": symbols,
+                    "mode": mode,
                 }
             else:
                 return {
-                    'status': 'error',
-                    'message': 'WebSocket connection not available'
+                    "status": "error",
+                    "message": "WebSocket connection not available",
                 }
 
         except Exception as e:
             logger.exception(f"Error subscribing to symbols: {e}")
-            return {
-                'status': 'error',
-                'message': str(e)
-            }
+            return {"status": "error", "message": str(e)}
 
-    def unsubscribe(self, symbols: List[Dict[str, str]], mode: str = "Quote") -> Dict[str, Any]:
+    def unsubscribe(
+        self, symbols: List[Dict[str, str]], mode: str = "Quote"
+    ) -> Dict[str, Any]:
         """
         Unsubscribe from market data
 
@@ -189,23 +182,19 @@ class WebSocketClient:
             Dict with unsubscription status
         """
         if not self.connected or not self.authenticated:
-            return {
-                'status': 'error',
-                'message': 'Not connected or authenticated'
-            }
+            return {"status": "error", "message": "Not connected or authenticated"}
 
         try:
             unsubscription_msg = {
                 "action": "unsubscribe",
                 "symbols": symbols,
-                "mode": mode
+                "mode": mode,
             }
 
             # Send unsubscription request
             if self.loop and self.ws:
                 future = asyncio.run_coroutine_threadsafe(
-                    self.ws.send(json.dumps(unsubscription_msg)),
-                    self.loop
+                    self.ws.send(json.dumps(unsubscription_msg)), self.loop
                 )
                 future.result(timeout=5)
 
@@ -219,42 +208,33 @@ class WebSocketClient:
                                 del self.active_subscriptions[key]
 
                 return {
-                    'status': 'success',
-                    'message': f'Unsubscribed from {len(symbols)} symbols',
-                    'symbols': symbols,
-                    'mode': mode
+                    "status": "success",
+                    "message": f"Unsubscribed from {len(symbols)} symbols",
+                    "symbols": symbols,
+                    "mode": mode,
                 }
             else:
                 return {
-                    'status': 'error',
-                    'message': 'WebSocket connection not available'
+                    "status": "error",
+                    "message": "WebSocket connection not available",
                 }
 
         except Exception as e:
             logger.exception(f"Error unsubscribing from symbols: {e}")
-            return {
-                'status': 'error',
-                'message': str(e)
-            }
+            return {"status": "error", "message": str(e)}
 
     def unsubscribe_all(self) -> Dict[str, Any]:
         """Unsubscribe from all symbols"""
         if not self.connected or not self.authenticated:
-            return {
-                'status': 'error',
-                'message': 'Not connected or authenticated'
-            }
+            return {"status": "error", "message": "Not connected or authenticated"}
 
         try:
-            unsubscription_msg = {
-                "action": "unsubscribe_all"
-            }
+            unsubscription_msg = {"action": "unsubscribe_all"}
 
             # Send unsubscription request
             if self.loop and self.ws:
                 future = asyncio.run_coroutine_threadsafe(
-                    self.ws.send(json.dumps(unsubscription_msg)),
-                    self.loop
+                    self.ws.send(json.dumps(unsubscription_msg)), self.loop
                 )
                 future.result(timeout=5)
 
@@ -262,43 +242,37 @@ class WebSocketClient:
                 with self.lock:
                     self.active_subscriptions.clear()
 
-                return {
-                    'status': 'success',
-                    'message': 'Unsubscribed from all symbols'
-                }
+                return {"status": "success", "message": "Unsubscribed from all symbols"}
             else:
                 return {
-                    'status': 'error',
-                    'message': 'WebSocket connection not available'
+                    "status": "error",
+                    "message": "WebSocket connection not available",
                 }
 
         except Exception as e:
             logger.exception(f"Error unsubscribing from all symbols: {e}")
-            return {
-                'status': 'error',
-                'message': str(e)
-            }
+            return {"status": "error", "message": str(e)}
 
     def get_subscriptions(self) -> Dict[str, Any]:
         """Get current active subscriptions"""
         with self.lock:
             subscriptions = []
             for symbol_key, modes in self.active_subscriptions.items():
-                exchange, symbol = symbol_key.split(':')
+                exchange, symbol = symbol_key.split(":")
                 for mode in modes:
-                    subscriptions.append({
-                        'exchange': exchange,
-                        'symbol': symbol,
-                        'mode': mode
-                    })
+                    subscriptions.append(
+                        {"exchange": exchange, "symbol": symbol, "mode": mode}
+                    )
 
             return {
-                'status': 'success',
-                'subscriptions': subscriptions,
-                'count': len(subscriptions)
+                "status": "success",
+                "subscriptions": subscriptions,
+                "count": len(subscriptions),
             }
 
-    def get_market_data(self, symbol: Optional[str] = None, exchange: Optional[str] = None) -> Dict[str, Any]:
+    def get_market_data(
+        self, symbol: Optional[str] = None, exchange: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get cached market data
 
@@ -380,8 +354,10 @@ class WebSocketClient:
 
                 if self.running:
                     retry_count += 1
-                    wait_time = min(2 ** retry_count, 30)  # Exponential backoff
-                    logger.info(f"Reconnecting in {wait_time} seconds... (attempt {retry_count}/{max_retries})")
+                    wait_time = min(2**retry_count, 30)  # Exponential backoff
+                    logger.info(
+                        f"Reconnecting in {wait_time} seconds... (attempt {retry_count}/{max_retries})"
+                    )
                     await asyncio.sleep(wait_time)
 
             except Exception as e:
@@ -395,10 +371,7 @@ class WebSocketClient:
 
     async def _authenticate(self):
         """Send authentication message"""
-        auth_msg = {
-            "action": "authenticate",
-            "api_key": self.api_key
-        }
+        auth_msg = {"action": "authenticate", "api_key": self.api_key}
 
         await self.ws.send(json.dumps(auth_msg))
         logger.info("Sent authentication request")
@@ -412,27 +385,27 @@ class WebSocketClient:
         """Handle incoming WebSocket messages"""
         try:
             data = json.loads(message)
-            msg_type = data.get('type', data.get('status'))
+            msg_type = data.get("type", data.get("status"))
 
             # Handle authentication response
-            if msg_type == 'auth':
-                if data.get('status') == 'success':
+            if msg_type == "auth":
+                if data.get("status") == "success":
                     self.authenticated = True
                     logger.info("Authentication successful")
                 else:
                     logger.error(f"Authentication failed: {data.get('message')}")
 
                 # Trigger auth callbacks
-                for callback in self.callbacks['auth']:
+                for callback in self.callbacks["auth"]:
                     try:
                         callback(data)
                     except Exception as e:
                         logger.error(f"Error in auth callback: {e}")
 
             # Handle market data
-            elif msg_type == 'market_data':
-                symbol = data.get('symbol')
-                exchange = data.get('exchange')
+            elif msg_type == "market_data":
+                symbol = data.get("symbol")
+                exchange = data.get("exchange")
 
                 if symbol and exchange:
                     # Cache the data
@@ -441,32 +414,32 @@ class WebSocketClient:
                         self.market_data_cache[key] = data
 
                     # Trigger market data callbacks
-                    for callback in self.callbacks['market_data']:
+                    for callback in self.callbacks["market_data"]:
                         try:
                             callback(data)
                         except Exception as e:
                             logger.error(f"Error in market data callback: {e}")
 
             # Handle subscription responses
-            elif msg_type == 'subscribe':
-                for callback in self.callbacks['subscribe']:
+            elif msg_type == "subscribe":
+                for callback in self.callbacks["subscribe"]:
                     try:
                         callback(data)
                     except Exception as e:
                         logger.error(f"Error in subscribe callback: {e}")
 
             # Handle unsubscription responses
-            elif msg_type == 'unsubscribe':
-                for callback in self.callbacks['unsubscribe']:
+            elif msg_type == "unsubscribe":
+                for callback in self.callbacks["unsubscribe"]:
                     try:
                         callback(data)
                     except Exception as e:
                         logger.error(f"Error in unsubscribe callback: {e}")
 
             # Handle errors
-            elif data.get('status') == 'error':
+            elif data.get("status") == "error":
                 logger.error(f"Error from server: {data.get('message')}")
-                for callback in self.callbacks['error']:
+                for callback in self.callbacks["error"]:
                     try:
                         callback(data)
                     except Exception as e:
@@ -482,7 +455,10 @@ class WebSocketClient:
 _client_instances = {}
 _client_lock = threading.Lock()
 
-def get_websocket_client(api_key: str, host: str = "localhost", port: int = 8765) -> WebSocketClient:
+
+def get_websocket_client(
+    api_key: str, host: str = "localhost", port: int = 8765
+) -> WebSocketClient:
     """
     Get or create a WebSocket client instance for the given API key.
     Uses singleton pattern to reuse connections.
@@ -504,6 +480,7 @@ def get_websocket_client(api_key: str, host: str = "localhost", port: int = 8765
                 raise ConnectionError("Failed to connect to WebSocket server")
 
         return _client_instances[api_key]
+
 
 def close_all_clients():
     """Close all WebSocket client connections"""

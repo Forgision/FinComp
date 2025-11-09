@@ -47,10 +47,7 @@ class SymbolMapper:
                 SymbolMapper.logger.error(f"Symbol not found: {symbol}-{exchange}")
                 return None
 
-            return {
-                'token': token,
-                'brexchange': brexchange
-            }
+            return {"token": token, "brexchange": brexchange}
         except Exception as e:
             SymbolMapper.logger.exception(f"Error retrieving symbol: {e}")
             return None

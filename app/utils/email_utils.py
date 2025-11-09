@@ -54,7 +54,7 @@ async def send_test_email(
         if missing_fields:
             return {
                 "success": False,
-                "message": f'Missing required SMTP settings: {", ".join(missing_fields)}',
+                "message": f"Missing required SMTP settings: {', '.join(missing_fields)}",
             }
 
         # Create test email content
@@ -90,10 +90,10 @@ async def send_test_email(
                     <div class="info-box">
                         <h3>📋 Test Details:</h3>
                         <ul>
-                            <li><strong>Test Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</li>
-                            <li><strong>SMTP Server:</strong> {smtp_settings['smtp_server']}:{smtp_settings['smtp_port']}</li>
-                            <li><strong>Security:</strong> {'TLS/SSL Enabled' if smtp_settings.get('smtp_use_tls') else 'No Encryption'}</li>
-                            <li><strong>From Address:</strong> {smtp_settings['smtp_from_email']}</li>
+                            <li><strong>Test Date:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}</li>
+                            <li><strong>SMTP Server:</strong> {smtp_settings["smtp_server"]}:{smtp_settings["smtp_port"]}</li>
+                            <li><strong>Security:</strong> {"TLS/SSL Enabled" if smtp_settings.get("smtp_use_tls") else "No Encryption"}</li>
+                            <li><strong>From Address:</strong> {smtp_settings["smtp_from_email"]}</li>
                             <li><strong>Recipient:</strong> {recipient_email}</li>
                         </ul>
                     </div>
@@ -130,10 +130,10 @@ OpenAlgo SMTP Configuration Test
 Congratulations! Your OpenAlgo SMTP configuration is working correctly.
 
 Test Details:
-- Test Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
-- SMTP Server: {smtp_settings['smtp_server']}:{smtp_settings['smtp_port']}
-- Security: {'TLS/SSL Enabled' if smtp_settings.get('smtp_use_tls') else 'No Encryption'}
-- From Address: {smtp_settings['smtp_from_email']}
+- Test Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
+- SMTP Server: {smtp_settings["smtp_server"]}:{smtp_settings["smtp_port"]}
+- Security: {"TLS/SSL Enabled" if smtp_settings.get("smtp_use_tls") else "No Encryption"}
+- From Address: {smtp_settings["smtp_from_email"]}
 - Recipient: {recipient_email}
 
 What this means:
@@ -449,7 +449,7 @@ def validate_smtp_settings(smtp_settings):
         if missing_fields:
             return {
                 "success": False,
-                "message": f'Missing required fields: {", ".join(missing_fields)}',
+                "message": f"Missing required fields: {', '.join(missing_fields)}",
             }
 
         # Test connection without sending email

@@ -2,6 +2,7 @@
 Shoonya WebSocket Client Implementation
 Handles connection to Shoonya's market data streaming API
 """
+
 import json
 import threading
 import time
@@ -37,11 +38,16 @@ class ShoonyaWebSocket:
     # Authentication response
     AUTH_SUCCESS = "OK"
 
-    def __init__(self, user_id: str, actid: str, susertoken: str,
-                 on_message: Optional[Callable] = None,
-                 on_error: Optional[Callable] = None,
-                 on_close: Optional[Callable] = None,
-                 on_open: Optional[Callable] = None):
+    def __init__(
+        self,
+        user_id: str,
+        actid: str,
+        susertoken: str,
+        on_message: Optional[Callable] = None,
+        on_error: Optional[Callable] = None,
+        on_close: Optional[Callable] = None,
+        on_open: Optional[Callable] = None,
+    ):
         """
         Initialize Shoonya WebSocket client
 
@@ -107,7 +113,7 @@ class ShoonyaWebSocket:
             on_open=self._on_open,
             on_message=self._on_message,
             on_error=self._on_error,
-            on_close=self._on_close
+            on_close=self._on_close,
         )
 
         self.ws_thread = threading.Thread(target=self._run_websocket, daemon=True)
@@ -136,8 +142,7 @@ class ShoonyaWebSocket:
         """Run the WebSocket connection with proper error handling"""
         try:
             self.ws.run_forever(
-                ping_interval=self.PING_INTERVAL,
-                ping_timeout=self.PING_TIMEOUT
+                ping_interval=self.PING_INTERVAL, ping_timeout=self.PING_TIMEOUT
             )
         except Exception as e:
             self.logger.error(f"WebSocket run error: {e}")
@@ -199,7 +204,7 @@ class ShoonyaWebSocket:
             "uid": self.user_id,
             "actid": self.actid,
             "source": "API",
-            "susertoken": self.susertoken
+            "susertoken": self.susertoken,
         }
 
         try:
@@ -231,7 +236,7 @@ class ShoonyaWebSocket:
         """
         try:
             data = json.loads(message)
-            msg_type = data.get('t')
+            msg_type = data.get("t")
 
             if msg_type == self.MSG_TYPE_AUTH_ACK:
                 return self._handle_auth_response(data)
@@ -255,7 +260,7 @@ class ShoonyaWebSocket:
         Returns:
             bool: True (message handled)
         """
-        if data.get('s') == self.AUTH_SUCCESS:
+        if data.get("s") == self.AUTH_SUCCESS:
             self.logger.info("Authentication successful")
         else:
             self.logger.error(f"Authentication failed: {data}")
@@ -267,7 +272,9 @@ class ShoonyaWebSocket:
         self.logger.error(f"WebSocket error: {error}")
         self._call_external_callback(self.on_error, ws, error)
 
-    def _on_close(self, ws, close_status_code: Optional[int], close_msg: Optional[str]) -> None:
+    def _on_close(
+        self, ws, close_status_code: Optional[int], close_msg: Optional[str]
+    ) -> None:
         """Handle WebSocket connection close event"""
         self.connected = False
         self.logger.info(f"WebSocket closed: {close_status_code} - {close_msg}")
@@ -300,7 +307,9 @@ class ShoonyaWebSocket:
         if self._heartbeat_thread and self._heartbeat_thread.is_alive():
             return
 
-        self._heartbeat_thread = threading.Thread(target=self._heartbeat_worker, daemon=True)
+        self._heartbeat_thread = threading.Thread(
+            target=self._heartbeat_worker, daemon=True
+        )
         self._heartbeat_thread.start()
         self.logger.debug("Heartbeat thread started")
 
@@ -375,9 +384,7 @@ class ShoonyaWebSocket:
             bool: True if subscription sent successfully, False otherwise
         """
         return self._send_subscription_message(
-            self.MSG_TYPE_TOUCHLINE_SUB,
-            scrip_list,
-            "touchline subscription"
+            self.MSG_TYPE_TOUCHLINE_SUB, scrip_list, "touchline subscription"
         )
 
     def unsubscribe_touchline(self, scrip_list: str) -> bool:
@@ -391,9 +398,7 @@ class ShoonyaWebSocket:
             bool: True if unsubscription sent successfully, False otherwise
         """
         return self._send_subscription_message(
-            self.MSG_TYPE_TOUCHLINE_UNSUB,
-            scrip_list,
-            "touchline unsubscription"
+            self.MSG_TYPE_TOUCHLINE_UNSUB, scrip_list, "touchline unsubscription"
         )
 
     def subscribe_depth(self, scrip_list: str) -> bool:
@@ -407,9 +412,7 @@ class ShoonyaWebSocket:
             bool: True if subscription sent successfully, False otherwise
         """
         return self._send_subscription_message(
-            self.MSG_TYPE_DEPTH_SUB,
-            scrip_list,
-            "depth subscription"
+            self.MSG_TYPE_DEPTH_SUB, scrip_list, "depth subscription"
         )
 
     def unsubscribe_depth(self, scrip_list: str) -> bool:
@@ -423,12 +426,12 @@ class ShoonyaWebSocket:
             bool: True if unsubscription sent successfully, False otherwise
         """
         return self._send_subscription_message(
-            self.MSG_TYPE_DEPTH_UNSUB,
-            scrip_list,
-            "depth unsubscription"
+            self.MSG_TYPE_DEPTH_UNSUB, scrip_list, "depth unsubscription"
         )
 
-    def _send_subscription_message(self, msg_type: str, scrip_list: str, operation_name: str) -> bool:
+    def _send_subscription_message(
+        self, msg_type: str, scrip_list: str, operation_name: str
+    ) -> bool:
         """
         Send subscription/unsubscription message
 
@@ -477,7 +480,9 @@ class ShoonyaWebSocket:
             bool: True if connection is ready, False otherwise
         """
         if not self.ws:
-            self.logger.warning(f"Cannot send {operation_name}: WebSocket not initialized")
+            self.logger.warning(
+                f"Cannot send {operation_name}: WebSocket not initialized"
+            )
             return False
 
         if not self.connected:
@@ -504,12 +509,14 @@ class ShoonyaWebSocket:
             Dict: Connection state information
         """
         return {
-            'connected': self.connected,
-            'running': self.running,
-            'user_id': self.user_id,
-            'actid': self.actid,
-            'ws_url': self.WS_URL,
-            'last_message_time': self._last_message_time,
-            'heartbeat_thread_alive': self._heartbeat_thread.is_alive() if self._heartbeat_thread else False,
-            'ws_thread_alive': self.ws_thread.is_alive() if self.ws_thread else False
+            "connected": self.connected,
+            "running": self.running,
+            "user_id": self.user_id,
+            "actid": self.actid,
+            "ws_url": self.WS_URL,
+            "last_message_time": self._last_message_time,
+            "heartbeat_thread_alive": self._heartbeat_thread.is_alive()
+            if self._heartbeat_thread
+            else False,
+            "ws_thread_alive": self.ws_thread.is_alive() if self.ws_thread else False,
         }

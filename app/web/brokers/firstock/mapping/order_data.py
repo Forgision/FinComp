@@ -22,10 +22,10 @@ def map_order_data(order_data):
 
     # If it's a dict with status/data, it's raw API response
     if isinstance(order_data, dict):
-        if order_data.get('status') != 'success':
+        if order_data.get("status") != "success":
             logger.warning("No data available or invalid response.")
             return []
-        orders = order_data.get('data', [])
+        orders = order_data.get("data", [])
     else:
         logger.info("Invalid order data format")
         return []
@@ -34,34 +34,37 @@ def map_order_data(order_data):
     for order in orders:
         mapped_order = {}
         # Get OpenAlgo symbol from token
-        symbol_from_db = get_symbol(order.get('token'), order.get('exchange'))
+        symbol_from_db = get_symbol(order.get("token"), order.get("exchange"))
         if symbol_from_db:
-            mapped_order['tsym'] = symbol_from_db
+            mapped_order["tsym"] = symbol_from_db
         else:
-            logger.info(f"Symbol not found for token {order.get('token')} and exchange {order.get('exchange')}.")
-            mapped_order['tsym'] = order.get('tradingSymbol', '')
+            logger.info(
+                f"Symbol not found for token {order.get('token')} and exchange {order.get('exchange')}."
+            )
+            mapped_order["tsym"] = order.get("tradingSymbol", "")
 
         # Map transaction type (will be converted to BUY/SELL in calculate_order_statistics)
-        mapped_order['trantype'] = order.get('transactionType', '')
+        mapped_order["trantype"] = order.get("transactionType", "")
 
         # Map product type (will be converted in calculate_order_statistics)
-        mapped_order['prd'] = order.get('product', '')
+        mapped_order["prd"] = order.get("product", "")
 
         # Map price type (will be converted in calculate_order_statistics)
-        mapped_order['prctyp'] = order.get('priceType', '')
+        mapped_order["prctyp"] = order.get("priceType", "")
 
         # Map other fields
-        mapped_order['norenordno'] = order.get('orderNumber', '')
-        mapped_order['qty'] = order.get('quantity', '0')
-        mapped_order['prc'] = order.get('price', '0.00')
-        mapped_order['exch'] = order.get('exchange', '')
-        mapped_order['status'] = order.get('status', '').upper()
-        mapped_order['trgprc'] = order.get('triggerPrice', '0.00')
-        mapped_order['norentm'] = order.get('orderTime', '')
+        mapped_order["norenordno"] = order.get("orderNumber", "")
+        mapped_order["qty"] = order.get("quantity", "0")
+        mapped_order["prc"] = order.get("price", "0.00")
+        mapped_order["exch"] = order.get("exchange", "")
+        mapped_order["status"] = order.get("status", "").upper()
+        mapped_order["trgprc"] = order.get("triggerPrice", "0.00")
+        mapped_order["norentm"] = order.get("orderTime", "")
 
         mapped_orders.append(mapped_order)
 
     return mapped_orders
+
 
 def calculate_order_statistics(order_data):
     """
@@ -81,46 +84,49 @@ def calculate_order_statistics(order_data):
     if order_data:
         for order in order_data:
             # Count buy and sell orders
-            if order['trantype'] == 'B':
-                order['trantype'] = 'BUY'
+            if order["trantype"] == "B":
+                order["trantype"] = "BUY"
                 total_buy_orders += 1
-            elif order['trantype'] == 'S':
-                order['trantype'] = 'SELL'
+            elif order["trantype"] == "S":
+                order["trantype"] = "SELL"
                 total_sell_orders += 1
 
             # Map product type
-            if (order['exch'] == 'NSE' or order['exch'] == 'BSE') and order['prd'] == 'C':
-                order['prd'] = 'CNC'
-            elif order['prd'] == 'I':
-                order['prd'] = 'MIS'
-            elif order['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and order['prd'] == 'M':
-                order['prd'] = 'NRML'
+            if (order["exch"] == "NSE" or order["exch"] == "BSE") and order[
+                "prd"
+            ] == "C":
+                order["prd"] = "CNC"
+            elif order["prd"] == "I":
+                order["prd"] = "MIS"
+            elif order["exch"] in ["NFO", "MCX", "BFO", "CDS"] and order["prd"] == "M":
+                order["prd"] = "NRML"
 
             # Map price type
-            if order['prctyp'] == "MKT":
-                order['prctyp'] = "MARKET"
-            elif order['prctyp'] == "LMT":
-                order['prctyp'] = "LIMIT"
-            elif order['prctyp'] == "SL-MKT":
-                order['prctyp'] = "SL-M"
-            elif order['prctyp'] == "SL-LMT":
-                order['prctyp'] = "SL"
+            if order["prctyp"] == "MKT":
+                order["prctyp"] = "MARKET"
+            elif order["prctyp"] == "LMT":
+                order["prctyp"] = "LIMIT"
+            elif order["prctyp"] == "SL-MKT":
+                order["prctyp"] = "SL-M"
+            elif order["prctyp"] == "SL-LMT":
+                order["prctyp"] = "SL"
 
             # Count orders based on their status
-            if order['status'] == 'COMPLETE':
+            if order["status"] == "COMPLETE":
                 total_completed_orders += 1
-            elif order['status'] == 'OPEN':
+            elif order["status"] == "OPEN":
                 total_open_orders += 1
-            elif order['status'] == 'REJECTED':
+            elif order["status"] == "REJECTED":
                 total_rejected_orders += 1
 
     return {
-        'total_buy_orders': total_buy_orders,
-        'total_sell_orders': total_sell_orders,
-        'total_completed_orders': total_completed_orders,
-        'total_open_orders': total_open_orders,
-        'total_rejected_orders': total_rejected_orders
+        "total_buy_orders": total_buy_orders,
+        "total_sell_orders": total_sell_orders,
+        "total_completed_orders": total_completed_orders,
+        "total_open_orders": total_open_orders,
+        "total_rejected_orders": total_rejected_orders,
     }
+
 
 def transform_order_data(orders):
     """
@@ -160,12 +166,13 @@ def transform_order_data(orders):
             "product": order.get("prd", ""),
             "orderid": order.get("norenordno", ""),
             "order_status": order.get("status", "").lower(),
-            "timestamp": order.get("norentm", "")
+            "timestamp": order.get("norentm", ""),
         }
         transformed_orders.append(transformed_order)
 
     logger.info(f"Final transformed orders: {transformed_orders}")
     return transformed_orders
+
 
 def map_trade_data(trade_data):
     """
@@ -183,10 +190,10 @@ def map_trade_data(trade_data):
 
     # If it's a dict with status/data, it's raw API response
     if isinstance(trade_data, dict):
-        if trade_data.get('status') != 'success':
+        if trade_data.get("status") != "success":
             logger.info("No data available or invalid response.")
             return []
-        trades = trade_data.get('data', [])
+        trades = trade_data.get("data", [])
     else:
         logger.info("Invalid trade data format")
         return []
@@ -195,29 +202,32 @@ def map_trade_data(trade_data):
     for trade in trades:
         mapped_trade = {}
         # Get OpenAlgo symbol from token
-        symbol_from_db = get_symbol(trade.get('token'), trade.get('exchange'))
+        symbol_from_db = get_symbol(trade.get("token"), trade.get("exchange"))
         if symbol_from_db:
-            mapped_trade['tsym'] = symbol_from_db
+            mapped_trade["tsym"] = symbol_from_db
         else:
-            logger.info(f"Symbol not found for token {trade.get('token')} and exchange {trade.get('exchange')}.")
-            mapped_trade['tsym'] = trade.get('tradingSymbol', '')
+            logger.info(
+                f"Symbol not found for token {trade.get('token')} and exchange {trade.get('exchange')}."
+            )
+            mapped_trade["tsym"] = trade.get("tradingSymbol", "")
 
         # Map transaction type (will be converted to BUY/SELL)
-        mapped_trade['trantype'] = trade.get('transactionType', '')
+        mapped_trade["trantype"] = trade.get("transactionType", "")
 
         # Map product type (will be converted to CNC/MIS/NRML)
-        mapped_trade['prd'] = trade.get('product', '')
+        mapped_trade["prd"] = trade.get("product", "")
 
         # Map other fields
-        mapped_trade['exch'] = trade.get('exchange', '')
-        mapped_trade['qty'] = trade.get('fillQuantity', '0')
-        mapped_trade['avgprc'] = trade.get('fillPrice', '0.00')
-        mapped_trade['norenordno'] = trade.get('orderNumber', '')
-        mapped_trade['norentm'] = trade.get('fillTime', '')
+        mapped_trade["exch"] = trade.get("exchange", "")
+        mapped_trade["qty"] = trade.get("fillQuantity", "0")
+        mapped_trade["avgprc"] = trade.get("fillPrice", "0.00")
+        mapped_trade["norenordno"] = trade.get("orderNumber", "")
+        mapped_trade["norentm"] = trade.get("fillTime", "")
 
         mapped_trades.append(mapped_trade)
 
     return mapped_trades
+
 
 def transform_tradebook_data(trades):
     """
@@ -241,22 +251,22 @@ def transform_tradebook_data(trades):
     transformed_trades = []
     for trade in mapped_trades:
         # Convert transaction type
-        if trade['trantype'] == 'B':
-            trade['trantype'] = 'BUY'
-        elif trade['trantype'] == 'S':
-            trade['trantype'] = 'SELL'
+        if trade["trantype"] == "B":
+            trade["trantype"] = "BUY"
+        elif trade["trantype"] == "S":
+            trade["trantype"] = "SELL"
 
         # Convert product type
-        if (trade['exch'] == 'NSE' or trade['exch'] == 'BSE') and trade['prd'] == 'C':
-            trade['prd'] = 'CNC'
-        elif trade['prd'] == 'I':
-            trade['prd'] = 'MIS'
-        elif trade['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and trade['prd'] == 'M':
-            trade['prd'] = 'NRML'
+        if (trade["exch"] == "NSE" or trade["exch"] == "BSE") and trade["prd"] == "C":
+            trade["prd"] = "CNC"
+        elif trade["prd"] == "I":
+            trade["prd"] = "MIS"
+        elif trade["exch"] in ["NFO", "MCX", "BFO", "CDS"] and trade["prd"] == "M":
+            trade["prd"] = "NRML"
 
         # Calculate trade value
-        quantity = float(trade.get('qty', '0'))
-        price = float(trade.get('avgprc', '0.00'))
+        quantity = float(trade.get("qty", "0"))
+        price = float(trade.get("avgprc", "0.00"))
         trade_value = quantity * price
 
         transformed_trade = {
@@ -268,12 +278,13 @@ def transform_tradebook_data(trades):
             "average_price": trade.get("avgprc", "0.00"),
             "trade_value": "{:.2f}".format(trade_value),
             "orderid": trade.get("norenordno", ""),
-            "timestamp": trade.get("norentm", "")
+            "timestamp": trade.get("norentm", ""),
         }
         transformed_trades.append(transformed_trade)
 
     logger.info(f"Final transformed trades: {transformed_trades}")
     return transformed_trades
+
 
 def map_portfolio_data(portfolio_data):
     """
@@ -293,10 +304,10 @@ def map_portfolio_data(portfolio_data):
 
     # If it's a dict with status/data, it's raw API response
     if isinstance(portfolio_data, dict):
-        if portfolio_data.get('status') != 'success':
+        if portfolio_data.get("status") != "success":
             logger.info("No data available or invalid response.")
             return []
-        holdings = portfolio_data.get('data', [])
+        holdings = portfolio_data.get("data", [])
     else:
         logger.info("Invalid portfolio data format")
         return []
@@ -305,49 +316,58 @@ def map_portfolio_data(portfolio_data):
     mapped_holdings = []
     for holding in holdings:
         # Handle simple exchange/tradingSymbol structure (new Firstock format)
-        if 'exchange' in holding and 'tradingSymbol' in holding:
+        if "exchange" in holding and "tradingSymbol" in holding:
             mapped_holding = {}
 
             # Map exchange trading fields
-            mapped_holding['exch'] = holding.get('exchange', '')
-            mapped_holding['token'] = holding.get('token', '')
-            mapped_holding['trading_symbol'] = holding.get('tradingSymbol', '').replace('-EQ', '')  # Remove -EQ suffix
-            mapped_holding['tsym'] = holding.get('tradingSymbol', '').replace('-EQ', '')  # Also set tsym
-            mapped_holding['price_precision'] = int(holding.get('pricePrecision', '2'))
-            mapped_holding['tick_size'] = float(holding.get('tickSize', '0.05'))
-            mapped_holding['lot_size'] = int(holding.get('lotSize', '1'))
+            mapped_holding["exch"] = holding.get("exchange", "")
+            mapped_holding["token"] = holding.get("token", "")
+            mapped_holding["trading_symbol"] = holding.get("tradingSymbol", "").replace(
+                "-EQ", ""
+            )  # Remove -EQ suffix
+            mapped_holding["tsym"] = holding.get("tradingSymbol", "").replace(
+                "-EQ", ""
+            )  # Also set tsym
+            mapped_holding["price_precision"] = int(holding.get("pricePrecision", "2"))
+            mapped_holding["tick_size"] = float(holding.get("tickSize", "0.05"))
+            mapped_holding["lot_size"] = int(holding.get("lotSize", "1"))
 
             # Get OpenAlgo symbol from token
-            if holding.get('token'):
-                symbol_from_db = get_symbol(holding.get('token'), holding.get('exchange'))
+            if holding.get("token"):
+                symbol_from_db = get_symbol(
+                    holding.get("token"), holding.get("exchange")
+                )
                 if symbol_from_db:
-                    mapped_holding['tsym'] = symbol_from_db
+                    mapped_holding["tsym"] = symbol_from_db
                 else:
-                    logger.info(f"Symbol not found for token {holding.get('token')} and exchange {holding.get('exchange')}.")
-                    mapped_holding['tsym'] = mapped_holding['trading_symbol']
+                    logger.info(
+                        f"Symbol not found for token {holding.get('token')} and exchange {holding.get('exchange')}."
+                    )
+                    mapped_holding["tsym"] = mapped_holding["trading_symbol"]
             else:
-                mapped_holding['tsym'] = mapped_holding['trading_symbol']
+                mapped_holding["tsym"] = mapped_holding["trading_symbol"]
 
             # Map holding fields - set default values for now
-            mapped_holding['lot_size']
+            mapped_holding["lot_size"]
 
             # Firstock holdings API only provides symbol info, no quantity or price data
             # Setting minimal defaults to maintain API contract
-            mapped_holding['holdqty'] = '0'  # No quantity data available
-            mapped_holding['btstqty'] = '0'
-            mapped_holding['usedqty'] = '0'
-            mapped_holding['trade_qty'] = '0'
-            mapped_holding['sell_amount'] = '0.000000'
+            mapped_holding["holdqty"] = "0"  # No quantity data available
+            mapped_holding["btstqty"] = "0"
+            mapped_holding["usedqty"] = "0"
+            mapped_holding["trade_qty"] = "0"
+            mapped_holding["sell_amount"] = "0.000000"
 
             # No price data available from Firstock holdings API
-            mapped_holding['upldprc'] = "0.00"  # No average price data
-            mapped_holding['s_prdt_ali'] = 'CNC'  # Default to CNC for holdings
-            mapped_holding['cur_price'] = "0.00"  # No current price data
+            mapped_holding["upldprc"] = "0.00"  # No average price data
+            mapped_holding["s_prdt_ali"] = "CNC"  # Default to CNC for holdings
+            mapped_holding["cur_price"] = "0.00"  # No current price data
 
             # Add the holding
             mapped_holdings.append(mapped_holding)
 
     return mapped_holdings
+
 
 def calculate_portfolio_statistics(holdings_data):
     """
@@ -367,36 +387,39 @@ def calculate_portfolio_statistics(holdings_data):
     if holdings_data:
         for holding in holdings_data:
             # Calculate total quantity in lots
-            holdqty = int(float(holding.get('holdqty', 0)))
-            btstqty = int(float(holding.get('btstqty', 0)))
-            usedqty = int(float(holding.get('usedqty', 0)))
-            trade_qty = int(float(holding.get('trade_qty', 0)))
+            holdqty = int(float(holding.get("holdqty", 0)))
+            btstqty = int(float(holding.get("btstqty", 0)))
+            usedqty = int(float(holding.get("usedqty", 0)))
+            trade_qty = int(float(holding.get("trade_qty", 0)))
             total_qty = holdqty + btstqty + trade_qty - usedqty
 
             # Get prices
-            upld_price = float(holding.get('upldprc', 0.00))
-            cur_price = float(holding.get('cur_price', 0.00))
-            sell_amount = float(holding.get('sell_amount', 0.00))
+            upld_price = float(holding.get("upldprc", 0.00))
+            cur_price = float(holding.get("cur_price", 0.00))
+            sell_amount = float(holding.get("sell_amount", 0.00))
 
             # Calculate values
             inv_value = total_qty * upld_price
-            cur_value = total_qty * cur_price if cur_price > 0 else total_qty * upld_price
+            cur_value = (
+                total_qty * cur_price if cur_price > 0 else total_qty * upld_price
+            )
 
             # Update totals
             totalinvvalue += inv_value
             totalholdingvalue += cur_value
-            totalprofitandloss += (cur_value - inv_value + sell_amount)
+            totalprofitandloss += cur_value - inv_value + sell_amount
 
     # Calculate overall P&L percentage
     if totalinvvalue > 0:
         totalpnlpercentage = (totalprofitandloss / totalinvvalue) * 100
 
     return {
-        'totalholdingvalue': round(totalholdingvalue, 2),
-        'totalinvvalue': round(totalinvvalue, 2),
-        'totalprofitandloss': round(totalprofitandloss, 2),
-        'totalpnlpercentage': round(totalpnlpercentage, 2)
+        "totalholdingvalue": round(totalholdingvalue, 2),
+        "totalinvvalue": round(totalinvvalue, 2),
+        "totalprofitandloss": round(totalprofitandloss, 2),
+        "totalpnlpercentage": round(totalpnlpercentage, 2),
     }
+
 
 def transform_holdings_data(holdings):
     """
@@ -420,16 +443,16 @@ def transform_holdings_data(holdings):
     transformed_holdings = []
     for holding in mapped_holdings:
         # Calculate total quantity in lots
-        holdqty = int(float(holding.get('holdqty', 0)))
-        btstqty = int(float(holding.get('btstqty', 0)))
-        usedqty = int(float(holding.get('usedqty', 0)))
-        trade_qty = int(float(holding.get('trade_qty', 0)))
+        holdqty = int(float(holding.get("holdqty", 0)))
+        btstqty = int(float(holding.get("btstqty", 0)))
+        usedqty = int(float(holding.get("usedqty", 0)))
+        trade_qty = int(float(holding.get("trade_qty", 0)))
         total_qty = holdqty + btstqty + trade_qty - usedqty
 
         # Get prices and amounts
-        upld_price = float(holding.get('upldprc', 0.00))
-        cur_price = float(holding.get('cur_price', 0.00))
-        sell_amount = float(holding.get('sell_amount', 0.00))
+        upld_price = float(holding.get("upldprc", 0.00))
+        cur_price = float(holding.get("cur_price", 0.00))
+        sell_amount = float(holding.get("sell_amount", 0.00))
 
         # Calculate P&L (will be 0 if no quantity/price data available)
         inv_value = total_qty * upld_price
@@ -445,12 +468,13 @@ def transform_holdings_data(holdings):
             "quantity": total_qty,  # Will be 0 for Firstock
             "product": holding.get("s_prdt_ali", "CNC"),
             "pnl": round(pnl, 2),  # Will be 0 for Firstock
-            "pnlpercent": round(pnl_percent, 2)  # Will be 0 for Firstock
+            "pnlpercent": round(pnl_percent, 2),  # Will be 0 for Firstock
         }
         transformed_holdings.append(transformed_holding)
 
     logger.info(f"Final transformed holdings: {transformed_holdings}")
     return transformed_holdings
+
 
 def map_position_data(position_data):
     """
@@ -473,14 +497,18 @@ def map_position_data(position_data):
         logger.debug("Raw position data received:")
         logger.info(f"DEBUG: Status: {position_data.get('status')}")
         logger.info(f"DEBUG: Data type: {type(position_data.get('data'))}")
-        if position_data.get('status') != 'success':
+        if position_data.get("status") != "success":
             logger.info("No data available or invalid response.")
-            logger.info(f"DEBUG: Error message: {position_data.get('message', 'No error message')}")
+            logger.info(
+                f"DEBUG: Error message: {position_data.get('message', 'No error message')}"
+            )
             return []
-        positions = position_data.get('data', [])  # Firstock returns list of positions
+        positions = position_data.get("data", [])  # Firstock returns list of positions
         logger.debug(f"Number of positions extracted: {len(positions)}")
     else:
-        logger.debug(f"Invalid position data format. Type received: {type(position_data)}")
+        logger.debug(
+            f"Invalid position data format. Type received: {type(position_data)}"
+        )
         return []
 
     mapped_positions = []
@@ -489,37 +517,46 @@ def map_position_data(position_data):
         logger.debug(f"Raw position data: {json.dumps(position, indent=2)}")
         mapped_position = {}
         # Get OpenAlgo symbol from token
-        symbol_from_db = get_symbol(position.get('token'), position.get('exchange'))
-        logger.info(f"DEBUG: Looking up symbol - Token: {position.get('token')}, Exchange: {position.get('exchange')}")
+        symbol_from_db = get_symbol(position.get("token"), position.get("exchange"))
+        logger.info(
+            f"DEBUG: Looking up symbol - Token: {position.get('token')}, Exchange: {position.get('exchange')}"
+        )
         if symbol_from_db:
-            mapped_position['tsym'] = symbol_from_db
+            mapped_position["tsym"] = symbol_from_db
             logger.debug(f"Symbol found in DB: {symbol_from_db}")
         else:
-            logger.info(f"DEBUG: Symbol not found for token {position.get('token')} and exchange {position.get('exchange')}.")
-            mapped_position['tsym'] = position.get('tradingSymbol', '')
-            logger.info(f"DEBUG: Using trading symbol from response: {mapped_position['tsym']}")
+            logger.info(
+                f"DEBUG: Symbol not found for token {position.get('token')} and exchange {position.get('exchange')}."
+            )
+            mapped_position["tsym"] = position.get("tradingSymbol", "")
+            logger.info(
+                f"DEBUG: Using trading symbol from response: {mapped_position['tsym']}"
+            )
 
         # Map product type (will be converted to CNC/MIS/NRML)
-        mapped_position['prd'] = position.get('product', '')
+        mapped_position["prd"] = position.get("product", "")
         logger.info(f"DEBUG: Product type: {mapped_position['prd']}")
 
         # Map other fields
-        mapped_position['exch'] = position.get('exchange', '')
-        mapped_position['netqty'] = position.get('netQuantity', '0')
-        mapped_position['netavgprc'] = position.get('netAveragePrice', '0.00')
-        mapped_position['daybuyqty'] = position.get('dayBuyQuantity', '0')
-        mapped_position['daysellqty'] = position.get('daySellQuantity', '0')
-        mapped_position['daybuyamt'] = position.get('dayBuyAmount', '0.00')
-        mapped_position['daybuyavgprc'] = position.get('dayBuyAveragePrice', '0.00')
-        mapped_position['daysellamt'] = position.get('daySellAveragePrice', '0.00') # Using sell avg price as amount
-        mapped_position['unrealizedmtom'] = position.get('unrealizedMTOM', '0.00')
-        mapped_position['realizedpnl'] = position.get('RealizedPNL', '0.00')
+        mapped_position["exch"] = position.get("exchange", "")
+        mapped_position["netqty"] = position.get("netQuantity", "0")
+        mapped_position["netavgprc"] = position.get("netAveragePrice", "0.00")
+        mapped_position["daybuyqty"] = position.get("dayBuyQuantity", "0")
+        mapped_position["daysellqty"] = position.get("daySellQuantity", "0")
+        mapped_position["daybuyamt"] = position.get("dayBuyAmount", "0.00")
+        mapped_position["daybuyavgprc"] = position.get("dayBuyAveragePrice", "0.00")
+        mapped_position["daysellamt"] = position.get(
+            "daySellAveragePrice", "0.00"
+        )  # Using sell avg price as amount
+        mapped_position["unrealizedmtom"] = position.get("unrealizedMTOM", "0.00")
+        mapped_position["realizedpnl"] = position.get("RealizedPNL", "0.00")
 
         logger.debug(f"Mapped position data: {json.dumps(mapped_position, indent=2)}")
         mapped_positions.append(mapped_position)
 
     logger.debug(f"\nDEBUG: Total positions mapped: {len(mapped_positions)}")
     return mapped_positions
+
 
 def transform_positions_data(positions):
     """
@@ -543,12 +580,16 @@ def transform_positions_data(positions):
     transformed_positions = []
     for position in mapped_positions:
         # Convert product type
-        if (position['exch'] == 'NSE' or position['exch'] == 'BSE') and position['prd'] == 'C':
-            position['prd'] = 'CNC'
-        elif position['prd'] == 'I':
-            position['prd'] = 'MIS'
-        elif position['exch'] in ['NFO', 'MCX', 'BFO', 'CDS'] and position['prd'] == 'M':
-            position['prd'] = 'NRML'
+        if (position["exch"] == "NSE" or position["exch"] == "BSE") and position[
+            "prd"
+        ] == "C":
+            position["prd"] = "CNC"
+        elif position["prd"] == "I":
+            position["prd"] = "MIS"
+        elif (
+            position["exch"] in ["NFO", "MCX", "BFO", "CDS"] and position["prd"] == "M"
+        ):
+            position["prd"] = "NRML"
 
         transformed_position = {
             "symbol": position.get("tsym", ""),
@@ -563,9 +604,11 @@ def transform_positions_data(positions):
             "day_buy_amount": position.get("daybuyamt", "0.00"),
             "day_sell_amount": position.get("daysellamt", "0.00"),
             "day_buy_average_price": position.get("daybuyavgprc", "0.00"),
-            "day_sell_average_price": position.get("daysellamt", "0.00"),  # Using sell amount as avg price
+            "day_sell_average_price": position.get(
+                "daysellamt", "0.00"
+            ),  # Using sell amount as avg price
             "unrealized_pnl": position.get("unrealizedmtom", "0.00"),
-            "realized_pnl": position.get("realizedpnl", "0.00")
+            "realized_pnl": position.get("realizedpnl", "0.00"),
         }
         transformed_positions.append(transformed_position)
 

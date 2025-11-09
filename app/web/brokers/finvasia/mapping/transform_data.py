@@ -1,5 +1,6 @@
 from app.core.schemas.token_db import get_br_symbol
 
+
 def transform_data(data, token):
     """
     NOTE: This is a placeholder implementation.
@@ -16,13 +17,14 @@ def transform_data(data, token):
         "trgprc": str(data.get("trigger_price", "0")),
         "dscqty": str(data.get("disclosed_quantity", "0")),
         "prd": map_product_type(data.get("product")),
-        "trantype": 'B' if data.get("action") == "BUY" else 'S',
+        "trantype": "B" if data.get("action") == "BUY" else "S",
         "prctyp": map_order_type(data.get("pricetype")),
         "mkt_protection": "0",
         "ret": "DAY",
-        "ordersource": "API"
+        "ordersource": "API",
     }
     return transformed
+
 
 def transform_modify_order_data(data, token):
     """
@@ -39,8 +41,9 @@ def transform_modify_order_data(data, token):
         "mkt_protection": "0",
         "trdprc": str(data.get("trigger_price", "0")),
         "dscqty": str(data.get("disclosed_quantity", "0")),
-        "uid": data.get("apikey")
+        "uid": data.get("apikey"),
     }
+
 
 def map_order_type(pricetype):
     """
@@ -50,9 +53,10 @@ def map_order_type(pricetype):
         "MARKET": "MKT",
         "LIMIT": "LMT",
         "SL": "SL-LMT",
-        "SL-M": "SL-MKT"
+        "SL-M": "SL-MKT",
     }
     return order_type_mapping.get(pricetype, "MARKET")
+
 
 def map_product_type(product):
     """
@@ -64,6 +68,7 @@ def map_product_type(product):
         "MIS": "I",
     }
     return product_type_mapping.get(product, "I")
+
 
 def reverse_map_product_type(product):
     """

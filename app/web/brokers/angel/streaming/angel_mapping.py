@@ -1,18 +1,17 @@
-
 class AngelExchangeMapper:
     """Maps OpenAlgo exchange codes to Angel-specific exchange types"""
 
     # Exchange type mapping for Angel broker
     EXCHANGE_TYPES = {
-        'NSE': 1,  # NSE Cash Market
-        'NFO': 2,  # NSE Futures & Options
-        'BSE': 3,  # BSE Cash Market
-        'BFO': 4,  # BSE F&O
-        'MCX': 5,  # MCX
-        'NCX': 7,  # NCDEX
-        'CDS': 13,  # Currency derivatives
-        'NSE_INDEX': 1,  # NSE Index
-        'BSE_INDEX': 3  # BSE Index
+        "NSE": 1,  # NSE Cash Market
+        "NFO": 2,  # NSE Futures & Options
+        "BSE": 3,  # BSE Cash Market
+        "BFO": 4,  # BSE F&O
+        "MCX": 5,  # MCX
+        "NCX": 7,  # NCDEX
+        "CDS": 13,  # Currency derivatives
+        "NSE_INDEX": 1,  # NSE Index
+        "BSE_INDEX": 3,  # BSE Index
     }
 
     @staticmethod
@@ -26,7 +25,9 @@ class AngelExchangeMapper:
         Returns:
             int: Angel-specific exchange type
         """
-        return AngelExchangeMapper.EXCHANGE_TYPES.get(exchange, 1)  # Default to NSE if not found
+        return AngelExchangeMapper.EXCHANGE_TYPES.get(
+            exchange, 1
+        )  # Default to NSE if not found
 
 
 class AngelCapabilityRegistry:
@@ -36,15 +37,15 @@ class AngelCapabilityRegistry:
     """
 
     # Angel broker capabilities
-    exchanges = ['NSE', 'BSE', 'BFO','NFO', 'MCX', 'CDS']
+    exchanges = ["NSE", "BSE", "BFO", "NFO", "MCX", "CDS"]
     subscription_modes = [1, 2, 3]  # 1: LTP, 2: Quote, 3: Snap Quote (Depth)
     depth_support = {
-        'NSE': [5],   # NSE supports only 5 levels
-        'BSE': [5],           # BSE supports only 5 levels
-        'BFO': [5],           # BFO supports only 5 levels
-        'NFO': [5],       # NFO supports only 5 levels
-        'MCX': [5],           # MCX supports only 5 levels
-        'CDS': [5]            # CDS supports only 5 levels
+        "NSE": [5],  # NSE supports only 5 levels
+        "BSE": [5],  # BSE supports only 5 levels
+        "BFO": [5],  # BFO supports only 5 levels
+        "NFO": [5],  # NFO supports only 5 levels
+        "MCX": [5],  # MCX supports only 5 levels
+        "CDS": [5],  # CDS supports only 5 levels
     }
 
     @classmethod

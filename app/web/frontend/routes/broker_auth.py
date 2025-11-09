@@ -23,7 +23,12 @@ LOGIN_RATE_LIMIT_HOUR = settings.LOGIN_RATE_LIMIT_HOUR
 
 broker_router = APIRouter()
 
-@broker_router.api_route("/{broker}/callback", methods=["GET", "POST"], dependencies=[Depends(check_session_validity_fastapi)])
+
+@broker_router.api_route(
+    "/{broker}/callback",
+    methods=["GET", "POST"],
+    dependencies=[Depends(check_session_validity_fastapi)],
+)
 @limiter.limit(LOGIN_RATE_LIMIT_MIN)
 @limiter.limit(LOGIN_RATE_LIMIT_HOUR)
 async def broker_callback(request: Request, broker: str):
@@ -31,8 +36,10 @@ async def broker_callback(request: Request, broker: str):
     logger.debug(f"Session contents: {request.session}")
 
     user = request.session.get("user")
-    if not user and broker != 'compositedge':
-        logger.warning(f"User not in session for {broker} callback, redirecting to login")
+    if not user and broker != "compositedge":
+        logger.warning(
+            f"User not in session for {broker} callback, redirecting to login"
+        )
         return RedirectResponse(url="/login")
 
     if request.session.get("logged_in"):
@@ -43,7 +50,10 @@ async def broker_callback(request: Request, broker: str):
     auth_function = broker_auth_functions.get(f"{broker}_auth")
 
     if not auth_function:
-        return JSONResponse(content={"error": "Broker authentication function not found."}, status_code=404)
+        return JSONResponse(
+            content={"error": "Broker authentication function not found."},
+            status_code=404,
+        )
 
     feed_token = None
     auth_token = None
@@ -71,7 +81,9 @@ async def broker_callback(request: Request, broker: str):
             broker_pin = form_data.get("pin")
             totp_code = form_data.get("totp")
             user_id = clientcode
-            auth_token, feed_token, error_message = auth_function(clientcode, broker_pin, totp_code)
+            auth_token, feed_token, error_message = auth_function(
+                clientcode, broker_pin, totp_code
+            )
             forward_url = "angel.html"
 
     elif broker == "aliceblue":
@@ -80,9 +92,10 @@ async def broker_callback(request: Request, broker: str):
         elif request.method == "POST":
             userid = form_data.get("userid")
             from app.utils.httpx_client import get_httpx_client
+
             client = await get_httpx_client()
             payload = {"userId": userid}
-            headers = {'Content-Type': 'application/json'}
+            headers = {"Content-Type": "application/json"}
             try:
                 url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/customer/getAPIEncpkey"
                 response = await client.post(url, json=payload, headers=headers)
@@ -92,14 +105,25 @@ async def broker_callback(request: Request, broker: str):
                     enc_key = data_dict["encKey"]
                     auth_token, error_message = auth_function(userid, enc_key)
                     if auth_token:
-                        return await handle_auth_success(request, auth_token, user, broker)
+                        return await handle_auth_success(
+                            request, auth_token, user, broker
+                        )
                     else:
-                        return await handle_auth_failure(request, error_message, forward_url="aliceblue.html")
+                        return await handle_auth_failure(
+                            request, error_message, forward_url="aliceblue.html"
+                        )
                 else:
                     error_msg = data_dict.get("emsg", "Failed to get encryption key")
-                    return await handle_auth_failure(request, f"Failed to get encryption key: {error_msg}", forward_url="aliceblue.html")
+                    return await handle_auth_failure(
+                        request,
+                        f"Failed to get encryption key: {error_msg}",
+                        forward_url="aliceblue.html",
+                    )
             except Exception as e:
-                return JSONResponse(content={"error": f"Authentication error: {str(e)}"}, status_code=500)
+                return JSONResponse(
+                    content={"error": f"Authentication error: {str(e)}"},
+                    status_code=500,
+                )
 
     elif broker == "compositedge":
         session_data_str = ""
@@ -110,38 +134,49 @@ async def broker_callback(request: Request, broker: str):
                 raw_data = body.decode("utf-8")
                 if raw_data.startswith("session="):
                     from urllib.parse import unquote
+
                     session_data_str = unquote(raw_data[8:])
                 else:
                     session_data_str = raw_data
             else:
-                 body = await request.body()
-                 session_data_str = body.decode("utf-8")
-        else: # GET
+                body = await request.body()
+                session_data_str = body.decode("utf-8")
+        else:  # GET
             session_data_str = request.query_params.get("session")
 
         if not session_data_str:
-            return JSONResponse(content={"error": "No session data received"}, status_code=400)
+            return JSONResponse(
+                content={"error": "No session data received"}, status_code=400
+            )
 
         try:
             session_json = json.loads(session_data_str)
             if isinstance(session_json, str):
                 session_json = json.loads(session_json)
         except json.JSONDecodeError as e:
-            return JSONResponse(content={"error": f"Invalid JSON: {e}", "raw_data": session_data_str}, status_code=400)
+            return JSONResponse(
+                content={"error": f"Invalid JSON: {e}", "raw_data": session_data_str},
+                status_code=400,
+            )
 
         access_token = session_json.get("accessToken")
         if not access_token:
-            return JSONResponse(content={"error": "No access token found"}, status_code=400)
+            return JSONResponse(
+                content={"error": "No access token found"}, status_code=400
+            )
 
         auth_token, feed_token, user_id, error_message = auth_function(access_token)
         if not user:
             from app.core.schemas.user_db import find_user_by_username
+
             admin_user = find_user_by_username()
             if admin_user:
                 user = admin_user.username
                 request.session["user"] = user
             else:
-                return await handle_auth_failure(request, "No admin user found.", forward_url="broker.html")
+                return await handle_auth_failure(
+                    request, "No admin user found.", forward_url="broker.html"
+                )
 
     elif broker == "tradejini":
         if request.method == "GET":
@@ -150,31 +185,44 @@ async def broker_callback(request: Request, broker: str):
             password = form_data.get("password")
             twofa = form_data.get("twofa")
             twofatype = form_data.get("twofatype")
-            auth_token, error_message = auth_function(password=password, twofa=twofa, twofa_type=twofatype)
+            auth_token, error_message = auth_function(
+                password=password, twofa=twofa, twofa_type=twofatype
+            )
             if auth_token:
                 return await handle_auth_success(request, auth_token, user, broker)
             else:
-                return templates.TemplateResponse("tradejini.html", {"request": request, "error": error_message})
+                return templates.TemplateResponse(
+                    "tradejini.html", {"request": request, "error": error_message}
+                )
 
     # ... other brokers
     else:
-        code = request.query_params.get("code") or request.query_params.get("request_token")
+        code = request.query_params.get("code") or request.query_params.get(
+            "request_token"
+        )
         logger.debug(f"Generic broker ({broker}) - The code is {code}")
         auth_token, error_message = auth_function(code)
         forward_url = "broker.html"
-
 
     if auth_token:
         request.session["broker"] = broker
         if broker == "zerodha":
             auth_token = f"{BROKER_API_KEY}:{auth_token}"
 
-        return await handle_auth_success(request, auth_token, user, broker, feed_token=feed_token, user_id=user_id)
+        return await handle_auth_success(
+            request, auth_token, user, broker, feed_token=feed_token, user_id=user_id
+        )
     else:
-        return await handle_auth_failure(request, error_message, forward_url=forward_url)
+        return await handle_auth_failure(
+            request, error_message, forward_url=forward_url
+        )
 
 
-@broker_router.api_route("/{broker}/loginflow", methods=["GET", "POST"], dependencies=[Depends(check_session_validity_fastapi)])
+@broker_router.api_route(
+    "/{broker}/loginflow",
+    methods=["GET", "POST"],
+    dependencies=[Depends(check_session_validity_fastapi)],
+)
 async def broker_loginflow(request: Request, broker: str):
     if broker == "kotak":
         form_data = await request.form()
@@ -184,7 +232,9 @@ async def broker_loginflow(request: Request, broker: str):
         password = form_data.get("password")
 
         api_secret = settings.BROKER_API_SECRET
-        auth_string = base64.b64encode(f"{BROKER_API_KEY}:{api_secret}".encode()).decode("utf-8")
+        auth_string = base64.b64encode(
+            f"{BROKER_API_KEY}:{api_secret}".encode()
+        ).decode("utf-8")
         conn = http.client.HTTPSConnection("napi.kotaksecurities.com")
         payload = json.dumps({"grant_type": "client_credentials"})
         headers = {
@@ -199,13 +249,20 @@ async def broker_loginflow(request: Request, broker: str):
         if "access_token" in data:
             access_token = data["access_token"]
             conn_gw = http.client.HTTPSConnection("gw-napi.kotaksecurities.com")
-            payload_validate = json.dumps({"mobileNumber": mobile_number, "password": password})
+            payload_validate = json.dumps(
+                {"mobileNumber": mobile_number, "password": password}
+            )
             headers_validate = {
                 "accept": "*/*",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {access_token}",
             }
-            conn_gw.request("POST", "/login/1.0/login/v2/validate", payload_validate, headers_validate)
+            conn_gw.request(
+                "POST",
+                "/login/1.0/login/v2/validate",
+                payload_validate,
+                headers_validate,
+            )
             res_validate = conn_gw.getresponse()
             data_validate = json.loads(res_validate.read().decode("utf-8"))
 
@@ -224,10 +281,14 @@ async def broker_loginflow(request: Request, broker: str):
                     "userid": userid,
                 }
                 getKotakOTP(userid, access_token)
-                return templates.TemplateResponse("kotakotp.html", {"request": request, "para": para})
+                return templates.TemplateResponse(
+                    "kotakotp.html", {"request": request, "para": para}
+                )
             else:
                 error_message = data_validate.get("message", "Unknown error")
-                return templates.TemplateResponse("kotak.html", {"request": request, "error_message": error_message})
+                return templates.TemplateResponse(
+                    "kotak.html", {"request": request, "error_message": error_message}
+                )
 
     return JSONResponse(content={"error": "Flow not implemented"}, status_code=501)
 

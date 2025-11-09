@@ -25,7 +25,7 @@ def get_margin_data(auth_token):
 
         url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/limits/getRmsLimits"
         headers = {
-            'Authorization': f'Bearer {auth_token}',
+            "Authorization": f"Bearer {auth_token}",
         }
 
         # Make the API request using the shared client
@@ -38,17 +38,29 @@ def get_margin_data(auth_token):
 
         # Process the margin data
         for item in margin_data:
-            if item.get('stat') == 'Not_Ok':
+            if item.get("stat") == "Not_Ok":
                 # Log the error or return an empty dictionary to indicate failure
-                logger.error(f"Error fetching margin data: {item.get('emsg', 'Unknown error')}")
+                logger.error(
+                    f"Error fetching margin data: {item.get('emsg', 'Unknown error')}"
+                )
                 return {}
 
             # Accumulate values
-            processed_margin_data["availablecash"] = "{:.2f}".format(float(item.get('net', 0)))
-            processed_margin_data["collateral"] = "{:.2f}".format(float(item.get('collateralvalue', 0)))
-            processed_margin_data["m2munrealized"] = "{:.2f}".format(float(item.get('unrealizedMtomPrsnt', 0)))
-            processed_margin_data["m2mrealized"] = "{:.2f}".format(float(item.get('realizedMtomPrsnt', 0)))
-            processed_margin_data["utiliseddebits"] = "{:.2f}".format(float(item.get('cncMarginUsed', 0)))
+            processed_margin_data["availablecash"] = "{:.2f}".format(
+                float(item.get("net", 0))
+            )
+            processed_margin_data["collateral"] = "{:.2f}".format(
+                float(item.get("collateralvalue", 0))
+            )
+            processed_margin_data["m2munrealized"] = "{:.2f}".format(
+                float(item.get("unrealizedMtomPrsnt", 0))
+            )
+            processed_margin_data["m2mrealized"] = "{:.2f}".format(
+                float(item.get("realizedMtomPrsnt", 0))
+            )
+            processed_margin_data["utiliseddebits"] = "{:.2f}".format(
+                float(item.get("cncMarginUsed", 0))
+            )
 
         return processed_margin_data
     except KeyError as e:

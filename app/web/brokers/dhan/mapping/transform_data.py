@@ -1,7 +1,8 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Upstox Broking Parameters https://dhanhq.co/docs/v2/orders/
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Upstox Broking Parameters https://dhanhq.co/docs/v2/orders/
 
-def transform_data(data,token):
+
+def transform_data(data, token):
     """
     Transforms the OpenAlgo API request structure to Dhan v2 API structure.
 
@@ -36,7 +37,7 @@ def transform_data(data,token):
         "disclosedQuantity": int(data.get("disclosed_quantity", 0)),
         "price": float(data.get("price", 0)),
         "triggerPrice": float(data.get("trigger_price", 0)),
-        "afterMarketOrder": data.get("after_market_order", False)
+        "afterMarketOrder": data.get("after_market_order", False),
     }
 
     # Add correlationId - Dhan API seems to require this field even if optional in docs
@@ -46,6 +47,7 @@ def transform_data(data,token):
     else:
         # Use a default correlation ID if not provided
         import uuid
+
         transformed["correlationId"] = str(uuid.uuid4())[:8]  # Short UUID for tracking
 
     # Handle amoTime - required for after market orders, default for regular orders
@@ -76,7 +78,6 @@ def transform_data(data,token):
     if data["pricetype"] in ["SL", "SL-M"] and not transformed["triggerPrice"]:
         raise ValueError("Trigger price is required for Stop Loss orders")
 
-
     return transformed
 
 
@@ -85,13 +86,12 @@ def transform_modify_order_data(data):
         "dhanClientId": data["apikey"],
         "orderId": data["orderid"],
         "orderType": map_order_type(data["pricetype"]),
-        "legName":"ENTRY_LEG",
+        "legName": "ENTRY_LEG",
         "quantity": data["quantity"],
         "price": data["price"],
         "disclosedQuantity": data.get("disclosed_quantity", "0"),
         "triggerPrice": data.get("trigger_price", "0"),
-        "validity": "DAY"
-
+        "validity": "DAY",
     }
 
 
@@ -103,10 +103,9 @@ def map_order_type(pricetype):
         "MARKET": "MARKET",
         "LIMIT": "LIMIT",
         "SL": "STOP_LOSS",
-        "SL-M": "STOP_LOSS_MARKET"
+        "SL-M": "STOP_LOSS_MARKET",
     }
     return order_type_mapping.get(pricetype, "MARKET")  # Default to MARKET if not found
-
 
 
 def map_exchange_type(exchange):
@@ -120,11 +119,9 @@ def map_exchange_type(exchange):
         "NFO": "NSE_FNO",
         "BFO": "BSE_FNO",
         "BCD": "BSE_CURRENCY",
-        "MCX": "MCX_COMM"
-
+        "MCX": "MCX_COMM",
     }
     return exchange_mapping.get(exchange)  # Default to MARKET if not found
-
 
 
 def map_exchange(brexchange):
@@ -138,11 +135,9 @@ def map_exchange(brexchange):
         "NSE_FNO": "NFO",
         "BSE_FNO": "BFO",
         "BSE_CURRENCY": "BCD",
-        "MCX_COMM": "MCX"
-
+        "MCX_COMM": "MCX",
     }
     return exchange_mapping.get(brexchange)  # Default to MARKET if not found
-
 
 
 def map_product_type(product):
@@ -154,17 +149,18 @@ def map_product_type(product):
         "NRML": "MARGIN",
         "MIS": "INTRADAY",
     }
-    return product_type_mapping.get(product, "INTRADAY")  # Default to INTRADAY if not found
+    return product_type_mapping.get(
+        product, "INTRADAY"
+    )  # Default to INTRADAY if not found
+
 
 def reverse_map_product_type(product):
     """
     Reverse maps the broker product type to the OpenAlgo product type, considering the exchange.
     """
     # Exchange to OpenAlgo product type mapping for 'D'
-    product_mapping = {
-        "CNC": "CNC",
-        "MARGIN": "NRML",
-        "MIS": "INTRADAY"
-    }
+    product_mapping = {"CNC": "CNC", "MARGIN": "NRML", "MIS": "INTRADAY"}
 
-    return product_mapping.get(product)  # Removed default; will return None if not found
+    return product_mapping.get(
+        product
+    )  # Removed default; will return None if not found

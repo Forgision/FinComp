@@ -28,7 +28,9 @@ def is_port_in_use(host, port, wait_time=0):
                     return False
                 except OSError:
                     if attempt == attempts - 1:  # Last attempt
-                        logger.info(f"Port {port} is still in use on {host} after {wait_time}s wait")
+                        logger.info(
+                            f"Port {port} is still in use on {host} after {wait_time}s wait"
+                        )
                         return True
                     time.sleep(0.1)  # Wait 0.1 second before next attempt
     else:
@@ -44,6 +46,7 @@ def is_port_in_use(host, port, wait_time=0):
                 logger.info(f"Port {port} is already in use on {host}")
                 return True
 
+
 def find_available_port(start_port=8899, max_attempts=10):
     """
     Find an available port starting from the given port
@@ -56,8 +59,10 @@ def find_available_port(start_port=8899, max_attempts=10):
         int: Available port number, or None if no port is available
     """
     for port in range(start_port, start_port + max_attempts):
-        if not is_port_in_use('127.0.0.1', port):
+        if not is_port_in_use("127.0.0.1", port):
             return port
 
-    logger.error(f"Could not find an available port after {max_attempts} attempts starting from {start_port}")
+    logger.error(
+        f"Could not find an available port after {max_attempts} attempts starting from {start_port}"
+    )
     return None

@@ -1,6 +1,7 @@
 """
 Dhan-specific mapping utilities for the WebSocket adapter
 """
+
 from typing import Optional, Set
 
 
@@ -9,29 +10,29 @@ class DhanExchangeMapper:
 
     # OpenAlgo to Dhan exchange mapping
     EXCHANGE_MAP = {
-        'NSE': 'NSE_EQ',
-        'BSE': 'BSE_EQ',
-        'NFO': 'NSE_FNO',
-        'BFO': 'BSE_FNO',
-        'MCX': 'MCX_COMM',          # Corrected from MCX_COM to MCX_COMM
-        'CDS': 'NSE_CURRENCY',
-        'BCD': 'BSE_CURRENCY',      # Added BSE Currency
-        'NSE_INDEX': 'IDX_I',       # Added NSE Index
-        'BSE_INDEX': 'IDX_I'        # Added BSE Index
+        "NSE": "NSE_EQ",
+        "BSE": "BSE_EQ",
+        "NFO": "NSE_FNO",
+        "BFO": "BSE_FNO",
+        "MCX": "MCX_COMM",  # Corrected from MCX_COM to MCX_COMM
+        "CDS": "NSE_CURRENCY",
+        "BCD": "BSE_CURRENCY",  # Added BSE Currency
+        "NSE_INDEX": "IDX_I",  # Added NSE Index
+        "BSE_INDEX": "IDX_I",  # Added BSE Index
     }
 
     # Dhan exchange segment codes (numeric) to OpenAlgo exchange mapping
     # Based on official Dhan documentation
     # Note: Both NSE_INDEX and BSE_INDEX use segment 0 (IDX_I), defaulting to NSE_INDEX
     SEGMENT_TO_EXCHANGE = {
-        0: 'NSE_INDEX',   # IDX_I (Index) - Both NSE_INDEX and BSE_INDEX use this
-        1: 'NSE',         # NSE_EQ (NSE Equity Cash)
-        2: 'NFO',         # NSE_FNO (NSE Futures & Options)
-        3: 'CDS',         # NSE_CURRENCY (NSE Currency)
-        4: 'BSE',         # BSE_EQ (BSE Equity Cash)
-        5: 'MCX',         # MCX_COMM (MCX Commodity)
-        7: 'BCD',         # BSE_CURRENCY (BSE Currency)
-        8: 'BFO'          # BSE_FNO (BSE Futures & Options)
+        0: "NSE_INDEX",  # IDX_I (Index) - Both NSE_INDEX and BSE_INDEX use this
+        1: "NSE",  # NSE_EQ (NSE Equity Cash)
+        2: "NFO",  # NSE_FNO (NSE Futures & Options)
+        3: "CDS",  # NSE_CURRENCY (NSE Currency)
+        4: "BSE",  # BSE_EQ (BSE Equity Cash)
+        5: "MCX",  # MCX_COMM (MCX Commodity)
+        7: "BCD",  # BSE_CURRENCY (BSE Currency)
+        8: "BFO",  # BSE_FNO (BSE Futures & Options)
     }
 
     # Reverse mappings
@@ -60,7 +61,7 @@ class DhanExchangeMapper:
     def get_segment_from_exchange(cls, exchange: str) -> Optional[int]:
         """Convert OpenAlgo exchange to Dhan exchange segment code"""
         # Special handling for BSE_INDEX - also maps to segment 0 like NSE_INDEX
-        if exchange == 'BSE_INDEX':
+        if exchange == "BSE_INDEX":
             return 0  # Same as NSE_INDEX (IDX_I)
         return cls.EXCHANGE_TO_SEGMENT.get(exchange)
 
@@ -70,23 +71,23 @@ class DhanCapabilityRegistry:
 
     # Exchange-wise depth level support
     DEPTH_SUPPORT = {
-        'NSE': {5, 20},      # NSE Equity supports both 5 and 20 level depth
-        'NFO': {5, 20},      # NSE F&O supports both 5 and 20 level depth
-        'BSE': {5},          # BSE only supports 5 level depth
-        'BFO': {5},          # BSE F&O only supports 5 level depth
-        'MCX': {5},          # MCX only supports 5 level depth
-        'CDS': {5},          # NSE Currency only supports 5 level depth
-        'BCD': {5},          # BSE Currency only supports 5 level depth
-        'NSE_INDEX': {5},    # NSE Index only supports 5 level depth
-        'BSE_INDEX': {5}     # BSE Index only supports 5 level depth
+        "NSE": {5, 20},  # NSE Equity supports both 5 and 20 level depth
+        "NFO": {5, 20},  # NSE F&O supports both 5 and 20 level depth
+        "BSE": {5},  # BSE only supports 5 level depth
+        "BFO": {5},  # BSE F&O only supports 5 level depth
+        "MCX": {5},  # MCX only supports 5 level depth
+        "CDS": {5},  # NSE Currency only supports 5 level depth
+        "BCD": {5},  # BSE Currency only supports 5 level depth
+        "NSE_INDEX": {5},  # NSE Index only supports 5 level depth
+        "BSE_INDEX": {5},  # BSE Index only supports 5 level depth
     }
 
     # Maximum subscriptions per connection
-    MAX_SUBSCRIPTIONS_5_DEPTH = 5000    # Max 5000 instruments for 5-level depth
-    MAX_SUBSCRIPTIONS_20_DEPTH = 50     # Max 50 instruments for 20-level depth
+    MAX_SUBSCRIPTIONS_5_DEPTH = 5000  # Max 5000 instruments for 5-level depth
+    MAX_SUBSCRIPTIONS_20_DEPTH = 50  # Max 50 instruments for 20-level depth
 
     # Maximum instruments per request
-    MAX_INSTRUMENTS_PER_REQUEST = 100   # Max 100 instruments per subscribe request
+    MAX_INSTRUMENTS_PER_REQUEST = 100  # Max 100 instruments per subscribe request
 
     @classmethod
     def is_depth_level_supported(cls, exchange: str, depth_level: int) -> bool:

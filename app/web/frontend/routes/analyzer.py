@@ -27,11 +27,19 @@ async def analyzer(
         stats = get_analyzer_stats()
         if not isinstance(stats, dict):
             stats = {
-                'total_requests': 0, 'sources': {}, 'symbols': [],
-                'issues': {'total': 0, 'by_type': {
-                    'rate_limit': 0, 'invalid_symbol': 0, 'missing_quantity': 0,
-                    'invalid_exchange': 0, 'other': 0
-                }}
+                "total_requests": 0,
+                "sources": {},
+                "symbols": [],
+                "issues": {
+                    "total": 0,
+                    "by_type": {
+                        "rate_limit": 0,
+                        "invalid_symbol": 0,
+                        "missing_quantity": 0,
+                        "invalid_exchange": 0,
+                        "other": 0,
+                    },
+                },
             }
 
         requests_data = analyzer_service.get_filtered_requests(start_date, end_date)
@@ -61,7 +69,7 @@ async def get_stats(current_user: dict = Depends(check_session_validity_fastapi)
         stats = get_analyzer_stats()
         return JSONResponse(content=stats)
     except Exception as e:
-        return JSONResponse(content={'error': str(e)}, status_code=500)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
 @analyzer_router.get("/requests")
@@ -70,9 +78,9 @@ async def get_requests(current_user: dict = Depends(check_session_validity_fasta
         return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
     try:
         requests_data = analyzer_service.get_recent_requests()
-        return JSONResponse(content={'requests': requests_data})
+        return JSONResponse(content={"requests": requests_data})
     except Exception as e:
-        return JSONResponse(content={'requests': [], 'error': str(e)}, status_code=500)
+        return JSONResponse(content={"requests": [], "error": str(e)}, status_code=500)
 
 
 @analyzer_router.get("/clear")
@@ -101,8 +109,8 @@ async def export_requests(
         filename = f"analyzer_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         return Response(
             content=csv_data,
-            media_type='text/csv',
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
     except Exception:
         return RedirectResponse(url="/analyzer", status_code=302)

@@ -199,7 +199,7 @@ class OrderManager:
                                     False,
                                     {
                                         "status": "error",
-                                        "message": f'MIS orders cannot be placed after square-off time ({square_off_time.strftime("%H:%M")} IST). Trading resumes at 09:00 AM IST.',
+                                        "message": f"MIS orders cannot be placed after square-off time ({square_off_time.strftime('%H:%M')} IST). Trading resumes at 09:00 AM IST.",
                                         "mode": "analyze",
                                     },
                                     400,
@@ -1071,7 +1071,7 @@ class OrderManager:
         # Validate price for LIMIT and SL orders
         if order_data["price_type"].upper() in ["LIMIT", "SL"]:
             if "price" not in order_data or not order_data["price"]:
-                return False, f'{order_data["price_type"]} orders require price'
+                return False, f"{order_data['price_type']} orders require price"
             try:
                 price = float(order_data["price"])
                 if price <= 0:
@@ -1082,7 +1082,7 @@ class OrderManager:
         # Validate trigger_price for SL and SL-M orders
         if order_data["price_type"].upper() in ["SL", "SL-M"]:
             if "trigger_price" not in order_data or not order_data["trigger_price"]:
-                return False, f'{order_data["price_type"]} orders require trigger_price'
+                return False, f"{order_data['price_type']} orders require trigger_price"
             try:
                 trigger_price = float(order_data["trigger_price"])
                 if trigger_price <= 0:
@@ -1095,7 +1095,7 @@ class OrderManager:
         if order_data["exchange"].upper() not in valid_exchanges:
             return (
                 False,
-                f'Invalid exchange. Must be one of {", ".join(valid_exchanges)}',
+                f"Invalid exchange. Must be one of {', '.join(valid_exchanges)}",
             )
 
         return True, "Validation passed"

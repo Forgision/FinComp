@@ -17,9 +17,6 @@ def get_session_expiry_time():
     now_utc = datetime.now(pytz.timezone("UTC"))
     now_ist = now_utc.astimezone(pytz.timezone("Asia/Kolkata"))
 
-    # Get configured expiry time or default to 3 AM
-    from app.core.config import settings
-
     expiry_time = settings.SESSION_EXPIRY_TIME
     hour, minute = map(int, expiry_time.split(":"))
 

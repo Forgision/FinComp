@@ -38,7 +38,9 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         self.logger.info("Fyers WebSocket Adapter initialized")
 
-    def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
+    def initialize(
+        self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None
+    ) -> None:
         """
         Initialize connection with Fyers HSM WebSocket API
 
@@ -54,11 +56,11 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.user_id = user_id
             self.broker_name = broker_name
 
-            #self.logger.info(f"Initializing Fyers adapter for user: {user_id}")
+            # self.logger.info(f"Initializing Fyers adapter for user: {user_id}")
 
             # Get access token from auth_data or database
-            if auth_data and 'access_token' in auth_data:
-                self.access_token = auth_data['access_token']
+            if auth_data and "access_token" in auth_data:
+                self.access_token = auth_data["access_token"]
                 self.logger.debug("Using access token from auth_data")
             else:
                 # Get from app.core.schemas
@@ -97,7 +99,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.logger.debug("Reinitializing ZeroMQ socket...")
                 self.setup_zmq()
 
-            #self.logger.info("Connecting to Fyers HSM WebSocket...")
+            # self.logger.info("Connecting to Fyers HSM WebSocket...")
 
             # Connect to Fyers
             success = self.fyers_adapter.connect()
@@ -107,7 +109,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.connected = True
             self.running = True
 
-            #self.logger.info("Successfully connected to Fyers HSM WebSocket")
+            # self.logger.info("Successfully connected to Fyers HSM WebSocket")
             return {"status": "success", "message": "Connected to Fyers WebSocket"}
 
         except Exception as e:
@@ -118,7 +120,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def disconnect(self):
         """Disconnect from the Fyers WebSocket and cleanup all resources"""
         try:
-            #self.logger.info("Starting Fyers WebSocket disconnect and cleanup...")
+            # self.logger.info("Starting Fyers WebSocket disconnect and cleanup...")
 
             # Set flags to stop operations
             self.running = False
@@ -130,21 +132,23 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.subscriptions.clear()
 
                 # Clear active callbacks
-                if hasattr(self, 'active_callbacks'):
+                if hasattr(self, "active_callbacks"):
                     callback_count = len(self.active_callbacks)
                     self.active_callbacks.clear()
                     if callback_count > 0:
                         self.logger.debug(f"Cleared {callback_count} active callbacks")
 
                 # Clear deduplication cache
-                if hasattr(self, 'last_data_cache'):
+                if hasattr(self, "last_data_cache"):
                     cache_count = len(self.last_data_cache)
                     self.last_data_cache.clear()
                     if cache_count > 0:
                         self.logger.debug(f"Cleared {cache_count} cached data entries")
 
                 if subscription_count > 0:
-                    self.logger.debug(f"Cleared {subscription_count} active subscriptions")
+                    self.logger.debug(
+                        f"Cleared {subscription_count} active subscriptions"
+                    )
 
             # Disconnect from Fyers HSM WebSocket
             if self.fyers_adapter:
@@ -173,7 +177,9 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.running = False
             self.connected = False
 
-    def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5):
+    def subscribe(
+        self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5
+    ):
         """
         Subscribe to market data with the specified mode and depth level
 
@@ -192,18 +198,20 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.error("Failed to reconnect to Fyers WebSocket")
                     return {
                         "status": "error",
-                        "message": "Failed to reconnect to Fyers WebSocket"
+                        "message": "Failed to reconnect to Fyers WebSocket",
                     }
                 self.logger.info("Successfully reconnected to Fyers WebSocket")
 
             # Ensure adapter is properly connected
             if self.fyers_adapter and not self.fyers_adapter.connected:
-                self.logger.info("Fyers adapter exists but not connected, reconnecting...")
+                self.logger.info(
+                    "Fyers adapter exists but not connected, reconnecting..."
+                )
                 if not self.fyers_adapter.connect():
                     self.logger.error("Failed to reconnect Fyers adapter")
                     return {
                         "status": "error",
-                        "message": "Failed to reconnect Fyers adapter"
+                        "message": "Failed to reconnect Fyers adapter",
                     }
 
             with self.lock:
@@ -218,7 +226,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 subscription_key = f"{exchange}:{symbol}:{mode}"
 
                 # Store callback reference for cleanup
-                if not hasattr(self, 'active_callbacks'):
+                if not hasattr(self, "active_callbacks"):
                     self.active_callbacks = {}
 
                 def data_callback(data):
@@ -237,9 +245,9 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         if data:
                             # Override with the original subscription details to ensure correct topic
                             # This fixes the mismatch between NFO subscription and NSE data
-                            data['symbol'] = original_symbol
-                            data['exchange'] = original_exchange
-                            data['subscription_mode'] = original_mode
+                            data["symbol"] = original_symbol
+                            data["exchange"] = original_exchange
+                            data["subscription_mode"] = original_mode
 
                             # Send via ZeroMQ with the original subscription details
                             self._send_data(data)
@@ -251,16 +259,22 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Subscribe based on mode
                 if mode == 1:  # LTP
-                    success = self.fyers_adapter.subscribe_ltp(symbol_info, data_callback)
+                    success = self.fyers_adapter.subscribe_ltp(
+                        symbol_info, data_callback
+                    )
                 elif mode == 2:  # Quote
-                    success = self.fyers_adapter.subscribe_quote(symbol_info, data_callback)
+                    success = self.fyers_adapter.subscribe_quote(
+                        symbol_info, data_callback
+                    )
                 elif mode == 3:  # Depth
-                    success = self.fyers_adapter.subscribe_depth(symbol_info, data_callback)
+                    success = self.fyers_adapter.subscribe_depth(
+                        symbol_info, data_callback
+                    )
                 else:
                     self.logger.error(f"Unsupported subscription mode: {mode}")
                     return {
                         "status": "error",
-                        "message": f"Unsupported subscription mode: {mode}"
+                        "message": f"Unsupported subscription mode: {mode}",
                     }
 
                 if success:
@@ -270,28 +284,27 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         "symbol": symbol,
                         "exchange": exchange,
                         "mode": mode,
-                        "subscribed_at": time.time()
+                        "subscribed_at": time.time(),
                     }
 
-                    self.logger.debug(f"Subscribed to {exchange}:{symbol} (mode: {mode})")
+                    self.logger.debug(
+                        f"Subscribed to {exchange}:{symbol} (mode: {mode})"
+                    )
                     return {
                         "status": "success",
                         "message": f"Subscribed to {exchange}:{symbol}",
-                        "mode": mode
+                        "mode": mode,
                     }
                 else:
                     self.logger.error(f"Failed to subscribe to {exchange}:{symbol}")
                     return {
                         "status": "error",
-                        "message": f"Failed to subscribe to {exchange}:{symbol}"
+                        "message": f"Failed to subscribe to {exchange}:{symbol}",
                     }
 
         except Exception as e:
             self.logger.error(f"Subscription error: {e}")
-            return {
-                "status": "error",
-                "message": f"Subscription failed: {str(e)}"
-            }
+            return {"status": "error", "message": f"Subscription failed: {str(e)}"}
 
     def unsubscribe(self, symbol: str, exchange: str, mode: int = 2):
         """
@@ -313,17 +326,24 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     # Remove from our subscription tracking
                     self.subscriptions.pop(key)
 
-                    self.logger.info(f"Unsubscribe for {exchange}:{symbol} (mode: {mode})")
-                    #self.logger.warning("Note: Fyers HSM doesn't support selective unsubscription - data will stop publishing but HSM will continue receiving in background")
+                    self.logger.info(
+                        f"Unsubscribe for {exchange}:{symbol} (mode: {mode})"
+                    )
+                    # self.logger.warning("Note: Fyers HSM doesn't support selective unsubscription - data will stop publishing but HSM will continue receiving in background")
 
                     # Remove the callback reference if it exists
-                    if hasattr(self, 'active_callbacks') and key in self.active_callbacks:
+                    if (
+                        hasattr(self, "active_callbacks")
+                        and key in self.active_callbacks
+                    ):
                         del self.active_callbacks[key]
 
                     # If no more subscriptions, disconnect completely to stop background data
                     # This is needed for Fyers HSM which doesn't support selective unsubscription
                     if len(self.subscriptions) == 0:
-                        self.logger.debug("No active subscriptions remaining - disconnecting from Fyers to stop all background data")
+                        self.logger.debug(
+                            "No active subscriptions remaining - disconnecting from Fyers to stop all background data"
+                        )
 
                         # Disconnect from Fyers WebSocket but keep adapter instance and mappings
                         try:
@@ -335,16 +355,18 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             self.connected = False
 
                             # Clear all callbacks
-                            if hasattr(self, 'active_callbacks'):
+                            if hasattr(self, "active_callbacks"):
                                 self.active_callbacks.clear()
 
-                            self.logger.info("Disconnected from Fyers HSM WebSocket - all background data stopped")
+                            self.logger.info(
+                                "Disconnected from Fyers HSM WebSocket - all background data stopped"
+                            )
 
                             return {
                                 "status": "success",
                                 "message": f"Unsubscribed from {exchange}:{symbol} and disconnected (no active subscriptions)",
                                 "disconnected": True,
-                                "active_subscriptions": 0
+                                "active_subscriptions": 0,
                             }
                         except Exception as e:
                             self.logger.error(f"Error disconnecting from Fyers: {e}")
@@ -352,23 +374,24 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     return {
                         "status": "success",
                         "message": f"Unsubscribed from {exchange}:{symbol}",
-                        "active_subscriptions": len(self.subscriptions)
+                        "active_subscriptions": len(self.subscriptions),
                     }
                 else:
-                    self.logger.warning(f"No active subscription found for {exchange}:{symbol}:{mode}")
+                    self.logger.warning(
+                        f"No active subscription found for {exchange}:{symbol}:{mode}"
+                    )
                     return {
                         "status": "warning",
-                        "message": f"No active subscription found for {exchange}:{symbol}:{mode}"
+                        "message": f"No active subscription found for {exchange}:{symbol}:{mode}",
                     }
 
         except Exception as e:
             self.logger.error(f"Unsubscription error: {e}")
-            return {
-                "status": "error",
-                "message": f"Unsubscription failed: {str(e)}"
-            }
+            return {"status": "error", "message": f"Unsubscription failed: {str(e)}"}
 
-    def _convert_price_to_rupees(self, price_value: float, fyers_data: Dict[str, Any]) -> float:
+    def _convert_price_to_rupees(
+        self, price_value: float, fyers_data: Dict[str, Any]
+    ) -> float:
         """
         Convert Fyers price based on instrument type:
         - Indices: Keep raw values (no division)
@@ -392,10 +415,10 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Identify indices - they should keep raw values
             is_index = (
-                "-INDEX" in symbol or
-                "-INDEX" in original_symbol or
-                "INDEX" in symbol.upper() or
-                fyers_type == "if"  # Index feed type in HSM
+                "-INDEX" in symbol
+                or "-INDEX" in original_symbol
+                or "INDEX" in symbol.upper()
+                or fyers_type == "if"  # Index feed type in HSM
             )
 
             if is_index:
@@ -411,7 +434,9 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Fallback: assume stock/future, divide by 100
             return round(price_value / 100.0, 2)
 
-    def _map_fyers_to_openalgo(self, fyers_data: Dict[str, Any], mode: int) -> Optional[Dict[str, Any]]:
+    def _map_fyers_to_openalgo(
+        self, fyers_data: Dict[str, Any], mode: int
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to OpenAlgo WebSocket format
 
@@ -439,17 +464,14 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 "symbol": symbol_name,
                 "exchange": exchange,
                 "token": fyers_data.get("token", ""),
-                "timestamp": fyers_data.get("timestamp", int(time.time()))
+                "timestamp": fyers_data.get("timestamp", int(time.time())),
             }
 
             # Add data based on mode
             if mode == 1:  # LTP
                 raw_ltp = fyers_data.get("ltp", 0)
                 converted_ltp = self._convert_price_to_rupees(raw_ltp, fyers_data)
-                openalgo_data.update({
-                    "ltp": converted_ltp,
-                    "data_type": "LTP"
-                })
+                openalgo_data.update({"ltp": converted_ltp, "data_type": "LTP"})
             elif mode == 2:  # Quote
                 # Convert all price fields from paise to rupees using correct field names
                 raw_ltp = fyers_data.get("ltp", 0)
@@ -468,16 +490,20 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 low_price = fyers_data.get("low", 0)
                 close_price = fyers_data.get("close", 0)
 
-                self.logger.debug(f"Mapped Quote data: ltp={ltp}, open={open_price}, high={high_price}, low={low_price}, close={close_price}")
+                self.logger.debug(
+                    f"Mapped Quote data: ltp={ltp}, open={open_price}, high={high_price}, low={low_price}, close={close_price}"
+                )
 
                 # Return the already mapped data (no additional processing needed)
                 return fyers_data
             elif mode == 3:  # Depth
-                openalgo_data.update({
-                    "ltp": fyers_data.get("ltp", 0),
-                    "depth": fyers_data.get("depth", {"buy": [], "sell": []}),
-                    "data_type": "Depth"
-                })
+                openalgo_data.update(
+                    {
+                        "ltp": fyers_data.get("ltp", 0),
+                        "depth": fyers_data.get("depth", {"buy": [], "sell": []}),
+                        "data_type": "Depth",
+                    }
+                )
 
             return openalgo_data
 
@@ -500,12 +526,16 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Ensure we have valid symbol and exchange
                 if not symbol or not exchange:
-                    self.logger.warning(f"Invalid symbol or exchange: symbol='{symbol}', exchange='{exchange}'")
+                    self.logger.warning(
+                        f"Invalid symbol or exchange: symbol='{symbol}', exchange='{exchange}'"
+                    )
                     return
 
                 # Map subscription mode to mode string (same as Angel adapter)
-                subscription_mode = data.get('subscription_mode', 1)
-                mode_str = {1: 'LTP', 2: 'QUOTE', 3: 'DEPTH'}.get(subscription_mode, 'QUOTE')
+                subscription_mode = data.get("subscription_mode", 1)
+                mode_str = {1: "LTP", 2: "QUOTE", 3: "DEPTH"}.get(
+                    subscription_mode, "QUOTE"
+                )
 
                 # Format: EXCHANGE_SYMBOL_MODE (following Angel adapter pattern)
                 topic = f"{exchange}_{symbol}_{mode_str}"
@@ -515,15 +545,19 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Debug log for all data types
                 if subscription_mode == 3:  # Depth data
-                    depth = data.get('depth', {})
-                    buy_levels = depth.get('buy', [])
-                    sell_levels = depth.get('sell', [])
-                    bid1 = buy_levels[0]['price'] if buy_levels else 'N/A'
-                    ask1 = sell_levels[0]['price'] if sell_levels else 'N/A'
-                    self.logger.debug(f"Published {exchange} depth: {symbol} - Bid={bid1}, Ask={ask1} (topic: {topic})")
+                    depth = data.get("depth", {})
+                    buy_levels = depth.get("buy", [])
+                    sell_levels = depth.get("sell", [])
+                    bid1 = buy_levels[0]["price"] if buy_levels else "N/A"
+                    ask1 = sell_levels[0]["price"] if sell_levels else "N/A"
+                    self.logger.debug(
+                        f"Published {exchange} depth: {symbol} - Bid={bid1}, Ask={ask1} (topic: {topic})"
+                    )
                 else:  # LTP or Quote data
-                    ltp = data.get('ltp', 'N/A')
-                    self.logger.debug(f"Published {exchange} data: {symbol} = {ltp} (topic: {topic})")
+                    ltp = data.get("ltp", "N/A")
+                    self.logger.debug(
+                        f"Published {exchange} data: {symbol} = {ltp} (topic: {topic})"
+                    )
 
         except Exception as e:
             self.logger.error(f"Error sending data via ZeroMQ: {e}")
@@ -536,16 +570,18 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             "broker": self.broker_name,
             "user_id": self.user_id,
             "subscriptions": len(self.subscriptions),
-            "zmq_port": getattr(self, 'zmq_port', None)
+            "zmq_port": getattr(self, "zmq_port", None),
         }
 
         if self.fyers_adapter:
             fyers_status = self.fyers_adapter.get_connection_status()
-            status.update({
-                "fyers_connected": fyers_status.get("connected", False),
-                "fyers_authenticated": fyers_status.get("authenticated", False),
-                "protocol": fyers_status.get("protocol", "HSM Binary")
-            })
+            status.update(
+                {
+                    "fyers_connected": fyers_status.get("connected", False),
+                    "fyers_authenticated": fyers_status.get("authenticated", False),
+                    "protocol": fyers_status.get("protocol", "HSM Binary"),
+                }
+            )
 
         return status
 
@@ -553,7 +589,7 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Get current subscriptions"""
         return {
             "total": len(self.subscriptions),
-            "subscriptions": dict(self.subscriptions)
+            "subscriptions": dict(self.subscriptions),
         }
 
     def __del__(self):
@@ -561,11 +597,14 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
         Destructor to ensure proper cleanup of resources when adapter is destroyed
         """
         try:
-            self.logger.info("FyersWebSocketAdapter destructor called - cleaning up resources")
+            self.logger.info(
+                "FyersWebSocketAdapter destructor called - cleaning up resources"
+            )
             self.disconnect()
         except Exception as e:
             # Can't rely on self.logger being available during destruction
             import logging
+
             logger = logging.getLogger("fyers_websocket_adapter")
             logger.error(f"Error in FyersWebSocketAdapter destructor: {e}")
 
@@ -617,10 +656,10 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.running = False
             self.connected = False
 
-            if hasattr(self, 'subscriptions'):
+            if hasattr(self, "subscriptions"):
                 self.subscriptions.clear()
 
-            if hasattr(self, 'fyers_adapter') and self.fyers_adapter:
+            if hasattr(self, "fyers_adapter") and self.fyers_adapter:
                 try:
                     self.fyers_adapter.disconnect(clear_mappings=True)
                 except Exception:
@@ -629,16 +668,16 @@ class FyersWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Force cleanup ZMQ
             try:
-                if hasattr(self, 'socket') and self.socket:
+                if hasattr(self, "socket") and self.socket:
                     self.socket.close(linger=0)
 
-                if hasattr(self, 'zmq_port'):
+                if hasattr(self, "zmq_port"):
                     with self._port_lock:
                         self._bound_ports.discard(self.zmq_port)
             except Exception:
                 pass
 
-            #print("Force cleanup completed")
+            # print("Force cleanup completed")
 
         except Exception:
             pass  # Suppress all errors in force cleanup

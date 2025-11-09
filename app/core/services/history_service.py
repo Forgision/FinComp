@@ -18,13 +18,14 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
-    module_path = f'broker.{broker_name}.api.data'
+    module_path = f"broker.{broker_name}.api.data"
     try:
         broker_module = importlib.import_module(module_path)
         return broker_module
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
+
 
 def get_history_with_auth(
     auth_token: str,
@@ -34,7 +35,7 @@ def get_history_with_auth(
     exchange: str,
     interval: str,
     start_date: str,
-    end_date: str
+    end_date: str,
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get historical data for a symbol using provided auth tokens.
@@ -58,14 +59,15 @@ def get_history_with_auth(
     """
     broker_module = import_broker_module(broker)
     if broker_module is None:
-        return False, {
-            'status': 'error',
-            'message': 'Broker-specific module not found'
-        }, 404
+        return (
+            False,
+            {"status": "error", "message": "Broker-specific module not found"},
+            404,
+        )
 
     try:
         # Initialize broker's data handler based on broker's requirements
-        if hasattr(broker_module.BrokerData.__init__, '__code__'):
+        if hasattr(broker_module.BrokerData.__init__, "__code__"):
             # Check number of parameters the broker's __init__ accepts
             param_count = broker_module.BrokerData.__init__.__code__.co_argcount
             if param_count > 2:  # More than self and auth_token
@@ -77,32 +79,21 @@ def get_history_with_auth(
             data_handler = broker_module.BrokerData(auth_token)
 
         # Call the broker's get_history method
-        df = data_handler.get_history(
-            symbol,
-            exchange,
-            interval,
-            start_date,
-            end_date
-        )
+        df = data_handler.get_history(symbol, exchange, interval, start_date, end_date)
 
         if not isinstance(df, pd.DataFrame):
             raise ValueError("Invalid data format returned from broker")
 
         # Ensure all responses include 'oi' field, set to 0 if not present
-        if 'oi' not in df.columns:
-            df['oi'] = 0
+        if "oi" not in df.columns:
+            df["oi"] = 0
 
-        return True, {
-            'status': 'success',
-            'data': df.to_dict(orient='records')
-        }, 200
+        return True, {"status": "success", "data": df.to_dict(orient="records")}, 200
     except Exception as e:
         logger.error(f"Error in broker_module.get_history: {e}")
         traceback.print_exc()
-        return False, {
-            'status': 'error',
-            'message': str(e)
-        }, 500
+        return False, {"status": "error", "message": str(e)}, 500
+
 
 def get_history(
     symbol: str,
@@ -113,7 +104,7 @@ def get_history(
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     feed_token: Optional[str] = None,
-    broker: Optional[str] = ''
+    broker: Optional[str] = "",
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get historical data for a symbol.
@@ -140,16 +131,20 @@ def get_history(
     if api_key and not (auth_token and broker):
         auth_details = get_auth_token_broker(api_key, include_feed_token=True)
         if not auth_details or len(auth_details) < 3:
-            return False, {'status': 'error', 'message': 'Invalid openalgo apikey or broker details missing'}, 403
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": "Invalid openalgo apikey or broker details missing",
+                },
+                403,
+            )
 
         AUTH_TOKEN, FEED_TOKEN, broker_name = auth_details
         if broker_name is None:
-            broker_name = ''
+            broker_name = ""
         if AUTH_TOKEN is None:
-            return False, {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }, 403
+            return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         return get_history_with_auth(
             AUTH_TOKEN,
             FEED_TOKEN,
@@ -158,7 +153,7 @@ def get_history(
             exchange,
             interval,
             start_date,
-            end_date
+            end_date,
         )
 
     # Case 2: Direct internal call with auth_token and broker
@@ -171,12 +166,16 @@ def get_history(
             exchange,
             interval,
             start_date,
-            end_date
+            end_date,
         )
 
     # Case 3: Invalid parameters
     else:
-        return False, {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
-        }, 400
+        return (
+            False,
+            {
+                "status": "error",
+                "message": "Either api_key or both auth_token and broker must be provided",
+            },
+            400,
+        )

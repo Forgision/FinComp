@@ -22,9 +22,9 @@ def get_margin_data(auth_token):
 
         client = get_httpx_client()
         headers = {
-            'Authorization': f'Bearer {auth_token}',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            "Authorization": f"Bearer {auth_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
         }
 
         url = "https://api.upstox.com/v2/user/get-funds-and-margin"
@@ -36,27 +36,35 @@ def get_margin_data(auth_token):
         margin_data = response.json()
         logger.debug(f"Received funds and margin data: {margin_data}")
 
-        if margin_data.get('status') == 'error':
-            error_details = margin_data.get('errors', 'Unknown error')
+        if margin_data.get("status") == "error":
+            error_details = margin_data.get("errors", "Unknown error")
             logger.error(f"API error fetching margin data: {error_details}")
             return {}
 
         # Calculate the sum of available_margin and used_margin
-        total_available_margin = sum([
-            margin_data['data']['commodity']['available_margin'],
-            margin_data['data']['equity']['available_margin']
-        ])
-        total_used_margin = sum([
-            margin_data['data']['commodity']['used_margin'],
-            margin_data['data']['equity']['used_margin']
-        ])
+        total_available_margin = sum(
+            [
+                margin_data["data"]["commodity"]["available_margin"],
+                margin_data["data"]["equity"]["available_margin"],
+            ]
+        )
+        total_used_margin = sum(
+            [
+                margin_data["data"]["commodity"]["used_margin"],
+                margin_data["data"]["equity"]["used_margin"],
+            ]
+        )
 
         position_book = get_positions(auth_token)
         position_book = map_order_data(position_book)
 
         def sum_realised_unrealised(position_book):
-            total_realised = sum(position.get('realised', 0) for position in position_book)
-            total_unrealised = sum(position.get('unrealised', 0) for position in position_book)
+            total_realised = sum(
+                position.get("realised", 0) for position in position_book
+            )
+            total_unrealised = sum(
+                position.get("unrealised", 0) for position in position_book
+            )
             return total_realised, total_unrealised
 
         total_realised, total_unrealised = sum_realised_unrealised(position_book)
@@ -79,24 +87,28 @@ def get_margin_data(auth_token):
         if e.response.status_code == 423:
             try:
                 error_data = json.loads(response_text)
-                if error_data.get('status') == 'error':
-                    errors = error_data.get('errors', [])
+                if error_data.get("status") == "error":
+                    errors = error_data.get("errors", [])
                     for error in errors:
-                        if error.get('errorCode') == 'UDAPI100072':
+                        if error.get("errorCode") == "UDAPI100072":
                             # Return default values for service hours error
-                            logger.info("Upstox funds service is outside operating hours (5:30 AM to 12:00 AM IST). Returning default values.")
+                            logger.info(
+                                "Upstox funds service is outside operating hours (5:30 AM to 12:00 AM IST). Returning default values."
+                            )
                             return {
                                 "availablecash": "0.00",
                                 "collateral": "0.00",
                                 "m2munrealized": "0.00",
                                 "m2mrealized": "0.00",
-                                "utiliseddebits": "0.00"
+                                "utiliseddebits": "0.00",
                             }
             except json.JSONDecodeError:
                 pass
 
         # Log the full error only if it's not a service hours issue
-        logger.exception(f"HTTP error occurred while fetching margin data: {response_text}")
+        logger.exception(
+            f"HTTP error occurred while fetching margin data: {response_text}"
+        )
         return {}
     except (KeyError, TypeError) as e:
         logger.exception(f"Error processing margin data structure: {e}")

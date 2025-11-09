@@ -1,10 +1,10 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Firstock API Parameters https://connect.thefirstock.com/api/V4/placeOrder
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Firstock API Parameters https://connect.thefirstock.com/api/V4/placeOrder
 
 from app.core.schemas.token_db import get_br_symbol
 
 
-def transform_data(data,token):
+def transform_data(data, token):
     """
     Transforms the OpenAlgo API request structure to Firstock's expected structure.
 
@@ -42,11 +42,11 @@ def transform_data(data,token):
 
     # Get broker symbol and handle special characters
     symbol = get_br_symbol(data["symbol"], data["exchange"])
-    if symbol and '&' in symbol:
-        symbol = symbol.replace('&', '%26')
+    if symbol and "&" in symbol:
+        symbol = symbol.replace("&", "%26")
 
     # Convert action to transactionType (case insensitive)
-    transaction_type = 'B' if data["action"].upper() == "BUY" else 'S'
+    transaction_type = "B" if data["action"].upper() == "BUY" else "S"
 
     # Basic mapping
     transformed = {
@@ -60,7 +60,9 @@ def transform_data(data,token):
         "transactionType": transaction_type,
         "priceType": map_order_type(data["pricetype"]),
         "retention": "DAY",
-        "remarks": data.get("strategy", "Place Order")  # Use strategy name as remarks if available
+        "remarks": data.get(
+            "strategy", "Place Order"
+        ),  # Use strategy name as remarks if available
     }
 
     return transformed
@@ -84,8 +86,8 @@ def transform_modify_order_data(data, token):
     """
     # Handle special characters in symbol
     symbol = data["symbol"]
-    if '&' in symbol:
-        symbol = symbol.replace('&', '%26')
+    if "&" in symbol:
+        symbol = symbol.replace("&", "%26")
 
     return {
         "exchange": data["exchange"],
@@ -94,9 +96,8 @@ def transform_modify_order_data(data, token):
         "price": str(data["price"]),
         "quantity": str(data["quantity"]),
         "tradingSymbol": symbol,
-        "triggerPrice": str(data.get("trigger_price", "0"))
+        "triggerPrice": str(data.get("trigger_price", "0")),
     }
-
 
 
 def map_order_type(pricetype):
@@ -107,30 +108,24 @@ def map_order_type(pricetype):
         "MARKET": "MKT",
         "LIMIT": "LMT",
         "SL": "SL-LMT",
-        "SL-M": "SL-MKT"
+        "SL-M": "SL-MKT",
     }
     return order_type_mapping.get(pricetype, "MKT")  # Default to MKT if not found
+
 
 def map_product_type(product):
     """
     Maps the OpenAlgo product type to Firstock's product type.
     """
-    product_type_mapping = {
-        "CNC": "C",
-        "NRML": "M",
-        "MIS": "I"
-    }
+    product_type_mapping = {"CNC": "C", "NRML": "M", "MIS": "I"}
     return product_type_mapping.get(product, "I")  # Default to I (MIS) if not found
-
 
 
 def reverse_map_product_type(product):
     """
     Maps Firstock's product type to OpenAlgo product type.
     """
-    reverse_product_type_mapping = {
-        "C": "CNC",
-        "M": "NRML",
-        "I": "MIS"
-    }
-    return reverse_product_type_mapping.get(product, "MIS")  # Default to MIS if not found
+    reverse_product_type_mapping = {"C": "CNC", "M": "NRML", "I": "MIS"}
+    return reverse_product_type_mapping.get(
+        product, "MIS"
+    )  # Default to MIS if not found

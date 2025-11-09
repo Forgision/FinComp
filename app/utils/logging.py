@@ -20,41 +20,42 @@ try:
     )
     from colorama import Style as ColoramaStyle
     from colorama import init as colorama_init
+
     colorama_init(autoreset=True)
     Fore = ColoramaFore
     Back = ColoramaBack
     Style = ColoramaStyle
     COLORAMA_AVAILABLE = True
     LOG_COLORS = {
-        'DEBUG': Fore.CYAN,
-        'INFO': Fore.GREEN,
-        'WARNING': Fore.YELLOW,
-        'ERROR': Fore.RED,
-        'CRITICAL': Fore.RED + Style.BRIGHT,
+        "DEBUG": Fore.CYAN,
+        "INFO": Fore.GREEN,
+        "WARNING": Fore.YELLOW,
+        "ERROR": Fore.RED,
+        "CRITICAL": Fore.RED + Style.BRIGHT,
     }
 
     # Additional colors for components
     COMPONENT_COLORS = {
-        'timestamp': Fore.BLUE,
-        'module': Fore.MAGENTA,
-        'location': Fore.MAGENTA,
-        'reset': Style.RESET_ALL,
+        "timestamp": Fore.BLUE,
+        "module": Fore.MAGENTA,
+        "location": Fore.MAGENTA,
+        "reset": Style.RESET_ALL,
     }
 except ImportError:
     COLORAMA_AVAILABLE = False
 
-PROJECT_NAME = 'app' # Adjust as needed for your project structure
+PROJECT_NAME = "app"  # Adjust as needed for your project structure
 # logging method names to detect in code context
 LOGGING_LEVELS = ["debug", "info", "warning", "error", "critical", "exception"]
 
 # Sensitive patterns to filter out
 SENSITIVE_PATTERNS = [
-    (r'(api[_-]?key[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(password[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(token[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(secret[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(authorization[\s]*[=:]\s*)[\w\-]+', r'\1[REDACTED]'),
-    (r'(Bearer\s+)[\w\-\.]+', r'\1[REDACTED]'),
+    (r"(api[_-]?key[\s]*[=:]\s*)[\w\-]+", r"\1[REDACTED]"),
+    (r"(password[\s]*[=:]\s*)[\w\-]+", r"\1[REDACTED]"),
+    (r"(token[\s]*[=:]\s*)[\w\-]+", r"\1[REDACTED]"),
+    (r"(secret[\s]*[=:]\s*)[\w\-]+", r"\1[REDACTED]"),
+    (r"(authorization[\s]*[=:]\s*)[\w\-]+", r"\1[REDACTED]"),
+    (r"(Bearer\s+)[\w\-\.]+", r"\1[REDACTED]"),
 ]
 
 
@@ -65,15 +66,19 @@ class SensitiveDataFilter(logging.Filter):
         try:
             # Filter the main message
             for pattern, replacement in SENSITIVE_PATTERNS:
-                record.msg = re.sub(pattern, replacement, str(record.msg), flags=re.IGNORECASE)
+                record.msg = re.sub(
+                    pattern, replacement, str(record.msg), flags=re.IGNORECASE
+                )
 
             # Filter args if present
-            if hasattr(record, 'args') and record.args:
+            if hasattr(record, "args") and record.args:
                 filtered_args = []
                 for arg in record.args:
                     filtered_arg = str(arg)
                     for pattern, replacement in SENSITIVE_PATTERNS:
-                        filtered_arg = re.sub(pattern, replacement, filtered_arg, flags=re.IGNORECASE)
+                        filtered_arg = re.sub(
+                            pattern, replacement, filtered_arg, flags=re.IGNORECASE
+                        )
                     filtered_args.append(filtered_arg)
                 record.args = tuple(filtered_args)
         except Exception:
@@ -85,8 +90,9 @@ class SensitiveDataFilter(logging.Filter):
 
 class CorrelationIdFilter(logging.Filter):
     """Filter to add correlation ID to log records if available in thread-local storage."""
+
     def filter(self, record):
-        record.correlation_id = getattr(_thread_local, 'correlation_id', 'N/A')
+        record.correlation_id = getattr(_thread_local, "correlation_id", "N/A")
         return True
 
 
@@ -159,7 +165,6 @@ class LocationBuilder:
         file_path = frame_info.filename
         frame = frame_info.frame
         try:
-
             path_obj = Path(file_path)
 
             # Determine the root for module path calculation.
@@ -189,10 +194,10 @@ class LocationBuilder:
         # Try to get the class name from 'self' (instance methods) or 'cls' (class methods).
         try:
             class_name = ""
-            if 'self' in frame.f_locals:
-                class_name = frame.f_locals['self'].__class__.__name__
-            elif 'cls' in frame.f_locals:
-                cls_arg = frame.f_locals['cls']
+            if "self" in frame.f_locals:
+                class_name = frame.f_locals["self"].__class__.__name__
+            elif "cls" in frame.f_locals:
+                cls_arg = frame.f_locals["cls"]
                 if inspect.isclass(cls_arg):
                     class_name = cls_arg.__name__
         except (AttributeError, KeyError):
@@ -220,6 +225,7 @@ class LocationInfoFilter(logging.Filter):
     Filter to add detailed location information to log records.
     It adds 'location' and 'custom_lineno' attributes.
     """
+
     def filter(self, record):
         caller_frame = LocationBuilder.find_caller_frame()
         record.location = LocationBuilder.build_callerpath(caller_frame)
@@ -231,30 +237,43 @@ class ColoredFormatter(logging.Formatter):
 
     def __init__(self, fmt=None, datefmt=None, enable_colors=True):
         super().__init__(fmt, datefmt)
-        self.enable_colors = settings.LOGS_COLORS_ENABLE and COLORAMA_AVAILABLE and self._supports_color()
+        self.enable_colors = (
+            settings.LOGS_COLORS_ENABLE
+            and COLORAMA_AVAILABLE
+            and self._supports_color()
+        )
 
     def _supports_color(self):
         """Check if the terminal supports color output."""
         # Check if we're in a terminal that supports colors
-        if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+        if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
             # Check environment variables
             term = settings.TERM
-            if 'color' in term.lower() or term in ['xterm', 'xterm-256color', 'screen', 'screen-256color']:
+            if "color" in term.lower() or term in [
+                "xterm",
+                "xterm-256color",
+                "screen",
+                "screen-256color",
+            ]:
                 return True
 
             # Check for common CI environments that support colors
-            ci_envs = ['GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL', 'BUILDKITE']
+            ci_envs = ["GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_URL", "BUILDKITE"]
             if any(env in os.environ for env in ci_envs):
                 return True
 
         # For Windows Command Prompt or PowerShell, check if ANSI support is available
-        if os.name == 'nt':
+        if os.name == "nt":
             try:
                 # Try to enable ANSI escape sequences on Windows
                 import subprocess
-                result = subprocess.run(['reg', 'query', 'HKCU\\Console', '/v', 'VirtualTerminalLevel'],
-                                      capture_output=True, text=True)
-                if result.returncode == 0 and 'VirtualTerminalLevel' in result.stdout:
+
+                result = subprocess.run(
+                    ["reg", "query", "HKCU\\Console", "/v", "VirtualTerminalLevel"],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0 and "VirtualTerminalLevel" in result.stdout:
                     return True
             except Exception:
                 pass
@@ -269,7 +288,7 @@ class ColoredFormatter(logging.Formatter):
 
     def format(self, record):
         # The filter adds custom_lineno. We use it for the output.
-        record.lineno = getattr(record, 'custom_lineno', record.lineno)
+        record.lineno = getattr(record, "custom_lineno", record.lineno)
 
         if not self.enable_colors:
             return super().format(record)
@@ -286,29 +305,27 @@ class ColoredFormatter(logging.Formatter):
                 return f"[{record.levelname}] {record.msg}"
 
         # Apply colors
-        level_color = LOG_COLORS.get(record.levelname, '')
-        reset = COMPONENT_COLORS.get('reset', '')
-        timestamp_color = COMPONENT_COLORS.get('timestamp', '')
-        location_color = COMPONENT_COLORS.get('location', '')
+        level_color = LOG_COLORS.get(record.levelname, "")
+        reset = COMPONENT_COLORS.get("reset", "")
+        timestamp_color = COMPONENT_COLORS.get("timestamp", "")
+        location_color = COMPONENT_COLORS.get("location", "")
 
         # Color timestamp (first bracketed group)
         original_format = re.sub(
-            r'(\[.*?\])',
-            f'{timestamp_color}\\1{reset}',
-            original_format,
-            count=1
+            r"(\[.*?\])", f"{timestamp_color}\\1{reset}", original_format, count=1
         )
 
         # Color log level
         original_format = original_format.replace(
-            record.levelname,
-            f'{level_color}{record.levelname}{reset}'
+            record.levelname, f"{level_color}{record.levelname}{reset}"
         )
 
         # Color location
-        if hasattr(record, 'location'):
+        if hasattr(record, "location"):
             location_str = f"[{record.location}:{record.lineno}]"
-            colored_location = f"[{location_color}{record.location}{reset}:{record.lineno}]"
+            colored_location = (
+                f"[{location_color}{record.location}{reset}:{record.lineno}]"
+            )
             original_format = original_format.replace(location_str, colored_location)
 
         return original_format
@@ -382,7 +399,6 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         file_path = frame_info.filename
         frame = frame_info.frame
         try:
-
             path_obj = Path(file_path)
 
             # Determine the root for module path calculation.
@@ -412,10 +428,10 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
         # Try to get the class name from 'self' (instance methods) or 'cls' (class methods).
         try:
             class_name = ""
-            if 'self' in frame.f_locals:
-                class_name = frame.f_locals['self'].__class__.__name__
-            elif 'cls' in frame.f_locals:
-                cls_arg = frame.f_locals['cls']
+            if "self" in frame.f_locals:
+                class_name = frame.f_locals["self"].__class__.__name__
+            elif "cls" in frame.f_locals:
+                cls_arg = frame.f_locals["cls"]
                 if inspect.isclass(cls_arg):
                     class_name = cls_arg.__name__
         except (AttributeError, KeyError):
@@ -472,7 +488,7 @@ def setup_logging():
     )
 
     # Get configuration from environment
-    log_format = '[%(asctime)s] [%(correlation_id)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s'
+    log_format = "[%(asctime)s] [%(correlation_id)s] %(levelname)s [%(location)s:%(lineno)d] %(message)s"
     log_retention = int(settings.LOG_RETENTION)
     log_colors = settings.LOGS_COLORS_ENABLE
 
@@ -512,10 +528,10 @@ def setup_logging():
         log_file = log_path / f"fincomp_{datetime.now().strftime('%Y-%m-%d')}.log"
         file_handler = TimedRotatingFileHandler(
             filename=str(log_file),
-            when='midnight',
+            when="midnight",
             interval=1,
             backupCount=log_retention,
-            encoding='utf-8'
+            encoding="utf-8",
         )
         file_handler.setFormatter(file_formatter)
         file_handler.addFilter(sensitive_filter)
@@ -524,17 +540,19 @@ def setup_logging():
         root_logger.addHandler(file_handler)
 
     # Suppress noisy third-party loggers
-    logging.getLogger('werkzeug').setLevel(logging.WARNING) # Flask specific, might be removed
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('requests').setLevel(logging.WARNING)
-    logging.getLogger('httpx').setLevel(logging.WARNING)
-    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger("werkzeug").setLevel(
+        logging.WARNING
+    )  # Flask specific, might be removed
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     # Suppress hpack DEBUG logs - they have format string bugs and are not useful
-    logging.getLogger('hpack.hpack').setLevel(logging.INFO)
-    logging.getLogger('hpack').setLevel(logging.INFO)
+    logging.getLogger("hpack.hpack").setLevel(logging.INFO)
+    logging.getLogger("hpack").setLevel(logging.INFO)
 
 
-def highlight_url(url: str, text: str = '') -> str:
+def highlight_url(url: str, text: str = "") -> str:
     """
     Create a highlighted URL string with bright colors and styling.
 
@@ -560,7 +578,9 @@ def highlight_url(url: str, text: str = '') -> str:
         return f"{bright_cyan}{url}{reset}"
 
 
-def log_startup_banner(logger, title: str, url: str, separator_char: str = "=", width: int = 60):
+def log_startup_banner(
+    logger, title: str, url: str, separator_char: str = "=", width: int = 60
+):
     """
     Log a highlighted startup banner with URL.
 
@@ -618,6 +638,7 @@ def get_logger(name: str) -> logging.Logger:
         Logger instance configured with the module name and color support
     """
     return CallerLoggerAdapter(logging.getLogger(name), {})
+
 
 # Initialize logging on import
 setup_logging()

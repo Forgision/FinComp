@@ -23,15 +23,15 @@ from app.utils.logging import logger
 # Reduce APScheduler logging verbosity
 # APScheduler logs every job execution at INFO level which is too noisy
 # Set it to WARNING to only see errors and warnings
-logging.getLogger('apscheduler.scheduler').setLevel(logging.WARNING)
-logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
+logging.getLogger("apscheduler.scheduler").setLevel(logging.WARNING)
+logging.getLogger("apscheduler.executors.default").setLevel(logging.WARNING)
 
 # Global scheduler instance
 _scheduler = None
 _scheduler_lock = threading.Lock()
 
 # IST timezone
-IST = pytz.timezone('Asia/Kolkata')
+IST = pytz.timezone("Asia/Kolkata")
 
 
 def _schedule_square_off_jobs(scheduler):
@@ -42,33 +42,29 @@ def _schedule_square_off_jobs(scheduler):
 
     # Get configured times from app.core.schemas
     square_off_configs = {
-        'NSE_BSE': get_config('nse_bse_square_off_time', '15:15'),
-        'CDS_BCD': get_config('cds_bcd_square_off_time', '16:45'),
-        'MCX': get_config('mcx_square_off_time', '23:30'),
-        'NCDEX': get_config('ncdex_square_off_time', '17:00'),
+        "NSE_BSE": get_config("nse_bse_square_off_time", "15:15"),
+        "CDS_BCD": get_config("cds_bcd_square_off_time", "16:45"),
+        "MCX": get_config("mcx_square_off_time", "23:30"),
+        "NCDEX": get_config("ncdex_square_off_time", "17:00"),
     }
 
     logger.info("Scheduling MIS square-off jobs (IST timezone):")
 
     for config_name, time_str in square_off_configs.items():
         try:
-            hour, minute = map(int, time_str.split(':'))
+            hour, minute = map(int, time_str.split(":"))
 
             # Create cron trigger for the specific time in IST
-            trigger = CronTrigger(
-                hour=hour,
-                minute=minute,
-                timezone=IST
-            )
+            trigger = CronTrigger(hour=hour, minute=minute, timezone=IST)
 
             # Schedule the job
             job = scheduler.add_job(
                 func=som.check_and_square_off,
                 trigger=trigger,
-                id=f'squareoff_{config_name}',
-                name=f'MIS Square-off {config_name}',
+                id=f"squareoff_{config_name}",
+                name=f"MIS Square-off {config_name}",
                 replace_existing=True,
-                misfire_grace_time=300  # Allow 5 minutes grace time
+                misfire_grace_time=300,  # Allow 5 minutes grace time
             )
 
             logger.info(f"  {config_name}: {time_str} IST (Job ID: {job.id})")
@@ -85,35 +81,33 @@ def _schedule_square_off_jobs(scheduler):
     # positions if current time is past the configured square-off time
     backup_job = scheduler.add_job(
         func=som.check_and_square_off,
-        trigger='interval',
+        trigger="interval",
         minutes=1,
-        id='squareoff_backup',
-        name='MIS Square-off Backup Check',
+        id="squareoff_backup",
+        name="MIS Square-off Backup Check",
         replace_existing=True,
-        timezone=IST
+        timezone=IST,
     )
 
     logger.info(f"  Backup check: Every 1 minute (Job ID: {backup_job.id})")
-    logger.debug("  Note: APScheduler logs have been set to WARNING level to reduce verbosity")
+    logger.debug(
+        "  Note: APScheduler logs have been set to WARNING level to reduce verbosity"
+    )
 
     # Schedule T+1 settlement job at midnight (00:00 IST)
     # This moves CNC positions to holdings after market close
     try:
         from sandbox.holdings_manager import process_all_t1_settlements
 
-        settlement_trigger = CronTrigger(
-            hour=0,
-            minute=0,
-            timezone=IST
-        )
+        settlement_trigger = CronTrigger(hour=0, minute=0, timezone=IST)
 
         settlement_job = scheduler.add_job(
             func=process_all_t1_settlements,
             trigger=settlement_trigger,
-            id='t1_settlement',
-            name='T+1 Settlement (CNC to Holdings)',
+            id="t1_settlement",
+            name="T+1 Settlement (CNC to Holdings)",
             replace_existing=True,
-            misfire_grace_time=300
+            misfire_grace_time=300,
         )
 
         logger.info(f"  T+1 Settlement: 00:00 IST (Job ID: {settlement_job.id})")
@@ -126,33 +120,40 @@ def _schedule_square_off_jobs(scheduler):
     try:
         from sandbox.fund_manager import reset_all_user_funds
 
-        reset_day = get_config('reset_day', 'Sunday')
-        reset_time_str = get_config('reset_time', '00:00')
-        reset_hour, reset_minute = map(int, reset_time_str.split(':'))
+        reset_day = get_config("reset_day", "Sunday")
+        reset_time_str = get_config("reset_time", "00:00")
+        reset_hour, reset_minute = map(int, reset_time_str.split(":"))
 
         # Map day names to APScheduler day_of_week values
         day_mapping = {
-            'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3,
-            'Friday': 4, 'Saturday': 5, 'Sunday': 6
+            "Monday": 0,
+            "Tuesday": 1,
+            "Wednesday": 2,
+            "Thursday": 3,
+            "Friday": 4,
+            "Saturday": 5,
+            "Sunday": 6,
         }
 
         reset_trigger = CronTrigger(
             day_of_week=day_mapping.get(reset_day, 6),  # Default to Sunday
             hour=reset_hour,
             minute=reset_minute,
-            timezone=IST
+            timezone=IST,
         )
 
         reset_job = scheduler.add_job(
             func=reset_all_user_funds,
             trigger=reset_trigger,
-            id='auto_reset',
-            name=f'Auto-Reset Funds ({reset_day} {reset_time_str})',
+            id="auto_reset",
+            name=f"Auto-Reset Funds ({reset_day} {reset_time_str})",
             replace_existing=True,
-            misfire_grace_time=300
+            misfire_grace_time=300,
         )
 
-        logger.info(f"  Auto-Reset: {reset_day} {reset_time_str} IST (Job ID: {reset_job.id})")
+        logger.info(
+            f"  Auto-Reset: {reset_day} {reset_time_str} IST (Job ID: {reset_job.id})"
+        )
 
     except Exception as e:
         logger.error(f"Failed to schedule auto-reset: {e}")
@@ -176,9 +177,9 @@ def start_squareoff_scheduler():
                 timezone=IST,
                 daemon=True,
                 job_defaults={
-                    'coalesce': True,  # Combine missed executions
-                    'max_instances': 1,  # Only one instance of each job at a time
-                }
+                    "coalesce": True,  # Combine missed executions
+                    "max_instances": 1,  # Only one instance of each job at a time
+                },
             )
 
             # Schedule all square-off jobs
@@ -229,25 +230,22 @@ def get_squareoff_scheduler_status():
     global _scheduler
 
     if _scheduler is None or not _scheduler.running:
-        return {
-            'running': False,
-            'jobs': []
-        }
+        return {"running": False, "jobs": []}
 
     jobs_info = []
     for job in _scheduler.get_jobs():
         next_run = job.next_run_time
-        jobs_info.append({
-            'id': job.id,
-            'name': job.name,
-            'next_run': next_run.strftime('%Y-%m-%d %H:%M:%S %Z') if next_run else 'N/A'
-        })
+        jobs_info.append(
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run": next_run.strftime("%Y-%m-%d %H:%M:%S %Z")
+                if next_run
+                else "N/A",
+            }
+        )
 
-    return {
-        'running': True,
-        'timezone': str(IST),
-        'jobs': jobs_info
-    }
+    return {"running": True, "timezone": str(IST), "jobs": jobs_info}
 
 
 def reload_squareoff_schedule():

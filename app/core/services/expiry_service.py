@@ -93,7 +93,7 @@ async def get_expiry_dates(
                 False,
                 {
                     "status": "error",
-                    "message": f'Exchange must be one of: {", ".join(supported_exchanges)}',
+                    "message": f"Exchange must be one of: {', '.join(supported_exchanges)}",
                 },
                 400,
             )

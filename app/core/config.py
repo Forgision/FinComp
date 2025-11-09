@@ -5,7 +5,10 @@ from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Define the base directory of the project
-BASE_DIR = Path(__file__).resolve().parent.parent   # config/mnt/vault/@work-station/Python/FinComp/app/
+BASE_DIR = (
+    Path(__file__).resolve().parent.parent
+)  # config/mnt/vault/@work-station/Python/FinComp/app/
+
 
 class Settings(BaseSettings):
     # Project Configuration
@@ -29,8 +32,10 @@ class Settings(BaseSettings):
     # Security Configuration
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     APP_KEY: str = "3daa0403ce2501ee7432b75bf100048e3cf510d63d2754f952e93d88bf07ea84"
-    API_KEY_PEPPER: str = "a25d94718479b170c16278e321ea6c989358bf499a658fd20c90033cef8ce772"
-    TELEGRAM_KEY_SALT: str = 'telegram-openalgo-salt'
+    API_KEY_PEPPER: str = (
+        "a25d94718479b170c16278e321ea6c989358bf499a658fd20c90033cef8ce772"
+    )
+    TELEGRAM_KEY_SALT: str = "telegram-openalgo-salt"
 
     # Database Configuration
     DATABASE_URL: str = "sqlite+aiosqlite:///db/openalgo.db"
@@ -128,8 +133,8 @@ class Settings(BaseSettings):
 
     # CSRF Protection Configuration
     CSRF_ENABLED: bool = True
-    CSRF_TIME_LIMIT: Optional[int] = None # Example: 3600 for 1 hour, None for no limit
-    CSRF_EXEMPT_ROUTES: str = "" # Comma-separated list of routes to exempt
+    CSRF_TIME_LIMIT: Optional[int] = None  # Example: 3600 for 1 hour, None for no limit
+    CSRF_EXEMPT_ROUTES: str = ""  # Comma-separated list of routes to exempt
 
     # Cookie Names Configuration
     SESSION_COOKIE_NAME: str = "session"
@@ -139,8 +144,11 @@ class Settings(BaseSettings):
 
     @property
     def USE_HTTPS(self) -> bool:
-        return self.HOST_SERVER.startswith('https://')
+        return self.HOST_SERVER.startswith("https://")
 
-    model_config = SettingsConfigDict(env_file=os.path.join(BASE_DIR, '.env'), extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(BASE_DIR, ".env"), extra="ignore"
+    )
+
 
 settings = Settings()

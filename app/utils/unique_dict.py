@@ -1,6 +1,7 @@
 import json
 from typing import Any, Iterable, Mapping
 
+
 class UniqueEnumDict(dict):
     """
     dict subclass with:
@@ -39,20 +40,26 @@ class UniqueEnumDict(dict):
         """
         for k, v in self.items():
             if v == value and k != for_key:
-                raise ValueError(f"Duplicate value {value!r} would conflict with existing key {k!r}")
+                raise ValueError(
+                    f"Duplicate value {value!r} would conflict with existing key {k!r}"
+                )
 
     # ---------- Core overrides ----------
     def __setitem__(self, key: str, value: Any) -> None:
         # If updating existing key:
         if key in self:
             if not self._allow_value_mutation:
-                raise TypeError(f"Mutation of existing value for key {key!r} is disallowed.")
+                raise TypeError(
+                    f"Mutation of existing value for key {key!r} is disallowed."
+                )
             # Check uniqueness excluding the same key
             self._check_value(value, for_key=key)
         else:
             # Adding a new key
             if getattr(self, "_initialized", True) and not self._allow_new_keys:
-                raise TypeError(f"Adding new key {key!r} is disallowed (allow_new_keys=False).")
+                raise TypeError(
+                    f"Adding new key {key!r} is disallowed (allow_new_keys=False)."
+                )
             # Ensure value uniqueness
             self._check_value(value, for_key=key)
 
@@ -95,7 +102,9 @@ class UniqueEnumDict(dict):
             try:
                 del self[name]
             except KeyError:
-                raise AttributeError(f"{type(self).__name__!s} has no attribute {name!r}")
+                raise AttributeError(
+                    f"{type(self).__name__!s} has no attribute {name!r}"
+                )
 
     # ---------- Update and setdefault to funnel through uniqueness checks ----------
     def update(self, *args, **kwargs) -> None:
@@ -109,7 +118,7 @@ class UniqueEnumDict(dict):
         if args:
             if len(args) > 1:
                 raise TypeError("update expected at most 1 positional argument")
-            other = args[0] # type: ignore
+            other = args[0]  # type: ignore
             if isinstance(other, Mapping):
                 for k, v in other.items():
                     self[k] = v

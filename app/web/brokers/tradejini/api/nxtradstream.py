@@ -9,7 +9,8 @@ import websocket
 from app.utils.logging import logger
 
 CURRENT_VERSION = 1
-PKG_VERSION = '1.0.2'
+PKG_VERSION = "1.0.2"
+
 
 def commafmt(value, precision=2):
     v = str(round(float(value), 2))
@@ -48,7 +49,7 @@ SEG_INFO = {
     7: {"exchSeg": "MCD", "precision": 4, "divisor": 10000.0},
     8: {"exchSeg": "MCX", "precision": 2, "divisor": 100.0},
     9: {"exchSeg": "NCO", "precision": 2, "divisor": 10000.0},
-    10: {"exchSeg": "BCO", "precision": 2, "divisor": 10000.0}
+    10: {"exchSeg": "BCO", "precision": 2, "divisor": 10000.0},
 }
 PKT_TYPE = {
     10: L1,
@@ -58,7 +59,7 @@ PKT_TYPE = {
     14: MARKET_STATUS,
     15: EVENTS,
     16: PING,
-    17: GREEKS
+    17: GREEKS,
 }
 
 # spec format :: 67: {  "struct":"d", "key": "ltp", "len": 8, "fmt": lambda v, p :  commafmt(v, p) },
@@ -68,28 +69,103 @@ DEFAULT_PKT_INFO = {
             26: {"struct": "B", "key": "exchSeg", "len": 1},
             27: {"struct": "i", "key": "token", "len": 4},
             28: {"struct    ": "B", "key": "precision", "len": 1},
-            29: {"struct": "i", "key": "ltp", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            30: {"struct": "i", "key": "open", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            31: {"struct": "i", "key": "high", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            32: {"struct": "i", "key": "low", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            33: {"struct": "i", "key": "close", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            34: {"struct": "i", "key": "chng", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            35: {"struct": "i", "key": "chngPer", "len": 4, "fmt": lambda v, d: divide(v)},
-            36: {"struct": "i", "key": "atp", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            37: {"struct": "i", "key": "yHigh", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            38: {"struct": "i", "key": "yLow", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            29: {
+                "struct": "i",
+                "key": "ltp",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            30: {
+                "struct": "i",
+                "key": "open",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            31: {
+                "struct": "i",
+                "key": "high",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            32: {
+                "struct": "i",
+                "key": "low",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            33: {
+                "struct": "i",
+                "key": "close",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            34: {
+                "struct": "i",
+                "key": "chng",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            35: {
+                "struct": "i",
+                "key": "chngPer",
+                "len": 4,
+                "fmt": lambda v, d: divide(v),
+            },
+            36: {
+                "struct": "i",
+                "key": "atp",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            37: {
+                "struct": "i",
+                "key": "yHigh",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            38: {
+                "struct": "i",
+                "key": "yLow",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             39: {"struct": "<I", "key": "ltq", "len": 4},
             40: {"struct": "<I", "key": "vol", "len": 4},
             41: {"struct": "d", "key": "ttv", "len": 8},
-            42: {"struct": "i", "key": "ucl", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            43: {"struct": "i", "key": "lcl", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            42: {
+                "struct": "i",
+                "key": "ucl",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            43: {
+                "struct": "i",
+                "key": "lcl",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             44: {"struct": "<I", "key": "OI", "len": 4},
-            45: {"struct": "i", "key": "OIChngPer", "len": 4, "fmt": lambda v, d: divide(v)},
+            45: {
+                "struct": "i",
+                "key": "OIChngPer",
+                "len": 4,
+                "fmt": lambda v, d: divide(v),
+            },
             46: {"struct": "i", "key": "ltt", "len": 4, "fmt": lambda v: datefmt(v)},
-            49: {"struct": "i", "key": "bidPrice", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            49: {
+                "struct": "i",
+                "key": "bidPrice",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             50: {"struct": "<I", "key": "qty", "len": 4},
             51: {"struct": "<I", "key": "no", "len": 4},
-            52: {"struct": "i", "key": "askPrice", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            52: {
+                "struct": "i",
+                "key": "askPrice",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             53: {"struct": "<I", "key": "qty", "len": 4},
             54: {"struct": "<I", "key": "no", "len": 4},
             55: {"struct": "B", "key": "nDepth", "len": 1},
@@ -97,9 +173,24 @@ DEFAULT_PKT_INFO = {
             58: {"struct": "<I", "key": "prevOI", "len": 4},
             59: {"struct": "<I", "key": "dayHighOI", "len": 4},
             60: {"struct": "<I", "key": "dayLowOI", "len": 4},
-            70: {"struct": "i", "key": "spotPrice", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            71: {"struct": "i", "key": "dayClose", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            74: {"struct": "i", "key": "vwap", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            70: {
+                "struct": "i",
+                "key": "spotPrice",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            71: {
+                "struct": "i",
+                "key": "dayClose",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            74: {
+                "struct": "i",
+                "key": "vwap",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
         },
         11: {
             26: {"struct": "B", "key": "exchSeg", "len": 1},
@@ -107,10 +198,20 @@ DEFAULT_PKT_INFO = {
             28: {"struct": "B", "key": "precision", "len": 1},
             47: {"struct": "<I", "key": "totBuyQty", "len": 4},
             48: {"struct": "<I", "key": "totSellQty", "len": 4},
-            49: {"struct": "i", "key": "price", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            49: {
+                "struct": "i",
+                "key": "price",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             50: {"struct": "<I", "key": "qty", "len": 4},
             51: {"struct": "<I", "key": "no", "len": 4},
-            52: {"struct": "i", "key": "price", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            52: {
+                "struct": "i",
+                "key": "price",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             53: {"struct": "<I", "key": "qty", "len": 4},
             54: {"struct": "<I", "key": "no", "len": 4},
             55: {"struct": "B", "key": "nDepth", "len": 1},
@@ -119,13 +220,38 @@ DEFAULT_PKT_INFO = {
             26: {"struct": "B", "key": "exchSeg", "len": 1},
             27: {"struct": "i", "key": "token", "len": 4},
             28: {"struct": "B", "key": "precision", "len": 1},
-            30: {"struct": "i", "key": "open", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            31: {"struct": "i", "key": "high", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            32: {"struct": "i", "key": "low", "len": 4, "fmt": lambda v, d: divide(v, d)},
-            33: {"struct": "i", "key": "close", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            30: {
+                "struct": "i",
+                "key": "open",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            31: {
+                "struct": "i",
+                "key": "high",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            32: {
+                "struct": "i",
+                "key": "low",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
+            33: {
+                "struct": "i",
+                "key": "close",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             40: {"struct": "<I", "key": "vol", "len": 4},
             46: {"struct": "i", "key": "time", "len": 4, "fmt": lambda v: datefmt(v)},
-            74: {"struct": "i", "key": "vwap", "len": 4, "fmt": lambda v, d: divide(v, d)},
+            74: {
+                "struct": "i",
+                "key": "vwap",
+                "len": 4,
+                "fmt": lambda v, d: divide(v, d),
+            },
             75: {"struct": "string", "key": "type", "len": 4},
             76: {"struct": "<I", "key": "minuteOi", "len": 4},
         },
@@ -157,15 +283,15 @@ DEFAULT_PKT_INFO = {
             69: {"struct": "d", "key": "vega", "len": 8},
             72: {"struct": "d", "key": "highiv", "len": 8},
             73: {"struct": "d", "key": "lowiv", "len": 8},
-        }
+        },
     },
     "BID_ASK_OBJ_LEN": 3,
-    "MARKET_STATUS_OBJ_LEN": 2
+    "MARKET_STATUS_OBJ_LEN": 2,
 }
 
 
 class NxtradStream:
-    def __init__(self, url, version='3.1', stream_cb=None, connect_cb=None):
+    def __init__(self, url, version="3.1", stream_cb=None, connect_cb=None):
         self.ws = None
         self.isConnected = False
 
@@ -175,7 +301,7 @@ class NxtradStream:
         self.host = "wss://" + url + "/v2.1/stream"
 
         self.L1_dict = {}
-        self.token = ''
+        self.token = ""
         self.version = version
 
     def connect(self, token):
@@ -184,9 +310,9 @@ class NxtradStream:
 
     def reconnect(self):
         if not self.token:
-            sys.exit('Unable to connect auth token is empty')
+            sys.exit("Unable to connect auth token is empty")
         if self.isConnected:
-            logger.info('Socket already connected')
+            logger.info("Socket already connected")
             return
         logger.info("Reconnecting...")
         self.__tryConnect()
@@ -304,7 +430,6 @@ class NxtradStream:
         return self.__send_data(req)
 
     def unsubscribeL1(self):
-
         self.L1_dict.clear()
 
         req = {}
@@ -341,7 +466,7 @@ class NxtradStream:
 
         return self.__send_data(req)
 
-    def unsubscribeOHLC(self,interval):
+    def unsubscribeOHLC(self, interval):
         req = {}
         req["type"] = "OHLC"
         req["action"] = "unsub"
@@ -373,7 +498,7 @@ class NxtradStream:
         if binaryKey == "string":
             parsed = self.__ab2str(data, idx, binaryLen)
         else:
-            parsed = struct.unpack(binaryKey, data[idx: idx + binaryLen])[0]
+            parsed = struct.unpack(binaryKey, data[idx : idx + binaryLen])[0]
 
         return parsed
 
@@ -381,13 +506,14 @@ class NxtradStream:
         for key, value in raw_data.items():
             spec = value[0]
             framed = value[1]
-            jData[spec["key"]] = (spec["fmt"](
-                framed, divisor) if "fmt" in spec else framed)
+            jData[spec["key"]] = (
+                spec["fmt"](framed, divisor) if "fmt" in spec else framed
+            )
 
     def __ab2str(self, buf, offset, length):
         unpacklen = str(length) + "s"
-        v = struct.unpack(unpacklen, buf[offset: offset + length])
-        res = v[0].rstrip(b'\x00').decode("utf_8")
+        v = struct.unpack(unpacklen, buf[offset : offset + length])
+        res = v[0].rstrip(b"\x00").decode("utf_8")
         return res
 
     def __onsinglePacket(self, data, data_len):
@@ -436,7 +562,7 @@ class NxtradStream:
         precision = 2
         idx = 3
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
@@ -446,14 +572,13 @@ class NxtradStream:
                 divisor = exchange_info["divisor"]
                 jData[spec["key"]] = exchange_info["exchSeg"]
             elif spec["key"] == "ltt":
-                jData[spec["key"]] = (spec["fmt"](
-                    framed) if "fmt" in spec else framed)
+                jData[spec["key"]] = spec["fmt"](framed) if "fmt" in spec else framed
             else:
                 raw_data[spec["key"]] = (spec, framed)
 
             idx += spec["len"]
 
-        if (exchange_info is not None):
+        if exchange_info is not None:
             self.__format_values(divisor, raw_data, jData)
 
         jData["symbol"] = str(jData["token"]) + "_" + jData["exchSeg"]
@@ -474,7 +599,7 @@ class NxtradStream:
         jData = {}
         idx = 3
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
@@ -487,10 +612,9 @@ class NxtradStream:
                 divisor = exchange_info["divisor"]
                 jData[spec["key"]] = exchange_info["exchSeg"]
             else:
-                if (list is not None):
+                if list is not None:
                     lObj[spec["key"]] = (
-                        spec["fmt"](
-                            framed, divisor) if "fmt" in spec else framed
+                        spec["fmt"](framed, divisor) if "fmt" in spec else framed
                     )
                 else:
                     raw_data[spec["key"]] = (spec, framed)
@@ -504,7 +628,7 @@ class NxtradStream:
 
             idx += spec["len"]
 
-        if (exchange_info is not None):
+        if exchange_info is not None:
             self.__format_values(divisor, raw_data, jData)
 
         jData["bid"] = bids
@@ -521,7 +645,7 @@ class NxtradStream:
         precision = 2
         idx = 3
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
@@ -531,14 +655,13 @@ class NxtradStream:
                 divisor = exchange_info["divisor"]
                 jData[spec["key"]] = exchange_info["exchSeg"]
             elif spec["key"] == "time":
-                jData[spec["key"]] = (spec["fmt"](
-                    framed) if "fmt" in spec else framed)
+                jData[spec["key"]] = spec["fmt"](framed) if "fmt" in spec else framed
             else:
                 raw_data[spec["key"]] = (spec, framed)
 
             idx += spec["len"]
 
-        if (exchange_info is not None):
+        if exchange_info is not None:
             self.__format_values(divisor, raw_data, jData)
 
         jData["symbol"] = str(jData["token"]) + "_" + jData["exchSeg"]
@@ -553,7 +676,7 @@ class NxtradStream:
         exchange_info = None
         list = None
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
@@ -561,7 +684,7 @@ class NxtradStream:
                 list = []
             else:
                 lObj[spec["key"]] = framed
-                if (spec["key"] == "exchSeg"):
+                if spec["key"] == "exchSeg":
                     exchange_info = SEG_INFO[framed]
                     lObj[spec["key"]] = exchange_info["exchSeg"]
 
@@ -580,7 +703,7 @@ class NxtradStream:
         idx = 3
         noOfLen = 0
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
@@ -598,12 +721,11 @@ class NxtradStream:
         jData = {}
         idx = 3
         while idx < data_len:
-            pktKey = struct.unpack("B", data[idx: idx + 1])
+            pktKey = struct.unpack("B", data[idx : idx + 1])
             idx += 1
             spec = pktSpec[pktKey[0]]
             framed = self.__frame_from_spec(spec, data, idx)
-            jData[spec["key"]] = (spec["fmt"](
-                framed) if "fmt" in spec else framed)
+            jData[spec["key"]] = spec["fmt"](framed) if "fmt" in spec else framed
             idx += spec["len"]
 
         return jData
@@ -627,14 +749,12 @@ class NxtradStream:
         totalRecivedLen = len(dc_data)
         bufferIndex = 0
         while bufferIndex < totalRecivedLen:
-            pktLen = struct.unpack(
-                "h", dc_data[bufferIndex: (bufferIndex + 2)])[0]
+            pktLen = struct.unpack("h", dc_data[bufferIndex : (bufferIndex + 2)])[0]
             if pktLen <= 0:
                 logger.info(f"Packet Length is wrong exiting the loop{str(pktLen)}")
                 break
 
-            self.__onsinglePacket(
-                dc_data[bufferIndex: (bufferIndex + pktLen)], pktLen)
+            self.__onsinglePacket(dc_data[bufferIndex : (bufferIndex + pktLen)], pktLen)
             bufferIndex += pktLen
 
     def __on_error(self, ws, error):
@@ -643,8 +763,11 @@ class NxtradStream:
 
     def __on_close(self, ws, close_status_code, close_msg):
         self.isConnected = False
-        self._callback(self.connect_cb, self, {
-                       "s": "closed", "code": close_status_code, "reason": close_msg})
+        self._callback(
+            self.connect_cb,
+            self,
+            {"s": "closed", "code": close_status_code, "reason": close_msg},
+        )
 
     def __on_open(self, ws):
         self.isConnected = True

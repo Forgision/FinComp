@@ -2,18 +2,19 @@
 Firstock-specific exchange mapping and capability registry
 """
 
+
 class FirstockExchangeMapper:
     """Maps between standard exchange codes and Firstock-specific codes"""
 
     # Mapping from standard codes to Firstock exchange codes
     EXCHANGE_MAP = {
-        'NSE': 'NSE',
-        'BSE': 'BSE',
-        'NFO': 'NFO',
-        'CDS': 'CDS',
-        'MCX': 'MCX',
-        'BFO': 'BFO',
-        'NSE_INDEX': 'NSE'  # NSE indices use NSE exchange in Firstock
+        "NSE": "NSE",
+        "BSE": "BSE",
+        "NFO": "NFO",
+        "CDS": "CDS",
+        "MCX": "MCX",
+        "BFO": "BFO",
+        "NSE_INDEX": "NSE",  # NSE indices use NSE exchange in Firstock
     }
 
     # Reverse mapping

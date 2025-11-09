@@ -33,13 +33,9 @@ class UpstoxWebSocketClient:
             "on_connect": None,
             "on_message": None,
             "on_error": None,
-            "on_close": None
+            "on_close": None,
         }
-        self._reconnect_config = {
-            "max_attempts": 5,
-            "base_delay": 2,
-            "max_delay": 30
-        }
+        self._reconnect_config = {"max_attempts": 5, "base_delay": 2, "max_delay": 30}
 
     async def connect(self) -> bool:
         """Establish WebSocket connection with reconnection logic"""
@@ -84,7 +80,9 @@ class UpstoxWebSocketClient:
             message = self._create_subscription_message(instrument_keys, mode, "sub")
             await self._send_message(message)
             self._subscriptions.update(instrument_keys)
-            self.logger.info(f"Subscribed to {len(instrument_keys)} instruments in {mode} mode")
+            self.logger.info(
+                f"Subscribed to {len(instrument_keys)} instruments in {mode} mode"
+            )
             return True
 
         except Exception as e:
@@ -130,7 +128,11 @@ class UpstoxWebSocketClient:
     # Private helper methods
     def _is_valid_auth_token(self) -> bool:
         """Check if auth token is valid"""
-        return bool(self.auth_token and isinstance(self.auth_token, str) and len(self.auth_token) >= 10)
+        return bool(
+            self.auth_token
+            and isinstance(self.auth_token, str)
+            and len(self.auth_token) >= 10
+        )
 
     def _is_connected(self) -> bool:
         """Check if WebSocket is connected"""
@@ -143,8 +145,8 @@ class UpstoxWebSocketClient:
         """Get WebSocket URL from Upstox authorization endpoint"""
         try:
             headers = {
-                'Accept': 'application/json',
-                'Authorization': f'Bearer {self.auth_token}'
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self.auth_token}",
             }
 
             self.logger.debug("Requesting WebSocket authorization")
@@ -152,7 +154,7 @@ class UpstoxWebSocketClient:
             response.raise_for_status()
 
             auth_data = response.json()
-            ws_url = auth_data.get('data', {}).get('authorized_redirect_uri')
+            ws_url = auth_data.get("data", {}).get("authorized_redirect_uri")
 
             if ws_url:
                 self.logger.info(f"Received WebSocket URL: {ws_url}")
@@ -173,10 +175,7 @@ class UpstoxWebSocketClient:
 
         self.logger.info(f"Connecting to WebSocket: {ws_url}")
         self.websocket = await websockets.connect(
-            ws_url,
-            ssl=ssl_context,
-            ping_interval=None,
-            ping_timeout=None
+            ws_url, ssl=ssl_context, ping_interval=None, ping_timeout=None
         )
 
     def _calculate_backoff_delay(self, attempt: int) -> int:
@@ -184,12 +183,14 @@ class UpstoxWebSocketClient:
         delay = self._reconnect_config["base_delay"] * (2 ** (attempt - 1))
         return min(delay, self._reconnect_config["max_delay"])
 
-    def _create_subscription_message(self, instrument_keys: List[str], mode: str = None, method: str = "sub") -> Dict[str, Any]:
+    def _create_subscription_message(
+        self, instrument_keys: List[str], mode: str = None, method: str = "sub"
+    ) -> Dict[str, Any]:
         """Create subscription/unsubscription message"""
         message = {
             "guid": str(uuid.uuid4()).replace("-", "")[:20],
             "method": method,
-            "data": {"instrumentKeys": instrument_keys}
+            "data": {"instrumentKeys": instrument_keys},
         }
 
         if mode and method == "sub":
@@ -200,7 +201,7 @@ class UpstoxWebSocketClient:
     async def _send_message(self, message: Dict[str, Any]) -> None:
         """Send message to WebSocket"""
         self.logger.debug(f"Sending: {json.dumps(message, indent=2)}")
-        await self.websocket.send(json.dumps(message).encode('utf-8'))
+        await self.websocket.send(json.dumps(message).encode("utf-8"))
 
     async def _trigger_callback(self, callback_name: str, *args) -> None:
         """Trigger callback if it exists"""
@@ -271,5 +272,7 @@ class UpstoxWebSocketClient:
 
     def _log_binary_message(self, direction: str, message: bytes) -> None:
         """Log binary message with hex preview"""
-        hex_preview = ' '.join(f'{b:02x}' for b in message[:16])
-        self.logger.debug(f"WebSocket {direction}: Binary message ({len(message)} bytes), preview: {hex_preview}")
+        hex_preview = " ".join(f"{b:02x}" for b in message[:16])
+        self.logger.debug(
+            f"WebSocket {direction}: Binary message ({len(message)} bytes), preview: {hex_preview}"
+        )

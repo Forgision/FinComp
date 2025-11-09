@@ -16,6 +16,7 @@ from app.web.websocket.port_check import is_port_in_use
 
 # Initialize logger
 
+
 class WebSocketProxy:
     """
     WebSocket Proxy Server that handles client connections and authentication,
@@ -35,7 +36,9 @@ class WebSocketProxy:
         self.port = port
 
         # Check if the required port is already in use - wait briefly for cleanup to complete
-        if is_port_in_use(host, port, wait_time=2.0):  # Wait up to 2 seconds for port release
+        if is_port_in_use(
+            host, port, wait_time=2.0
+        ):  # Wait up to 2 seconds for port release
             error_msg = (
                 f"WebSocket port {port} is already in use on {host}.\n"
                 f"This port is required for SDK compatibility (see strategies/ltp_example.py).\n"
@@ -61,7 +64,9 @@ class WebSocketProxy:
         # Connecting to ZMQ
         ZMQ_HOST = settings.ZMQ_HOST
         ZMQ_PORT = settings.ZMQ_PORT
-        self.socket.connect(f"tcp://{ZMQ_HOST}:{ZMQ_PORT}")  # Connect to broker adapter publisher
+        self.socket.connect(
+            f"tcp://{ZMQ_HOST}:{ZMQ_PORT}"
+        )  # Connect to broker adapter publisher
 
         # Set up ZeroMQ subscriber to receive all messages
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")  # Subscribe to all topics
@@ -105,9 +110,13 @@ class WebSocketProxy:
                         logger.info("Signal handlers registered successfully")
                     except (NotImplementedError, RuntimeError) as e:
                         # On Windows or when in a non-main thread
-                        logger.info(f"Signal handlers not registered: {e}. Using fallback mechanism.")
+                        logger.info(
+                            f"Signal handlers not registered: {e}. Using fallback mechanism."
+                        )
                 else:
-                    logger.info("Running in a non-main thread. Signal handlers will not be used.")
+                    logger.info(
+                        "Running in a non-main thread. Signal handlers will not be used."
+                    )
             except RuntimeError:
                 logger.info("No running event loop found for signal handlers")
 
@@ -122,11 +131,13 @@ class WebSocketProxy:
                     self.host,
                     self.port,
                     # Enable socket reuse for immediate port availability after close
-                    reuse_port=True if hasattr(socket, 'SO_REUSEPORT') else False
+                    reuse_port=True if hasattr(socket, "SO_REUSEPORT") else False,
                 )
 
                 highlighted_success_address = highlight_url(f"{self.host}:{self.port}")
-                logger.info(f"WebSocket server successfully started on {highlighted_success_address}")
+                logger.info(
+                    f"WebSocket server successfully started on {highlighted_success_address}"
+                )
 
                 await stop  # Wait until stopped
 
@@ -152,7 +163,7 @@ class WebSocketProxy:
 
         try:
             # Close the WebSocket server first (this releases the port)
-            if hasattr(self, 'server') and self.server:
+            if hasattr(self, "server") and self.server:
                 try:
                     logger.info("Closing WebSocket server...")
                     # On Windows, we need to handle the case where we're in a different event loop
@@ -162,7 +173,9 @@ class WebSocketProxy:
                         logger.info("WebSocket server closed and port released")
                     except RuntimeError as e:
                         if "attached to a different loop" in str(e):
-                            logger.warning(f"WebSocket server cleanup skipped due to event loop mismatch: {e}")
+                            logger.warning(
+                                f"WebSocket server cleanup skipped due to event loop mismatch: {e}"
+                            )
                             # Force close the server without waiting
                             try:
                                 self.server.close()
@@ -177,7 +190,7 @@ class WebSocketProxy:
             close_tasks = []
             for client_id, websocket in self.clients.items():
                 try:
-                    if hasattr(websocket, 'open') and websocket.open:
+                    if hasattr(websocket, "open") and websocket.open:
                         close_tasks.append(websocket.close())
                 except Exception as e:
                     logger.error(f"Error preparing to close client {client_id}: {e}")
@@ -187,7 +200,7 @@ class WebSocketProxy:
                 try:
                     await aio.wait_for(
                         aio.gather(*close_tasks, return_exceptions=True),
-                        timeout=2.0  # 2 second timeout
+                        timeout=2.0,  # 2 second timeout
                     )
                 except aio.TimeoutError:
                     logger.warning("Timeout waiting for client connections to close")
@@ -200,15 +213,17 @@ class WebSocketProxy:
                     logger.error(f"Error disconnecting adapter for user {user_id}: {e}")
 
             # Close ZeroMQ socket with linger=0 for immediate close
-            if hasattr(self, 'socket') and self.socket:
+            if hasattr(self, "socket") and self.socket:
                 try:
-                    self.socket.setsockopt(zmq.LINGER, 0)  # Don't wait for pending messages
+                    self.socket.setsockopt(
+                        zmq.LINGER, 0
+                    )  # Don't wait for pending messages
                     self.socket.close()
                 except Exception as e:
                     logger.error(f"Error closing ZMQ socket: {e}")
 
             # Close ZeroMQ context with timeout
-            if hasattr(self, 'context') and self.context:
+            if hasattr(self, "context") and self.context:
                 try:
                     self.context.term()
                 except Exception as e:
@@ -231,7 +246,7 @@ class WebSocketProxy:
         self.subscriptions[client_id] = set()
 
         # Get path info from websocket if available
-        path = getattr(websocket, 'path', '/unknown')
+        path = getattr(websocket, "path", "/unknown")
         logger.info(f"Client connected: {client_id} from path: {path}")
 
         try:
@@ -241,14 +256,18 @@ class WebSocketProxy:
                     logger.debug(f"Received message from client {client_id}: {message}")
                     await self.process_client_message(client_id, message)
                 except Exception as e:
-                    logger.exception(f"Error processing message from client {client_id}: {e}")
+                    logger.exception(
+                        f"Error processing message from client {client_id}: {e}"
+                    )
                     # Send error to client but don't disconnect
                     try:
                         await self.send_error(client_id, "PROCESSING_ERROR", str(e))
                     except Exception:
                         pass
         except websockets.exceptions.ConnectionClosed as e:
-            logger.info(f"Client disconnected: {client_id}, code: {e.code}, reason: {e.reason}")
+            logger.info(
+                f"Client disconnected: {client_id}, code: {e.code}, reason: {e.reason}"
+            )
         except Exception as e:
             logger.exception(f"Unexpected error handling client {client_id}: {e}")
         finally:
@@ -274,9 +293,9 @@ class WebSocketProxy:
                 try:
                     # Parse the JSON string to get the subscription info
                     sub_info = json.loads(sub_json)
-                    symbol = sub_info.get('symbol')
-                    exchange = sub_info.get('exchange')
-                    mode = sub_info.get('mode')
+                    symbol = sub_info.get("symbol")
+                    exchange = sub_info.get("exchange")
+                    mode = sub_info.get("mode")
 
                     # Get the user's broker adapter
                     user_id = self.user_mapping.get(client_id)
@@ -284,7 +303,9 @@ class WebSocketProxy:
                         adapter = self.broker_adapters[user_id]
                         adapter.unsubscribe(symbol, exchange, mode)
                 except json.JSONDecodeError as e:
-                    logger.exception(f"Error parsing subscription: {sub_json}, Error: {e}")
+                    logger.exception(
+                        f"Error parsing subscription: {sub_json}, Error: {e}"
+                    )
                 except Exception as e:
                     logger.exception(f"Error processing subscription: {e}")
                     continue
@@ -308,12 +329,18 @@ class WebSocketProxy:
                 broker_name = self.user_broker_mapping.get(user_id)
 
                 # For Flattrade and Shoonya, keep the connection alive and just unsubscribe from data
-                if broker_name in ['flattrade', 'shoonya'] and hasattr(adapter, 'unsubscribe_all'):
-                    logger.info(f"{broker_name.title()} adapter for user {user_id}: last client disconnected. Unsubscribing all symbols instead of disconnecting.")
+                if broker_name in ["flattrade", "shoonya"] and hasattr(
+                    adapter, "unsubscribe_all"
+                ):
+                    logger.info(
+                        f"{broker_name.title()} adapter for user {user_id}: last client disconnected. Unsubscribing all symbols instead of disconnecting."
+                    )
                     adapter.unsubscribe_all()
                 else:
                     # For all other brokers, disconnect the adapter completely
-                    logger.info(f"Last client for user {user_id} disconnected. Disconnecting {broker_name or 'unknown broker'} adapter.")
+                    logger.info(
+                        f"Last client for user {user_id} disconnected. Disconnecting {broker_name or 'unknown broker'} adapter."
+                    )
                     adapter.disconnect()
                     del self.broker_adapters[user_id]
                     if user_id in self.user_broker_mapping:
@@ -349,7 +376,9 @@ class WebSocketProxy:
                 await self.get_supported_brokers(client_id)
             else:
                 logger.warning(f"Client {client_id} requested invalid action: {action}")
-                await self.send_error(client_id, "INVALID_ACTION", f"Invalid action: {action}")
+                await self.send_error(
+                    client_id, "INVALID_ACTION", f"Invalid action: {action}"
+                )
         except json.JSONDecodeError:
             logger.exception(f"Invalid JSON from client {client_id}: {message}")
             await self.send_error(client_id, "INVALID_JSON", "Invalid JSON message")
@@ -386,43 +415,53 @@ class WebSocketProxy:
 
             if result and result.broker:
                 broker_name = result.broker
-                logger.info(f"Found broker '{broker_name}' for user {user_id} from app.core.schemas")
+                logger.info(
+                    f"Found broker '{broker_name}' for user {user_id} from app.core.schemas"
+                )
             else:
                 # Fallback to environment variable
-                valid_brokers = settings.VALID_BROKERS.split(',')
-                broker_name = valid_brokers[0].strip() if valid_brokers else 'angel'
-                logger.warning(f"No broker found in database for user {user_id}, using fallback: {broker_name}")
+                valid_brokers = settings.VALID_BROKERS.split(",")
+                broker_name = valid_brokers[0].strip() if valid_brokers else "angel"
+                logger.warning(
+                    f"No broker found in database for user {user_id}, using fallback: {broker_name}"
+                )
 
             # Get broker credentials from environment variables
             # In a production system, these would be stored encrypted in the database per user
             broker_config = {
-                'broker_name': broker_name,
-                'api_key': settings.BROKER_API_KEY,
-                'api_secret': settings.BROKER_API_SECRET,
-                'api_key_market': settings.BROKER_API_KEY_MARKET,
-                'api_secret_market': settings.BROKER_API_SECRET_MARKET,
-                'broker_user_id': settings.BROKER_USER_ID,
-                'password': settings.BROKER_PASSWORD,
-                'totp_secret': settings.BROKER_TOTP_SECRET
+                "broker_name": broker_name,
+                "api_key": settings.BROKER_API_KEY,
+                "api_secret": settings.BROKER_API_SECRET,
+                "api_key_market": settings.BROKER_API_KEY_MARKET,
+                "api_secret_market": settings.BROKER_API_SECRET_MARKET,
+                "broker_user_id": settings.BROKER_USER_ID,
+                "password": settings.BROKER_PASSWORD,
+                "totp_secret": settings.BROKER_TOTP_SECRET,
             }
 
             # Validate broker is supported
-            valid_brokers_list = settings.VALID_BROKERS.split(',')
+            valid_brokers_list = settings.VALID_BROKERS.split(",")
             valid_brokers_list = [b.strip() for b in valid_brokers_list if b.strip()]
 
             if broker_name not in valid_brokers_list:
-                logger.error(f"Broker '{broker_name}' is not in VALID_BROKERS list: {valid_brokers_list}")
+                logger.error(
+                    f"Broker '{broker_name}' is not in VALID_BROKERS list: {valid_brokers_list}"
+                )
                 return None
 
-            if not broker_config.get('broker_name'):
+            if not broker_config.get("broker_name"):
                 logger.error(f"No broker configuration found for user {user_id}")
                 return None
 
-            logger.info(f"Retrieved broker configuration for user {user_id}: {broker_config['broker_name']}")
+            logger.info(
+                f"Retrieved broker configuration for user {user_id}: {broker_config['broker_name']}"
+            )
             return broker_config
 
         except Exception as e:
-            logger.exception(f"Error getting broker configuration for user {user_id}: {e}")
+            logger.exception(
+                f"Error getting broker configuration for user {user_id}: {e}"
+            )
             return None
 
     async def authenticate_client(self, client_id, data):
@@ -436,7 +475,9 @@ class WebSocketProxy:
         api_key = data.get("api_key")
 
         if not api_key:
-            await self.send_error(client_id, "AUTHENTICATION_ERROR", "API key is required")
+            await self.send_error(
+                client_id, "AUTHENTICATION_ERROR", "API key is required"
+            )
             return
 
         # Verify the API key and get the user ID
@@ -453,7 +494,9 @@ class WebSocketProxy:
         broker_name = get_broker_name(api_key)
 
         if not broker_name:
-            await self.send_error(client_id, "BROKER_ERROR", "No broker configuration found for user")
+            await self.send_error(
+                client_id, "BROKER_ERROR", "No broker configuration found for user"
+            )
             return
 
         # Store the broker mapping for this user
@@ -465,49 +508,63 @@ class WebSocketProxy:
                 # Create broker adapter with dynamic broker selection
                 adapter = create_broker_adapter(broker_name)
                 if not adapter:
-                    await self.send_error(client_id, "BROKER_ERROR", f"Failed to create adapter for broker: {broker_name}")
+                    await self.send_error(
+                        client_id,
+                        "BROKER_ERROR",
+                        f"Failed to create adapter for broker: {broker_name}",
+                    )
                     return
 
                 # Initialize adapter with broker configuration
                 # The adapter's initialize method should handle broker-specific setup
                 initialization_result = adapter.initialize(broker_name, user_id)
-                if initialization_result and not initialization_result.get('success', True):
-                    error_msg = initialization_result.get('error', 'Failed to initialize broker adapter')
+                if initialization_result and not initialization_result.get(
+                    "success", True
+                ):
+                    error_msg = initialization_result.get(
+                        "error", "Failed to initialize broker adapter"
+                    )
                     await self.send_error(client_id, "BROKER_INIT_ERROR", error_msg)
                     return
 
                 # Connect to the broker
                 connect_result = adapter.connect()
-                if connect_result and not connect_result.get('success', True):
-                    error_msg = connect_result.get('error', 'Failed to connect to broker')
-                    await self.send_error(client_id, "BROKER_CONNECTION_ERROR", error_msg)
+                if connect_result and not connect_result.get("success", True):
+                    error_msg = connect_result.get(
+                        "error", "Failed to connect to broker"
+                    )
+                    await self.send_error(
+                        client_id, "BROKER_CONNECTION_ERROR", error_msg
+                    )
                     return
 
                 # Store the adapter
                 self.broker_adapters[user_id] = adapter
 
-                logger.info(f"Successfully created and connected {broker_name} adapter for user {user_id}")
+                logger.info(
+                    f"Successfully created and connected {broker_name} adapter for user {user_id}"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to create broker adapter for {broker_name}: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
                 await self.send_error(client_id, "BROKER_ERROR", str(e))
                 return
 
         # Send success response with broker information
-        await self.send_message(client_id, {
-            "type": "auth",
-            "status": "success",
-            "message": "Authentication successful",
-            "broker": broker_name,
-            "user_id": user_id,
-            "supported_features": {
-                "ltp": True,
-                "quote": True,
-                "depth": True
-            }
-        })
+        await self.send_message(
+            client_id,
+            {
+                "type": "auth",
+                "status": "success",
+                "message": "Authentication successful",
+                "broker": broker_name,
+                "user_id": user_id,
+                "supported_features": {"ltp": True, "quote": True, "depth": True},
+            },
+        )
 
     async def get_supported_brokers(self, client_id):
         """
@@ -517,15 +574,20 @@ class WebSocketProxy:
             client_id: ID of the client
         """
         try:
-            valid_brokers = settings.VALID_BROKERS.split(',')
-            supported_brokers = [broker.strip() for broker in valid_brokers if broker.strip()]
+            valid_brokers = settings.VALID_BROKERS.split(",")
+            supported_brokers = [
+                broker.strip() for broker in valid_brokers if broker.strip()
+            ]
 
-            await self.send_message(client_id, {
-                "type": "supported_brokers",
-                "status": "success",
-                "brokers": supported_brokers,
-                "count": len(supported_brokers)
-            })
+            await self.send_message(
+                client_id,
+                {
+                    "type": "supported_brokers",
+                    "status": "success",
+                    "brokers": supported_brokers,
+                    "count": len(supported_brokers),
+                },
+            )
         except Exception as e:
             logger.error(f"Error getting supported brokers: {e}")
             await self.send_error(client_id, "BROKER_LIST_ERROR", str(e))
@@ -537,14 +599,18 @@ class WebSocketProxy:
         """
         # Check if the client is authenticated
         if client_id not in self.user_mapping:
-            await self.send_error(client_id, "NOT_AUTHENTICATED", "You must authenticate first")
+            await self.send_error(
+                client_id, "NOT_AUTHENTICATED", "You must authenticate first"
+            )
             return
 
         user_id = self.user_mapping[client_id]
         broker_name = self.user_broker_mapping.get(user_id)
 
         if not broker_name:
-            await self.send_error(client_id, "BROKER_ERROR", "Broker information not available")
+            await self.send_error(
+                client_id, "BROKER_ERROR", "Broker information not available"
+            )
             return
 
         # Get adapter status
@@ -552,15 +618,18 @@ class WebSocketProxy:
         if user_id in self.broker_adapters:
             adapter = self.broker_adapters[user_id]
             # Assuming the adapter has a status method or property
-            adapter_status = getattr(adapter, 'status', 'connected')
+            adapter_status = getattr(adapter, "status", "connected")
 
-        await self.send_message(client_id, {
-            "type": "broker_info",
-            "status": "success",
-            "broker": broker_name,
-            "adapter_status": adapter_status,
-            "user_id": user_id
-        })
+        await self.send_message(
+            client_id,
+            {
+                "type": "broker_info",
+                "status": "success",
+                "broker": broker_name,
+                "adapter_status": adapter_status,
+                "user_id": user_id,
+            },
+        )
 
     async def subscribe_client(self, client_id, data):
         """
@@ -572,7 +641,9 @@ class WebSocketProxy:
         """
         # Check if the client is authenticated
         if client_id not in self.user_mapping:
-            await self.send_error(client_id, "NOT_AUTHENTICATED", "You must authenticate first")
+            await self.send_error(
+                client_id, "NOT_AUTHENTICATED", "You must authenticate first"
+            )
             return
 
         # Get subscription parameters
@@ -581,24 +652,23 @@ class WebSocketProxy:
         depth_level = data.get("depth", 5)  # Default to 5 levels
 
         # Map string mode to numeric mode
-        mode_mapping = {
-            "LTP": 1,
-            "Quote": 2,
-            "Depth": 3
-        }
+        mode_mapping = {"LTP": 1, "Quote": 2, "Depth": 3}
 
         # Convert string mode to numeric if needed
-        mode = mode_mapping.get(mode_str, mode_str) if isinstance(mode_str, str) else mode_str
+        mode = (
+            mode_mapping.get(mode_str, mode_str)
+            if isinstance(mode_str, str)
+            else mode_str
+        )
 
         # Handle case where a single symbol is passed directly instead of as an array
         if not symbols and (data.get("symbol") and data.get("exchange")):
-            symbols = [{
-                "symbol": data.get("symbol"),
-                "exchange": data.get("exchange")
-            }]
+            symbols = [{"symbol": data.get("symbol"), "exchange": data.get("exchange")}]
 
         if not symbols:
-            await self.send_error(client_id, "INVALID_PARAMETERS", "At least one symbol must be specified")
+            await self.send_error(
+                client_id, "INVALID_PARAMETERS", "At least one symbol must be specified"
+            )
             return
 
         # Get the user's broker adapter
@@ -631,7 +701,7 @@ class WebSocketProxy:
                     "exchange": exchange,
                     "mode": mode,
                     "depth_level": depth_level,
-                    "broker": broker_name
+                    "broker": broker_name,
                 }
 
                 if client_id in self.subscriptions:
@@ -640,33 +710,40 @@ class WebSocketProxy:
                     self.subscriptions[client_id] = {json.dumps(subscription_info)}
 
                 # Add to successful subscriptions
-                subscription_responses.append({
-                    "symbol": symbol,
-                    "exchange": exchange,
-                    "status": "success",
-                    "mode": mode_str,
-                    "depth": response.get("actual_depth", depth_level),
-                    "broker": broker_name
-                })
+                subscription_responses.append(
+                    {
+                        "symbol": symbol,
+                        "exchange": exchange,
+                        "status": "success",
+                        "mode": mode_str,
+                        "depth": response.get("actual_depth", depth_level),
+                        "broker": broker_name,
+                    }
+                )
             else:
                 subscription_success = False
                 # Add to failed subscriptions
-                subscription_responses.append({
-                    "symbol": symbol,
-                    "exchange": exchange,
-                    "status": "error",
-                    "message": response.get("message", "Subscription failed"),
-                    "broker": broker_name
-                })
+                subscription_responses.append(
+                    {
+                        "symbol": symbol,
+                        "exchange": exchange,
+                        "status": "error",
+                        "message": response.get("message", "Subscription failed"),
+                        "broker": broker_name,
+                    }
+                )
 
         # Send combined response
-        await self.send_message(client_id, {
-            "type": "subscribe",
-            "status": "success" if subscription_success else "partial",
-            "subscriptions": subscription_responses,
-            "message": "Subscription processing complete",
-            "broker": broker_name
-        })
+        await self.send_message(
+            client_id,
+            {
+                "type": "subscribe",
+                "status": "success" if subscription_success else "partial",
+                "subscriptions": subscription_responses,
+                "message": "Subscription processing complete",
+                "broker": broker_name,
+            },
+        )
 
     async def unsubscribe_client(self, client_id, data):
         """
@@ -678,26 +755,41 @@ class WebSocketProxy:
         """
         # Check if the client is authenticated
         if client_id not in self.user_mapping:
-            await self.send_error(client_id, "NOT_AUTHENTICATED", "You must authenticate first")
+            await self.send_error(
+                client_id, "NOT_AUTHENTICATED", "You must authenticate first"
+            )
             return
 
         # Check if this is an unsubscribe_all request
-        is_unsubscribe_all = data.get("type") == "unsubscribe_all" or data.get("action") == "unsubscribe_all"
+        is_unsubscribe_all = (
+            data.get("type") == "unsubscribe_all"
+            or data.get("action") == "unsubscribe_all"
+        )
 
         # Get unsubscription parameters for specific symbols
         symbols = data.get("symbols") or []
 
         # Handle single symbol format
-        if not symbols and not is_unsubscribe_all and (data.get("symbol") and data.get("exchange")):
-            symbols = [{
-                "symbol": data.get("symbol"),
-                "exchange": data.get("exchange"),
-                "mode": data.get("mode", 2)  # Default to Quote mode
-            }]
+        if (
+            not symbols
+            and not is_unsubscribe_all
+            and (data.get("symbol") and data.get("exchange"))
+        ):
+            symbols = [
+                {
+                    "symbol": data.get("symbol"),
+                    "exchange": data.get("exchange"),
+                    "mode": data.get("mode", 2),  # Default to Quote mode
+                }
+            ]
 
         # If no symbols provided and not unsubscribe_all, return error
         if not symbols and not is_unsubscribe_all:
-            await self.send_error(client_id, "INVALID_PARAMETERS", "Either symbols or unsubscribe_all is required")
+            await self.send_error(
+                client_id,
+                "INVALID_PARAMETERS",
+                "Either symbols or unsubscribe_all is required",
+            )
             return
 
         # Get the user's broker adapter
@@ -736,20 +828,26 @@ class WebSocketProxy:
                         response = adapter.unsubscribe(symbol, exchange, mode)
 
                         if response.get("status") == "success":
-                            successful_unsubscriptions.append({
-                                "symbol": symbol,
-                                "exchange": exchange,
-                                "status": "success",
-                                "broker": broker_name
-                            })
+                            successful_unsubscriptions.append(
+                                {
+                                    "symbol": symbol,
+                                    "exchange": exchange,
+                                    "status": "success",
+                                    "broker": broker_name,
+                                }
+                            )
                         else:
-                            failed_unsubscriptions.append({
-                                "symbol": symbol,
-                                "exchange": exchange,
-                                "status": "error",
-                                "message": response.get("message", "Unsubscription failed"),
-                                "broker": broker_name
-                            })
+                            failed_unsubscriptions.append(
+                                {
+                                    "symbol": symbol,
+                                    "exchange": exchange,
+                                    "status": "error",
+                                    "message": response.get(
+                                        "message", "Unsubscription failed"
+                                    ),
+                                    "broker": broker_name,
+                                }
+                            )
 
                 # Clear all subscriptions for this client
                 self.subscriptions[client_id].clear()
@@ -774,9 +872,11 @@ class WebSocketProxy:
                         for sub_key in self.subscriptions[client_id]:
                             try:
                                 sub_data = json.loads(sub_key)
-                                if (sub_data.get("symbol") == symbol and
-                                    sub_data.get("exchange") == exchange and
-                                    sub_data.get("mode") == mode):
+                                if (
+                                    sub_data.get("symbol") == symbol
+                                    and sub_data.get("exchange") == exchange
+                                    and sub_data.get("mode") == mode
+                                ):
                                     subscriptions_to_remove.append(sub_key)
                             except json.JSONDecodeError:
                                 continue
@@ -784,20 +884,24 @@ class WebSocketProxy:
                         for sub_key in subscriptions_to_remove:
                             self.subscriptions[client_id].discard(sub_key)
 
-                    successful_unsubscriptions.append({
-                        "symbol": symbol,
-                        "exchange": exchange,
-                        "status": "success",
-                        "broker": broker_name
-                    })
+                    successful_unsubscriptions.append(
+                        {
+                            "symbol": symbol,
+                            "exchange": exchange,
+                            "status": "success",
+                            "broker": broker_name,
+                        }
+                    )
                 else:
-                    failed_unsubscriptions.append({
-                        "symbol": symbol,
-                        "exchange": exchange,
-                        "status": "error",
-                        "message": response.get("message", "Unsubscription failed"),
-                        "broker": broker_name
-                    })
+                    failed_unsubscriptions.append(
+                        {
+                            "symbol": symbol,
+                            "exchange": exchange,
+                            "status": "error",
+                            "message": response.get("message", "Unsubscription failed"),
+                            "broker": broker_name,
+                        }
+                    )
 
         # Send combined response
         status = "success"
@@ -806,14 +910,17 @@ class WebSocketProxy:
         elif len(failed_unsubscriptions) > 0 and len(successful_unsubscriptions) == 0:
             status = "error"
 
-        await self.send_message(client_id, {
-            "type": "unsubscribe",
-            "status": status,
-            "message": "Unsubscription processing complete",
-            "successful": successful_unsubscriptions,
-            "failed": failed_unsubscriptions,
-            "broker": broker_name
-        })
+        await self.send_message(
+            client_id,
+            {
+                "type": "unsubscribe",
+                "status": status,
+                "message": "Unsubscription processing complete",
+                "successful": successful_unsubscriptions,
+                "failed": failed_unsubscriptions,
+                "broker": broker_name,
+            },
+        )
 
     async def send_message(self, client_id, message):
         """
@@ -828,7 +935,9 @@ class WebSocketProxy:
             try:
                 await websocket.send(json.dumps(message))
             except websockets.exceptions.ConnectionClosed:
-                logger.info(f"Connection closed while sending message to client {client_id}")
+                logger.info(
+                    f"Connection closed while sending message to client {client_id}"
+                )
 
     async def send_error(self, client_id, code, message):
         """
@@ -839,11 +948,9 @@ class WebSocketProxy:
             code: Error code
             message: Error message
         """
-        await self.send_message(client_id, {
-            "status": "error",
-            "code": code,
-            "message": message
-        })
+        await self.send_message(
+            client_id, {"status": "error", "code": code, "message": message}
+        )
 
     async def zmq_listener(self):
         """Listen for messages from broker adapters via ZeroMQ and forward to clients"""
@@ -858,16 +965,15 @@ class WebSocketProxy:
                 # Receive message from ZeroMQ with a timeout
                 try:
                     [topic, data] = await aio.wait_for(
-                        self.socket.recv_multipart(),
-                        timeout=0.1
+                        self.socket.recv_multipart(), timeout=0.1
                     )
                 except aio.TimeoutError:
                     # No message received within timeout, continue the loop
                     continue
 
                 # Parse the message
-                topic_str = topic.decode('utf-8')
-                data_str = data.decode('utf-8')
+                topic_str = topic.decode("utf-8")
+                data_str = data.decode("utf-8")
                 market_data = json.loads(data_str)
 
                 # Extract topic components
@@ -875,7 +981,7 @@ class WebSocketProxy:
                 # New format: BROKER_EXCHANGE_SYMBOL_MODE (with broker name)
                 # Old format: EXCHANGE_SYMBOL_MODE (without broker name)
                 # Special case: NSE_INDEX_SYMBOL_MODE (exchange contains underscore)
-                parts = topic_str.split('_')
+                parts = topic_str.split("_")
 
                 # Special case handling for NSE_INDEX and BSE_INDEX
                 if len(parts) >= 4 and parts[0] == "NSE" and parts[1] == "INDEX":
@@ -888,7 +994,9 @@ class WebSocketProxy:
                     exchange = "BSE_INDEX"
                     symbol = parts[2]
                     mode_str = parts[3]
-                elif len(parts) >= 5 and parts[1] == "INDEX":  # BROKER_NSE_INDEX_SYMBOL_MODE format
+                elif (
+                    len(parts) >= 5 and parts[1] == "INDEX"
+                ):  # BROKER_NSE_INDEX_SYMBOL_MODE format
                     broker_name = parts[0]
                     exchange = f"{parts[1]}_{parts[2]}"
                     symbol = parts[3]
@@ -929,7 +1037,11 @@ class WebSocketProxy:
 
                     # Check if this client's broker matches the message broker (if broker is specified)
                     client_broker = self.user_broker_mapping.get(user_id)
-                    if broker_name != "unknown" and client_broker and client_broker != broker_name:
+                    if (
+                        broker_name != "unknown"
+                        and client_broker
+                        and client_broker != broker_name
+                    ):
                         continue  # Skip if broker doesn't match
 
                     # Create a snapshot of the subscription set before iteration
@@ -939,30 +1051,41 @@ class WebSocketProxy:
                             sub = json.loads(sub_json)
 
                             # Check subscription match
-                            if (sub.get("symbol") == symbol and
-                                sub.get("exchange") == exchange and
-                                (sub.get("mode") == mode or
-                                 (mode_str == "LTP" and sub.get("mode") == 1) or
-                                 (mode_str == "QUOTE" and sub.get("mode") == 2) or
-                                 (mode_str == "DEPTH" and sub.get("mode") == 3))):
-
+                            if (
+                                sub.get("symbol") == symbol
+                                and sub.get("exchange") == exchange
+                                and (
+                                    sub.get("mode") == mode
+                                    or (mode_str == "LTP" and sub.get("mode") == 1)
+                                    or (mode_str == "QUOTE" and sub.get("mode") == 2)
+                                    or (mode_str == "DEPTH" and sub.get("mode") == 3)
+                                )
+                            ):
                                 # Forward data to the client
-                                await self.send_message(client_id, {
-                                    "type": "market_data",
-                                    "symbol": symbol,
-                                    "exchange": exchange,
-                                    "mode": mode,
-                                    "broker": broker_name if broker_name != "unknown" else client_broker,
-                                    "data": market_data
-                                })
+                                await self.send_message(
+                                    client_id,
+                                    {
+                                        "type": "market_data",
+                                        "symbol": symbol,
+                                        "exchange": exchange,
+                                        "mode": mode,
+                                        "broker": broker_name
+                                        if broker_name != "unknown"
+                                        else client_broker,
+                                        "data": market_data,
+                                    },
+                                )
                         except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing subscription: {sub_json}, Error: {e}")
+                            logger.error(
+                                f"Error parsing subscription: {sub_json}, Error: {e}"
+                            )
                             continue
 
             except Exception as e:
                 logger.error(f"Error in ZeroMQ listener: {e}")
                 # Continue running despite errors
                 await aio.sleep(1)
+
 
 # Entry point for running the server standalone
 async def main():
@@ -993,6 +1116,7 @@ async def main():
             raise
     except Exception as e:
         import traceback
+
         error_details = traceback.format_exc()
         logger.error(f"Server error: {e}\n{error_details}")
         raise
@@ -1003,6 +1127,7 @@ async def main():
                 await proxy.stop()
             except Exception as cleanup_error:
                 logger.error(f"Error during cleanup: {cleanup_error}")
+
 
 if __name__ == "__main__":
     aio.run(main())

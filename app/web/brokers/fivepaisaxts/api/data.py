@@ -127,13 +127,13 @@ class BrokerData:
         )
 
         if not symbol_info:
-            raise Exception(
-                f"Could not find exchange token for {exchange}:{br_symbol}"
-            )
+            raise Exception(f"Could not find exchange token for {exchange}:{br_symbol}")
 
         return symbol_info, brexchange
 
-    def _fetch_market_data(self, token: dict, message_code: int, feed_token: str) -> dict:
+    def _fetch_market_data(
+        self, token: dict, message_code: int, feed_token: str
+    ) -> dict:
         """
         Helper method to fetch market data from FivepaisaXTS API
         Args:
@@ -288,9 +288,7 @@ class BrokerData:
             # Get exchange_token from app.core.schemas
             symbol_info = (
                 db.query(SymToken)
-                .filter(
-                    SymToken.exchange == exchange, SymToken.brsymbol == br_symbol
-                )
+                .filter(SymToken.exchange == exchange, SymToken.brsymbol == br_symbol)
                 .first()
             )
 
@@ -533,7 +531,9 @@ class BrokerData:
         """
         return ["1s", "1m", "2m", "3m", "5m", "10m", "15m", "30m", "60m", "D"]
 
-    def get_market_depth(self, symbol: str, exchange: str, user_id: str, feed_token: str) -> dict:
+    def get_market_depth(
+        self, symbol: str, exchange: str, user_id: str, feed_token: str
+    ) -> dict:
         """
         Get market depth for given symbol via REST API
         Args:
@@ -550,12 +550,17 @@ class BrokerData:
             db = next(get_db())
 
             if not user_id or not feed_token:
-                logger.error("User ID or Feed Token is missing for market depth request")
+                logger.error(
+                    "User ID or Feed Token is missing for market depth request"
+                )
                 return None
 
             logger.info(f"Using user ID: {user_id}")
-            logger.info(f"Using feed token: {feed_token[:20]}..." if feed_token else "No feed token available")
-
+            logger.info(
+                f"Using feed token: {feed_token[:20]}..."
+                if feed_token
+                else "No feed token available"
+            )
 
             # Exchange segment mapping
             exchange_segment_map = {
@@ -582,9 +587,7 @@ class BrokerData:
             logger.info("Querying database for symbol token...")
             symbol_info = (
                 db.query(SymToken)
-                .filter(
-                    SymToken.exchange == exchange, SymToken.brsymbol == br_symbol
-                )
+                .filter(SymToken.exchange == exchange, SymToken.brsymbol == br_symbol)
                 .first()
             )
 
@@ -595,9 +598,7 @@ class BrokerData:
                 raise Exception(
                     f"Could not find exchange token for {exchange}:{br_symbol}"
                 )
-            logger.info(
-                f"Found token {symbol_info.token} for {exchange}:{br_symbol}"
-            )
+            logger.info(f"Found token {symbol_info.token} for {exchange}:{br_symbol}")
 
             # Get market depth via REST API
             logger.info("Getting market depth via REST API...")
@@ -672,7 +673,6 @@ class BrokerData:
             }
             logger.info("Returning empty market depth structure")
             return empty_depth
-
 
     def get_depth(self, symbol: str, exchange: str) -> dict:
         """Alias for get_market_depth to maintain compatibility with common API"""

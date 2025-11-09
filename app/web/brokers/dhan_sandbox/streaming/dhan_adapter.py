@@ -2,6 +2,7 @@
 Fixed Dhan WebSocket adapter for OpenAlgo.
 Implements the broker-specific WebSocket adapter for Dhan with proper mode mapping.
 """
+
 import threading
 import time
 from typing import Any, Dict, List
@@ -54,9 +55,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Extended mode mapping to handle all possible OpenAlgo modes
         self.mode_map = {
             # Standard OpenAlgo modes
-            1: DhanWebSocket.MODE_LTP,    # LTP -> "ltp"
+            1: DhanWebSocket.MODE_LTP,  # LTP -> "ltp"
             2: DhanWebSocket.MODE_QUOTE,  # Quote -> "marketdata"
-            3: DhanWebSocket.MODE_FULL # Map mode 8 to FULL
+            3: DhanWebSocket.MODE_FULL,  # Map mode 8 to FULL
         }
 
     def initialize(self, broker_name: str, user_id: str, **kwargs):
@@ -78,26 +79,38 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         try:
             # Use BROKER_API_KEY as client_id
             self.client_id = settings.BROKER_API_KEY
-            self.logger.info(f"Retrieved API KEY: {self.client_id[:5]}... (length: {len(self.client_id) if self.client_id else 0})")
+            self.logger.info(
+                f"Retrieved API KEY: {self.client_id[:5]}... (length: {len(self.client_id) if self.client_id else 0})"
+            )
             if not self.client_id:
-                error_msg = f"No BROKER_API_KEY available for {self.broker_name} authentication"
+                error_msg = (
+                    f"No BROKER_API_KEY available for {self.broker_name} authentication"
+                )
                 self.logger.error(error_msg)
                 return {"status": "error", "message": error_msg}
 
             # Use BROKER_API_SECRET as access_token
             self.access_token = settings.BROKER_API_SECRET
-            self.logger.info(f"Retrieved API SECRET: {self.access_token[:5]}... (length: {len(self.access_token) if self.access_token else 0})")
+            self.logger.info(
+                f"Retrieved API SECRET: {self.access_token[:5]}... (length: {len(self.access_token) if self.access_token else 0})"
+            )
             if not self.access_token:
                 error_msg = f"No BROKER_API_SECRET available for {self.broker_name} authentication"
                 self.logger.error(error_msg)
                 return {"status": "error", "message": error_msg}
 
             self.logger.info(f"{self.broker_name} WebSocket adapter initialized")
-            return {"status": "success", "message": f"{self.broker_name} WebSocket adapter initialized"}
+            return {
+                "status": "success",
+                "message": f"{self.broker_name} WebSocket adapter initialized",
+            }
 
         except Exception as e:
             self.logger.error(f"Error initializing {self.broker_name} adapter: {e}")
-            return {"status": "error", "message": f"Error initializing {self.broker_name} adapter: {e}"}
+            return {
+                "status": "error",
+                "message": f"Error initializing {self.broker_name} adapter: {e}",
+            }
 
     def connect(self):
         """
@@ -114,11 +127,11 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.ws_client = DhanWebSocket(
                     client_id=self.client_id,
                     access_token=self.access_token,
-                    version='v2',  # Use v2 by default
+                    version="v2",  # Use v2 by default
                     on_connect=self._on_connect,
                     on_disconnect=self._on_disconnect,
                     on_error=self._on_error,
-                    on_ticks=self._on_ticks
+                    on_ticks=self._on_ticks,
                 )
 
             # Start WebSocket connection
@@ -127,8 +140,13 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Wait for connection
             connected = self.ws_client.wait_for_connection(timeout=10.0)
             if not connected:
-                self.logger.error(f"Failed to connect to {self.broker_name} WebSocket server")
-                return {"status": "error", "message": f"Failed to connect to {self.broker_name} WebSocket server"}
+                self.logger.error(
+                    f"Failed to connect to {self.broker_name} WebSocket server"
+                )
+                return {
+                    "status": "error",
+                    "message": f"Failed to connect to {self.broker_name} WebSocket server",
+                }
 
             self.connected = True
             self.running = True
@@ -137,11 +155,17 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Resubscribe to symbols if reconnection
             self._resubscribe()
 
-            return {"status": "success", "message": f"Connected to {self.broker_name} WebSocket server"}
+            return {
+                "status": "success",
+                "message": f"Connected to {self.broker_name} WebSocket server",
+            }
 
         except Exception as e:
             self.logger.error(f"Error connecting to {self.broker_name} WebSocket: {e}")
-            return {"status": "error", "message": f"Error connecting to {self.broker_name} WebSocket: {e}"}
+            return {
+                "status": "error",
+                "message": f"Error connecting to {self.broker_name} WebSocket: {e}",
+            }
 
     def disconnect(self):
         """
@@ -164,11 +188,19 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.cleanup_zmq()
 
             self.logger.info(f"Disconnected from {self.broker_name} WebSocket server")
-            return {"status": "success", "message": f"Disconnected from {self.broker_name} WebSocket server"}
+            return {
+                "status": "success",
+                "message": f"Disconnected from {self.broker_name} WebSocket server",
+            }
 
         except Exception as e:
-            self.logger.error(f"Error disconnecting from {self.broker_name} WebSocket: {e}")
-            return {"status": "error", "message": f"Error disconnecting from {self.broker_name} WebSocket: {e}"}
+            self.logger.error(
+                f"Error disconnecting from {self.broker_name} WebSocket: {e}"
+            )
+            return {
+                "status": "error",
+                "message": f"Error disconnecting from {self.broker_name} WebSocket: {e}",
+            }
 
     def resolve_token(self, symbol: str, exchange: str, token: int = None):
         """
@@ -191,10 +223,14 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Convert token to int if it's a string
                 resolved_token = int(str(token))
                 if resolved_token != 1:
-                    self.logger.info(f"Using provided token {resolved_token} for {exchange}:{symbol}")
+                    self.logger.info(
+                        f"Using provided token {resolved_token} for {exchange}:{symbol}"
+                    )
                     return resolved_token
             except (ValueError, TypeError):
-                self.logger.warning(f"Invalid token format provided for {exchange}:{symbol}: {token}")
+                self.logger.warning(
+                    f"Invalid token format provided for {exchange}:{symbol}: {token}"
+                )
 
         # Try to look up in database
         try:
@@ -204,18 +240,26 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     # Convert database token to int if it's a string
                     resolved_token = int(str(db_token))
                     if resolved_token != 1:
-                        self.logger.info(f"Using database token {resolved_token} for {exchange}:{symbol}")
+                        self.logger.info(
+                            f"Using database token {resolved_token} for {exchange}:{symbol}"
+                        )
                         return resolved_token
                 except (ValueError, TypeError):
-                    self.logger.warning(f"Invalid token format from app.core.schemas for {exchange}:{symbol}: {db_token}")
+                    self.logger.warning(
+                        f"Invalid token format from app.core.schemas for {exchange}:{symbol}: {db_token}"
+                    )
         except Exception as e:
             self.logger.warning(f"Database lookup failed for {exchange}:{symbol}: {e}")
 
         # Use placeholder token (1) as last resort
-        self.logger.warning(f"No valid token found for {exchange}:{symbol}, using placeholder 1")
+        self.logger.warning(
+            f"No valid token found for {exchange}:{symbol}, using placeholder 1"
+        )
         return 1
 
-    def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5) -> Dict[str, Any]:
+    def subscribe(
+        self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5
+    ) -> Dict[str, Any]:
         """
         Subscribe to market data for a symbol.
 
@@ -238,7 +282,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """
         # Convert exchange code to Dhan format
         dhan_exchange = get_dhan_exchange(exchange)
-        self.logger.info(f"Processing subscription for {exchange}:{symbol} with mode={mode}, depth_level={depth_level}")
+        self.logger.info(
+            f"Processing subscription for {exchange}:{symbol} with mode={mode}, depth_level={depth_level}"
+        )
 
         try:
             # IMPORTANT: Token was previously a parameter, now handled internally
@@ -248,8 +294,13 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             actual_token = self.resolve_token(symbol, exchange, token)
 
             if not self.connected or not self.ws_client:
-                self.logger.warning(f"Cannot subscribe - not connected to {self.broker_name} WebSocket")
-                return {"status": "error", "message": f"Not connected to {self.broker_name} WebSocket"}
+                self.logger.warning(
+                    f"Cannot subscribe - not connected to {self.broker_name} WebSocket"
+                )
+                return {
+                    "status": "error",
+                    "message": f"Not connected to {self.broker_name} WebSocket",
+                }
 
             # Debug info - print mode type and value
             self.logger.info(f"DEBUG: Mode value received: {mode}, Type: {type(mode)}")
@@ -259,25 +310,35 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 mode = int(mode)
                 self.logger.info(f"DEBUG: Mode converted to int: {mode}")
             except (ValueError, TypeError):
-                self.logger.warning(f"DEBUG: Could not convert mode {mode} to int, using as is")
+                self.logger.warning(
+                    f"DEBUG: Could not convert mode {mode} to int, using as is"
+                )
 
             # Map OpenAlgo mode to Dhan mode with explicit handling of all possible modes
             if mode == 1:
                 # Standard LTP mode
                 dhan_mode = DhanWebSocket.MODE_LTP
-                self.logger.info(f"Mapped OpenAlgo mode {mode} (LTP) to Dhan mode '{dhan_mode}'")
+                self.logger.info(
+                    f"Mapped OpenAlgo mode {mode} (LTP) to Dhan mode '{dhan_mode}'"
+                )
             elif mode == 2:
                 # Standard QUOTE mode
                 dhan_mode = DhanWebSocket.MODE_QUOTE
-                self.logger.info(f"Mapped OpenAlgo mode {mode} (QUOTE) to Dhan mode '{dhan_mode}'")
+                self.logger.info(
+                    f"Mapped OpenAlgo mode {mode} (QUOTE) to Dhan mode '{dhan_mode}'"
+                )
             elif mode == 3:
                 # Standard DEPTH mode
                 dhan_mode = DhanWebSocket.MODE_FULL
-                self.logger.info(f"Mapped OpenAlgo mode {mode} (DEPTH) to Dhan mode '{dhan_mode}'")
+                self.logger.info(
+                    f"Mapped OpenAlgo mode {mode} (DEPTH) to Dhan mode '{dhan_mode}'"
+                )
             else:
                 # All other modes (4-8) map to FULL/DEPTH
                 dhan_mode = DhanWebSocket.MODE_FULL
-                self.logger.info(f"Mapped OpenAlgo mode {mode} (DEPTH/FULL) to Dhan mode '{dhan_mode}'")
+                self.logger.info(
+                    f"Mapped OpenAlgo mode {mode} (DEPTH/FULL) to Dhan mode '{dhan_mode}'"
+                )
 
             # Add symbol to subscription tracking
             with self.lock:
@@ -286,13 +347,15 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     "dhan_exchange": dhan_exchange,  # Store Dhan exchange
                     "token": actual_token,
                     "mode": mode,
-                    "depth_level": depth_level  # Store depth_level for future reference
+                    "depth_level": depth_level,  # Store depth_level for future reference
                 }
                 # Store token mapping with both string and int keys for robustness
                 self.token_to_symbol[str(actual_token)] = (symbol, exchange)
                 self.token_to_symbol[int(actual_token)] = (symbol, exchange)
 
-                self.logger.info(f"📝 Stored token mapping: {actual_token} -> ({symbol}, {exchange})")
+                self.logger.info(
+                    f"📝 Stored token mapping: {actual_token} -> ({symbol}, {exchange})"
+                )
                 self.logger.info(f"📝 Current token_to_symbol: {self.token_to_symbol}")
 
             # Map OpenAlgo exchange to Dhan exchange code
@@ -312,45 +375,68 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             elif exchange == "BSE_CDS":
                 exchange_code = 7  # BSE_CURRENCY
             # Special handling for index instruments
-            elif exchange == "INDICES" or exchange == "NSE_INDICES" or exchange == "NSE_INDEX":
+            elif (
+                exchange == "INDICES"
+                or exchange == "NSE_INDICES"
+                or exchange == "NSE_INDEX"
+            ):
                 exchange_code = 0  # IDX_I
             elif exchange == "BSE_INDICES" or exchange == "BSE_INDEX":
                 exchange_code = 0  # IDX_I (Dhan treats all indices as IDX_I)
 
-            self.logger.info(f"Exchange {exchange} mapped to Dhan exchange code {exchange_code}")
+            self.logger.info(
+                f"Exchange {exchange} mapped to Dhan exchange code {exchange_code}"
+            )
 
             # Subscribe to token with Dhan WebSocket, passing exchange code
-            self.logger.info(f"🚀 Subscribing to {dhan_exchange}:{symbol} with token {actual_token} in mode '{dhan_mode}' using exchange code {exchange_code}")
+            self.logger.info(
+                f"🚀 Subscribing to {dhan_exchange}:{symbol} with token {actual_token} in mode '{dhan_mode}' using exchange code {exchange_code}"
+            )
 
             # Check if WebSocket client is properly initialized and connected
             if not self.ws_client:
                 self.logger.error("❌ WebSocket client is None!")
-                return {"status": "error", "message": "WebSocket client not initialized"}
+                return {
+                    "status": "error",
+                    "message": "WebSocket client not initialized",
+                }
 
             # Check connection status
             is_connected = self.ws_client.is_connected()
             self.logger.info(f"WebSocket connection status: {is_connected}")
 
             if not is_connected:
-                self.logger.warning("⚠️ WebSocket client may not be connected, but attempting subscription anyway")
+                self.logger.warning(
+                    "⚠️ WebSocket client may not be connected, but attempting subscription anyway"
+                )
                 # Don't fail here - let the subscription attempt proceed
 
             # Perform subscription
-            success = self.ws_client.subscribe_tokens([actual_token], dhan_mode, exchange_codes={actual_token: exchange_code})
+            success = self.ws_client.subscribe_tokens(
+                [actual_token], dhan_mode, exchange_codes={actual_token: exchange_code}
+            )
 
             if success:
                 self.logger.info(f"✅ Successfully subscribed to {exchange}:{symbol}")
             else:
                 self.logger.error(f"❌ Failed to subscribe to {exchange}:{symbol}")
-                return {"status": "error", "message": f"Failed to subscribe to {exchange}:{symbol}"}
+                return {
+                    "status": "error",
+                    "message": f"Failed to subscribe to {exchange}:{symbol}",
+                }
 
-            return {"status": "success", "message": f"Subscribed to {exchange}:{symbol}"}
+            return {
+                "status": "success",
+                "message": f"Subscribed to {exchange}:{symbol}",
+            }
 
         except Exception as e:
             self.logger.error(f"Error subscribing to {symbol}: {e}")
             return {"status": "error", "message": f"Error subscribing to {symbol}: {e}"}
 
-    def unsubscribe(self, symbol: str, exchange: str, mode: int = None) -> Dict[str, Any]:
+    def unsubscribe(
+        self, symbol: str, exchange: str, mode: int = None
+    ) -> Dict[str, Any]:
         """
         Unsubscribe from market data for a symbol.
 
@@ -368,7 +454,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 unsubscribe(symbol, exchange, token=None)
             The token parameter is now handled internally using the subscription tracking mechanism.
         """
-        self.logger.info(f"Processing unsubscribe for {exchange}:{symbol} with mode={mode}")
+        self.logger.info(
+            f"Processing unsubscribe for {exchange}:{symbol} with mode={mode}"
+        )
 
         try:
             # First, check if we already have this symbol in our subscription tracking
@@ -377,23 +465,39 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             with self.lock:
                 if symbol in self.subscribed_symbols:
                     stored_data = self.subscribed_symbols[symbol]
-                    if stored_data["exchange"] == exchange:  # Make sure we match exchange too
+                    if (
+                        stored_data["exchange"] == exchange
+                    ):  # Make sure we match exchange too
                         stored_token = stored_data["token"]
 
             # If we found the stored token, use that. Otherwise resolve it.
             # IMPORTANT: token parameter was previously a method parameter, now handled internally
-            actual_token = stored_token if stored_token is not None else self.resolve_token(symbol, exchange, None)
+            actual_token = (
+                stored_token
+                if stored_token is not None
+                else self.resolve_token(symbol, exchange, None)
+            )
 
             # Handle case where we still couldn't resolve a token
             if actual_token is None:
                 self.logger.warning(f"Could not resolve token for {exchange}:{symbol}")
-                return {"status": "error", "message": f"Could not resolve token for {exchange}:{symbol}"}
+                return {
+                    "status": "error",
+                    "message": f"Could not resolve token for {exchange}:{symbol}",
+                }
 
             if not self.connected or not self.ws_client:
-                self.logger.warning(f"Cannot unsubscribe - not connected to {self.broker_name} WebSocket")
-                return {"status": "error", "message": f"Not connected to {self.broker_name} WebSocket"}
+                self.logger.warning(
+                    f"Cannot unsubscribe - not connected to {self.broker_name} WebSocket"
+                )
+                return {
+                    "status": "error",
+                    "message": f"Not connected to {self.broker_name} WebSocket",
+                }
 
-            self.logger.info(f"Unsubscribing from token {actual_token} ({exchange}:{symbol})")
+            self.logger.info(
+                f"Unsubscribing from token {actual_token} ({exchange}:{symbol})"
+            )
             # Unsubscribe from token with Dhan WebSocket
             self.ws_client.unsubscribe(actual_token)
 
@@ -406,11 +510,17 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     del self.subscribed_symbols[symbol]
 
             self.logger.info(f"Unsubscribed from {exchange}:{symbol}")
-            return {"status": "success", "message": f"Unsubscribed from {exchange}:{symbol}"}
+            return {
+                "status": "success",
+                "message": f"Unsubscribed from {exchange}:{symbol}",
+            }
 
         except Exception as e:
             self.logger.error(f"Error unsubscribing from {symbol}: {e}")
-            return {"status": "error", "message": f"Error unsubscribing from {symbol}: {e}"}
+            return {
+                "status": "error",
+                "message": f"Error unsubscribing from {symbol}: {e}",
+            }
 
     def _resubscribe(self):
         """
@@ -440,7 +550,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             for mode, tokens in mode_tokens.items():
                 if tokens:
                     self.ws_client.subscribe_tokens(tokens, mode)
-                    self.logger.info(f"Resubscribed {len(tokens)} symbols in mode '{mode}'")
+                    self.logger.info(
+                        f"Resubscribed {len(tokens)} symbols in mode '{mode}'"
+                    )
 
         self.logger.info("Resubscription complete")
 
@@ -465,7 +577,7 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             reconnect_thread = threading.Thread(
                 target=self._try_reconnect,
                 name=f"{self.broker_name}_reconnect_thread",
-                daemon=True
+                daemon=True,
             )
             reconnect_thread.start()
 
@@ -500,7 +612,7 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Debug: Log raw tick data
             for i, tick in enumerate(ticks):
-                self.logger.info(f"Raw tick {i+1}: {tick}")
+                self.logger.info(f"Raw tick {i + 1}: {tick}")
 
             # Process each tick
             for tick in ticks:
@@ -512,39 +624,55 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Find symbol from token and handle cleanup
                 with self.lock:
                     # Debug: Show current token mappings
-                    self.logger.info(f"Looking up token {token} (type: {type(token).__name__})")
-                    self.logger.info(f"Current token_to_symbol mappings: {self.token_to_symbol}")
-                    self.logger.info(f"Current subscribed_symbols: {list(self.subscribed_symbols.keys())}")
+                    self.logger.info(
+                        f"Looking up token {token} (type: {type(token).__name__})"
+                    )
+                    self.logger.info(
+                        f"Current token_to_symbol mappings: {self.token_to_symbol}"
+                    )
+                    self.logger.info(
+                        f"Current subscribed_symbols: {list(self.subscribed_symbols.keys())}"
+                    )
 
                     # Try direct lookup with both string and int formats for robustness
-                    symbol_exchange = self.token_to_symbol.get(str(token)) or self.token_to_symbol.get(int(token))
+                    symbol_exchange = self.token_to_symbol.get(
+                        str(token)
+                    ) or self.token_to_symbol.get(int(token))
 
                     if not symbol_exchange:
                         # Enhanced debug info for token mapping
                         token_keys = list(self.token_to_symbol.keys())
                         token_types = [(k, type(k).__name__) for k in token_keys]
-                        self.logger.warning(f"❌ TOKEN MAPPING FAILURE: Received token {token} (type: {type(token).__name__}) not found")
+                        self.logger.warning(
+                            f"❌ TOKEN MAPPING FAILURE: Received token {token} (type: {type(token).__name__}) not found"
+                        )
                         self.logger.warning(f"Available tokens: {token_types}")
 
                         # Try more aggressive lookup methods
                         for k, v in self.token_to_symbol.items():
                             try:
                                 if int(k) == int(token):
-                                    self.logger.info(f"✅ Found match using int conversion: {k} -> {v}")
+                                    self.logger.info(
+                                        f"✅ Found match using int conversion: {k} -> {v}"
+                                    )
                                     symbol_exchange = v
                                     break
                             except (ValueError, TypeError):
                                 pass
 
                         if not symbol_exchange:
-                            self.logger.error(f"❌ CRITICAL: No symbol found for token {token}, skipping tick")
+                            self.logger.error(
+                                f"❌ CRITICAL: No symbol found for token {token}, skipping tick"
+                            )
                             continue  # Still no match, skip this tick
 
                     # Check if this symbol is still subscribed
                     symbol, exchange = symbol_exchange
                     if symbol not in self.subscribed_symbols:
                         # Symbol is no longer subscribed, clean up token mapping
-                        self.logger.info(f"Cleaning up token mapping for unsubscribed symbol {symbol}")
+                        self.logger.info(
+                            f"Cleaning up token mapping for unsubscribed symbol {symbol}"
+                        )
                         try:
                             del self.token_to_symbol[str(token)]
                         except KeyError:
@@ -572,36 +700,40 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Set the data exchange field in the tick
                 tick["exchange"] = data_exchange
 
-                self.logger.info(f"Processing tick for {symbol}: price={tick.get('last_price')}, token={token}, exchange={subscription_exchange}")
+                self.logger.info(
+                    f"Processing tick for {symbol}: price={tick.get('last_price')}, token={token}, exchange={subscription_exchange}"
+                )
 
                 # Get mode from subscribed_symbols tracking
                 subscription = self.subscribed_symbols.get(symbol, {})
-                mode = subscription.get('mode', 1)  # Default to LTP mode
+                mode = subscription.get("mode", 1)  # Default to LTP mode
 
                 # Map numeric mode to string format
-                mode_str = {
-                    1: 'LTP',
-                    2: 'QUOTE',
-                    3: 'DEPTH'
-                }.get(mode, 'LTP')
+                mode_str = {1: "LTP", 2: "QUOTE", 3: "DEPTH"}.get(mode, "LTP")
 
                 # Normalize tick format to OpenAlgo standard
                 normalized_tick = self._normalize_tick(tick)
 
                 # Set mode based on packet type
-                packet_type = tick.get('packet_type', '')
-                if packet_type == 'market_update' or packet_type == 'quote':
-                    mode_str = 'QUOTE'
-                elif 'depth' in normalized_tick and isinstance(normalized_tick.get('depth', {}), dict):
-                    mode_str = 'DEPTH'
-                self.logger.debug(f"Packet type {packet_type} mapped to mode {mode_str}")
+                packet_type = tick.get("packet_type", "")
+                if packet_type == "market_update" or packet_type == "quote":
+                    mode_str = "QUOTE"
+                elif "depth" in normalized_tick and isinstance(
+                    normalized_tick.get("depth", {}), dict
+                ):
+                    mode_str = "DEPTH"
+                self.logger.debug(
+                    f"Packet type {packet_type} mapped to mode {mode_str}"
+                )
 
                 # Add mode to normalized tick for proper handling
-                normalized_tick['mode'] = mode_str
+                normalized_tick["mode"] = mode_str
 
                 # Generate topics using both formats for maximum compatibility
                 # Format 1: With broker name (for WebSocket server with broker filtering)
-                broker_topic = self._generate_topic(symbol, subscription_exchange, mode_str)
+                broker_topic = self._generate_topic(
+                    symbol, subscription_exchange, mode_str
+                )
 
                 # Format 2: Without broker name (for polling compatibility)
                 legacy_topic = f"{subscription_exchange}_{symbol}_{mode_str}"
@@ -610,7 +742,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.logger.info(f"Publishing to topic: {broker_topic}")
                 self.logger.info(f"Publishing to legacy topic: {legacy_topic}")
                 self.logger.info(f"Data structure: {normalized_tick}")
-                self.logger.info(f"Subscription exchange: {subscription_exchange} -> Topic: {broker_topic}, Data exchange: {data_exchange}")
+                self.logger.info(
+                    f"Subscription exchange: {subscription_exchange} -> Topic: {broker_topic}, Data exchange: {data_exchange}"
+                )
 
                 # Publish to both topic formats for maximum compatibility
                 # Topic with broker name for filtering in WebSocket server
@@ -619,8 +753,10 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self.publish_market_data(legacy_topic, normalized_tick)
 
                 # Debug log for troubleshooting polling data issues
-                if mode_str.lower() == 'ltp':
-                    self.logger.debug(f"LTP Data should be available for polling: {subscription_exchange}:{symbol}")
+                if mode_str.lower() == "ltp":
+                    self.logger.debug(
+                        f"LTP Data should be available for polling: {subscription_exchange}:{symbol}"
+                    )
 
         except Exception as e:
             self.logger.error(f"Error processing ticks: {e}")
@@ -711,9 +847,11 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 "token": tick.get("token") or tick.get("instrument_token"),
                 "ltt": timestamp,
                 "timestamp": timestamp,
-                "ltp": round(last_price, 2),  # Use 'ltp' key for compatibility with get_ltp()
+                "ltp": round(
+                    last_price, 2
+                ),  # Use 'ltp' key for compatibility with get_ltp()
                 "volume": int(tick.get("volume", 0)),  # Direct volume field
-                "oi": int(tick.get("open_interest", 0))
+                "oi": int(tick.get("open_interest", 0)),
             }
 
             # Extract OHLC data - check both nested 'ohlc' and root level
@@ -722,12 +860,14 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 ohlc = tick  # Use root level if ohlc dict is empty but fields exist at root
 
             # Safely extract and round OHLC values
-            normalized.update({
-                "open": round(safe_float(ohlc.get("open", 0)), 2),
-                "high": round(safe_float(ohlc.get("high", 0)), 2),
-                "low": round(safe_float(ohlc.get("low", 0)), 2),
-                "close": round(safe_float(ohlc.get("close", 0)), 2)
-            })
+            normalized.update(
+                {
+                    "open": round(safe_float(ohlc.get("open", 0)), 2),
+                    "high": round(safe_float(ohlc.get("high", 0)), 2),
+                    "low": round(safe_float(ohlc.get("low", 0)), 2),
+                    "close": round(safe_float(ohlc.get("close", 0)), 2),
+                }
+            )
 
             # Add market depth if available
             if "depth" in tick:
@@ -737,12 +877,16 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     sell_orders = depth_data.get("sell", [])
 
                     # Debug log for depth data processing
-                    self.logger.info(f"Processing depth data for {normalized.get('symbol')}: buy_levels={len(buy_orders)}, sell_levels={len(sell_orders)}")
+                    self.logger.info(
+                        f"Processing depth data for {normalized.get('symbol')}: buy_levels={len(buy_orders)}, sell_levels={len(sell_orders)}"
+                    )
 
                     # Format depth data with validation
                     def format_levels(levels, side):
                         formatted = []
-                        for i, level in enumerate(levels[:20]):  # Support up to 20 levels for 20-level depth
+                        for i, level in enumerate(
+                            levels[:20]
+                        ):  # Support up to 20 levels for 20-level depth
                             try:
                                 price = safe_float(level.get("price"))
                                 quantity = int(level.get("quantity", 0))
@@ -750,17 +894,25 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                                 # Only add valid levels (price > 0 and quantity > 0)
                                 if price > 0 and quantity > 0:
-                                    formatted.append({
-                                        "price": round(price, 2),
-                                        "quantity": quantity,
-                                        "orders": orders,
-                                        "level": i + 1
-                                    })
-                                    self.logger.debug(f"Added {side} level {i+1}: price={price}, qty={quantity}, orders={orders}")
+                                    formatted.append(
+                                        {
+                                            "price": round(price, 2),
+                                            "quantity": quantity,
+                                            "orders": orders,
+                                            "level": i + 1,
+                                        }
+                                    )
+                                    self.logger.debug(
+                                        f"Added {side} level {i + 1}: price={price}, qty={quantity}, orders={orders}"
+                                    )
                             except Exception as e:
-                                self.logger.warning(f"Error formatting {side} level {i}: {e}")
+                                self.logger.warning(
+                                    f"Error formatting {side} level {i}: {e}"
+                                )
 
-                        self.logger.info(f"Formatted {len(formatted)} valid {side} levels")
+                        self.logger.info(
+                            f"Formatted {len(formatted)} valid {side} levels"
+                        )
                         return formatted
 
                     buy_levels = format_levels(buy_orders, "buy")
@@ -768,14 +920,15 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                     # Only add depth if we have valid levels
                     if buy_levels or sell_levels:
-                        normalized["depth"] = {
-                            "buy": buy_levels,
-                            "sell": sell_levels
-                        }
+                        normalized["depth"] = {"buy": buy_levels, "sell": sell_levels}
 
                         # Calculate total buy/sell quantities
-                        normalized["total_buy_quantity"] = sum(level.get("quantity", 0) for level in buy_orders)
-                        normalized["total_sell_quantity"] = sum(level.get("quantity", 0) for level in sell_orders)
+                        normalized["total_buy_quantity"] = sum(
+                            level.get("quantity", 0) for level in buy_orders
+                        )
+                        normalized["total_sell_quantity"] = sum(
+                            level.get("quantity", 0) for level in sell_orders
+                        )
 
                         # Set best bid/ask
                         if buy_levels:
@@ -785,21 +938,32 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                             normalized["ask"] = sell_levels[0]["price"]
                             normalized["ask_qty"] = sell_levels[0]["quantity"]
 
-                        self.logger.info(f"✅ Depth data added to normalized tick for {normalized.get('symbol')}: {len(buy_levels)} buy, {len(sell_levels)} sell levels")
+                        self.logger.info(
+                            f"✅ Depth data added to normalized tick for {normalized.get('symbol')}: {len(buy_levels)} buy, {len(sell_levels)} sell levels"
+                        )
                     else:
-                        self.logger.warning(f"❌ No valid depth levels found for {normalized.get('symbol')}")
+                        self.logger.warning(
+                            f"❌ No valid depth levels found for {normalized.get('symbol')}"
+                        )
 
                 except Exception as e:
-                    self.logger.error(f"Error processing depth data for {normalized.get('symbol')}: {e}")
+                    self.logger.error(
+                        f"Error processing depth data for {normalized.get('symbol')}: {e}"
+                    )
                     # Continue without depth data if there's an error
             else:
-                self.logger.debug(f"No depth data in tick for {normalized.get('symbol')}")
+                self.logger.debug(
+                    f"No depth data in tick for {normalized.get('symbol')}"
+                )
 
             self.logger.debug(f"Normalized tick: {normalized}")
             return normalized
 
         except Exception as e:
-            self.logger.error(f"Error normalizing tick data: {e}\nOriginal tick: {tick}", exc_info=True)
+            self.logger.error(
+                f"Error normalizing tick data: {e}\nOriginal tick: {tick}",
+                exc_info=True,
+            )
             # Return minimal valid data with error flag
             return {
                 "symbol": tick.get("symbol", "UNKNOWN"),
@@ -811,7 +975,7 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 "high": 0.0,
                 "low": 0.0,
                 "close": 0.0,
-                "volume": 0
+                "volume": 0,
             }
 
     def _try_reconnect(self):
@@ -830,10 +994,12 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 return
 
             # Calculate delay with exponential backoff
-            delay = self.reconnect_delay * (2 ** self.reconnect_attempts)
+            delay = self.reconnect_delay * (2**self.reconnect_attempts)
             self.reconnect_attempts += 1
 
-            self.logger.info(f"Attempting to reconnect in {delay} seconds (attempt {self.reconnect_attempts})")
+            self.logger.info(
+                f"Attempting to reconnect in {delay} seconds (attempt {self.reconnect_attempts})"
+            )
 
             # Wait before reconnecting
             time.sleep(delay)
@@ -848,7 +1014,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     try:
                         self.ws_client.stop()
                     except Exception as e:
-                        self.logger.error(f"Error stopping WebSocket client during reconnect: {e}")
+                        self.logger.error(
+                            f"Error stopping WebSocket client during reconnect: {e}"
+                        )
                     finally:
                         self.ws_client = None
 
@@ -861,7 +1029,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.info("Successfully reconnected to WebSocket server")
                     self.reconnect_attempts = 0  # Reset counter on successful reconnect
                 else:
-                    self.logger.error(f"Failed to reconnect: {connection_result.get('message', 'Unknown error')}")
+                    self.logger.error(
+                        f"Failed to reconnect: {connection_result.get('message', 'Unknown error')}"
+                    )
                     # Schedule next reattempt if still running
                     if self.running:
                         self._on_disconnect()
@@ -905,15 +1075,18 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             # Use some default symbols if none provided
             if not ticker_symbols:
                 ticker_symbols = [
-                    'NSE:RELIANCE', 'NSE:INFY', 'NSE:TCS',
-                    'NSE:SBIN', 'NSE:HDFCBANK'
+                    "NSE:RELIANCE",
+                    "NSE:INFY",
+                    "NSE:TCS",
+                    "NSE:SBIN",
+                    "NSE:HDFCBANK",
                 ]
 
             results = {
-                'subscription_success': False,
-                'modes_received': set(),
-                'ticks_received': 0,
-                'errors': []
+                "subscription_success": False,
+                "modes_received": set(),
+                "ticks_received": 0,
+                "errors": [],
             }
 
             # Create a collector for validation
@@ -921,10 +1094,12 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             def validation_callback(tick):
                 received_ticks.append(tick)
-                mode = tick.get('mode', 'unknown')
-                results['modes_received'].add(mode)
-                results['ticks_received'] += 1
-                self.logger.info(f"Validation tick received: mode={mode}, token={tick.get('token')}, ltp={tick.get('last_price')}")
+                mode = tick.get("mode", "unknown")
+                results["modes_received"].add(mode)
+                results["ticks_received"] += 1
+                self.logger.info(
+                    f"Validation tick received: mode={mode}, token={tick.get('token')}, ltp={tick.get('last_price')}"
+                )
 
             # Backup original callbacks
             original_callbacks = {}
@@ -950,9 +1125,13 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                         # Wait for some ticks
                         start_time = time.time()
-                        while time.time() - start_time < timeout/4:  # Divide timeout by modes
-                            if results['ticks_received'] > 0:
-                                self.logger.info(f"Received {results['ticks_received']} ticks for mode {mode}")
+                        while (
+                            time.time() - start_time < timeout / 4
+                        ):  # Divide timeout by modes
+                            if results["ticks_received"] > 0:
+                                self.logger.info(
+                                    f"Received {results['ticks_received']} ticks for mode {mode}"
+                                )
                                 break
                             time.sleep(0.1)
 
@@ -964,10 +1143,10 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                     except Exception as e:
                         error_msg = f"Error testing mode {mode}: {str(e)}"
-                        results['errors'].append(error_msg)
+                        results["errors"].append(error_msg)
                         self.logger.error(error_msg)
 
-                results['subscription_success'] = True
+                results["subscription_success"] = True
 
             finally:
                 # Restore original callbacks
@@ -984,7 +1163,9 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     self.logger.error(f"Error during cleanup: {e}")
 
             # Summarize results
-            self.logger.info(f"Tick validation complete. Received {results['ticks_received']} ticks")
+            self.logger.info(
+                f"Tick validation complete. Received {results['ticks_received']} ticks"
+            )
             self.logger.info(f"Modes received: {results['modes_received']}")
 
             # Include sample ticks in result
@@ -992,18 +1173,18 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # Group by mode
                 sample_ticks = {}
                 for tick in received_ticks[:10]:  # Get first 10 ticks max
-                    mode = tick.get('mode', 'unknown')
+                    mode = tick.get("mode", "unknown")
                     if mode not in sample_ticks:
                         sample_ticks[mode] = []
                     sample_ticks[mode].append(tick)
 
-                results['sample_ticks'] = sample_ticks
+                results["sample_ticks"] = sample_ticks
 
             return results
 
         except Exception as e:
             self.logger.error(f"Error in validate_tick_parsing: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def _generate_topic(self, symbol: str, exchange: str, mode_str: str) -> str:
         """
@@ -1032,11 +1213,11 @@ class DhanWebSocketAdapter(BaseBrokerWebSocketAdapter):
             Mapped exchange for data field
         """
         # Ensure index exchanges are properly formatted
-        if exchange in ['NSE_INDEX', 'BSE_INDEX', 'IDX_I']:
-            if 'NSE' in exchange:
-                return 'NSE_INDEX'  # Standardize NSE index
-            elif 'BSE' in exchange:
-                return 'BSE_INDEX'  # Standardize BSE index
+        if exchange in ["NSE_INDEX", "BSE_INDEX", "IDX_I"]:
+            if "NSE" in exchange:
+                return "NSE_INDEX"  # Standardize NSE index
+            elif "BSE" in exchange:
+                return "BSE_INDEX"  # Standardize BSE index
         return exchange  # Return original for non-index exchanges
 
     def __del__(self):

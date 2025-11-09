@@ -24,7 +24,7 @@ class TradejiniWebSocket:
         self.authenticated = False
         self.last_quote = None
         self.last_depth = None
-        self.nxtrad_host = 'api.tradejini.com'
+        self.nxtrad_host = "api.tradejini.com"
 
         # L1 cache for storing quote data like in original SDK
         self.L1_dict = {}
@@ -39,10 +39,10 @@ class TradejiniWebSocket:
             api_key = settings.BROKER_API_SECRET
 
             # Format the auth token exactly as per TradeJini requirements
-            if ':' not in auth_token and api_key:
+            if ":" not in auth_token and api_key:
                 auth_header = f"{api_key}:{auth_token}"
                 logger.info("Using API key from BROKER_API_SECRET environment variable")
-            elif ':' in auth_token:
+            elif ":" in auth_token:
                 auth_header = auth_token
                 logger.info("Using provided API key and access token")
             else:
@@ -56,11 +56,13 @@ class TradejiniWebSocket:
             self.nx_stream = NxtradStream(
                 self.nxtrad_host,
                 stream_cb=self._on_data,
-                connect_cb=self._on_connection
+                connect_cb=self._on_connection,
             )
 
             # Connect with formatted auth token
-            logger.info(f"Connecting with auth token format: {auth_header.split(':')[0][:4]}***:{auth_header.split(':')[1][:4]}***")
+            logger.info(
+                f"Connecting with auth token format: {auth_header.split(':')[0][:4]}***:{auth_header.split(':')[1][:4]}***"
+            )
             self.nx_stream.connect(auth_header)
 
             # Wait for connection
@@ -70,7 +72,9 @@ class TradejiniWebSocket:
                 time.sleep(1)
                 wait_count += 1
                 if wait_count % 5 == 0:
-                    logger.info(f"Still waiting for connection... ({wait_count}/{max_wait})")
+                    logger.info(
+                        f"Still waiting for connection... ({wait_count}/{max_wait})"
+                    )
 
             if self.connected:
                 logger.info("Successfully connected to Tradejini WebSocket")
@@ -88,20 +92,20 @@ class TradejiniWebSocket:
         try:
             logger.info(f"Connection event: {event}")
 
-            if event.get('s') == "connected":
+            if event.get("s") == "connected":
                 self.connected = True
                 self.authenticated = True
                 logger.info("WebSocket connected and authenticated")
 
-            elif event.get('s') == "error":
+            elif event.get("s") == "error":
                 self.connected = False
                 self.authenticated = False
                 logger.error(f"WebSocket error: {event.get('reason', 'Unknown error')}")
 
-            elif event.get('s') == "closed":
+            elif event.get("s") == "closed":
                 self.connected = False
                 self.authenticated = False
-                reason = event.get('reason', 'Unknown reason')
+                reason = event.get("reason", "Unknown reason")
                 logger.warning(f"WebSocket closed: {reason}")
 
                 # Auto-reconnect if not unauthorized
@@ -120,19 +124,21 @@ class TradejiniWebSocket:
             if not isinstance(data, dict):
                 return
 
-            msg_type = data.get('msgType', '')
-            symbol = data.get('symbol', '')
+            msg_type = data.get("msgType", "")
+            symbol = data.get("symbol", "")
 
             logger.debug(f"Received {msg_type} data for {symbol}")
 
             with self.lock:
-                if msg_type == 'L1':
+                if msg_type == "L1":
                     # Store quote data exactly like original SDK
                     self.L1_dict[symbol] = data
                     self.last_quote = data
-                    logger.info(f"Updated L1 data for {symbol}: LTP={data.get('ltp', 0)}")
+                    logger.info(
+                        f"Updated L1 data for {symbol}: LTP={data.get('ltp', 0)}"
+                    )
 
-                elif msg_type == 'L5':
+                elif msg_type == "L5":
                     # Store depth data
                     self.L5_dict[symbol] = data
                     self.last_depth = data
@@ -219,15 +225,15 @@ class BrokerData:
         # Map supported timeframe formats for Tradejini
         # Note: Tradejini only supports 1m, 5m, and 30m intervals
         self.timeframe_map = {
-            '1m': '1m',    # 1 minute
-            '5m': '5m',    # 5 minutes
-            '30m': '30m'   # 30 minutes
+            "1m": "1m",  # 1 minute
+            "5m": "5m",  # 5 minutes
+            "30m": "30m",  # 30 minutes
         }
 
     def connect_websocket(self):
         """Initialize WebSocket connection if not already connected"""
         try:
-            if hasattr(self, 'ws') and self.ws.connected:
+            if hasattr(self, "ws") and self.ws.connected:
                 logger.debug("WebSocket is already connected")
                 return True
 
@@ -259,47 +265,49 @@ class BrokerData:
             logger.debug(f"Formatting quote data for {symbol}")
 
             # Extract values with defaults - matching OpenAlgo format
-            ltp = float(quote_data.get('ltp', 0))
-            open_price = float(quote_data.get('open', 0))
-            high = float(quote_data.get('high', 0))
-            low = float(quote_data.get('low', 0))
-            prev_close = float(quote_data.get('close', 0))  # Use 'close' as prev_close
-            volume = int(quote_data.get('vol', 0) or 0)
-            oi = int(quote_data.get('OI', 0) or 0)  # Add Open Interest
+            ltp = float(quote_data.get("ltp", 0))
+            open_price = float(quote_data.get("open", 0))
+            high = float(quote_data.get("high", 0))
+            low = float(quote_data.get("low", 0))
+            prev_close = float(quote_data.get("close", 0))  # Use 'close' as prev_close
+            volume = int(quote_data.get("vol", 0) or 0)
+            oi = int(quote_data.get("OI", 0) or 0)  # Add Open Interest
 
             # Get bid/ask data
-            bid = float(quote_data.get('bidPrice', 0))
-            ask = float(quote_data.get('askPrice', 0))
+            bid = float(quote_data.get("bidPrice", 0))
+            ask = float(quote_data.get("askPrice", 0))
 
             # Format the quote to match OpenAlgo response exactly
             formatted_quote = {
-                'ask': ask,
-                'bid': bid,
-                'high': high,
-                'low': low,
-                'ltp': ltp,
-                'open': open_price,
-                'prev_close': prev_close,
-                'volume': volume,
-                'oi': oi  # Include OI in the response
+                "ask": ask,
+                "bid": bid,
+                "high": high,
+                "low": low,
+                "ltp": ltp,
+                "open": open_price,
+                "prev_close": prev_close,
+                "volume": volume,
+                "oi": oi,  # Include OI in the response
             }
 
-            logger.debug(f"Formatted quote for {symbol}: LTP={ltp}, Volume={volume}, OI={oi}")
+            logger.debug(
+                f"Formatted quote for {symbol}: LTP={ltp}, Volume={volume}, OI={oi}"
+            )
             return formatted_quote
 
         except Exception as e:
             logger.error(f"Error formatting quote data: {str(e)}", exc_info=True)
             # Return minimal valid quote data in OpenAlgo format
             return {
-                'ask': 0.0,
-                'bid': 0.0,
-                'high': 0.0,
-                'low': 0.0,
-                'ltp': 0.0,
-                'open': 0.0,
-                'prev_close': 0.0,
-                'volume': 0,
-                'oi': 0  # Include OI with default value
+                "ask": 0.0,
+                "bid": 0.0,
+                "high": 0.0,
+                "low": 0.0,
+                "ltp": 0.0,
+                "open": 0.0,
+                "prev_close": 0.0,
+                "volume": 0,
+                "oi": 0,  # Include OI with default value
             }
 
     def get_quotes(self, symbol: str, exchange: str) -> dict:
@@ -351,8 +359,8 @@ class BrokerData:
 
             # Possible symbol key formats the data might arrive with
             symbol_keys = [
-                symbol_key,          # token_exchange format
-                f"{token}_NSE",      # Most likely format
+                symbol_key,  # token_exchange format
+                f"{token}_NSE",  # Most likely format
                 f"{token}_{exchange}",
                 str(token),
                 f"{exchange}_{token}",
@@ -369,56 +377,70 @@ class BrokerData:
                     for check_key in symbol_keys:
                         if check_key in self.ws.L1_dict:
                             quote_data = self.ws.L1_dict[check_key]
-                            logger.info(f"Found quote in L1 cache with key '{check_key}': LTP={quote_data.get('ltp', 0)}")
+                            logger.info(
+                                f"Found quote in L1 cache with key '{check_key}': LTP={quote_data.get('ltp', 0)}"
+                            )
                             return self._format_quote(quote_data, symbol, exchange)
 
                     # Check last_quote as fallback
                     if self.ws.last_quote is not None:
                         quote_data = self.ws.last_quote
-                        quote_symbol = quote_data.get('symbol', '')
-                        logger.info(f"Found quote in last_quote with symbol: '{quote_symbol}'")
+                        quote_symbol = quote_data.get("symbol", "")
+                        logger.info(
+                            f"Found quote in last_quote with symbol: '{quote_symbol}'"
+                        )
                         # Check if it matches any of our expected keys
                         if any(quote_symbol == key for key in symbol_keys):
-                            logger.info(f"Quote matches expected symbol, LTP={quote_data.get('ltp', 0)}")
+                            logger.info(
+                                f"Quote matches expected symbol, LTP={quote_data.get('ltp', 0)}"
+                            )
                             return self._format_quote(quote_data, symbol, exchange)
                         else:
-                            logger.debug(f"Quote symbol '{quote_symbol}' doesn't match expected keys: {symbol_keys}")
+                            logger.debug(
+                                f"Quote symbol '{quote_symbol}' doesn't match expected keys: {symbol_keys}"
+                            )
 
                 retry_count += 1
                 if retry_count % 10 == 0:  # Log every 10 attempts
-                    logger.info(f"Still waiting for quote data... (attempt {retry_count}/{max_retries})")
+                    logger.info(
+                        f"Still waiting for quote data... (attempt {retry_count}/{max_retries})"
+                    )
                     logger.info(f"L1 cache keys: {list(self.ws.L1_dict.keys())}")
                     if self.ws.last_quote:
-                        logger.info(f"Last quote symbol: '{self.ws.last_quote.get('symbol', 'None')}'")
+                        logger.info(
+                            f"Last quote symbol: '{self.ws.last_quote.get('symbol', 'None')}'"
+                        )
                     else:
                         logger.info("Last quote: None")
 
             # If no data received, return default quote in OpenAlgo format
-            logger.warning(f"No quote data received for {symbol} after {max_retries} attempts")
+            logger.warning(
+                f"No quote data received for {symbol} after {max_retries} attempts"
+            )
             logger.info(f"Final L1 cache keys: {list(self.ws.L1_dict.keys())}")
 
             return {
-                'ask': 0.0,
-                'bid': 0.0,
-                'high': 0.0,
-                'low': 0.0,
-                'ltp': 0.0,
-                'open': 0.0,
-                'prev_close': 0.0,
-                'volume': 0
+                "ask": 0.0,
+                "bid": 0.0,
+                "high": 0.0,
+                "low": 0.0,
+                "ltp": 0.0,
+                "open": 0.0,
+                "prev_close": 0.0,
+                "volume": 0,
             }
 
         except Exception as e:
             logger.error(f"Error in get_quotes: {str(e)}", exc_info=True)
             return {
-                'ask': 0.0,
-                'bid': 0.0,
-                'high': 0.0,
-                'low': 0.0,
-                'ltp': 0.0,
-                'open': 0.0,
-                'prev_close': 0.0,
-                'volume': 0
+                "ask": 0.0,
+                "bid": 0.0,
+                "high": 0.0,
+                "low": 0.0,
+                "ltp": 0.0,
+                "open": 0.0,
+                "prev_close": 0.0,
+                "volume": 0,
             }
 
     def get_depth(self, symbol: str, exchange: str) -> dict:
@@ -472,7 +494,9 @@ class BrokerData:
 
                 retry_count += 1
                 if retry_count % 5 == 0:
-                    logger.info(f"Still waiting for depth data... (attempt {retry_count}/{max_retries})")
+                    logger.info(
+                        f"Still waiting for depth data... (attempt {retry_count}/{max_retries})"
+                    )
 
             # Return default depth structure if no data received
             logger.warning(f"No depth data received for {symbol}")
@@ -488,64 +512,70 @@ class BrokerData:
             logger.debug(f"Formatting depth data for {symbol}")
 
             # Extract bid and ask data
-            bids_raw = depth_data.get('bid', [])
-            asks_raw = depth_data.get('ask', [])
+            bids_raw = depth_data.get("bid", [])
+            asks_raw = depth_data.get("ask", [])
 
             # Format bids (buy orders) - OpenAlgo format (no 'orders' field)
             bids = []
             for bid in bids_raw[:5]:  # Top 5 levels
-                bids.append({
-                    'price': float(bid.get('price', 0)),
-                    'quantity': int(bid.get('qty', 0))
-                })
+                bids.append(
+                    {
+                        "price": float(bid.get("price", 0)),
+                        "quantity": int(bid.get("qty", 0)),
+                    }
+                )
 
             # Ensure we have exactly 5 levels
             while len(bids) < 5:
-                bids.append({'price': 0, 'quantity': 0})
+                bids.append({"price": 0, "quantity": 0})
 
             # Format asks (sell orders) - OpenAlgo format (no 'orders' field)
             asks = []
             for ask in asks_raw[:5]:  # Top 5 levels
-                asks.append({
-                    'price': float(ask.get('price', 0)),
-                    'quantity': int(ask.get('qty', 0))
-                })
+                asks.append(
+                    {
+                        "price": float(ask.get("price", 0)),
+                        "quantity": int(ask.get("qty", 0)),
+                    }
+                )
 
             # Ensure we have exactly 5 levels
             while len(asks) < 5:
-                asks.append({'price': 0, 'quantity': 0})
+                asks.append({"price": 0, "quantity": 0})
 
             # Calculate totals
-            totalbuyqty = sum(bid['quantity'] for bid in bids)
-            totalsellqty = sum(ask['quantity'] for ask in asks)
+            totalbuyqty = sum(bid["quantity"] for bid in bids)
+            totalsellqty = sum(ask["quantity"] for ask in asks)
 
             # Get additional market data from depth_data or use defaults
-            high = float(depth_data.get('high', 0))
-            low = float(depth_data.get('low', 0))
-            ltp = float(depth_data.get('ltp', 0))
-            ltq = int(depth_data.get('ltq', 0))
-            oi = int(depth_data.get('OI', 0))
-            open_price = float(depth_data.get('open', 0))
-            prev_close = float(depth_data.get('close', 0))
-            volume = int(depth_data.get('vol', 0))
+            high = float(depth_data.get("high", 0))
+            low = float(depth_data.get("low", 0))
+            ltp = float(depth_data.get("ltp", 0))
+            ltq = int(depth_data.get("ltq", 0))
+            oi = int(depth_data.get("OI", 0))
+            open_price = float(depth_data.get("open", 0))
+            prev_close = float(depth_data.get("close", 0))
+            volume = int(depth_data.get("vol", 0))
 
             # Format exactly like OpenAlgo sample
             formatted_depth = {
-                'asks': asks,
-                'bids': bids,
-                'high': high,
-                'low': low,
-                'ltp': ltp,
-                'ltq': ltq,
-                'oi': oi,
-                'open': open_price,
-                'prev_close': prev_close,
-                'totalbuyqty': totalbuyqty,
-                'totalsellqty': totalsellqty,
-                'volume': volume
+                "asks": asks,
+                "bids": bids,
+                "high": high,
+                "low": low,
+                "ltp": ltp,
+                "ltq": ltq,
+                "oi": oi,
+                "open": open_price,
+                "prev_close": prev_close,
+                "totalbuyqty": totalbuyqty,
+                "totalsellqty": totalsellqty,
+                "volume": volume,
             }
 
-            logger.debug(f"Formatted depth for {symbol}: {len(bids)} bids, {len(asks)} asks")
+            logger.debug(
+                f"Formatted depth for {symbol}: {len(bids)} bids, {len(asks)} asks"
+            )
             return formatted_depth
 
         except Exception as e:
@@ -555,29 +585,32 @@ class BrokerData:
     def _get_default_depth(self) -> dict:
         """Return default depth structure in OpenAlgo format"""
         return {
-            'asks': [{'price': 0, 'quantity': 0} for _ in range(5)],
-            'bids': [{'price': 0, 'quantity': 0} for _ in range(5)],
-            'high': 0,
-            'low': 0,
-            'ltp': 0,
-            'ltq': 0,
-            'oi': 0,
-            'open': 0,
-            'prev_close': 0,
-            'totalbuyqty': 0,
-            'totalsellqty': 0,
-            'volume': 0
+            "asks": [{"price": 0, "quantity": 0} for _ in range(5)],
+            "bids": [{"price": 0, "quantity": 0} for _ in range(5)],
+            "high": 0,
+            "low": 0,
+            "ltp": 0,
+            "ltq": 0,
+            "oi": 0,
+            "open": 0,
+            "prev_close": 0,
+            "totalbuyqty": 0,
+            "totalsellqty": 0,
+            "volume": 0,
         }
 
-    def get_history(self, symbol: str, exchange: str, interval: str, start_date: str, end_date: str) -> pd.DataFrame:
+    def get_history(
+        self, symbol: str, exchange: str, interval: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
         """Get historical OHLC data for given symbol using REST API"""
         try:
+
             def parse_timestamp(ts, is_start=True):
                 try:
                     if isinstance(ts, str):
-                        dt = pd.Timestamp(ts, tz='Asia/Kolkata')
+                        dt = pd.Timestamp(ts, tz="Asia/Kolkata")
                     else:
-                        dt = pd.Timestamp(ts, unit='ms', tz='Asia/Kolkata')
+                        dt = pd.Timestamp(ts, unit="ms", tz="Asia/Kolkata")
 
                     if is_start:
                         dt = dt.replace(hour=9, minute=15, second=0, microsecond=0)
@@ -587,7 +620,9 @@ class BrokerData:
                     return int(dt.timestamp())
 
                 except Exception as e:
-                    logger.error(f"Error parsing timestamp {ts}: {str(e)}", exc_info=True)
+                    logger.error(
+                        f"Error parsing timestamp {ts}: {str(e)}", exc_info=True
+                    )
                     raise
 
             start_ts = parse_timestamp(start_date, is_start=True)
@@ -599,13 +634,22 @@ class BrokerData:
             token = get_token(symbol, exchange)
             if not token:
                 logger.error(f"Token not found for {symbol} on {exchange}")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                return pd.DataFrame(
+                    columns=["timestamp", "open", "high", "low", "close", "volume"]
+                )
 
             # Map exchange to Tradejini format
             exchange_map = {
-                'NSE': 'NSE', 'BSE': 'BSE', 'NFO': 'NFO', 'BFO': 'BFO',
-                'CDS': 'CDS', 'BCD': 'BCD', 'MCD': 'MCD', 'MCX': 'MCX',
-                'NCO': 'NCO', 'BCO': 'BCO'
+                "NSE": "NSE",
+                "BSE": "BSE",
+                "NFO": "NFO",
+                "BFO": "BFO",
+                "CDS": "CDS",
+                "BCD": "BCD",
+                "MCD": "MCD",
+                "MCX": "MCX",
+                "NCO": "NCO",
+                "BCO": "BCO",
             }
             exchange = exchange_map.get(exchange, exchange)
 
@@ -613,9 +657,7 @@ class BrokerData:
             token_str = get_symbol(token, exchange)
 
             # Map interval to Tradejini format
-            interval_map = {
-                '1m': '1', '5m': '5', '15m': '15', '30m': '30'
-            }
+            interval_map = {"1m": "1", "5m": "5", "15m": "15", "30m": "30"}
             tj_interval = interval_map.get(interval, interval)
 
             # Fetch historical data using REST API
@@ -624,39 +666,47 @@ class BrokerData:
                 exchange=exchange,
                 interval=tj_interval,
                 from_ts=start_ts,
-                to_ts=end_ts
+                to_ts=end_ts,
             )
 
             if not success:
                 logger.error(f"Failed to fetch historical data: {result}")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                return pd.DataFrame(
+                    columns=["timestamp", "open", "high", "low", "close", "volume"]
+                )
 
             if not result:
                 logger.warning(f"No data returned for {symbol} on {exchange}")
-                return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                return pd.DataFrame(
+                    columns=["timestamp", "open", "high", "low", "close", "volume"]
+                )
 
             # Convert to pandas DataFrame
             df = pd.DataFrame(result)
 
             # Convert timestamps to datetime in IST and create DataFrame
-            if 'timestamp' in df.columns and df['timestamp'].max() > 1e12:
-                df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert('Asia/Kolkata')
+            if "timestamp" in df.columns and df["timestamp"].max() > 1e12:
+                df["datetime"] = pd.to_datetime(
+                    df["timestamp"], unit="ms", utc=True
+                ).dt.tz_convert("Asia/Kolkata")
             else:
                 # If no timestamp, generate based on interval
-                start_dt = pd.Timestamp(start_ts, unit='s', tz='Asia/Kolkata')
-                freq = interval.replace('m', 'T').replace('h', 'H').replace('d', 'D')
-                df['datetime'] = pd.date_range(start=start_dt, periods=len(df), freq=freq)
+                start_dt = pd.Timestamp(start_ts, unit="s", tz="Asia/Kolkata")
+                freq = interval.replace("m", "T").replace("h", "H").replace("d", "D")
+                df["datetime"] = pd.date_range(
+                    start=start_dt, periods=len(df), freq=freq
+                )
 
             # Set datetime as index and sort
-            df.set_index('datetime', inplace=True)
+            df.set_index("datetime", inplace=True)
             df.sort_index(inplace=True)
 
             # Convert timestamp to seconds since epoch for backward compatibility
-            if 'timestamp' in df.columns:
-                df['timestamp'] = df.index.astype('int64') // 10**9
+            if "timestamp" in df.columns:
+                df["timestamp"] = df.index.astype("int64") // 10**9
 
             # Ensure all required columns exist
-            for col in ['open', 'high', 'low', 'close', 'volume']:
+            for col in ["open", "high", "low", "close", "volume"]:
                 if col not in df.columns:
                     df[col] = 0.0
 
@@ -666,22 +716,28 @@ class BrokerData:
             # Convert to OpenAlgo format with timestamp in seconds
             result_data = []
             for _, row in df.iterrows():
-                result_data.append({
-                    'timestamp': int(row['datetime'].timestamp()),
-                    'open': float(row['open']),
-                    'high': float(row['high']),
-                    'low': float(row['low']),
-                    'close': float(row['close']),
-                    'volume': int(row.get('volume', 0))
-                })
+                result_data.append(
+                    {
+                        "timestamp": int(row["datetime"].timestamp()),
+                        "open": float(row["open"]),
+                        "high": float(row["high"]),
+                        "low": float(row["low"]),
+                        "close": float(row["close"]),
+                        "volume": int(row.get("volume", 0)),
+                    }
+                )
 
             return pd.DataFrame(result_data)
 
         except Exception as e:
             logger.error(f"Error in get_history: {str(e)}", exc_info=True)
-            return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            return pd.DataFrame(
+                columns=["timestamp", "open", "high", "low", "close", "volume"]
+            )
 
-    def _get_historical_data(self, symbol: str, exchange: str, interval: str, from_ts: int, to_ts: int) -> Tuple[bool, Union[List[Dict[str, Any]], str]]:
+    def _get_historical_data(
+        self, symbol: str, exchange: str, interval: str, from_ts: int, to_ts: int
+    ) -> Tuple[bool, Union[List[Dict[str, Any]], str]]:
         """Fetch historical OHLC data from TradeJini REST API"""
         try:
             # API endpoint
@@ -698,7 +754,9 @@ class BrokerData:
 
             # Check if auth_token is available
             if not self.auth_token:
-                error_msg = "Authentication token is not available. Please authenticate first."
+                error_msg = (
+                    "Authentication token is not available. Please authenticate first."
+                )
                 logger.error(error_msg)
                 return False, error_msg
 
@@ -711,51 +769,50 @@ class BrokerData:
 
             # Prepare query parameters
             params = {
-                'id': symbol_id,
-                'interval': interval,
-                'from': from_ts,
-                'to': to_ts
+                "id": symbol_id,
+                "interval": interval,
+                "from": from_ts,
+                "to": to_ts,
             }
 
             # Format auth header
             auth_header = f"{api_key}:{self.auth_token}"
             headers = {
-                'Authorization': f'Bearer {auth_header}',
-                'Accept': 'application/json'
+                "Authorization": f"Bearer {auth_header}",
+                "Accept": "application/json",
             }
 
-            logger.debug(f"Making historical data request to {url} with params: {params}")
+            logger.debug(
+                f"Making historical data request to {url} with params: {params}"
+            )
 
             # Get the shared httpx client
             client = get_httpx_client()
 
             # Make the GET request
-            response = client.get(
-                url,
-                params=params,
-                headers=headers,
-                timeout=30.0
-            )
+            response = client.get(url, params=params, headers=headers, timeout=30.0)
 
             logger.debug(f"Response status: {response.status_code}")
             response.raise_for_status()
 
             try:
                 data = response.json()
-                logger.debug(f"Parsed JSON response keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+                logger.debug(
+                    f"Parsed JSON response keys: {list(data.keys()) if isinstance(data, dict) else type(data)}"
+                )
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
                 return False, f"Invalid JSON response: {str(e)}"
 
             # Check if the response is successful
-            if data.get('s') != 'ok':
+            if data.get("s") != "ok":
                 error_msg = f"API Error: Status='{data.get('s')}', Message='{data.get('message', 'No error message')}'"
                 logger.error(error_msg)
                 return False, error_msg
 
             # Process the response data
             ohlc_data = []
-            bars = data.get('d', {}).get('bars', [])
+            bars = data.get("d", {}).get("bars", [])
             logger.debug(f"Processing {len(bars)} bars from response")
 
             for bar in bars:
@@ -772,25 +829,29 @@ class BrokerData:
                     close = float(bar[4])
                     volume = int(bar[5]) if len(bar) > 5 else 0
 
-                    ohlc_data.append({
-                        'timestamp': timestamp,
-                        'open': open_price,
-                        'high': high,
-                        'low': low,
-                        'close': close,
-                        'volume': volume
-                    })
+                    ohlc_data.append(
+                        {
+                            "timestamp": timestamp,
+                            "open": open_price,
+                            "high": high,
+                            "low": low,
+                            "close": close,
+                            "volume": volume,
+                        }
+                    )
 
                 except (IndexError, ValueError, TypeError) as e:
                     logger.warning(f"Error parsing bar data: {bar}, error: {str(e)}")
                     continue
 
-            logger.info(f"Received {len(ohlc_data)} bars of historical data for {symbol_id}")
+            logger.info(
+                f"Received {len(ohlc_data)} bars of historical data for {symbol_id}"
+            )
             return True, ohlc_data
 
         except httpx.HTTPStatusError as e:
             error_msg = f"HTTP error in _get_historical_data: {str(e)}"
-            if hasattr(e, 'response'):
+            if hasattr(e, "response"):
                 error_msg += f" - {e.response.text}"
             logger.error(error_msg)
             return False, error_msg
@@ -809,5 +870,5 @@ class BrokerData:
 
     def close(self):
         """Close WebSocket connection"""
-        if hasattr(self, 'ws') and self.ws:
+        if hasattr(self, "ws") and self.ws:
             self.ws.close()

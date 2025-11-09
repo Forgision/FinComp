@@ -10,8 +10,10 @@ def authenticate_broker(code):
         if BROKER_API_SECRET:
             return BROKER_API_SECRET, None
         else:
-            return None, "No access token found in BROKER_API_SECRET environment variable"
+            return (
+                None,
+                "No access token found in BROKER_API_SECRET environment variable",
+            )
 
     except Exception as e:
         return None, f"An exception occurred: {str(e)}"
-

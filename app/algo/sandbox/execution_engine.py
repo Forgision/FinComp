@@ -276,7 +276,9 @@ class ExecutionEngine:
                     order.update_timestamp = datetime.now(pytz.timezone("Asia/Kolkata"))
                     await db_session.commit()
                 except Exception as e:
-                    logger.error(f"Error rejecting order during execution: {e}", exc_info=True)
+                    logger.error(
+                        f"Error rejecting order during execution: {e}", exc_info=True
+                    )
                     await db_session.rollback()
 
     async def _update_position(self, order, execution_price):

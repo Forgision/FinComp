@@ -497,6 +497,9 @@ class TelegramBotService:
 
             return True, f"Bot initialized successfully: @{bot_info.username}"
 
+        except telegram.error.InvalidToken as e:
+            logger.error(f"Failed to initialize bot: Invalid bot token: {e}")
+            return False, "Invalid bot token provided."
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             return False, str(e)
@@ -563,10 +566,13 @@ class TelegramBotService:
                         f"HTTP {response.status_code}: Failed to validate token",
                     )
 
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Network error during sync initialization: {e}")
+                self.bot_token = token  # Store token anyway for retry later
+                return True, "Token stored (will validate on start)"
             except Exception as e:
-                logger.error(f"Sync initialization error: {e}")
-                # Store token anyway for retry later
-                self.bot_token = token
+                logger.error(f"Unexpected error during sync initialization: {e}")
+                self.bot_token = token  # Store token anyway for retry later
                 return True, "Token stored (will validate on start)"
 
         else:
@@ -661,8 +667,8 @@ class TelegramBotService:
                     chat_id=update.effective_chat.id,
                     text="⚠️ An error occurred. Please try again later.",
                 )
-            except Exception:
-                pass  # If we can't send the message, just ignore
+            except telegram.error.TelegramError as e:
+                logger.debug(f"Failed to send error message to user: {e}")
 
     async def _start_bot_isolated(self):
         """Start the bot with proper handlers and network error handling"""
@@ -1075,7 +1081,7 @@ class TelegramBotService:
         except Exception as e:
             logger.error(f"Error linking account: {e}")
             await update.message.reply_text(
-                "❌ Failed to link account.\n" f"Error: {str(e)}",
+                f"❌ Failed to link account.\nError: {str(e)}",
                 parse_mode=ParseMode.MARKDOWN,
             )
 
@@ -1093,7 +1099,7 @@ class TelegramBotService:
                     del self.sdk_clients[user.id]
 
                 await update.message.reply_text(
-                    "✅ Account unlinked successfully.\n" "Your data has been removed.",
+                    "✅ Account unlinked successfully.\nYour data has been removed.",
                     parse_mode=ParseMode.MARKDOWN,
                 )
             else:
@@ -1191,7 +1197,11 @@ class TelegramBotService:
             status_emoji = (
                 "✅"
                 if status == "complete"
-                else "🟡" if status == "open" else "❌" if status == "rejected" else "⏸️"
+                else "🟡"
+                if status == "open"
+                else "❌"
+                if status == "rejected"
+                else "⏸️"
             )
             action_emoji = "📈" if order.get("action") == "BUY" else "📉"
 
@@ -1937,7 +1947,7 @@ class TelegramBotService:
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await update.message.reply_text(
-                "📱 *OpenAlgo Trading Menu*\n" "Select an option below:",
+                "📱 *OpenAlgo Trading Menu*\nSelect an option below:",
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.MARKDOWN,
             )
@@ -1988,8 +1998,10 @@ class TelegramBotService:
             )
             logger.debug(f"Notification sent to telegram_id: {telegram_id}")
             return True
-        except Exception as e:
-            logger.error(f"Error sending notification to {telegram_id}: {str(e)}")
+        except telegram.error.TelegramError as e:
+            logger.error(
+                f"Error sending notification to {telegram_id}: Telegram API Error: {e}"
+            )
             return False
 
     async def broadcast_message(
@@ -2041,9 +2053,14 @@ class TelegramBotService:
                         success_count += 1
                         # Add small delay to avoid rate limits
                         await asyncio.sleep(0.1)
+                except telegram.error.TelegramError as e:
+                    logger.error(
+                        f"Failed to send broadcast to {user.get('telegram_id')}: Telegram API Error: {e}"
+                    )
+                    fail_count += 1
                 except Exception as e:
                     logger.error(
-                        f"Failed to send broadcast to {user.get('telegram_id')}: {str(e)}"
+                        f"Failed to send broadcast to {user.get('telegram_id')}: Unexpected Error: {e}"
                     )
                     fail_count += 1
 

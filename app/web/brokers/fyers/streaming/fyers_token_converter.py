@@ -12,11 +12,13 @@ import requests
 # Import database functions
 try:
     from .....db.token_db import get_br_symbol
+
     DATABASE_AVAILABLE = True
 except ImportError:
     DATABASE_AVAILABLE = False
     get_br_symbol = None
     logging.warning("Database not available - falling back to manual conversion")
+
 
 class FyersTokenConverter:
     """
@@ -25,14 +27,14 @@ class FyersTokenConverter:
 
     # Exchange segment codes (first 4 digits of fytoken)
     EXCHANGE_SEGMENTS = {
-        "1010": "nse_cm",    # NSE Cash Market
-        "1011": "nse_fo",    # NSE F&O
-        "1120": "mcx_fo",    # MCX F&O
-        "1210": "bse_cm",    # BSE Cash Market
-        "1211": "bse_fo",    # BSE F&O (BFO)
-        "1212": "bcs_fo",    # BSE Currency
-        "1012": "cde_fo",    # CDE F&O
-        "1020": "nse_com"    # NSE Commodity
+        "1010": "nse_cm",  # NSE Cash Market
+        "1011": "nse_fo",  # NSE F&O
+        "1120": "mcx_fo",  # MCX F&O
+        "1210": "bse_cm",  # BSE Cash Market
+        "1211": "bse_fo",  # BSE F&O (BFO)
+        "1212": "bcs_fo",  # BSE Currency
+        "1012": "cde_fo",  # CDE F&O
+        "1020": "nse_com",  # NSE Commodity
     }
 
     # Known index mappings (from official library)
@@ -49,7 +51,7 @@ class FyersTokenConverter:
         "BSE:BANKEX-INDEX": "BANKEX",
         "BSE:BSE500-INDEX": "BSE500",
         "BSE:BSE100-INDEX": "BSE100",
-        "BSE:BSE200-INDEX": "BSE200"
+        "BSE:BSE200-INDEX": "BSE200",
     }
 
     def __init__(self, access_token: str):
@@ -67,7 +69,9 @@ class FyersTokenConverter:
         self.symbols_token_api = "https://api-t1.fyers.in/data/symbol-token"
         self.database_available = DATABASE_AVAILABLE
 
-    def get_brsymbols_from_database(self, symbol_exchange_pairs: List[Tuple[str, str]]) -> Dict[Tuple[str, str], str]:
+    def get_brsymbols_from_database(
+        self, symbol_exchange_pairs: List[Tuple[str, str]]
+    ) -> Dict[Tuple[str, str], str]:
         """
         Lookup brsymbols from app.core.schemas using OpenAlgo symbol and exchange
         Uses the existing get_br_symbol function from app.core.schemas.token_db
@@ -86,23 +90,27 @@ class FyersTokenConverter:
 
         try:
             for symbol, exchange in symbol_exchange_pairs:
-                #self.logger.info(f"Looking up brsymbol for {symbol} on {exchange}")
+                # self.logger.info(f"Looking up brsymbol for {symbol} on {exchange}")
 
                 # Use the existing get_br_symbol function
                 brsymbol = get_br_symbol(symbol, exchange)
 
                 if brsymbol:
                     brsymbol_map[(symbol, exchange)] = brsymbol
-                    #self.logger.info(f"Found brsymbol: {symbol}@{exchange} -> {brsymbol}")
+                    # self.logger.info(f"Found brsymbol: {symbol}@{exchange} -> {brsymbol}")
                 else:
-                    self.logger.error(f"No brsymbol found in database for {symbol}@{exchange}")
+                    self.logger.error(
+                        f"No brsymbol found in database for {symbol}@{exchange}"
+                    )
 
         except Exception as e:
             self.logger.error(f"Database lookup error: {e}")
 
         return brsymbol_map
 
-    def convert_openalgo_symbols_to_hsm(self, symbol_info_list: List[Dict], data_type: str = "SymbolUpdate") -> Tuple[List[str], Dict[str, str], List[str]]:
+    def convert_openalgo_symbols_to_hsm(
+        self, symbol_info_list: List[Dict], data_type: str = "SymbolUpdate"
+    ) -> Tuple[List[str], Dict[str, str], List[str]]:
         """
         Convert OpenAlgo symbols to HSM tokens using database lookup for brsymbols
 
@@ -115,8 +123,10 @@ class FyersTokenConverter:
         """
         try:
             # Extract symbol and exchange pairs
-            symbol_exchange_pairs = [(info['symbol'], info['exchange']) for info in symbol_info_list]
-            #self.logger.info(f"Converting OpenAlgo symbols: {symbol_exchange_pairs}")
+            symbol_exchange_pairs = [
+                (info["symbol"], info["exchange"]) for info in symbol_info_list
+            ]
+            # self.logger.info(f"Converting OpenAlgo symbols: {symbol_exchange_pairs}")
 
             # Get brsymbols from app.core.schemas using get_br_symbol
             brsymbol_map = self.get_brsymbols_from_database(symbol_exchange_pairs)
@@ -125,15 +135,17 @@ class FyersTokenConverter:
             brsymbols = []
             invalid_symbols = []
 
-            for (symbol, exchange) in symbol_exchange_pairs:
+            for symbol, exchange in symbol_exchange_pairs:
                 if (symbol, exchange) in brsymbol_map:
                     brsymbol = brsymbol_map[(symbol, exchange)]
                     brsymbols.append(brsymbol)
-                    #self.logger.info(f"Using database brsymbol: {symbol}@{exchange} -> {brsymbol}")
+                    # self.logger.info(f"Using database brsymbol: {symbol}@{exchange} -> {brsymbol}")
                 else:
                     # No fallback - symbol must be in database
                     invalid_symbols.append(f"{symbol}@{exchange}")
-                    self.logger.error(f"Symbol not found in database: {symbol}@{exchange}")
+                    self.logger.error(
+                        f"Symbol not found in database: {symbol}@{exchange}"
+                    )
 
             if invalid_symbols:
                 self.logger.error(f"Symbols not found in database: {invalid_symbols}")
@@ -146,9 +158,15 @@ class FyersTokenConverter:
 
         except Exception as e:
             self.logger.error(f"OpenAlgo symbol conversion error: {e}")
-            return [], {}, [f"{info['symbol']}@{info['exchange']}" for info in symbol_info_list]
+            return (
+                [],
+                {},
+                [f"{info['symbol']}@{info['exchange']}" for info in symbol_info_list],
+            )
 
-    def convert_symbols_to_hsm(self, brsymbols: List[str], data_type: str = "SymbolUpdate") -> Tuple[List[str], Dict[str, str], List[str]]:
+    def convert_symbols_to_hsm(
+        self, brsymbols: List[str], data_type: str = "SymbolUpdate"
+    ) -> Tuple[List[str], Dict[str, str], List[str]]:
         """
         Convert brsymbols to HSM tokens for WebSocket subscription
 
@@ -160,9 +178,9 @@ class FyersTokenConverter:
             Tuple of (hsm_tokens, token_to_symbol_mapping, invalid_symbols)
         """
         try:
-            #self.logger.info(f"Converting {len(brsymbols)} brsymbols to HSM tokens")
-            #self.logger.info(f"Brsymbols to convert: {brsymbols}")
-            #self.logger.info(f"Data type: {data_type}")
+            # self.logger.info(f"Converting {len(brsymbols)} brsymbols to HSM tokens")
+            # self.logger.info(f"Brsymbols to convert: {brsymbols}")
+            # self.logger.info(f"Data type: {data_type}")
 
             hsm_tokens = []
             token_mappings = {}
@@ -171,7 +189,9 @@ class FyersTokenConverter:
             # Process ALL symbols with API conversion to get proper fytokens for live data
             # This ensures both NSE and non-NSE symbols get live data feeds
             if brsymbols:
-                self.logger.debug(f"Processing all {len(brsymbols)} symbols with Fyers API conversion")
+                self.logger.debug(
+                    f"Processing all {len(brsymbols)} symbols with Fyers API conversion"
+                )
                 try:
                     # Call Fyers API to get fytokens for all symbols
                     data = {"symbols": brsymbols}
@@ -182,35 +202,43 @@ class FyersTokenConverter:
                             "Content-Type": "application/json",
                         },
                         json=data,
-                        timeout=10
+                        timeout=10,
                     )
 
                     response_data = response.json()
-                    self.logger.debug(f"Fyers API response for all symbols: {response_data}")
+                    self.logger.debug(
+                        f"Fyers API response for all symbols: {response_data}"
+                    )
 
-                    if response_data.get('s') == "ok":
+                    if response_data.get("s") == "ok":
                         valid_symbols = response_data.get("validSymbol", {})
                         api_invalid = response_data.get("invalidSymbol", [])
 
-                        self.logger.debug(f"API returned {len(valid_symbols)} valid symbols, {len(api_invalid)} invalid symbols")
+                        self.logger.debug(
+                            f"API returned {len(valid_symbols)} valid symbols, {len(api_invalid)} invalid symbols"
+                        )
 
                         # Process valid symbols with API tokens
                         for symbol, fytoken in valid_symbols.items():
-                            hsm_token = self._convert_to_hsm_token(symbol, fytoken, data_type)
+                            hsm_token = self._convert_to_hsm_token(
+                                symbol, fytoken, data_type
+                            )
                             if hsm_token:
                                 hsm_tokens.append(hsm_token)
                                 token_mappings[hsm_token] = symbol
-                                #self.logger.info(f"✅ Converted: {symbol} -> {hsm_token} (fytoken: {fytoken})")
+                                # self.logger.info(f"✅ Converted: {symbol} -> {hsm_token} (fytoken: {fytoken})")
                             else:
                                 invalid_symbols.append(symbol)
-                                self.logger.warning(f"❌ Failed to convert: {symbol} with fytoken: {fytoken}")
+                                self.logger.warning(
+                                    f"❌ Failed to convert: {symbol} with fytoken: {fytoken}"
+                                )
 
                         # Add API invalid symbols
                         if api_invalid:
                             invalid_symbols.extend(api_invalid)
                             self.logger.warning(f"API invalid symbols: {api_invalid}")
                     else:
-                        error_msg = response_data.get('message', 'Unknown API error')
+                        error_msg = response_data.get("message", "Unknown API error")
                         self.logger.error(f"Fyers API error: {error_msg}")
                         invalid_symbols.extend(brsymbols)
 
@@ -222,13 +250,17 @@ class FyersTokenConverter:
             # But exclude symbols that were already processed and marked invalid (like depth+index)
             remaining_symbols = [sym for sym in brsymbols if sym not in invalid_symbols]
             if not hsm_tokens and remaining_symbols:
-                self.logger.warning("API conversion failed for all symbols, using manual conversion as fallback")
-                fallback_tokens, fallback_mappings, fallback_invalid = self._manual_conversion(remaining_symbols, data_type)
+                self.logger.warning(
+                    "API conversion failed for all symbols, using manual conversion as fallback"
+                )
+                fallback_tokens, fallback_mappings, fallback_invalid = (
+                    self._manual_conversion(remaining_symbols, data_type)
+                )
                 hsm_tokens.extend(fallback_tokens)
                 token_mappings.update(fallback_mappings)
                 invalid_symbols.extend(fallback_invalid)
 
-            #self.logger.info(f"Conversion complete: {len(hsm_tokens)} HSM tokens generated")
+            # self.logger.info(f"Conversion complete: {len(hsm_tokens)} HSM tokens generated")
             self.logger.debug(f"HSM tokens: {hsm_tokens}")
 
             return hsm_tokens, token_mappings, invalid_symbols
@@ -237,7 +269,9 @@ class FyersTokenConverter:
             self.logger.error(f"Brsymbol to HSM conversion error: {e}")
             return [], {}, brsymbols
 
-    def _convert_to_hsm_token(self, symbol: str, fytoken: str, data_type: str) -> Optional[str]:
+    def _convert_to_hsm_token(
+        self, symbol: str, fytoken: str, data_type: str
+    ) -> Optional[str]:
         """
         Convert a single symbol and fytoken to HSM token format
 
@@ -277,7 +311,9 @@ class FyersTokenConverter:
                 hsm_token = f"if|{segment}|{token_name}"
 
                 if data_type == "DepthUpdate":
-                    self.logger.debug(f"Index depth subscription: {symbol} -> using index feed for synthetic depth")
+                    self.logger.debug(
+                        f"Index depth subscription: {symbol} -> using index feed for synthetic depth"
+                    )
             elif data_type == "DepthUpdate":
                 # Depth feed
                 token_suffix = fytoken[10:]  # Extract token suffix
@@ -293,7 +329,9 @@ class FyersTokenConverter:
             self.logger.error(f"Error converting {symbol} with fytoken {fytoken}: {e}")
             return None
 
-    def _manual_conversion(self, symbols: List[str], data_type: str) -> Tuple[List[str], Dict[str, str], List[str]]:
+    def _manual_conversion(
+        self, symbols: List[str], data_type: str
+    ) -> Tuple[List[str], Dict[str, str], List[str]]:
         """
         Manual fallback conversion when API is not available
         This uses known patterns but may not work for all symbols
@@ -306,7 +344,7 @@ class FyersTokenConverter:
         Returns:
             Tuple of (hsm_tokens, token_mappings, invalid_symbols)
         """
-        #self.logger.info("Using manual conversion for symbols")
+        # self.logger.info("Using manual conversion for symbols")
         hsm_tokens = []
         token_mappings = {}
         invalid_symbols = []
@@ -338,7 +376,9 @@ class FyersTokenConverter:
                         token = symbol_name.replace("-INDEX", "")
 
                     if data_type == "DepthUpdate":
-                        self.logger.debug(f"Manual index depth subscription: {symbol} -> using index feed for synthetic depth")
+                        self.logger.debug(
+                            f"Manual index depth subscription: {symbol} -> using index feed for synthetic depth"
+                        )
                 elif data_type == "DepthUpdate":
                     prefix = "dp"
                     # For brsymbols, use symbol name as token
@@ -349,14 +389,14 @@ class FyersTokenConverter:
                     if exchange == "NSE":
                         # Use symbol name as token for all NSE brsymbols
                         token = symbol_name
-                        #self.logger.info(f"Processing NSE brsymbol: {symbol} -> token: {token}")
+                        # self.logger.info(f"Processing NSE brsymbol: {symbol} -> token: {token}")
                     else:
                         token = symbol_name
 
                 hsm_token = f"{prefix}|{segment}|{token}"
                 hsm_tokens.append(hsm_token)
                 token_mappings[hsm_token] = symbol
-                #self.logger.info(f"Manual conversion: {symbol} -> {hsm_token}")
+                # self.logger.info(f"Manual conversion: {symbol} -> {hsm_token}")
 
             except Exception as e:
                 self.logger.error(f"Manual conversion failed for {symbol}: {e}")
@@ -364,7 +404,9 @@ class FyersTokenConverter:
 
         return hsm_tokens, token_mappings, invalid_symbols
 
-    def _get_segment_from_exchange(self, exchange: str, symbol_name: str) -> Optional[str]:
+    def _get_segment_from_exchange(
+        self, exchange: str, symbol_name: str
+    ) -> Optional[str]:
         """
         Get segment name from exchange and symbol
 
@@ -378,14 +420,39 @@ class FyersTokenConverter:
         if exchange == "NSE":
             if symbol_name.endswith("-INDEX"):
                 return "nse_cm"
-            elif (symbol_name.endswith("FUT") or
-                  "OPT" in symbol_name or
-                  # Check for derivatives with specific patterns
-                  # CE/PE only if they are clear option indicators (not part of company name)
-                  (symbol_name.endswith("CE") and any(char.isdigit() for char in symbol_name)) or
-                  (symbol_name.endswith("PE") and any(char.isdigit() for char in symbol_name)) or
-                  # Future patterns with date indicators
-                  any(fut_pattern in symbol_name for fut_pattern in ["FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"])):
+            elif (
+                symbol_name.endswith("FUT")
+                or "OPT" in symbol_name
+                or
+                # Check for derivatives with specific patterns
+                # CE/PE only if they are clear option indicators (not part of company name)
+                (
+                    symbol_name.endswith("CE")
+                    and any(char.isdigit() for char in symbol_name)
+                )
+                or (
+                    symbol_name.endswith("PE")
+                    and any(char.isdigit() for char in symbol_name)
+                )
+                or
+                # Future patterns with date indicators
+                any(
+                    fut_pattern in symbol_name
+                    for fut_pattern in [
+                        "FEB",
+                        "MAR",
+                        "APR",
+                        "MAY",
+                        "JUN",
+                        "JUL",
+                        "AUG",
+                        "SEP",
+                        "OCT",
+                        "NOV",
+                        "DEC",
+                    ]
+                )
+            ):
                 return "nse_fo"
             else:
                 return "nse_cm"
@@ -440,7 +507,9 @@ class FyersTokenConverter:
         elif exchange == "NSE":
             # For NSE, don't automatically add -EQ unless it's clearly needed
             # Most NSE symbols work without the -EQ suffix
-            if not any(suffix in symbol for suffix in ["-INDEX", "FUT", "CE", "PE", "-EQ"]):
+            if not any(
+                suffix in symbol for suffix in ["-INDEX", "FUT", "CE", "PE", "-EQ"]
+            ):
                 # Try without -EQ first, fallback handled in API call
                 pass
 

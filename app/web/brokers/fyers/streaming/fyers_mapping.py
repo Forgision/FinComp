@@ -17,7 +17,9 @@ class FyersDataMapper:
         """Initialize the data mapper"""
         pass
 
-    def map_to_openalgo_ltp(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def map_to_openalgo_ltp(
+        self, fyers_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to OpenAlgo LTP format
 
@@ -44,17 +46,21 @@ class FyersDataMapper:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
 
-            print(f"LTP Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}")
+            print(
+                f"LTP Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}"
+            )
 
             # Apply multiplier and precision to LTP
             ltp = fyers_data.get("ltp", 0)
             multiplier = fyers_data.get("multiplier", 100)  # Default 100
-            precision = fyers_data.get("precision", 2)     # Default 2
+            precision = fyers_data.get("precision", 2)  # Default 2
 
             # Apply segment-specific conversion
             segment_divisor = 1
             if exchange in ["BSE", "MCX", "NSE", "NFO"]:
-                segment_divisor = 100  # These exchanges send prices in paisa/paise format
+                segment_divisor = (
+                    100  # These exchanges send prices in paisa/paise format
+                )
 
             # Convert to actual price
             if multiplier > 0:
@@ -70,7 +76,7 @@ class FyersDataMapper:
                 "token": fyers_data.get("exchange_token", ""),
                 "ltp": ltp,
                 "timestamp": int(time.time()),
-                "data_type": "LTP"
+                "data_type": "LTP",
             }
 
             return openalgo_data
@@ -79,7 +85,9 @@ class FyersDataMapper:
             print(f"Error mapping LTP data: {e}")
             return None
 
-    def map_to_openalgo_quote(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def map_to_openalgo_quote(
+        self, fyers_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to OpenAlgo Quote format
 
@@ -106,23 +114,24 @@ class FyersDataMapper:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
 
-
             # Get multiplier and precision from data
             multiplier = fyers_data.get("multiplier", 100)
             precision = fyers_data.get("precision", 2)
 
             # Check if this is an index based on symbol or type
             is_index = (
-                "-INDEX" in symbol or
-                "-INDEX" in symbol.upper() or
-                "INDEX" in symbol.upper() or
-                fyers_data.get("type") == "if"  # Index feed type in HSM
+                "-INDEX" in symbol
+                or "-INDEX" in symbol.upper()
+                or "INDEX" in symbol.upper()
+                or fyers_data.get("type") == "if"  # Index feed type in HSM
             )
 
             # Apply segment-specific conversion
             segment_divisor = 1
             if not is_index and exchange in ["BSE", "MCX", "NSE", "NFO"]:
-                segment_divisor = 100  # These exchanges send prices in paisa/paise format
+                segment_divisor = (
+                    100  # These exchanges send prices in paisa/paise format
+                )
 
             def convert_price(value):
                 if not value or multiplier <= 0:
@@ -154,7 +163,7 @@ class FyersDataMapper:
                 "total_buy_quantity": fyers_data.get("tot_buy_qty", 0),
                 "total_sell_quantity": fyers_data.get("tot_sell_qty", 0),
                 "timestamp": int(time.time()),
-                "data_type": "Quote"
+                "data_type": "Quote",
             }
 
             return openalgo_data
@@ -163,7 +172,9 @@ class FyersDataMapper:
             print(f"Error mapping Quote data: {e}")
             return None
 
-    def map_to_openalgo_depth(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def map_to_openalgo_depth(
+        self, fyers_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers depth data to OpenAlgo Depth format
 
@@ -226,18 +237,22 @@ class FyersDataMapper:
                 ask_orders = fyers_data.get(f"ask_order{i}", 0)
 
                 if bid_price > 0:
-                    buy_levels.append({
-                        "price": bid_price,
-                        "quantity": bid_size,  # Changed from "size" to "quantity"
-                        "orders": bid_orders
-                    })
+                    buy_levels.append(
+                        {
+                            "price": bid_price,
+                            "quantity": bid_size,  # Changed from "size" to "quantity"
+                            "orders": bid_orders,
+                        }
+                    )
 
                 if ask_price > 0:
-                    sell_levels.append({
-                        "price": ask_price,
-                        "quantity": ask_size,  # Changed from "size" to "quantity"
-                        "orders": ask_orders
-                    })
+                    sell_levels.append(
+                        {
+                            "price": ask_price,
+                            "quantity": ask_size,  # Changed from "size" to "quantity"
+                            "orders": ask_orders,
+                        }
+                    )
 
             # Calculate LTP (average of best bid and ask if available)
             ltp = 0
@@ -250,12 +265,9 @@ class FyersDataMapper:
                 "exchange": exchange,
                 "token": fyers_data.get("exchange_token", ""),
                 "ltp": ltp,
-                "depth": {
-                    "buy": buy_levels,
-                    "sell": sell_levels
-                },
+                "depth": {"buy": buy_levels, "sell": sell_levels},
                 "timestamp": int(time.time()),
-                "data_type": "Depth"
+                "data_type": "Depth",
             }
 
             return openalgo_data
@@ -264,7 +276,9 @@ class FyersDataMapper:
             print(f"Error mapping Depth data: {e}")
             return None
 
-    def map_index_to_synthetic_depth(self, fyers_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def map_index_to_synthetic_depth(
+        self, fyers_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers index data to synthetic OpenAlgo Depth format
         Since indices don't have real depth, create synthetic depth from quote data
@@ -292,7 +306,9 @@ class FyersDataMapper:
                 exchange = fyers_data.get("exchange", "")
                 symbol_name = symbol
 
-            print(f"Index Depth Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}")
+            print(
+                f"Index Depth Mapping: original_symbol={symbol}, parsed exchange={exchange}, symbol_name={symbol_name}"
+            )
 
             # Get LTP from index data and apply proper conversion
             raw_ltp = fyers_data.get("ltp", 0)
@@ -319,22 +335,26 @@ class FyersDataMapper:
             for i in range(5):
                 level_spread = spread * (i + 1)
                 buy_price = round(ltp - level_spread, 2)
-                buy_levels.append({
-                    "price": buy_price,
-                    "quantity": 1000 * (6 - i),  # Higher quantity at better prices
-                    "orders": 1
-                })
+                buy_levels.append(
+                    {
+                        "price": buy_price,
+                        "quantity": 1000 * (6 - i),  # Higher quantity at better prices
+                        "orders": 1,
+                    }
+                )
 
             # Create 5 synthetic ask levels (increasing prices)
             sell_levels = []
             for i in range(5):
                 level_spread = spread * (i + 1)
                 ask_price = round(ltp + level_spread, 2)
-                sell_levels.append({
-                    "price": ask_price,
-                    "quantity": 1000 * (6 - i),  # Higher quantity at better prices
-                    "orders": 1
-                })
+                sell_levels.append(
+                    {
+                        "price": ask_price,
+                        "quantity": 1000 * (6 - i),  # Higher quantity at better prices
+                        "orders": 1,
+                    }
+                )
 
             # Map to OpenAlgo Depth format
             openalgo_data = {
@@ -342,12 +362,9 @@ class FyersDataMapper:
                 "exchange": exchange,
                 "token": fyers_data.get("exchange_token", ""),
                 "ltp": ltp,
-                "depth": {
-                    "buy": buy_levels,
-                    "sell": sell_levels
-                },
+                "depth": {"buy": buy_levels, "sell": sell_levels},
                 "timestamp": int(time.time()),
-                "data_type": "Depth"
+                "data_type": "Depth",
             }
 
             return openalgo_data
@@ -356,7 +373,9 @@ class FyersDataMapper:
             print(f"Error mapping Index to synthetic Depth data: {e}")
             return None
 
-    def map_fyers_data(self, fyers_data: Dict[str, Any], requested_type: str = "Quote") -> Optional[Dict[str, Any]]:
+    def map_fyers_data(
+        self, fyers_data: Dict[str, Any], requested_type: str = "Quote"
+    ) -> Optional[Dict[str, Any]]:
         """
         Map Fyers data to appropriate OpenAlgo format based on requested type
 
@@ -414,7 +433,7 @@ class FyersDataMapper:
         return {
             "exchange": exchange,
             "symbol": symbol_name,
-            "full_symbol": f"{exchange}:{symbol_name}"
+            "full_symbol": f"{exchange}:{symbol_name}",
         }
 
     def is_valid_data(self, data: Dict[str, Any]) -> bool:
@@ -438,7 +457,9 @@ class FyersDataMapper:
 
         # Check for at least one price field
         price_fields = ["ltp", "open", "high", "low", "close", "bid_price", "ask_price"]
-        has_price = any(field in data and data[field] is not None for field in price_fields)
+        has_price = any(
+            field in data and data[field] is not None for field in price_fields
+        )
 
         return has_price
 
@@ -454,7 +475,7 @@ class FyersDataMapper:
         """
         try:
             if timestamp > 0:
-                return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             return ""
         except Exception:
             return ""

@@ -1,6 +1,7 @@
 from typing import List
 from pydantic import BaseModel
 
+
 class OrderData(BaseModel):
     symbol: str = ""
     exchange: str = ""
@@ -14,6 +15,7 @@ class OrderData(BaseModel):
     order_status: str = ""
     timestamp: str = ""
 
+
 class OrderStatistics(BaseModel):
     total_orders: int = 0
     completed_orders: int = 0
@@ -22,6 +24,7 @@ class OrderStatistics(BaseModel):
     total_buy_value: float = 0.0
     total_sell_value: float = 0.0
     net_value: float = 0.0
+
 
 class OrderbookResponse(BaseModel):
     order_data: List[OrderData]

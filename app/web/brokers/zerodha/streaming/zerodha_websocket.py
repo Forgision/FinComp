@@ -1,4 +1,3 @@
-
 """
 Enhanced Zerodha WebSocket client with improved stability for handling 1800+ symbols.
 Implements:
@@ -8,6 +7,7 @@ Implements:
 - Connection health monitoring
 - Optimized for high-volume symbol subscriptions
 """
+
 import asyncio
 import json
 import struct
@@ -50,7 +50,12 @@ class ZerodhaWebSocket:
     RECONNECT_MAX_DELAY = 60  # Maximum delay between reconnection attempts
     RECONNECT_MAX_TRIES = 50  # Maximum number of reconnection attempts
 
-    def __init__(self, api_key: str, access_token: str, on_ticks: Callable[[List[Dict]], None] = None):
+    def __init__(
+        self,
+        api_key: str,
+        access_token: str,
+        on_ticks: Callable[[List[Dict]], None] = None,
+    ):
         """Initialize the Zerodha WebSocket client"""
         self.api_key = api_key
         self.access_token = access_token
@@ -82,7 +87,9 @@ class ZerodhaWebSocket:
         self.last_message_time = None
         self.last_heartbeat_time = None  # Track Zerodha's heartbeat messages
         self.health_check_interval = self.KEEPALIVE_INTERVAL
-        self.connection_timeout = 90  # Allow for longer periods without data during subscription
+        self.connection_timeout = (
+            90  # Allow for longer periods without data during subscription
+        )
 
         # Event tracking for visibility
         self.event_log = deque(maxlen=100)  # Keep last 100 events
@@ -110,37 +117,37 @@ class ZerodhaWebSocket:
         self._connecting = False  # Flag to prevent concurrent connection attempts
         self._last_connection_attempt = 0
 
-        #self._log_event("INIT", "Enhanced Zerodha WebSocket client initialized")
+        # self._log_event("INIT", "Enhanced Zerodha WebSocket client initialized")
         self.logger.info("✅ Enhanced Zerodha WebSocket client initialized")
 
     def _log_event(self, event_type: str, message: str, data: Any = None):
         """Log an event for visibility"""
         event = {
-            'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-            'type': event_type,
-            'message': message,
-            'data': data
+            "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
+            "type": event_type,
+            "message": message,
+            "data": data,
         }
         self.event_log.append(event)
 
         if self.enable_verbose_logging:
             # Color coding for different event types
             color_map = {
-                'CONNECT': '🔌',
-                'DISCONNECT': '🔌',
-                'SUBSCRIBE': '📡',
-                'UNSUBSCRIBE': '📴',
-                'DATA': '📊',
-                'PING': '💓',
-                'ERROR': '❌',
-                'RECONNECT': '🔄',
-                'INIT': '🚀',
-                'HEALTH': '🏥',
-                'BATCH': '📦',
-                'MAPPING': '🗺️',
-                'CONFIG': '⚙️'
+                "CONNECT": "🔌",
+                "DISCONNECT": "🔌",
+                "SUBSCRIBE": "📡",
+                "UNSUBSCRIBE": "📴",
+                "DATA": "📊",
+                "PING": "💓",
+                "ERROR": "❌",
+                "RECONNECT": "🔄",
+                "INIT": "🚀",
+                "HEALTH": "🏥",
+                "BATCH": "📦",
+                "MAPPING": "🗺️",
+                "CONFIG": "⚙️",
             }
-            icon = color_map.get(event_type, '📝')
+            icon = color_map.get(event_type, "📝")
             self.logger.info(f"{icon} [{event['timestamp']}] {event_type}: {message}")
 
     def set_token_exchange_mapping(self, token_exchange_map: Dict[int, str]):
@@ -155,8 +162,10 @@ class ZerodhaWebSocket:
         with self.lock:
             self.token_exchange_map.update(token_exchange_map)
 
-        #self._log_event("MAPPING", f"Updated token exchange mapping for {len(token_exchange_map)} tokens")
-        self.logger.debug(f"✅ Updated token exchange mapping for {len(token_exchange_map)} tokens")
+        # self._log_event("MAPPING", f"Updated token exchange mapping for {len(token_exchange_map)} tokens")
+        self.logger.debug(
+            f"✅ Updated token exchange mapping for {len(token_exchange_map)} tokens"
+        )
 
     def start(self) -> bool:
         """Start the WebSocket client in a separate thread"""
@@ -182,12 +191,15 @@ class ZerodhaWebSocket:
                     self.logger.debug("🔄 WebSocket thread cancelled gracefully")
                 except RuntimeError as e:
                     if "Event loop stopped before Future completed" in str(e):
-                        self.logger.debug("🔄 Event loop stopped during shutdown (normal)")
+                        self.logger.debug(
+                            "🔄 Event loop stopped during shutdown (normal)"
+                        )
                     else:
                         self.logger.error(f"❌ Runtime error in WebSocket thread: {e}")
                 except Exception as e:
                     self.logger.error(f"❌ Error in WebSocket thread: {e}")
                     import traceback
+
                     traceback.print_exc()
                 finally:
                     # Clean up the event loop
@@ -211,7 +223,9 @@ class ZerodhaWebSocket:
                     self.logger.info(" WebSocket thread cleanup completed")
 
             # Start the thread
-            self.ws_thread = threading.Thread(target=_run_in_thread, daemon=True, name="ZerodhaWS")
+            self.ws_thread = threading.Thread(
+                target=_run_in_thread, daemon=True, name="ZerodhaWS"
+            )
             self.ws_thread.start()
 
             # Wait for thread to start
@@ -238,7 +252,9 @@ class ZerodhaWebSocket:
             if self.loop and not self.loop.is_closed():
                 try:
                     # Schedule disconnect in the event loop
-                    future = asyncio.run_coroutine_threadsafe(self._async_stop(), self.loop)
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._async_stop(), self.loop
+                    )
                     future.result(timeout=5)  # Wait up to 5 seconds
                 except Exception as e:
                     self.logger.error(f"❌ Error during async stop: {e}")
@@ -287,8 +303,12 @@ class ZerodhaWebSocket:
         # Check Zerodha's limit of 3000 instruments per connection
         total_after_subscription = len(self.subscribed_tokens) + len(tokens)
         if total_after_subscription > self.MAX_INSTRUMENTS_PER_CONNECTION:
-            self.logger.error(f"❌ Cannot subscribe to {len(tokens)} tokens. Would exceed Zerodha's limit of {self.MAX_INSTRUMENTS_PER_CONNECTION} instruments per connection.")
-            self.logger.error(f"Current subscriptions: {len(self.subscribed_tokens)}, Requested: {len(tokens)}, Total would be: {total_after_subscription}")
+            self.logger.error(
+                f"❌ Cannot subscribe to {len(tokens)} tokens. Would exceed Zerodha's limit of {self.MAX_INSTRUMENTS_PER_CONNECTION} instruments per connection."
+            )
+            self.logger.error(
+                f"Current subscriptions: {len(self.subscribed_tokens)}, Requested: {len(tokens)}, Total would be: {total_after_subscription}"
+            )
             return
 
         # Add to pending subscriptions for batch processing
@@ -296,12 +316,14 @@ class ZerodhaWebSocket:
             for token in tokens:
                 self.pending_subscriptions.append((token, mode))
 
-        #self._log_event("SUBSCRIBE", f"Queued {len(tokens)} tokens for subscription in {mode} mode",
+        # self._log_event("SUBSCRIBE", f"Queued {len(tokens)} tokens for subscription in {mode} mode",
         #               {'count': len(tokens), 'mode': mode})
 
         # Trigger subscription processing
         if self.loop and not self.loop.is_closed():
-            asyncio.run_coroutine_threadsafe(self._process_pending_subscriptions(), self.loop)
+            asyncio.run_coroutine_threadsafe(
+                self._process_pending_subscriptions(), self.loop
+            )
 
     async def _process_pending_subscriptions(self):
         """Process pending subscriptions in batches"""
@@ -312,11 +334,15 @@ class ZerodhaWebSocket:
             if not await self._ensure_connected():
                 consecutive_failures += 1
                 if consecutive_failures > 3:
-                    self.logger.error("❌ Multiple connection failures, clearing pending subscriptions")
+                    self.logger.error(
+                        "❌ Multiple connection failures, clearing pending subscriptions"
+                    )
                     with self.lock:
                         self.pending_subscriptions.clear()
                     break
-                await asyncio.sleep(min(2 * consecutive_failures, 10))  # Exponential backoff
+                await asyncio.sleep(
+                    min(2 * consecutive_failures, 10)
+                )  # Exponential backoff
                 continue
 
             consecutive_failures = 0  # Reset on successful connection
@@ -327,7 +353,10 @@ class ZerodhaWebSocket:
 
             with self.lock:
                 # Get up to MAX_TOKENS_PER_SUBSCRIBE tokens with same mode
-                while self.pending_subscriptions and len(batch_tokens) < self.MAX_TOKENS_PER_SUBSCRIBE:
+                while (
+                    self.pending_subscriptions
+                    and len(batch_tokens) < self.MAX_TOKENS_PER_SUBSCRIBE
+                ):
                     token, mode = self.pending_subscriptions[0]
                     if batch_mode is None:
                         batch_mode = mode
@@ -346,7 +375,9 @@ class ZerodhaWebSocket:
                             self.pending_subscriptions.append((token, batch_mode))
                     await asyncio.sleep(5)  # Wait longer on failure
                 else:
-                    await asyncio.sleep(self.SUBSCRIPTION_DELAY)  # Normal delay between batches
+                    await asyncio.sleep(
+                        self.SUBSCRIPTION_DELAY
+                    )  # Normal delay between batches
 
     async def _subscribe_batch(self, tokens: List[int], mode: str) -> bool:
         """Subscribe to a batch of tokens"""
@@ -357,10 +388,7 @@ class ZerodhaWebSocket:
                 return False
 
             # Subscribe to tokens
-            sub_msg = {
-                "a": "subscribe",
-                "v": tokens
-            }
+            sub_msg = {"a": "subscribe", "v": tokens}
 
             if not await self._send_json(sub_msg):
                 self.logger.error("Failed to send subscription message")
@@ -372,10 +400,7 @@ class ZerodhaWebSocket:
             await asyncio.sleep(1.0)
 
             # Set mode for the batch
-            mode_msg = {
-                "a": "mode",
-                "v": [mode, tokens]
-            }
+            mode_msg = {"a": "mode", "v": [mode, tokens]}
 
             if await self._send_json(mode_msg):
                 with self.lock:
@@ -410,10 +435,7 @@ class ZerodhaWebSocket:
                 self.logger.warning("⚠️ Not connected, cannot unsubscribe")
                 return False
 
-            unsub_msg = {
-                "a": "unsubscribe",
-                "v": tokens
-            }
+            unsub_msg = {"a": "unsubscribe", "v": tokens}
 
             if not await self._send_json(unsub_msg):
                 return False
@@ -440,11 +462,12 @@ class ZerodhaWebSocket:
                 return False
 
             # Check for different websocket library attributes
-            if hasattr(self.websocket, 'closed'):
+            if hasattr(self.websocket, "closed"):
                 return not self.websocket.closed
-            elif hasattr(self.websocket, 'state'):
+            elif hasattr(self.websocket, "state"):
                 # For websockets library, check state
                 from websockets.protocol import State
+
                 return self.websocket.state == State.OPEN
             else:
                 # Fallback - assume open if connected flag is True
@@ -466,15 +489,22 @@ class ZerodhaWebSocket:
 
         # Rate limit connection attempts (more aggressive)
         current_time = time.time()
-        if current_time - self._last_connection_attempt < 5:  # Min 5 seconds between attempts
-            self.logger.debug(f"Rate limiting connection attempts (last attempt {current_time - self._last_connection_attempt:.1f}s ago)")
+        if (
+            current_time - self._last_connection_attempt < 5
+        ):  # Min 5 seconds between attempts
+            self.logger.debug(
+                f"Rate limiting connection attempts (last attempt {current_time - self._last_connection_attempt:.1f}s ago)"
+            )
             return False
 
         self._connecting = True
         self._last_connection_attempt = current_time
 
         try:
-            self._log_event("CONNECT", f"Attempting connection (attempt {self.reconnect_attempts + 1}/{self.max_reconnect_attempts})")
+            self._log_event(
+                "CONNECT",
+                f"Attempting connection (attempt {self.reconnect_attempts + 1}/{self.max_reconnect_attempts})",
+            )
 
             # Close existing connection if any
             if self.websocket:
@@ -495,11 +525,9 @@ class ZerodhaWebSocket:
                     close_timeout=5,
                     max_size=self.MAX_MESSAGE_SIZE,
                     compression=None,  # Disable compression for binary data
-                    extra_headers={
-                        'User-Agent': 'OpenAlgo-ZerodhaClient/1.0'
-                    }
+                    extra_headers={"User-Agent": "OpenAlgo-ZerodhaClient/1.0"},
                 ),
-                timeout=self.CONNECT_TIMEOUT
+                timeout=self.CONNECT_TIMEOUT,
             )
 
             # Verify connection
@@ -510,13 +538,17 @@ class ZerodhaWebSocket:
                 self._connection_ready.set()
                 self.last_message_time = time.time()
                 self.last_ping_time = time.time()
-                self._consecutive_ping_failures = 0  # Reset ping failures on new connection
+                self._consecutive_ping_failures = (
+                    0  # Reset ping failures on new connection
+                )
 
                 self._log_event("CONNECT", "WebSocket connected successfully")
 
                 # Start health check
                 if not self._health_check_task or self._health_check_task.done():
-                    self._health_check_task = asyncio.create_task(self._health_check_loop())
+                    self._health_check_task = asyncio.create_task(
+                        self._health_check_loop()
+                    )
 
                 # Trigger on_connect callback
                 if self.on_connect:
@@ -535,10 +567,14 @@ class ZerodhaWebSocket:
         except Exception as e:
             self.connected = False
             self.reconnect_attempts += 1
-            self.reconnect_delay = min(self.reconnect_delay * 1.5, self.max_reconnect_delay)
+            self.reconnect_delay = min(
+                self.reconnect_delay * 1.5, self.max_reconnect_delay
+            )
 
             error_msg = str(e) if str(e) else "Unknown connection error"
-            self.logger.error(f"❌ Connection failed (attempt {self.reconnect_attempts}): {error_msg}")
+            self.logger.error(
+                f"❌ Connection failed (attempt {self.reconnect_attempts}): {error_msg}"
+            )
 
             if self.on_error:
                 try:
@@ -609,7 +645,9 @@ class ZerodhaWebSocket:
                     if not self.connected or not self._is_websocket_open():
                         if not await self._connect():
                             if self.reconnect_attempts >= self.max_reconnect_attempts:
-                                self.logger.error("❌ Max reconnection attempts reached")
+                                self.logger.error(
+                                    "❌ Max reconnection attempts reached"
+                                )
                                 break
 
                             # Wait before retrying
@@ -619,20 +657,23 @@ class ZerodhaWebSocket:
                     try:
                         # Process messages with timeout
                         message = await asyncio.wait_for(
-                            self.websocket.recv(),
-                            timeout=self.connection_timeout
+                            self.websocket.recv(), timeout=self.connection_timeout
                         )
                         self.last_message_time = time.time()
                         await self._process_message(message)
 
                     except asyncio.TimeoutError:
-                        self.logger.warning("⚠️ Message receive timeout, connection may be dead")
+                        self.logger.warning(
+                            "⚠️ Message receive timeout, connection may be dead"
+                        )
                         self.connected = False
 
                     except websockets.exceptions.ConnectionClosed:
-                        #self.logger.warning(f"🔌 Connection closed: {e}")
+                        # self.logger.warning(f"🔌 Connection closed: {e}")
                         self.connected = False
-                        if self.running:  # Only reconnect if we're still supposed to be running
+                        if (
+                            self.running
+                        ):  # Only reconnect if we're still supposed to be running
                             await asyncio.sleep(2)  # Brief delay before reconnection
 
                     except Exception as e:
@@ -687,8 +728,15 @@ class ZerodhaWebSocket:
 
                     # Log periodically
                     if self.tick_count % 1000 == 0:
-                        self._log_event("DATA", f"Processed {self.tick_count:,} total ticks",
-                                       {'rate': f"{1000 / (time.time() - self.last_message_time):.1f} ticks/sec" if self.last_message_time else 'N/A'})
+                        self._log_event(
+                            "DATA",
+                            f"Processed {self.tick_count:,} total ticks",
+                            {
+                                "rate": f"{1000 / (time.time() - self.last_message_time):.1f} ticks/sec"
+                                if self.last_message_time
+                                else "N/A"
+                            },
+                        )
 
                     # Call tick callback
                     if self.on_ticks:
@@ -703,11 +751,11 @@ class ZerodhaWebSocket:
                 # Handle JSON messages
                 try:
                     data = json.loads(message)
-                    msg_type = data.get('type', 'unknown')
+                    msg_type = data.get("type", "unknown")
 
-                    if msg_type == 'error':
+                    if msg_type == "error":
                         self.logger.error(f"❌ WebSocket error: {data.get('data', '')}")
-                    elif msg_type == 'order':
+                    elif msg_type == "order":
                         self.logger.debug(f"📊 Order update: {data}")
                     else:
                         self.logger.debug(f"📝 JSON message: {data}")
@@ -726,7 +774,7 @@ class ZerodhaWebSocket:
                 return []
 
             # Parse header: first 2 bytes = number of packets
-            num_packets = struct.unpack('>H', data[0:2])[0]
+            num_packets = struct.unpack(">H", data[0:2])[0]
 
             packets = []
             offset = 2
@@ -736,14 +784,14 @@ class ZerodhaWebSocket:
                     break
 
                 # Next 2 bytes: packet length
-                packet_length = struct.unpack('>H', data[offset:offset+2])[0]
+                packet_length = struct.unpack(">H", data[offset : offset + 2])[0]
                 offset += 2
 
                 if offset + packet_length > len(data):
                     break
 
                 # Extract and parse packet
-                packet_data = data[offset:offset+packet_length]
+                packet_data = data[offset : offset + packet_length]
                 tick = self._parse_packet(packet_data)
                 if tick:
                     packets.append(tick)
@@ -766,8 +814,8 @@ class ZerodhaWebSocket:
                 return None
 
             # Extract instrument token and last price
-            instrument_token = struct.unpack('>I', packet[0:4])[0]
-            last_price_paise = struct.unpack('>i', packet[4:8])[0]
+            instrument_token = struct.unpack(">I", packet[0:4])[0]
+            last_price_paise = struct.unpack(">i", packet[4:8])[0]
             last_price = last_price_paise / 100.0
 
             # Determine mode based on packet length
@@ -787,60 +835,68 @@ class ZerodhaWebSocket:
 
             # Basic tick structure
             tick = {
-                'instrument_token': instrument_token,
-                'last_traded_price': last_price,
-                'last_price': last_price,
-                'mode': mode,
-                'timestamp': int(time.time() * 1000)
+                "instrument_token": instrument_token,
+                "last_traded_price": last_price,
+                "last_price": last_price,
+                "mode": mode,
+                "timestamp": int(time.time() * 1000),
             }
 
             # ✅ NEW: Add exchange information if available
             if exchange:
-                tick['source_exchange'] = exchange  # Add source exchange from mapping
+                tick["source_exchange"] = exchange  # Add source exchange from mapping
 
             # Parse additional fields for quote mode (44 bytes)
             if len(packet) >= 44:
                 try:
                     # Only unpack exactly 44 bytes for quote mode
-                    fields = struct.unpack('>11i', packet[0:44])  # 11 integers * 4 bytes = 44 bytes
+                    fields = struct.unpack(
+                        ">11i", packet[0:44]
+                    )  # 11 integers * 4 bytes = 44 bytes
 
-                    tick.update({
-                        'instrument_token': fields[0],
-                        'last_traded_price': fields[1] / 100.0,
-                        'last_price': fields[1] / 100.0,
-                        'last_traded_quantity': fields[2],
-                        'average_traded_price': fields[3] / 100.0,
-                        'average_price': fields[3] / 100.0,
-                        'volume_traded': fields[4],
-                        'volume': fields[4],
-                        'total_buy_quantity': fields[5],
-                        'total_sell_quantity': fields[6],
-                        'open_price': fields[7] / 100.0,
-                        'high_price': fields[8] / 100.0,
-                        'low_price': fields[9] / 100.0,
-                        'close_price': fields[10] / 100.0,
-                        'ohlc': {
-                            'open': fields[7] / 100.0,
-                            'high': fields[8] / 100.0,
-                            'low': fields[9] / 100.0,
-                            'close': fields[10] / 100.0
+                    tick.update(
+                        {
+                            "instrument_token": fields[0],
+                            "last_traded_price": fields[1] / 100.0,
+                            "last_price": fields[1] / 100.0,
+                            "last_traded_quantity": fields[2],
+                            "average_traded_price": fields[3] / 100.0,
+                            "average_price": fields[3] / 100.0,
+                            "volume_traded": fields[4],
+                            "volume": fields[4],
+                            "total_buy_quantity": fields[5],
+                            "total_sell_quantity": fields[6],
+                            "open_price": fields[7] / 100.0,
+                            "high_price": fields[8] / 100.0,
+                            "low_price": fields[9] / 100.0,
+                            "close_price": fields[10] / 100.0,
+                            "ohlc": {
+                                "open": fields[7] / 100.0,
+                                "high": fields[8] / 100.0,
+                                "low": fields[9] / 100.0,
+                                "close": fields[10] / 100.0,
+                            },
                         }
-                    })
+                    )
                 except struct.error as e:
-                    self.logger.debug(f"⚠️ Quote parsing issue (packet length: {len(packet)}): {e}")
+                    self.logger.debug(
+                        f"⚠️ Quote parsing issue (packet length: {len(packet)}): {e}"
+                    )
                     # Fallback - just use LTP data
                     pass
 
             # Parse full mode fields if available (64+ bytes)
             if len(packet) >= 64:
                 try:
-                    extended_fields = struct.unpack('>iiiii', packet[44:64])
-                    tick.update({
-                        'last_traded_timestamp': extended_fields[0],
-                        'open_interest': extended_fields[1],
-                        'oi': extended_fields[1],
-                        'exchange_timestamp': extended_fields[4]
-                    })
+                    extended_fields = struct.unpack(">iiiii", packet[44:64])
+                    tick.update(
+                        {
+                            "last_traded_timestamp": extended_fields[0],
+                            "open_interest": extended_fields[1],
+                            "oi": extended_fields[1],
+                            "exchange_timestamp": extended_fields[4],
+                        }
+                    )
                 except struct.error:
                     pass
 
@@ -849,7 +905,7 @@ class ZerodhaWebSocket:
                 try:
                     depth = self._parse_market_depth(packet[64:184])
                     if depth:
-                        tick['depth'] = depth
+                        tick["depth"] = depth
                 except Exception:
                     pass
 
@@ -865,33 +921,41 @@ class ZerodhaWebSocket:
             if len(depth_data) < 120:
                 return None
 
-            depth = {'buy': [], 'sell': []}
+            depth = {"buy": [], "sell": []}
 
             # Parse buy side (first 5 entries)
             for i in range(5):
                 offset = i * 12
                 if offset + 10 <= len(depth_data):
-                    quantity, price, orders = struct.unpack('>iih', depth_data[offset:offset+10])
+                    quantity, price, orders = struct.unpack(
+                        ">iih", depth_data[offset : offset + 10]
+                    )
                     if price > 0:  # Only add valid prices
-                        depth['buy'].append({
-                            'quantity': quantity,
-                            'price': price / 100.0,
-                            'orders': orders
-                        })
+                        depth["buy"].append(
+                            {
+                                "quantity": quantity,
+                                "price": price / 100.0,
+                                "orders": orders,
+                            }
+                        )
 
             # Parse sell side (next 5 entries)
             for i in range(5):
                 offset = 60 + (i * 12)
                 if offset + 10 <= len(depth_data):
-                    quantity, price, orders = struct.unpack('>iih', depth_data[offset:offset+10])
+                    quantity, price, orders = struct.unpack(
+                        ">iih", depth_data[offset : offset + 10]
+                    )
                     if price > 0:  # Only add valid prices
-                        depth['sell'].append({
-                            'quantity': quantity,
-                            'price': price / 100.0,
-                            'orders': orders
-                        })
+                        depth["sell"].append(
+                            {
+                                "quantity": quantity,
+                                "price": price / 100.0,
+                                "orders": orders,
+                            }
+                        )
 
-            return depth if (depth['buy'] or depth['sell']) else None
+            return depth if (depth["buy"] or depth["sell"]) else None
 
         except Exception as e:
             self.logger.error(f"❌ Error parsing market depth: {e}")
@@ -916,7 +980,9 @@ class ZerodhaWebSocket:
         if not self.subscribed_tokens:
             return
 
-        self.logger.debug(f"🔄 Re-subscribing to {len(self.subscribed_tokens)} tokens...")
+        self.logger.debug(
+            f"🔄 Re-subscribing to {len(self.subscribed_tokens)} tokens..."
+        )
 
         # Group tokens by mode
         mode_groups = {}
@@ -930,7 +996,7 @@ class ZerodhaWebSocket:
         # Re-subscribe in batches
         for mode, tokens in mode_groups.items():
             for i in range(0, len(tokens), self.MAX_TOKENS_PER_SUBSCRIBE):
-                batch = tokens[i:i + self.MAX_TOKENS_PER_SUBSCRIBE]
+                batch = tokens[i : i + self.MAX_TOKENS_PER_SUBSCRIBE]
                 await self._subscribe_batch(batch, mode)
                 await asyncio.sleep(self.SUBSCRIPTION_DELAY)
 
@@ -950,7 +1016,9 @@ class ZerodhaWebSocket:
                 if self.last_heartbeat_time:
                     time_since_heartbeat = current_time - self.last_heartbeat_time
                     if time_since_heartbeat > 60:  # No heartbeat for 60 seconds
-                        self.logger.warning(f"⚠️ No heartbeat from Zerodha for {time_since_heartbeat:.1f}s")
+                        self.logger.warning(
+                            f"⚠️ No heartbeat from Zerodha for {time_since_heartbeat:.1f}s"
+                        )
                         self.connected = False
                         continue
 
@@ -958,11 +1026,18 @@ class ZerodhaWebSocket:
                 if self.last_message_time and len(self.subscribed_tokens) > 0:
                     time_since_last_message = current_time - self.last_message_time
                     # Allow longer timeout during high subscription volume
-                    timeout = self.connection_timeout + (len(self.pending_subscriptions) * 2)
+                    timeout = self.connection_timeout + (
+                        len(self.pending_subscriptions) * 2
+                    )
                     if time_since_last_message > timeout:
-                        self.logger.warning(f"⚠️ No data messages for {time_since_last_message:.1f}s with {len(self.subscribed_tokens)} subscriptions")
+                        self.logger.warning(
+                            f"⚠️ No data messages for {time_since_last_message:.1f}s with {len(self.subscribed_tokens)} subscriptions"
+                        )
                         # Only disconnect if we're not actively subscribing
-                        if not self._connecting and len(self.pending_subscriptions) == 0:
+                        if (
+                            not self._connecting
+                            and len(self.pending_subscriptions) == 0
+                        ):
                             self.connected = False
                             continue
 
@@ -977,16 +1052,18 @@ class ZerodhaWebSocket:
     def get_statistics(self) -> Dict:
         """Get connection statistics"""
         return {
-            'connected': self.is_connected(),
-            'messages_received': self.message_count,
-            'ticks_processed': self.tick_count,
-            'errors': self.error_count,
-            'subscribed_tokens': len(self.subscribed_tokens),
-            'pending_subscriptions': len(self.pending_subscriptions),
-            'reconnect_attempts': self.reconnect_attempts,
-            'last_message_time': self.last_message_time,
-            'uptime': time.time() - (self.last_message_time or time.time()) if self.connected else 0,
-            'recent_events': list(self.event_log)[-10:]  # Last 10 events
+            "connected": self.is_connected(),
+            "messages_received": self.message_count,
+            "ticks_processed": self.tick_count,
+            "errors": self.error_count,
+            "subscribed_tokens": len(self.subscribed_tokens),
+            "pending_subscriptions": len(self.pending_subscriptions),
+            "reconnect_attempts": self.reconnect_attempts,
+            "last_message_time": self.last_message_time,
+            "uptime": time.time() - (self.last_message_time or time.time())
+            if self.connected
+            else 0,
+            "recent_events": list(self.event_log)[-10:],  # Last 10 events
         }
 
     def get_event_log(self) -> List[Dict]:
@@ -996,7 +1073,9 @@ class ZerodhaWebSocket:
     def set_verbose_logging(self, enabled: bool):
         """Enable or disable verbose event logging"""
         self.enable_verbose_logging = enabled
-        self._log_event("CONFIG", f"Verbose logging {'enabled' if enabled else 'disabled'}")
+        self._log_event(
+            "CONFIG", f"Verbose logging {'enabled' if enabled else 'disabled'}"
+        )
 
     def wait_for_connection(self, timeout: float = 10.0) -> bool:
         """Wait for connection to be established"""

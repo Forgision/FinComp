@@ -7,6 +7,7 @@ from app.utils.ip_helper import get_real_ip, get_real_ip_from_environ
 
 logger = logging.getLogger(__name__)
 
+
 class SecurityMiddleware:
     """Middleware to check for banned IPs and handle security"""
 
@@ -22,25 +23,27 @@ class SecurityMiddleware:
         try:
             if is_ip_banned(db_session, client_ip):
                 # Return 403 Forbidden for banned IPs
-                status = '403 Forbidden'
-                headers = [('Content-Type', 'text/plain')]
+                status = "403 Forbidden"
+                headers = [("Content-Type", "text/plain")]
                 start_response(status, headers)
                 logger.warning(f"Blocked banned IP: {client_ip}")
-                return [b'Access Denied: Your IP has been banned']
+                return [b"Access Denied: Your IP has been banned"]
         finally:
             LogsSession.remove()
             # Return 403 Forbidden for banned IPs
-            status = '403 Forbidden'
-            headers = [('Content-Type', 'text/plain')]
+            status = "403 Forbidden"
+            headers = [("Content-Type", "text/plain")]
             start_response(status, headers)
             logger.warning(f"Blocked banned IP: {client_ip}")
-            return [b'Access Denied: Your IP has been banned']
+            return [b"Access Denied: Your IP has been banned"]
 
         # Continue with normal request processing
         return self.app(environ, start_response)
 
+
 def check_ip_ban(f):
     """Decorator to check if IP is banned before processing request"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         client_ip = get_real_ip()
@@ -59,6 +62,7 @@ def check_ip_ban(f):
 
     return decorated_function
 
+
 def init_security_middleware(app):
     """Initialize security middleware"""
     # Wrap the WSGI app with security middleware
@@ -72,6 +76,6 @@ def init_security_middleware(app):
     # Register 403 error handler for banned IPs
     @app.errorhandler(403)
     def handle_403(e):
-        return jsonify({'error': 'Access Denied'}), 403
+        return jsonify({"error": "Access Denied"}), 403
 
     logger.info("Security middleware initialized")

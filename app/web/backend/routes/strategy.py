@@ -102,11 +102,11 @@ def process_orders():
                     )
                     if response.ok:
                         logger.info(
-                            f'Smart order placed for {smart_order["payload"]["symbol"]} in strategy {smart_order["payload"]["strategy"]}'
+                            f"Smart order placed for {smart_order['payload']['symbol']} in strategy {smart_order['payload']['strategy']}"
                         )
                     else:
                         logger.error(
-                            f'Error placing smart order for {smart_order["payload"]["symbol"]}: {response.text}'
+                            f"Error placing smart order for {smart_order['payload']['symbol']}: {response.text}"
                         )
                 except requests.RequestException as e:
                     logger.error(f"Error placing smart order: {str(e)}")
@@ -141,12 +141,12 @@ def process_orders():
                         )
                         if response.ok:
                             logger.info(
-                                f'Regular order placed for {regular_order["payload"]["symbol"]} in strategy {regular_order["payload"]["strategy"]}'
+                                f"Regular order placed for {regular_order['payload']['symbol']} in strategy {regular_order['payload']['strategy']}"
                             )
                             last_regular_orders.append(now)
                         else:
                             logger.error(
-                                f'Error placing regular order for {regular_order["payload"]["symbol"]}: {response.text}'
+                                f"Error placing regular order for {regular_order['payload']['symbol']}: {response.text}"
                             )
                     except requests.RequestException as e:
                         logger.error(f"Error placing regular order: {str(e)}")
@@ -553,7 +553,8 @@ async def delete_strategy_route(
     except SQLAlchemyError as e:
         logger.error(f"Database error deleting strategy {strategy_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error deleting strategy: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error deleting strategy: {str(e)}",
         )
 
 
@@ -676,7 +677,7 @@ async def configure_symbols_post(
                     missing.append("quantity")
                 if not product_type:
                     missing.append("product_type")
-                raise ValueError(f'Missing required fields: {", ".join(missing)}')
+                raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
             if exchange not in VALID_EXCHANGES:
                 raise ValueError(f"Invalid exchange: {exchange}")
@@ -749,7 +750,10 @@ async def delete_symbol(
         raise
     except SQLAlchemyError as e:
         logger.error(f"Database error deleting symbol mapping: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error deleting symbol mapping")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error deleting symbol mapping",
+        )
 
 
 @strategy_router.get("/search", response_class=JSONResponse)
@@ -856,7 +860,7 @@ async def webhook(
         if missing_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Missing required fields: {", ".join(missing_fields)}',
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
             )
 
         # Validate action based on trading mode
@@ -913,7 +917,7 @@ async def webhook(
         if not mapping:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'No mapping found for symbol {data["symbol"]}',
+                detail=f"No mapping found for symbol {data['symbol']}",
             )
 
         # Get API key from app.core.schemas
@@ -976,7 +980,7 @@ async def webhook(
         # Queue the order
         queue_order(endpoint, payload)
         return JSONResponse(
-            content={"message": f'Order queued successfully for {data["symbol"]}'},
+            content={"message": f"Order queued successfully for {data['symbol']}"},
             status_code=status.HTTP_200_OK,
         )
 

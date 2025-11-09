@@ -37,27 +37,39 @@ def map_order_data(order_data):
     # For debugging, log all keys in the structure
     if isinstance(order_data, dict):
         logger.debug(f"Keys in order_data: {list(order_data.keys())}")
-        if 'raw_response' in order_data and isinstance(order_data['raw_response'], dict):
-            logger.debug(f"Keys in raw_response: {list(order_data['raw_response'].keys())}")
+        if "raw_response" in order_data and isinstance(
+            order_data["raw_response"], dict
+        ):
+            logger.debug(
+                f"Keys in raw_response: {list(order_data['raw_response'].keys())}"
+            )
 
     # Try raw_response (direct Groww API format) first if it exists
-    if isinstance(order_data, dict) and 'raw_response' in order_data and order_data['raw_response']:
-        raw_response = order_data['raw_response']
-        if 'order_list' in raw_response and raw_response['order_list']:
+    if (
+        isinstance(order_data, dict)
+        and "raw_response" in order_data
+        and order_data["raw_response"]
+    ):
+        raw_response = order_data["raw_response"]
+        if "order_list" in raw_response and raw_response["order_list"]:
             logger.info("Using raw_response.order_list for mapping")
-            orders_to_process = raw_response['order_list']
+            orders_to_process = raw_response["order_list"]
 
     # Then try the data array if raw_response wasn't available or was empty
-    if not orders_to_process and isinstance(order_data, dict) and 'data' in order_data:
-        if order_data['data']:
+    if not orders_to_process and isinstance(order_data, dict) and "data" in order_data:
+        if order_data["data"]:
             logger.info("Using data array for mapping")
-            orders_to_process = order_data['data']
+            orders_to_process = order_data["data"]
 
     # Handle direct order_list format (from Groww API)
-    if not orders_to_process and isinstance(order_data, dict) and 'order_list' in order_data:
-        if order_data['order_list']:
+    if (
+        not orders_to_process
+        and isinstance(order_data, dict)
+        and "order_list" in order_data
+    ):
+        if order_data["order_list"]:
             logger.info("Using direct order_list for mapping")
-            orders_to_process = order_data['order_list']
+            orders_to_process = order_data["order_list"]
 
     # If no valid orders found, return empty result
     if not orders_to_process:
@@ -67,89 +79,107 @@ def map_order_data(order_data):
     logger.info(f"Processing {len(orders_to_process)} orders")
 
     for i, order in enumerate(orders_to_process):
-        logger.debug(f"Processing order {i+1}/{len(orders_to_process)}")
+        logger.debug(f"Processing order {i + 1}/{len(orders_to_process)}")
         logger.debug(f"Original order: {order}")
 
         # Get fields from order - handle both original Groww API and our standardized format
-        order_id = order.get('groww_order_id', order.get('orderid', ''))
-        symbol = order.get('trading_symbol', order.get('tradingsymbol', ''))
-        order.get('order_status', order.get('status', ''))
-        order.get('remark', order.get('remarks', ''))
-        order_type = order.get('order_type', order.get('pricetype', 'MARKET'))
-        order.get('transaction_type', order.get('action', ''))
-        order.get('product', '')
-        order.get('created_at', order.get('timestamp', ''))
+        order_id = order.get("groww_order_id", order.get("orderid", ""))
+        symbol = order.get("trading_symbol", order.get("tradingsymbol", ""))
+        order.get("order_status", order.get("status", ""))
+        order.get("remark", order.get("remarks", ""))
+        order_type = order.get("order_type", order.get("pricetype", "MARKET"))
+        order.get("transaction_type", order.get("action", ""))
+        order.get("product", "")
+        order.get("created_at", order.get("timestamp", ""))
 
         # For debugging
         if i == 0:
-            logger.debug(f"Sample order id: {order_id}, symbol: {symbol}, type: {order_type}")
+            logger.debug(
+                f"Sample order id: {order_id}, symbol: {symbol}, type: {order_type}"
+            )
 
         # Get the trading symbol from Groww order data
-        broker_symbol = order.get('trading_symbol', '')
-        exchange = order.get('exchange', '')
+        broker_symbol = order.get("trading_symbol", "")
+        exchange = order.get("exchange", "")
 
         # Convert broker symbol to OpenAlgo format
         openalgo_symbol = broker_symbol
 
         # If it's an options or futures symbol (especially for NFO exchange)
-        if exchange == 'NFO' and broker_symbol and ' ' in broker_symbol:
+        if exchange == "NFO" and broker_symbol and " " in broker_symbol:
             try:
-                openalgo_symbol = format_groww_to_openalgo_symbol(broker_symbol, exchange)
-                logger.info(f"Transformed display symbol: {broker_symbol} -> {openalgo_symbol}")
+                openalgo_symbol = format_groww_to_openalgo_symbol(
+                    broker_symbol, exchange
+                )
+                logger.info(
+                    f"Transformed display symbol: {broker_symbol} -> {openalgo_symbol}"
+                )
             except Exception as e:
                 logger.error(f"Error converting symbol format: {e}")
 
         # Look up in database as fallback
-        if openalgo_symbol == broker_symbol and ' ' in broker_symbol:
+        if openalgo_symbol == broker_symbol and " " in broker_symbol:
             try:
-                db_record = db.query(SymToken).filter_by(brsymbol=broker_symbol, brexchange=exchange).first()
+                db_record = (
+                    db.query(SymToken)
+                    .filter_by(brsymbol=broker_symbol, brexchange=exchange)
+                    .first()
+                )
                 if db_record and db_record.symbol:
                     openalgo_symbol = db_record.symbol
-                    logger.info(f"Found symbol in database: {broker_symbol} -> {openalgo_symbol}")
+                    logger.info(
+                        f"Found symbol in database: {broker_symbol} -> {openalgo_symbol}"
+                    )
             except Exception as e:
                 logger.error(f"Error looking up symbol in database: {e}")
 
         mapped_order = {
-            'orderid': order.get('groww_order_id', ''),
-            'symbol': openalgo_symbol,  # Using the converted OpenAlgo format symbol
-            'exchange': order.get('exchange', 'NSE'),
-            'transaction_type': order.get('transaction_type', ''),
-            'order_type': order.get('order_type', 'MARKET'),
-            'status': order.get('order_status', order.get('status', '')),  # Try order_status first, then status
-            'product': order.get('product', 'CNC'),
-            'quantity': order.get('quantity', 0),
-            'price': order.get('price', 0.0),
-            'trigger_price': order.get('trigger_price', 0.0),
-            'order_timestamp': order.get('created_at', ''),
-            'order_reference_id': order.get('order_reference_id', '')
+            "orderid": order.get("groww_order_id", ""),
+            "symbol": openalgo_symbol,  # Using the converted OpenAlgo format symbol
+            "exchange": order.get("exchange", "NSE"),
+            "transaction_type": order.get("transaction_type", ""),
+            "order_type": order.get("order_type", "MARKET"),
+            "status": order.get(
+                "order_status", order.get("status", "")
+            ),  # Try order_status first, then status
+            "product": order.get("product", "CNC"),
+            "quantity": order.get("quantity", 0),
+            "price": order.get("price", 0.0),
+            "trigger_price": order.get("trigger_price", 0.0),
+            "order_timestamp": order.get("created_at", ""),
+            "order_reference_id": order.get("order_reference_id", ""),
         }
 
         # Map status to OpenAlgo format
         status_map = {
-            'NEW': 'open',
-            'ACKED': 'open',
-            'OPEN': 'open',  # Added OPEN status from Groww API
-            'TRIGGER_PENDING': 'trigger pending',
-            'APPROVED': 'open',
-            'EXECUTED': 'complete',
-            'COMPLETED': 'complete',
-            'CANCELLED': 'cancelled',
-            'REJECTED': 'rejected'
+            "NEW": "open",
+            "ACKED": "open",
+            "OPEN": "open",  # Added OPEN status from Groww API
+            "TRIGGER_PENDING": "trigger pending",
+            "APPROVED": "open",
+            "EXECUTED": "complete",
+            "COMPLETED": "complete",
+            "CANCELLED": "cancelled",
+            "REJECTED": "rejected",
         }
-        original_status = mapped_order['status']
-        mapped_order['status'] = status_map.get(original_status, 'open')
-        logger.debug(f"Mapped status from '{original_status}' to '{mapped_order['status']}'")
+        original_status = mapped_order["status"]
+        mapped_order["status"] = status_map.get(original_status, "open")
+        logger.debug(
+            f"Mapped status from '{original_status}' to '{mapped_order['status']}'"
+        )
 
         # Map product type to OpenAlgo format
-        original_product = mapped_order['product']
-        if original_product == 'CNC':
-            mapped_order['product'] = 'CNC'
-        elif original_product == 'INTRADAY':
-            mapped_order['product'] = 'MIS'
-        elif original_product == 'MARGIN':
-            mapped_order['product'] = 'NRML'
+        original_product = mapped_order["product"]
+        if original_product == "CNC":
+            mapped_order["product"] = "CNC"
+        elif original_product == "INTRADAY":
+            mapped_order["product"] = "MIS"
+        elif original_product == "MARGIN":
+            mapped_order["product"] = "NRML"
 
-        logger.debug(f"Mapped product from '{original_product}' to '{mapped_order['product']}'")
+        logger.debug(
+            f"Mapped product from '{original_product}' to '{mapped_order['product']}'"
+        )
         logger.debug(f"Mapped order: {mapped_order}")
 
         mapped_orders.append(mapped_order)
@@ -180,11 +210,11 @@ def calculate_order_statistics(order_data):
 
     # Default empty statistics
     default_stats = {
-        'total_buy_orders': 0,
-        'total_sell_orders': 0,
-        'total_completed_orders': 0,
-        'total_open_orders': 0,
-        'total_rejected_orders': 0
+        "total_buy_orders": 0,
+        "total_sell_orders": 0,
+        "total_completed_orders": 0,
+        "total_open_orders": 0,
+        "total_rejected_orders": 0,
     }
 
     # Handle empty input
@@ -200,13 +230,13 @@ def calculate_order_statistics(order_data):
         logger.info("Using direct list of orders for statistics")
         orders_to_process = order_data
     # Case 2: Nested dictionary with 'data' key (backward compatibility)
-    elif isinstance(order_data, dict) and 'data' in order_data:
+    elif isinstance(order_data, dict) and "data" in order_data:
         logger.info("Using nested data dictionary for statistics")
-        orders_to_process = order_data['data']
+        orders_to_process = order_data["data"]
     # Case 3: Direct Groww API response with 'order_list' (original API format)
-    elif isinstance(order_data, dict) and 'order_list' in order_data:
+    elif isinstance(order_data, dict) and "order_list" in order_data:
         logger.info("Using direct order_list for statistics")
-        orders_to_process = order_data['order_list']
+        orders_to_process = order_data["order_list"]
 
     # If no valid order data found, return default stats
     if not orders_to_process:
@@ -221,32 +251,32 @@ def calculate_order_statistics(order_data):
             logger.debug(f"Sample order structure for statistics: {order}")
 
         # Count buy and sell orders
-        transaction_type = order.get('transaction_type')
-        if transaction_type == 'BUY':
+        transaction_type = order.get("transaction_type")
+        if transaction_type == "BUY":
             total_buy_orders += 1
-        elif transaction_type == 'SELL':
+        elif transaction_type == "SELL":
             total_sell_orders += 1
         else:
             logger.debug(f"Unknown transaction type: {transaction_type}")
 
         # Count orders based on their status
-        status = order.get('order_status')
-        if status in ['EXECUTED', 'COMPLETED']:
+        status = order.get("order_status")
+        if status in ["EXECUTED", "COMPLETED"]:
             total_completed_orders += 1
-        elif status in ['NEW', 'ACKED', 'APPROVED', 'OPEN']:
+        elif status in ["NEW", "ACKED", "APPROVED", "OPEN"]:
             total_open_orders += 1
-        elif status == 'REJECTED':
+        elif status == "REJECTED":
             total_rejected_orders += 1
         else:
             logger.debug(f"Order with status not counted in statistics: {status}")
 
     # Compile statistics
     stats = {
-        'total_buy_orders': total_buy_orders,
-        'total_sell_orders': total_sell_orders,
-        'total_completed_orders': total_completed_orders,
-        'total_open_orders': total_open_orders,
-        'total_rejected_orders': total_rejected_orders
+        "total_buy_orders": total_buy_orders,
+        "total_sell_orders": total_sell_orders,
+        "total_completed_orders": total_completed_orders,
+        "total_open_orders": total_open_orders,
+        "total_rejected_orders": total_rejected_orders,
     }
 
     logger.info(f"Order statistics calculated: {stats}")
@@ -285,22 +315,28 @@ def transform_order_data(orders):
             logger.debug(f"Keys in orders: {list(orders.keys()) if orders else 'None'}")
 
             # Try raw_response.order_list format
-            if 'raw_response' in orders and orders['raw_response']:
-                raw_response = orders['raw_response']
-                logger.debug(f"Raw response keys: {list(raw_response.keys()) if raw_response else 'None'}")
-                if 'order_list' in raw_response and raw_response['order_list']:
+            if "raw_response" in orders and orders["raw_response"]:
+                raw_response = orders["raw_response"]
+                logger.debug(
+                    f"Raw response keys: {list(raw_response.keys()) if raw_response else 'None'}"
+                )
+                if "order_list" in raw_response and raw_response["order_list"]:
                     logger.info("Using raw_response.order_list for transformation")
-                    orders_to_process = raw_response['order_list']
+                    orders_to_process = raw_response["order_list"]
 
             # Try data array format
-            if not orders_to_process and 'data' in orders and orders['data']:
+            if not orders_to_process and "data" in orders and orders["data"]:
                 logger.info("Using data array for transformation")
-                orders_to_process = orders['data']
+                orders_to_process = orders["data"]
 
             # Try direct order_list format
-            if not orders_to_process and 'order_list' in orders and orders['order_list']:
+            if (
+                not orders_to_process
+                and "order_list" in orders
+                and orders["order_list"]
+            ):
                 logger.info("Using direct order_list for transformation")
-                orders_to_process = orders['order_list']
+                orders_to_process = orders["order_list"]
 
     # If we still couldn't find orders, return empty list
     if not orders_to_process:
@@ -316,19 +352,21 @@ def transform_order_data(orders):
 
     for i, order in enumerate(orders_to_process):
         # Get fields with fallbacks between original and mapped formats
-        order_id = order.get('groww_order_id', order.get('orderid', ''))
+        order_id = order.get("groww_order_id", order.get("orderid", ""))
 
         # Get the symbol, with fallbacks to other field names
-        broker_symbol = order.get('trading_symbol', order.get('tradingsymbol', order.get('symbol', '')))
-        exchange = order.get('exchange', 'NSE')
+        broker_symbol = order.get(
+            "trading_symbol", order.get("tradingsymbol", order.get("symbol", ""))
+        )
+        exchange = order.get("exchange", "NSE")
 
         # Get proper OpenAlgo symbol from app.core.schemas using token lookup
         token = None
         symbol = broker_symbol
 
         # Try to get token from order data if available
-        if 'token' in order:
-            token = order.get('token')
+        if "token" in order:
+            token = order.get("token")
 
         try:
             # If we have a token or brsymbol (tradingsymbol/trading_symbol), look up the OpenAlgo symbol from the database
@@ -336,74 +374,86 @@ def transform_order_data(orders):
                 openalgo_symbol = get_oa_symbol(token, exchange)
                 if openalgo_symbol:
                     symbol = openalgo_symbol
-                    logger.info(f"Found OpenAlgo symbol by token: {broker_symbol} -> {symbol}")
+                    logger.info(
+                        f"Found OpenAlgo symbol by token: {broker_symbol} -> {symbol}"
+                    )
 
             # If token lookup failed or token wasn't available, try by broker symbol
             if symbol == broker_symbol and broker_symbol:
-                record = db.query(SymToken).filter(
-                    SymToken.brsymbol == broker_symbol,
-                    SymToken.exchange == exchange
-                ).first()
+                record = (
+                    db.query(SymToken)
+                    .filter(
+                        SymToken.brsymbol == broker_symbol,
+                        SymToken.exchange == exchange,
+                    )
+                    .first()
+                )
                 if record and record.symbol:
                     symbol = record.symbol
-                    logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
+                    logger.info(
+                        f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}"
+                    )
         except Exception as e:
             logger.error(f"Error looking up OpenAlgo symbol from app.core.schemas: {e}")
             # Fall back to the original symbol
             symbol = broker_symbol
 
         # Make sure we get the status from all possible fields
-        status = order.get('order_status', order.get('status', ''))
+        status = order.get("order_status", order.get("status", ""))
         logger.debug(f"Order {i} raw status: {status}")
 
-        order_type = order.get('order_type', order.get('pricetype', 'MARKET'))
-        transaction_type = order.get('transaction_type', order.get('action', ''))
-        product = order.get('product', order.get('product', 'CNC'))
-        timestamp = order.get('created_at', order.get('timestamp', order.get('order_timestamp', '')))
-        price = order.get('price', 0.0)
-        trigger_price = order.get('trigger_price', 0.0)
-        quantity = order.get('quantity', 0)
+        order_type = order.get("order_type", order.get("pricetype", "MARKET"))
+        transaction_type = order.get("transaction_type", order.get("action", ""))
+        product = order.get("product", order.get("product", "CNC"))
+        timestamp = order.get(
+            "created_at", order.get("timestamp", order.get("order_timestamp", ""))
+        )
+        price = order.get("price", 0.0)
+        trigger_price = order.get("trigger_price", 0.0)
+        quantity = order.get("quantity", 0)
 
         # Map order type to OpenAlgo format
         mapped_order_type = order_type
-        if order_type == 'STOP_LOSS':
-            mapped_order_type = 'SL'
-        elif order_type == 'STOP_LOSS_MARKET':
-            mapped_order_type = 'SL-M'
+        if order_type == "STOP_LOSS":
+            mapped_order_type = "SL"
+        elif order_type == "STOP_LOSS_MARKET":
+            mapped_order_type = "SL-M"
 
         # Map product type
         mapped_product = product
-        if product == 'INTRADAY':
-            mapped_product = 'MIS'
-        elif product == 'MARGIN':
-            mapped_product = 'NRML'
+        if product == "INTRADAY":
+            mapped_product = "MIS"
+        elif product == "MARGIN":
+            mapped_product = "NRML"
 
         # Map status
         status_map = {
-            'NEW': 'open',
-            'ACKED': 'open',
-            'OPEN': 'open',
-            'TRIGGER_PENDING': 'trigger pending',
-            'APPROVED': 'open',
-            'EXECUTED': 'complete',
-            'COMPLETED': 'complete',
-            'CANCELLED': 'cancelled',
-            'REJECTED': 'rejected'
+            "NEW": "open",
+            "ACKED": "open",
+            "OPEN": "open",
+            "TRIGGER_PENDING": "trigger pending",
+            "APPROVED": "open",
+            "EXECUTED": "complete",
+            "COMPLETED": "complete",
+            "CANCELLED": "cancelled",
+            "REJECTED": "rejected",
         }
         # Log original status for debugging
         logger.debug(f"Original order status for order {i}: '{status}'")
 
         # Important: Use the status map but ensure we have a fallback value
         # If status isn't in our map, use the lowercase version of the original status
-        mapped_status = status_map.get(status, status.lower() if status else '')
+        mapped_status = status_map.get(status, status.lower() if status else "")
         logger.debug(f"Mapped status for order {i}: '{mapped_status}'")
 
         # Log key fields for debugging
-        logger.debug(f"Order {i}: Symbol='{symbol}', ID='{order_id}', Type='{mapped_order_type}', Product='{mapped_product}'")
+        logger.debug(
+            f"Order {i}: Symbol='{symbol}', ID='{order_id}', Type='{mapped_order_type}', Product='{mapped_product}'"
+        )
 
         # For NFO instruments, ensure the symbol is in OpenAlgo format (AARTIIND29MAY25630CE)
         exchange = order.get("exchange", "NSE")
-        if exchange == 'NFO' and ' ' in symbol:
+        if exchange == "NFO" and " " in symbol:
             try:
                 openalgo_symbol = format_groww_to_openalgo_symbol(symbol, exchange)
                 if openalgo_symbol:
@@ -411,7 +461,9 @@ def transform_order_data(orders):
                     broker_symbol = symbol
                     # Use OpenAlgo symbol format for display
                     symbol = openalgo_symbol
-                    logger.info(f"Transformed order symbol for UI: {broker_symbol} -> {symbol}")
+                    logger.info(
+                        f"Transformed order symbol for UI: {broker_symbol} -> {symbol}"
+                    )
             except Exception as e:
                 logger.error(f"Error converting order symbol format: {e}")
 
@@ -427,7 +479,7 @@ def transform_order_data(orders):
             "product": mapped_product,
             "orderid": order_id,
             "order_status": mapped_status,
-            "timestamp": timestamp
+            "timestamp": timestamp,
         }
 
         # Add to result
@@ -439,27 +491,31 @@ def transform_order_data(orders):
     # This avoids complex transformations since the database already has the correct symbols
     for order in transformed_orders:
         # Only process NFO symbols that might be in broker format
-        if order.get('exchange') == 'NFO' and 'symbol' in order and order['symbol']:
-            symbol = order['symbol']
+        if order.get("exchange") == "NFO" and "symbol" in order and order["symbol"]:
+            symbol = order["symbol"]
 
             # If token is available, try token lookup first
-            token = order.get('token')
+            token = order.get("token")
             if token:
-                openalgo_symbol = get_oa_symbol(token, order.get('exchange', 'NSE'))
+                openalgo_symbol = get_oa_symbol(token, order.get("exchange", "NSE"))
                 if openalgo_symbol:
-                    order['symbol'] = openalgo_symbol
+                    order["symbol"] = openalgo_symbol
                     logger.info(f"Final token lookup: {symbol} -> {openalgo_symbol}")
                     continue
 
             # Last resort - try looking up the broker symbol directly from app.core.schemas
             # Look for this symbol as a broker symbol (brsymbol) in the database
-            record = db.query(SymToken).filter(
-                SymToken.brsymbol == symbol,
-                SymToken.exchange == order.get('exchange', 'NSE')
-            ).first()
+            record = (
+                db.query(SymToken)
+                .filter(
+                    SymToken.brsymbol == symbol,
+                    SymToken.exchange == order.get("exchange", "NSE"),
+                )
+                .first()
+            )
 
             if record and record.symbol:
-                order['symbol'] = record.symbol
+                order["symbol"] = record.symbol
                 logger.info(f"Final db lookup: {symbol} -> {record.symbol}")
 
     return transformed_orders
@@ -484,15 +540,21 @@ def map_position_data(position_data):
         logger.info(f"Position data dict keys: {list(position_data.keys())}")
 
         # Check for data field
-        if 'data' in position_data and isinstance(position_data['data'], list):
-            logger.info(f"Using 'data' field with {len(position_data['data'])} positions")
-            return position_data['data']
+        if "data" in position_data and isinstance(position_data["data"], list):
+            logger.info(
+                f"Using 'data' field with {len(position_data['data'])} positions"
+            )
+            return position_data["data"]
 
     # If all else fails, try the regular order mapping (fallback)
     logger.info("Falling back to regular order mapping")
     return map_order_data(position_data)
+
+
 def transform_positions_data(positions_data):
-    logger.info(f"Transform positions received type: {type(positions_data)}, length: {len(positions_data) if isinstance(positions_data, list) else 'not a list'}")
+    logger.info(
+        f"Transform positions received type: {type(positions_data)}, length: {len(positions_data) if isinstance(positions_data, list) else 'not a list'}"
+    )
     db = next(get_db())
     # Handle empty input
     if not positions_data:
@@ -501,40 +563,47 @@ def transform_positions_data(positions_data):
 
     # Log first position for debugging
     if isinstance(positions_data, list) and positions_data:
-        logger.info(f"Sample position to transform: {json.dumps(positions_data[0], indent=2)[:500]}")
+        logger.info(
+            f"Sample position to transform: {json.dumps(positions_data[0], indent=2)[:500]}"
+        )
 
     transformed_data = []
     for position in positions_data:
         # Get tradingsymbol with fallbacks
         # Make sure we explicitly check for the trading_symbol field which is in the Groww API response
-        trading_symbol = position.get('trading_symbol', '')
-        broker_symbol = position.get('tradingsymbol', trading_symbol)
+        trading_symbol = position.get("trading_symbol", "")
+        broker_symbol = position.get("tradingsymbol", trading_symbol)
         if not broker_symbol:
-            broker_symbol = position.get('symbol', '')
+            broker_symbol = position.get("symbol", "")
 
         # Ensure broker_symbol is a string, not None
-        broker_symbol = str(broker_symbol) if broker_symbol is not None else ''
-        exchange = position.get('exchange', 'NSE')
-        segment = position.get('segment', '')
+        broker_symbol = str(broker_symbol) if broker_symbol is not None else ""
+        exchange = position.get("exchange", "NSE")
+        segment = position.get("segment", "")
 
         # For debugging
-        logger.info(f"Processing position with trading_symbol: {trading_symbol}, broker_symbol: {broker_symbol}, segment: {segment}")
+        logger.info(
+            f"Processing position with trading_symbol: {trading_symbol}, broker_symbol: {broker_symbol}, segment: {segment}"
+        )
 
         # Determine proper exchange based on segment and symbol pattern
-        if segment == 'FNO' or (broker_symbol and any(marker in broker_symbol for marker in ['CE', 'PE', 'FUT'])):
-            exchange = 'NFO'
+        if segment == "FNO" or (
+            broker_symbol
+            and any(marker in broker_symbol for marker in ["CE", "PE", "FUT"])
+        ):
+            exchange = "NFO"
         else:
-            exchange = 'NSE'
+            exchange = "NSE"
 
         # Try to get token from position data if available
-        token = position.get('token', position.get('instrument_token', None))
+        token = position.get("token", position.get("instrument_token", None))
 
         # For cash segment, use the trading_symbol directly
-        if segment == 'CASH' or exchange == 'NSE':
+        if segment == "CASH" or exchange == "NSE":
             symbol = broker_symbol
             # Ensure we have a trading symbol for cash segment
-            if not symbol and 'trading_symbol' in position:
-                symbol = position['trading_symbol']
+            if not symbol and "trading_symbol" in position:
+                symbol = position["trading_symbol"]
         else:
             symbol = broker_symbol
 
@@ -544,38 +613,46 @@ def transform_positions_data(positions_data):
                 openalgo_symbol = get_oa_symbol(token, exchange)
                 if openalgo_symbol:
                     symbol = openalgo_symbol
-                    logger.info(f"Found OpenAlgo symbol by token: {broker_symbol} -> {symbol}")
+                    logger.info(
+                        f"Found OpenAlgo symbol by token: {broker_symbol} -> {symbol}"
+                    )
 
             # If token lookup failed or token wasn't available, try by broker symbol
             if symbol == broker_symbol and broker_symbol:
-                record = db.query(SymToken).filter(
-                    SymToken.brsymbol == broker_symbol,
-                    SymToken.exchange == exchange
-                ).first()
+                record = (
+                    db.query(SymToken)
+                    .filter(
+                        SymToken.brsymbol == broker_symbol,
+                        SymToken.exchange == exchange,
+                    )
+                    .first()
+                )
                 if record and record.symbol:
                     symbol = record.symbol
-                    logger.info(f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}")
+                    logger.info(
+                        f"Found OpenAlgo symbol by broker symbol: {broker_symbol} -> {symbol}"
+                    )
         except Exception as e:
             logger.error(f"Error looking up OpenAlgo symbol from app.core.schemas: {e}")
             # Fall back to the original symbol
             symbol = broker_symbol
 
         # Continue with the rest of your transformation
-        quantity = float(position.get('quantity', 0))
-        sell_qty = float(position.get('sellQty', 0))
-        buy_qty = float(position.get('buyQty', 0))
-        avg_price = float(position.get('avgPrice', 0))
-        close_price = float(position.get('closePrice', 0))
-        last_price = float(position.get('lastPrice', 0))
-        pnl = float(position.get('pnl', 0))
-        multiplier = float(position.get('multiplier', 1))
-        unrealised = float(position.get('unrealised', 0))
-        realised = float(position.get('realised', 0))
+        quantity = float(position.get("quantity", 0))
+        sell_qty = float(position.get("sellQty", 0))
+        buy_qty = float(position.get("buyQty", 0))
+        avg_price = float(position.get("avgPrice", 0))
+        close_price = float(position.get("closePrice", 0))
+        last_price = float(position.get("lastPrice", 0))
+        pnl = float(position.get("pnl", 0))
+        multiplier = float(position.get("multiplier", 1))
+        unrealised = float(position.get("unrealised", 0))
+        realised = float(position.get("realised", 0))
 
         transformed_position = {
             "symbol": symbol,
             "exchange": exchange,
-            "product": position.get('product', 'CNC'),
+            "product": position.get("product", "CNC"),
             "quantity": quantity,
             "average_price": avg_price,
             "close_price": close_price,
@@ -586,12 +663,15 @@ def transform_positions_data(positions_data):
             "realised": realised,
             "buy_quantity": buy_qty,
             "sell_quantity": sell_qty,
-            "instrument_token": position.get('instrument_token', position.get('symbol_isin', ''))
+            "instrument_token": position.get(
+                "instrument_token", position.get("symbol_isin", "")
+            ),
         }
         transformed_data.append(transformed_position)
 
     logger.info(f"Transformed {len(transformed_data)} positions successfully")
     return transformed_data
+
 
 def transform_holdings_data(holdings_data):
     """
@@ -605,8 +685,8 @@ def transform_holdings_data(holdings_data):
     """
 
     # Handle dictionary input with nested holdings
-    if isinstance(holdings_data, dict) and 'data' in holdings_data:
-        holdings_data = holdings_data['data'].get('holdings', [])
+    if isinstance(holdings_data, dict) and "data" in holdings_data:
+        holdings_data = holdings_data["data"].get("holdings", [])
 
     # Handle tuple input (holdings list, metadata)
     if isinstance(holdings_data, tuple):
@@ -620,19 +700,21 @@ def transform_holdings_data(holdings_data):
     transformed_data = []
     for holdings in holdings_data:
         # Extract symbol from trading symbol
-        symbol = holdings.get('symbol', '')
-        if not symbol and 'trading_symbol' in holdings:
+        symbol = holdings.get("symbol", "")
+        if not symbol and "trading_symbol" in holdings:
             # Try to extract symbol from trading symbol
-            symbol = holdings['trading_symbol'].replace('NSE:', '').replace('BSE:', '')
+            symbol = holdings["trading_symbol"].replace("NSE:", "").replace("BSE:", "")
 
         transformed_position = {
             "symbol": symbol,
-            "exchange": holdings.get('exchange', 'NSE'),  # Default to NSE
-            "quantity": float(holdings.get('quantity', holdings.get('totalQty', 0))),
-            "average_price": float(holdings.get('average_price', holdings.get('avgPrice', 0))),
-            "product": holdings.get('product', 'CNC'),
-            "pnl": float(holdings.get('pnl', 0)),
-            "pnlpercent": float(holdings.get('pnlpercent', 0))
+            "exchange": holdings.get("exchange", "NSE"),  # Default to NSE
+            "quantity": float(holdings.get("quantity", holdings.get("totalQty", 0))),
+            "average_price": float(
+                holdings.get("average_price", holdings.get("avgPrice", 0))
+            ),
+            "product": holdings.get("product", "CNC"),
+            "pnl": float(holdings.get("pnl", 0)),
+            "pnlpercent": float(holdings.get("pnlpercent", 0)),
         }
         transformed_data.append(transformed_position)
 
@@ -650,10 +732,15 @@ def map_portfolio_data(portfolio_data):
     - The modified portfolio_data with  'product' fields.
     """
     # Check if 'portfolio_data' is empty
-    if portfolio_data is None or isinstance(portfolio_data,dict) and (
-        portfolio_data.get('errorCode') == "DHOLDING_ERROR" or
-        portfolio_data.get('internalErrorCode') == "DH-1111" or
-        portfolio_data.get('internalErrorMessage') == "No holdings available"):
+    if (
+        portfolio_data is None
+        or isinstance(portfolio_data, dict)
+        and (
+            portfolio_data.get("errorCode") == "DHOLDING_ERROR"
+            or portfolio_data.get("internalErrorCode") == "DH-1111"
+            or portfolio_data.get("internalErrorMessage") == "No holdings available"
+        )
+    ):
         # Handle the case where there is no data or specific error message about no holdings
         logger.info("No data or no holdings available.")
         portfolio_data = {}  # This resets portfolio_data to an empty dictionary if conditions are met
@@ -681,19 +768,19 @@ def calculate_portfolio_statistics(holdings_data):
             "totalholdingvalue": 0,
             "totalinvvalue": 0,
             "totalpnlpercentage": 0,
-            "totalprofitandloss": 0
+            "totalprofitandloss": 0,
         }
 
     # Extract holdings from the API response structure
     if isinstance(holdings_data, dict):
         # Check if statistics are already provided
-        if 'data' in holdings_data and 'statistics' in holdings_data['data']:
-            return holdings_data['data']['statistics']
+        if "data" in holdings_data and "statistics" in holdings_data["data"]:
+            return holdings_data["data"]["statistics"]
 
-        if 'payload' in holdings_data:
-            holdings_data = holdings_data['payload'].get('holdings', [])
-        elif 'data' in holdings_data and 'holdings' in holdings_data['data']:
-            holdings_data = holdings_data['data']['holdings']
+        if "payload" in holdings_data:
+            holdings_data = holdings_data["payload"].get("holdings", [])
+        elif "data" in holdings_data and "holdings" in holdings_data["data"]:
+            holdings_data = holdings_data["data"]["holdings"]
 
     # Validate holdings data
     if not isinstance(holdings_data, list):
@@ -702,7 +789,7 @@ def calculate_portfolio_statistics(holdings_data):
             "totalholdingvalue": 0,
             "totalinvvalue": 0,
             "totalpnlpercentage": 0,
-            "totalprofitandloss": 0
+            "totalprofitandloss": 0,
         }
 
     # Calculate total holding value
@@ -712,8 +799,8 @@ def calculate_portfolio_statistics(holdings_data):
 
     for holding in holdings_data:
         # Handle different possible key variations
-        quantity = float(holding.get('quantity', holding.get('qty', 0)))
-        avg_price = float(holding.get('average_price', holding.get('avgPrice', 0)))
+        quantity = float(holding.get("quantity", holding.get("qty", 0)))
+        avg_price = float(holding.get("average_price", holding.get("avgPrice", 0)))
 
         # Calculate holding value
         holding_value = quantity * avg_price
@@ -721,16 +808,18 @@ def calculate_portfolio_statistics(holdings_data):
         totalinvvalue += holding_value
 
         # Use provided PnL if available
-        pnl = float(holding.get('pnl', 0))
+        pnl = float(holding.get("pnl", 0))
         totalprofitandloss += pnl
 
     # Calculate PnL percentage
-    totalpnlpercentage = (totalprofitandloss / totalinvvalue * 100) if totalinvvalue else 0
+    totalpnlpercentage = (
+        (totalprofitandloss / totalinvvalue * 100) if totalinvvalue else 0
+    )
 
     # Prepare and return statistics
     return {
         "totalholdingvalue": round(totalholdingvalue, 2),
         "totalinvvalue": round(totalinvvalue, 2),
         "totalpnlpercentage": round(totalpnlpercentage, 2),
-        "totalprofitandloss": round(totalprofitandloss, 2)
+        "totalprofitandloss": round(totalprofitandloss, 2),
     }

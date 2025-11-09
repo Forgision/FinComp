@@ -29,15 +29,10 @@ def get_margin_data(auth_token):
         url = "https://api.firstock.in/V1/limit"
 
         # Prepare payload
-        payload = {
-            "jKey": auth_token,
-            "userId": userid
-        }
+        payload = {"jKey": auth_token, "userId": userid}
 
         # Set headers
-        headers = {
-            'Content-Type': 'application/json'
-        }
+        headers = {"Content-Type": "application/json"}
 
         logger.info(f"Fetching margin data for user: {userid}")
 
@@ -50,16 +45,16 @@ def get_margin_data(auth_token):
         # Handle the response
         if response.status_code == 200:
             data = response.json()
-            if data.get('status') == "success":
-                margin_data = data.get('data', {})
+            if data.get("status") == "success":
+                margin_data = data.get("data", {})
 
                 # Calculate total_available_margin as the sum of 'cash' and 'payin'
-                cash = float(margin_data.get('cash', 0))
-                payin = float(margin_data.get('payin', 0))
-                margin_used = float(margin_data.get('marginused', 0))
+                cash = float(margin_data.get("cash", 0))
+                payin = float(margin_data.get("payin", 0))
+                margin_used = float(margin_data.get("marginused", 0))
                 total_available_margin = cash + payin - margin_used
 
-                total_collateral = float(margin_data.get('brkcollamt', 0))
+                total_collateral = float(margin_data.get("brkcollamt", 0))
                 total_used_margin = margin_used
 
                 # Construct and return the processed margin data in same format as Shoonya
@@ -67,14 +62,14 @@ def get_margin_data(auth_token):
                     "availablecash": "{:.2f}".format(total_available_margin),
                     "collateral": "{:.2f}".format(total_collateral),
                     "m2munrealized": "0.00",  # Not provided by Firstock API
-                    "m2mrealized": "0.00",    # Not provided by Firstock API
-                    "utiliseddebits": "{:.2f}".format(total_used_margin)
+                    "m2mrealized": "0.00",  # Not provided by Firstock API
+                    "utiliseddebits": "{:.2f}".format(total_used_margin),
                 }
 
                 logger.info("Successfully fetched and processed margin data")
                 return processed_margin_data
             else:
-                error_msg = data.get('error', {}).get('message', 'Unknown error')
+                error_msg = data.get("error", {}).get("message", "Unknown error")
                 logger.error(f"API error fetching margin data: {error_msg}")
                 return {}
         else:

@@ -22,16 +22,18 @@ class LatencyTracker:
         """Start timing a new stage"""
         self.current_stage = stage_name
         self.stage_start = time.time()
-        if stage_name == 'broker_request':
+        if stage_name == "broker_request":
             self.request_start = self.stage_start
 
     def end_stage(self):
         """End timing the current stage"""
         if self.current_stage and self.stage_start:
             current_time = time.time()
-            duration = (current_time - self.stage_start) * 1000  # Convert to milliseconds
+            duration = (
+                current_time - self.stage_start
+            ) * 1000  # Convert to milliseconds
             self.stage_times[self.current_stage] = duration
-            if self.current_stage == 'broker_request':
+            if self.current_stage == "broker_request":
                 self.request_end = current_time
             self.current_stage = None
             self.stage_start = None
@@ -48,11 +50,14 @@ class LatencyTracker:
 
     def get_overhead(self):
         """Get total overhead from our processing"""
-        return (self.stage_times.get('validation', 0) +
-                self.stage_times.get('broker_response', 0))
+        return self.stage_times.get("validation", 0) + self.stage_times.get(
+            "broker_response", 0
+        )
+
 
 def track_latency(api_type):
     """Decorator to track latency for API endpoints"""
+
     def decorator(f):
         @wraps(f)
         async def wrapped(request: Request, *args, **kwargs):
@@ -62,16 +67,20 @@ def track_latency(api_type):
 
             try:
                 # Start validation stage
-                tracker.start_stage('validation')
+                tracker.start_stage("validation")
 
                 # Get request data for logging
-                request_data = await request.json() if request.headers.get('content-type') == 'application/json' else {}
+                request_data = (
+                    await request.json()
+                    if request.headers.get("content-type") == "application/json"
+                    else {}
+                )
 
                 # End validation stage after getting request data
                 tracker.end_stage()
 
                 # Start broker request stage
-                tracker.start_stage('broker_request')
+                tracker.start_stage("broker_request")
 
                 # Execute the actual endpoint
                 response = await f(request, *args, **kwargs)
@@ -80,10 +89,10 @@ def track_latency(api_type):
                 tracker.end_stage()
 
                 # Start response processing stage
-                tracker.start_stage('broker_response')
+                tracker.start_stage("broker_response")
 
                 # Get response data
-                if hasattr(response, 'json'):
+                if hasattr(response, "json"):
                     response_data = response.json
                 elif isinstance(response, tuple) and len(response) > 0:
                     response_data = response[0]
@@ -97,7 +106,7 @@ def track_latency(api_type):
                 if isinstance(response, tuple):
                     status_code = response[1] if len(response) > 1 else 200
                 else:
-                    status_code = getattr(response, 'status_code', 200)
+                    status_code = getattr(response, "status_code", 200)
 
                 # Calculate latencies
                 rtt = tracker.get_rtt()
@@ -106,32 +115,34 @@ def track_latency(api_type):
 
                 # Log the latency data
                 # Handle the case where orderid might be null in the response
-                order_id = response_data.get('orderid')
+                order_id = response_data.get("orderid")
                 if order_id is None:
-                    order_id = response_data.get('request_id', 'unknown')
+                    order_id = response_data.get("request_id", "unknown")
 
                 # Get broker name from auth_db using API key
                 broker_name = None
-                if 'apikey' in request_data:
-                    broker_name = get_broker_name(request_data['apikey'])
+                if "apikey" in request_data:
+                    broker_name = get_broker_name(request_data["apikey"])
 
                 OrderLatency.log_latency(
                     order_id=order_id,
-                    user_id=request.state.get('user_id'),
+                    user_id=request.state.get("user_id"),
                     broker=broker_name,
-                    symbol=request_data.get('symbol'),
+                    symbol=request_data.get("symbol"),
                     order_type=api_type,
                     latencies={
-                        'rtt': rtt,  # Round-trip time (comparable to Postman/Bruno)
-                        'validation': tracker.stage_times.get('validation', 0),
-                        'broker_response': tracker.stage_times.get('broker_response', 0),
-                        'overhead': overhead,
-                        'total': total
+                        "rtt": rtt,  # Round-trip time (comparable to Postman/Bruno)
+                        "validation": tracker.stage_times.get("validation", 0),
+                        "broker_response": tracker.stage_times.get(
+                            "broker_response", 0
+                        ),
+                        "overhead": overhead,
+                        "total": total,
                     },
                     request_body=request_data,
                     response_body=response_data,
-                    status='SUCCESS' if status_code < 400 else 'FAILED',
-                    error=response_data.get('message') if status_code >= 400 else None
+                    status="SUCCESS" if status_code < 400 else "FAILED",
+                    error=response_data.get("message") if status_code >= 400 else None,
                 )
 
                 return response
@@ -144,26 +155,28 @@ def track_latency(api_type):
 
                 # Get broker name from auth_db using API key if available
                 broker_name = None
-                if 'request_data' in locals() and 'apikey' in request_data:
-                    broker_name = get_broker_name(request_data['apikey'])
+                if "request_data" in locals() and "apikey" in request_data:
+                    broker_name = get_broker_name(request_data["apikey"])
 
                 OrderLatency.log_latency(
-                    order_id='error',
-                    user_id=request.state.get('user_id'),
+                    order_id="error",
+                    user_id=request.state.get("user_id"),
                     broker=broker_name,
-                    symbol=request_data.get('symbol') if 'request_data' in locals() else None,
+                    symbol=request_data.get("symbol")
+                    if "request_data" in locals()
+                    else None,
                     order_type=api_type,
                     latencies={
-                        'rtt': rtt,
-                        'validation': tracker.stage_times.get('validation', 0),
-                        'broker_response': 0,
-                        'overhead': overhead,
-                        'total': total_time
+                        "rtt": rtt,
+                        "validation": tracker.stage_times.get("validation", 0),
+                        "broker_response": 0,
+                        "overhead": overhead,
+                        "total": total_time,
                     },
-                    request_body=request_data if 'request_data' in locals() else None,
+                    request_body=request_data if "request_data" in locals() else None,
                     response_body=None,
-                    status='FAILED',
-                    error=str(e)
+                    status="FAILED",
+                    error=str(e),
                 )
                 raise
 
@@ -171,5 +184,5 @@ def track_latency(api_type):
                 latency_session.remove()
 
         return wrapped
-    return decorator
 
+    return decorator

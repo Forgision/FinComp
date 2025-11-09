@@ -1,5 +1,5 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
 
 from app.core.schemas.token_db import get_br_symbol
 
@@ -23,7 +23,7 @@ def transform_data(data, token):
         "discQty": str(data.get("disclosed_quantity", "0")),
         "amo": data.get("amo", False),
         "mktProt": str(data.get("market_protection", "0")),
-        "remarks": data.get("remarks", "")
+        "remarks": data.get("remarks", ""),
     }
 
     # Remove optional fields if not set
@@ -53,7 +53,9 @@ def transform_modify_order_data(data, token):
     # Get the correct br_symbol from the database
     br_symbol = get_br_symbol(data["symbol"], data["exchange"])
     if not br_symbol:
-        raise ValueError(f"Could not find br_symbol for {data['symbol']} on {data['exchange']}")
+        raise ValueError(
+            f"Could not find br_symbol for {data['symbol']} on {data['exchange']}"
+        )
 
     transformed = {
         "symId": br_symbol,
@@ -88,31 +90,26 @@ def map_order_type(pricetype):
         "MARKET": "market",
         "LIMIT": "limit",
         "SL": "stoplimit",
-        "SL-M": "stopmarket"
+        "SL-M": "stopmarket",
     }
     return order_type_mapping.get(pricetype, "market")
+
 
 def map_product_type(product):
     """
     Maps OpenAlgo product types to Tradejini product types.
     """
-    product_type_mapping = {
-        "CNC": "delivery",
-        "NRML": "normal",
-        "MIS": "intraday"
-    }
+    product_type_mapping = {"CNC": "delivery", "NRML": "normal", "MIS": "intraday"}
     return product_type_mapping.get(product, "intraday")
+
 
 def map_validity(validity):
     """
     Maps OpenAlgo validity types to Tradejini validity types.
     """
-    validity_mapping = {
-        "DAY": "day",
-        "IOC": "ioc",
-        "GTC": "gtc"
-    }
+    validity_mapping = {"DAY": "day", "IOC": "ioc", "GTC": "gtc"}
     return validity_mapping.get(validity, "day")
+
 
 def reverse_map_product_type(product):
     """
@@ -121,6 +118,6 @@ def reverse_map_product_type(product):
     reverse_product_type_mapping = {
         "delivery": "CNC",
         "normal": "NRML",
-        "intraday": "MIS"
+        "intraday": "MIS",
     }
     return reverse_product_type_mapping.get(product)

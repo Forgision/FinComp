@@ -8,9 +8,10 @@ from app.core.config import settings
 from .....utils.httpx_client import get_httpx_client
 
 # Pocketful API endpoints
-BASE_URL = 'https://trade.pocketful.in'
+BASE_URL = "https://trade.pocketful.in"
 TOKEN_ENDPOINT = f"{BASE_URL}/oauth2/token"
 USER_INFO_ENDPOINT = f"{BASE_URL}/api/v1/user/trading_info"
+
 
 def authenticate_broker(auth_code=None, state=None):
     """
@@ -27,14 +28,24 @@ def authenticate_broker(auth_code=None, state=None):
     try:
         # For OAuth flow, we need the auth_code
         if not auth_code:
-            return None, None, None, "No authorization code provided. Please authenticate through the OAuth flow."
+            return (
+                None,
+                None,
+                None,
+                "No authorization code provided. Please authenticate through the OAuth flow.",
+            )
 
         # Get client credentials from environment
         client_id = settings.BROKER_API_KEY
         client_secret = settings.BROKER_API_SECRET
 
         if not client_id or not client_secret:
-            return None, None, None, "Missing API credentials. Please set BROKER_API_KEY and BROKER_API_SECRET in your environment."
+            return (
+                None,
+                None,
+                None,
+                "Missing API credentials. Please set BROKER_API_KEY and BROKER_API_SECRET in your environment.",
+            )
 
         # Create base64 encoded Authorization header
         credentials = f"{client_id}:{client_secret}"
@@ -46,15 +57,15 @@ def authenticate_broker(auth_code=None, state=None):
 
         # Prepare the token request
         headers = {
-            'Authorization': f'Basic {encoded_credentials}',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Cache-Control': 'no-cache'
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Cache-Control": "no-cache",
         }
 
         data = {
-            'grant_type': 'authorization_code',
-            'code': auth_code,
-            'redirect_uri': redirect_uri
+            "grant_type": "authorization_code",
+            "code": auth_code,
+            "redirect_uri": redirect_uri,
         }
 
         # Get the shared httpx client
@@ -70,23 +81,26 @@ def authenticate_broker(auth_code=None, state=None):
             # Token exchange failed
             try:
                 error_detail = response.json()
-                error_message = error_detail.get('message', 'Authentication failed. Please check your authorization code.')
+                error_message = error_detail.get(
+                    "message",
+                    "Authentication failed. Please check your authorization code.",
+                )
             except Exception:
-                error_message = f"Authentication failed with status code: {response.status_code}"
+                error_message = (
+                    f"Authentication failed with status code: {response.status_code}"
+                )
 
             return None, None, None, f"API error: {error_message}"
 
         # Parse token response
         token_data = response.json()
-        access_token = token_data.get('access_token')
+        access_token = token_data.get("access_token")
 
         if not access_token:
             return None, None, None, "Access token not found in response"
 
         # Now fetch the client_id from trading_info endpoint
-        headers = {
-            'Authorization': f'Bearer {access_token}'
-        }
+        headers = {"Authorization": f"Bearer {access_token}"}
 
         # Make request to trading_info endpoint
         try:
@@ -98,11 +112,16 @@ def authenticate_broker(auth_code=None, state=None):
             # Parse the response JSON
             info_data = info_response.json()
 
-            if info_data.get('status') != 'success':
-                return access_token, None, None, f"Failed to fetch client ID: {info_data.get('message', 'Unknown error')}"
+            if info_data.get("status") != "success":
+                return (
+                    access_token,
+                    None,
+                    None,
+                    f"Failed to fetch client ID: {info_data.get('message', 'Unknown error')}",
+                )
 
             # Extract client_id from the response
-            client_id = info_data.get('data', {}).get('client_id')
+            client_id = info_data.get("data", {}).get("client_id")
 
             if not client_id:
                 return access_token, None, None, "Client ID not found in response"
@@ -117,6 +136,7 @@ def authenticate_broker(auth_code=None, state=None):
         # Exception handling
         return None, None, None, f"An exception occurred: {str(e)}"
 
+
 def get_authorization_url():
     """
     Generate the authorization URL for Pocketful OAuth
@@ -127,7 +147,10 @@ def get_authorization_url():
     try:
         client_id = settings.BROKER_API_KEY
         if not client_id:
-            return None, "Missing API key. Please set BROKER_API_KEY in your environment."
+            return (
+                None,
+                "Missing API key. Please set BROKER_API_KEY in your environment.",
+            )
 
         # Get the redirect URL from environment variable
         redirect_uri = settings.REDIRECT_URL
@@ -138,15 +161,16 @@ def get_authorization_url():
         # Generate a random state for security
         import random
         import string
-        state = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+
+        state = "".join(random.choices(string.ascii_letters + string.digits, k=16))
 
         # Build the authorization URL
         params = {
-            'client_id': client_id,
-            'redirect_uri': redirect_uri,
-            'response_type': 'code',
-            'scope': scope,
-            'state': state
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": scope,
+            "state": state,
         }
 
         auth_url = f"{BASE_URL}/oauth2/auth?{urlencode(params)}"

@@ -16,13 +16,14 @@ from app.utils.web.security import (
 
 core_router = APIRouter()
 
-@core_router.post('/setup')
+
+@core_router.post("/setup")
 async def post_setup(
     request: Request,
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     if await find_user_by_username(db) is not None:
         return RedirectResponse(url="/auth/login", status_code=status.HTTP_302_FOUND)
@@ -47,14 +48,16 @@ async def post_setup(
 
         # Create QR code image
         img_buffer = io.BytesIO()
-        qr.make_image(fill_color="black", back_color="white").save(img_buffer, format='PNG')
+        qr.make_image(fill_color="black", back_color="white").save(
+            img_buffer, format="PNG"
+        )
         qr_code = base64.b64encode(img_buffer.getvalue()).decode()
 
         # Store TOTP setup in session temporarily for later access if needed
-        request.session['totp_setup'] = True
-        request.session['username'] = username
-        request.session['qr_code'] = qr_code
-        request.session['totp_secret'] = user.totp_secret
+        request.session["totp_setup"] = True
+        request.session["username"] = username
+        request.session["qr_code"] = qr_code
+        request.session["totp_secret"] = user.totp_secret
 
         # Flash message with SMTP setup info and redirect to login
         # flash(request, 'Account created successfully! Please configure your SMTP credentials in Profile settings for password recovery.', 'success')
@@ -63,4 +66,7 @@ async def post_setup(
         # If the user already exists or an error occurred, show an error message
         logger.error(f"Failed to create admin user {username}")
         # flash(request, 'User already exists or an error occurred', 'error')
-        return JSONResponse(content={"error_message": "User already exists or an error occurred"}, status_code=400)
+        return JSONResponse(
+            content={"error_message": "User already exists or an error occurred"},
+            status_code=400,
+        )

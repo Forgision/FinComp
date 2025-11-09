@@ -23,8 +23,8 @@ def get_api_response(endpoint, auth, method="GET", payload=None):
         url = f"https://ant.aliceblueonline.com{endpoint}"
 
         headers = {
-            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         logger.debug(f"Making {method} request to AliceBlue API: {url}")
@@ -32,9 +32,21 @@ def get_api_response(endpoint, auth, method="GET", payload=None):
         if method.upper() == "GET":
             response = client.get(url, headers=headers)
         elif method.upper() == "POST":
-            response = client.post(url, json=json.loads(payload) if isinstance(payload, str) and payload else payload, headers=headers)
+            response = client.post(
+                url,
+                json=json.loads(payload)
+                if isinstance(payload, str) and payload
+                else payload,
+                headers=headers,
+            )
         elif method.upper() == "PUT":
-            response = client.put(url, json=json.loads(payload) if isinstance(payload, str) and payload else payload, headers=headers)
+            response = client.put(
+                url,
+                json=json.loads(payload)
+                if isinstance(payload, str) and payload
+                else payload,
+                headers=headers,
+            )
         elif method.upper() == "DELETE":
             response = client.delete(url, headers=headers)
         else:
@@ -57,11 +69,15 @@ def get_api_response(endpoint, auth, method="GET", payload=None):
 
 
 def get_order_book(auth):
+    return get_api_response(
+        "/rest/AliceBlueAPIService/api/placeOrder/fetchOrderBook", auth
+    )
 
-    return get_api_response("/rest/AliceBlueAPIService/api/placeOrder/fetchOrderBook",auth)
 
 def get_trade_book(auth):
-    response = get_api_response("/rest/AliceBlueAPIService/api/placeOrder/fetchTradeBook", auth)
+    response = get_api_response(
+        "/rest/AliceBlueAPIService/api/placeOrder/fetchTradeBook", auth
+    )
 
     # Log the raw tradebook response from AliceBlue API
     logger.info(f"AliceBlue tradebook API response type: {type(response)}")
@@ -69,32 +85,40 @@ def get_trade_book(auth):
         if isinstance(response, list) and len(response) > 0:
             logger.info(f"First trade from AliceBlue API: {response[0]}")
         elif isinstance(response, dict):
-            logger.info(f"AliceBlue API returned dict with keys: {list(response.keys())}")
-            if response.get('stat') == 'Ok':
+            logger.info(
+                f"AliceBlue API returned dict with keys: {list(response.keys())}"
+            )
+            if response.get("stat") == "Ok":
                 logger.info("Success response, checking data field...")
 
     return response
 
-def get_positions(auth):
-    payload = json.dumps({
-    "ret": "NET"
-    })
 
-    return get_api_response("/rest/AliceBlueAPIService/api/positionAndHoldings/positionBook",auth,"POST",payload=payload)
+def get_positions(auth):
+    payload = json.dumps({"ret": "NET"})
+
+    return get_api_response(
+        "/rest/AliceBlueAPIService/api/positionAndHoldings/positionBook",
+        auth,
+        "POST",
+        payload=payload,
+    )
+
 
 def get_holdings(auth):
-    return get_api_response("/rest/AliceBlueAPIService/api/positionAndHoldings/holdings",auth)
+    return get_api_response(
+        "/rest/AliceBlueAPIService/api/positionAndHoldings/holdings", auth
+    )
 
-def get_open_position(tradingsymbol, exchange, product,auth):
 
-    #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol,exchange)
-
+def get_open_position(tradingsymbol, exchange, product, auth):
+    # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
+    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
 
     position_data = get_positions(auth)
 
     if isinstance(position_data, dict):
-        if position_data['stat'] == 'Not_Ok' :
+        if position_data["stat"] == "Not_Ok":
             # Handle the case where there is an error in the data
             # For example, you might want to display an error message to the user
             # or pass an empty list or dictionary to the template.
@@ -103,17 +127,22 @@ def get_open_position(tradingsymbol, exchange, product,auth):
     else:
         position_data = position_data
 
-    net_qty = '0'
-    #logger.info(f"{positions_data['data']['net']}")
+    net_qty = "0"
+    # logger.info(f"{positions_data['data']['net']}")
 
-    if position_data :
+    if position_data:
         for position in position_data:
-            if position.get('Tsym') == tradingsymbol and position.get('Exchange') == exchange and position.get('Pcode') == product:
-                net_qty = position.get('Netqty', '0')
+            if (
+                position.get("Tsym") == tradingsymbol
+                and position.get("Exchange") == exchange
+                and position.get("Pcode") == product
+            ):
+                net_qty = position.get("Netqty", "0")
                 logger.info(f"Net Quantity {net_qty}")
                 break  # Assuming you need the first match
 
     return net_qty
+
 
 def place_order_api(data, auth):
     """Place an order using the AliceBlue API with shared connection pooling."""
@@ -126,8 +155,8 @@ def place_order_api(data, auth):
 
         # Prepare headers and payload
         headers = {
-            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         payload = [newdata]
@@ -144,11 +173,11 @@ def place_order_api(data, auth):
         # Process the response
         response_data = response_data[0]
         logger.info(f"Place order response: {response_data}")
-        if response_data['stat'] == 'Ok':
-            orderid = response_data['NOrdNo']
+        if response_data["stat"] == "Ok":
+            orderid = response_data["NOrdNo"]
         else:
             # Extract error message if present
-            error_msg = response_data.get('emsg', 'No error message provided by API')
+            error_msg = response_data.get("emsg", "No error message provided by API")
             logger.error(f"Order placement failed: {error_msg}")
             logger.error(f"Order placement error: {error_msg}")
             orderid = None
@@ -162,20 +191,20 @@ def place_order_api(data, auth):
         logger.error(f"HTTP error during place order: {str(e)}")
         response_data = {"stat": "Not_Ok", "emsg": f"HTTP error: {str(e)}"}
         # Create a simple object with status attribute set to 500
-        response = type('', (), {'status': 500, 'status_code': 500})()
+        response = type("", (), {"status": 500, "status_code": 500})()
         return response, response_data, None
     except Exception as e:
         logger.error(f"Error during place order: {str(e)}")
         response_data = {"stat": "Not_Ok", "emsg": f"General error: {str(e)}"}
         # Create a simple object with status attribute set to 500
-        response = type('', (), {'status': 500, 'status_code': 500})()
+        response = type("", (), {"status": 500, "status_code": 500})()
         return response, response_data, None
 
-def place_smartorder_api(data,auth):
 
+def place_smartorder_api(data, auth):
     AUTH_TOKEN = auth
 
-    #If no API call is made in this function then res will return None
+    # If no API call is made in this function then res will return None
     res = None
 
     # Extract necessary info from data
@@ -184,11 +213,10 @@ def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-
-
     # Get current open position for the symbol
-    current_position = int(get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
-
+    current_position = int(
+        get_open_position(symbol, exchange, map_product_type(product), AUTH_TOKEN)
+    )
 
     logger.info(f"position_size : {position_size}")
     logger.info(f"Open Position : {current_position}")
@@ -197,34 +225,37 @@ def place_smartorder_api(data,auth):
     action = None
     quantity = 0
 
-
     # If both position_size and current_position are 0, do nothing
     # If both position_size and current_position are 0, do nothing
-    if position_size == 0 and current_position == 0 and int(data['quantity'])!=0:
-        action = data['action']
-        quantity = data['quantity']
-        #logger.info(f"action : {action}")
-        #logger.info(f"Quantity : {quantity}")
-        res, response, orderid = place_order_api(data,AUTH_TOKEN)
-        #logger.info(f"{res}")
-        #logger.info(f"{response}")
+    if position_size == 0 and current_position == 0 and int(data["quantity"]) != 0:
+        action = data["action"]
+        quantity = data["quantity"]
+        # logger.info(f"action : {action}")
+        # logger.info(f"Quantity : {quantity}")
+        res, response, orderid = place_order_api(data, AUTH_TOKEN)
+        # logger.info(f"{res}")
+        # logger.info(f"{response}")
 
-        return res , response, orderid
+        return res, response, orderid
 
     elif position_size == current_position:
-        if int(data['quantity'])==0:
-            response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
+        if int(data["quantity"]) == 0:
+            response = {
+                "status": "success",
+                "message": "No OpenPosition Found. Not placing Exit order.",
+            }
         else:
-            response = {"status": "success", "message": "No action needed. Position size matches current position"}
+            response = {
+                "status": "success",
+                "message": "No action needed. Position size matches current position",
+            }
         orderid = None
         return res, response, orderid  # res remains None as no API call was mad
 
-
-
-    if position_size == 0 and current_position>0 :
+    if position_size == 0 and current_position > 0:
         action = "SELL"
         quantity = abs(current_position)
-    elif position_size == 0 and current_position<0 :
+    elif position_size == 0 and current_position < 0:
         action = "BUY"
         quantity = abs(current_position)
     elif current_position == 0:
@@ -234,14 +265,11 @@ def place_smartorder_api(data,auth):
         if position_size > current_position:
             action = "BUY"
             quantity = position_size - current_position
-            #logger.info(f"smart buy quantity : {quantity}")
+            # logger.info(f"smart buy quantity : {quantity}")
         elif position_size < current_position:
             action = "SELL"
             quantity = current_position - position_size
-            #logger.info(f"smart sell quantity : {quantity}")
-
-
-
+            # logger.info(f"smart sell quantity : {quantity}")
 
     if action:
         # Prepare data for placing the order
@@ -249,25 +277,22 @@ def place_smartorder_api(data,auth):
         order_data["action"] = action
         order_data["quantity"] = str(quantity)
 
-        #logger.info(f"{order_data}")
+        # logger.info(f"{order_data}")
         # Place the order
-        res, response, orderid = place_order_api(order_data,AUTH_TOKEN)
-        #logger.info(f"{res}")
-        #logger.info(f"{response}")
+        res, response, orderid = place_order_api(order_data, AUTH_TOKEN)
+        # logger.info(f"{res}")
+        # logger.info(f"{response}")
 
-        return res , response, orderid
-
-
+        return res, response, orderid
 
 
-def close_all_positions(current_api_key,auth):
-
+def close_all_positions(current_api_key, auth):
     AUTH_TOKEN = auth
     # Fetch the current open positions
     positions_response = get_positions(AUTH_TOKEN)
 
     if isinstance(positions_response, dict):
-        if positions_response['stat'] == 'Not_Ok' :
+        if positions_response["stat"] == "Not_Ok":
             # Handle the case where there is an error in the data
             # For example, you might want to display an error message to the user
             # or pass an empty list or dictionary to the template.
@@ -276,49 +301,46 @@ def close_all_positions(current_api_key,auth):
     else:
         positions_response = positions_response
 
-
-    #logger.info(f"{positions_response}")
+    # logger.info(f"{positions_response}")
     # Check if the positions data is null or empty
     if positions_response is None or not positions_response:
         return {"message": "No Open Positions Found"}, 200
-
-
 
     if positions_response:
         # Loop through each position to close
         for position in positions_response:
             # Skip if net quantity is zero
-            if int(position['Netqty']) == 0:
+            if int(position["Netqty"]) == 0:
                 continue
 
             # Determine action based on net quantity
-            action = 'SELL' if int(position['Netqty']) > 0 else 'BUY'
-            quantity = abs(int(position['Netqty']))
+            action = "SELL" if int(position["Netqty"]) > 0 else "BUY"
+            quantity = abs(int(position["Netqty"]))
 
-            #Get OA Symbol before sending to Place Order
-            symbol = get_oa_symbol(position['Tsym'],position['Exchange'])
+            # Get OA Symbol before sending to Place Order
+            symbol = get_oa_symbol(position["Tsym"], position["Exchange"])
             # Prepare the order payload
             place_order_payload = {
                 "apikey": current_api_key,
                 "strategy": "Squareoff",
                 "symbol": symbol,
                 "action": action,
-                "exchange": position['Exchange'],
+                "exchange": position["Exchange"],
                 "pricetype": "MARKET",
-                "product": position['Pcode'],
-                "quantity": str(quantity)
+                "product": position["Pcode"],
+                "quantity": str(quantity),
             }
 
             logger.info(f"{place_order_payload}")
 
             # Place the order to close the position
-            _, api_response, _ =   place_order_api(place_order_payload,AUTH_TOKEN)
+            _, api_response, _ = place_order_api(place_order_payload, AUTH_TOKEN)
 
             logger.info(f"{api_response}")
 
             # Note: Ensure place_order_api handles any errors and logs accordingly
 
-    return {'status': 'success', "message": "All Open Positions SquaredOff"}, 200
+    return {"status": "success", "message": "All Open Positions SquaredOff"}, 200
 
 
 def cancel_order(orderid, auth):
@@ -341,14 +363,14 @@ def cancel_order(orderid, auth):
 
         # Prepare headers and payload
         headers = {
-            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         payload = {
             "exch": Exchange,
             "nestOrderNumber": orderid,
-            "trading_symbol": Trading_symbol
+            "trading_symbol": Trading_symbol,
         }
 
         logger.debug(f"Cancel order payload: {json.dumps(payload, indent=2)}")
@@ -364,10 +386,16 @@ def cancel_order(orderid, auth):
         # Check if the request was successful
         if response_data.get("stat") == "Ok":
             # Return a success response
-            return {"status": "success", "orderid": response_data["nestOrderNumber"]}, 200
+            return {
+                "status": "success",
+                "orderid": response_data["nestOrderNumber"],
+            }, 200
         else:
             # Return an error response
-            return {"status": "error", "message": response_data.get("emsg", "Failed to cancel order")}, response.status_code
+            return {
+                "status": "error",
+                "message": response_data.get("emsg", "Failed to cancel order"),
+            }, response.status_code
 
     except httpx.HTTPError as e:
         logger.error(f"HTTP error during cancel order: {str(e)}")
@@ -388,8 +416,8 @@ def modify_order(data, auth):
 
         # Prepare headers
         headers = {
-            'Authorization': f'Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {settings.BROKER_API_SECRET} {AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         logger.debug(f"Modify order payload: {json.dumps(newdata, indent=2)}")
@@ -404,9 +432,15 @@ def modify_order(data, auth):
 
         # Process the response
         if response_data.get("stat") == "Ok":
-            return {"status": "success", "orderid": response_data["nestOrderNumber"]}, 200
+            return {
+                "status": "success",
+                "orderid": response_data["nestOrderNumber"],
+            }, 200
         else:
-            return {"status": "error", "message": response_data.get("emsg", "Failed to modify order")}, response.status_code
+            return {
+                "status": "error",
+                "message": response_data.get("emsg", "Failed to modify order"),
+            }, response.status_code
 
     except httpx.HTTPError as e:
         logger.error(f"HTTP error during modify order: {str(e)}")
@@ -416,27 +450,32 @@ def modify_order(data, auth):
         return {"status": "error", "message": f"General error: {str(e)}"}, 500
 
 
-def cancel_all_orders_api(data,auth):
-
+def cancel_all_orders_api(data, auth):
     AUTH_TOKEN = auth
     # Get the order book
     order_book_response = get_order_book(AUTH_TOKEN)
-    #logger.info(f"{order_book_response}")
+    # logger.info(f"{order_book_response}")
     if isinstance(order_book_response, dict):
-        if order_book_response['stat'] == 'Not_Ok':
-            return [], []  # Return empty lists indicating failure to retrieve the order book
+        if order_book_response["stat"] == "Not_Ok":
+            return (
+                [],
+                [],
+            )  # Return empty lists indicating failure to retrieve the order book
 
     # Filter orders that are in 'open' or 'trigger_pending' state
-    orders_to_cancel = [order for order in order_book_response
-                        if order['Status'] in ['open', 'trigger pending']]
+    orders_to_cancel = [
+        order
+        for order in order_book_response
+        if order["Status"] in ["open", "trigger pending"]
+    ]
     logger.info(f"{orders_to_cancel}")
     canceled_orders = []
     failed_cancellations = []
 
     # Cancel the filtered orders
     for order in orders_to_cancel:
-        orderid = order['Nstordno']
-        cancel_response, status_code = cancel_order(orderid,AUTH_TOKEN)
+        orderid = order["Nstordno"]
+        cancel_response, status_code = cancel_order(orderid, AUTH_TOKEN)
         if status_code == 200:
             canceled_orders.append(orderid)
         else:

@@ -2,20 +2,21 @@
 Groww exchange mapping and capability registry for WebSocket streaming
 """
 
+
 class GrowwExchangeMapper:
     """Maps OpenAlgo exchange codes to Groww exchange/segment format"""
 
     # Mapping from OpenAlgo exchange to Groww exchange and segment
     EXCHANGE_MAP = {
-        'NSE': {'exchange': 'NSE', 'segment': 'CASH'},
-        'BSE': {'exchange': 'BSE', 'segment': 'CASH'},
-        'NFO': {'exchange': 'NSE', 'segment': 'FNO'},
-        'BFO': {'exchange': 'BSE', 'segment': 'FNO'},
-        'MCX': {'exchange': 'MCX', 'segment': 'COMM'},
-        'CDS': {'exchange': 'NSE', 'segment': 'CDS'},
-        'BCD': {'exchange': 'BSE', 'segment': 'CDS'},
-        'NSE_INDEX': {'exchange': 'NSE', 'segment': 'CASH'},
-        'BSE_INDEX': {'exchange': 'BSE', 'segment': 'CASH'}
+        "NSE": {"exchange": "NSE", "segment": "CASH"},
+        "BSE": {"exchange": "BSE", "segment": "CASH"},
+        "NFO": {"exchange": "NSE", "segment": "FNO"},
+        "BFO": {"exchange": "BSE", "segment": "FNO"},
+        "MCX": {"exchange": "MCX", "segment": "COMM"},
+        "CDS": {"exchange": "NSE", "segment": "CDS"},
+        "BCD": {"exchange": "BSE", "segment": "CDS"},
+        "NSE_INDEX": {"exchange": "NSE", "segment": "CASH"},
+        "BSE_INDEX": {"exchange": "BSE", "segment": "CASH"},
     }
 
     @classmethod
@@ -30,7 +31,7 @@ class GrowwExchangeMapper:
             str: Groww exchange code
         """
         mapping = cls.EXCHANGE_MAP.get(openalgo_exchange, {})
-        return mapping.get('exchange', openalgo_exchange)
+        return mapping.get("exchange", openalgo_exchange)
 
     @classmethod
     def get_segment(cls, openalgo_exchange: str) -> str:
@@ -44,7 +45,7 @@ class GrowwExchangeMapper:
             str: Groww segment (CASH, FNO, COMM, CDS)
         """
         mapping = cls.EXCHANGE_MAP.get(openalgo_exchange, {})
-        return mapping.get('segment', 'CASH')
+        return mapping.get("segment", "CASH")
 
     @classmethod
     def get_exchange_segment(cls, openalgo_exchange: str) -> tuple:
@@ -58,7 +59,9 @@ class GrowwExchangeMapper:
             tuple: (exchange, segment)
         """
         mapping = cls.EXCHANGE_MAP.get(openalgo_exchange, {})
-        return mapping.get('exchange', openalgo_exchange), mapping.get('segment', 'CASH')
+        return mapping.get("exchange", openalgo_exchange), mapping.get(
+            "segment", "CASH"
+        )
 
 
 class GrowwCapabilityRegistry:
@@ -68,22 +71,22 @@ class GrowwCapabilityRegistry:
 
     # Groww only supports depth level 5 for all exchanges
     SUPPORTED_DEPTH_LEVELS = {
-        'NSE': [5],
-        'BSE': [5],
-        'NFO': [5],
-        'BFO': [5],
-        'MCX': [5],
-        'CDS': [5],
-        'BCD': [5],
-        'NSE_INDEX': [5],
-        'BSE_INDEX': [5]
+        "NSE": [5],
+        "BSE": [5],
+        "NFO": [5],
+        "BFO": [5],
+        "MCX": [5],
+        "CDS": [5],
+        "BCD": [5],
+        "NSE_INDEX": [5],
+        "BSE_INDEX": [5],
     }
 
     # Subscription modes supported by Groww
     SUPPORTED_MODES = {
-        1: 'LTP',      # Last Traded Price
-        2: 'QUOTE',    # Quote (includes OHLC, volume)
-        3: 'DEPTH'     # Market Depth (5 levels)
+        1: "LTP",  # Last Traded Price
+        2: "QUOTE",  # Quote (includes OHLC, volume)
+        3: "DEPTH",  # Market Depth (5 levels)
     }
 
     @classmethod
@@ -140,7 +143,7 @@ class GrowwCapabilityRegistry:
         Returns:
             str: Mode name or 'UNKNOWN'
         """
-        return cls.SUPPORTED_MODES.get(mode, 'UNKNOWN')
+        return cls.SUPPORTED_MODES.get(mode, "UNKNOWN")
 
     @classmethod
     def get_supported_exchanges(cls) -> list:
@@ -164,9 +167,9 @@ class GrowwCapabilityRegistry:
             dict: Dictionary with exchange capabilities
         """
         return {
-            'exchange': exchange,
-            'supported_modes': list(cls.SUPPORTED_MODES.keys()),
-            'supported_depth_levels': cls.SUPPORTED_DEPTH_LEVELS.get(exchange, [5]),
-            'default_depth_level': 5,
-            'max_subscriptions': 1000  # Groww supports up to 1000 subscriptions
+            "exchange": exchange,
+            "supported_modes": list(cls.SUPPORTED_MODES.keys()),
+            "supported_depth_levels": cls.SUPPORTED_DEPTH_LEVELS.get(exchange, [5]),
+            "default_depth_level": 5,
+            "max_subscriptions": 1000,  # Groww supports up to 1000 subscriptions
         }

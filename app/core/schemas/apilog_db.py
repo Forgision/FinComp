@@ -14,13 +14,14 @@ from app.utils.logging import logger
 
 
 class OrderLog(Base):
-    __tablename__ = 'order_logs'
+    __tablename__ = "order_logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     api_type: Mapped[str] = mapped_column(Text, nullable=False)
     request_data: Mapped[str] = mapped_column(Text, nullable=False)
     response_data: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now())
+        DateTime(timezone=True), default=func.now()
+    )
 
 
 async def async_log_order(db: AsyncSession, api_type, request_data, response_data):
@@ -30,11 +31,15 @@ async def async_log_order(db: AsyncSession, api_type, request_data, response_dat
         response_json = json.dumps(response_data)
 
         # Get current time in IST
-        ist = pytz.timezone('Asia/Kolkata')
+        ist = pytz.timezone("Asia/Kolkata")
         now_ist = datetime.now(ist)
 
-        order_log = OrderLog(api_type=api_type, request_data=request_json,
-                            response_data=response_json, created_at=now_ist)
+        order_log = OrderLog(
+            api_type=api_type,
+            request_data=request_json,
+            response_data=response_json,
+            created_at=now_ist,
+        )
         db.add(order_log)
         await db.commit()
     except Exception as e:

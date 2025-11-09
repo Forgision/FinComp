@@ -214,7 +214,10 @@ async def setup_post(
     try:
         await csrf_protect.validate_csrf(request)
     except CsrfProtectError as e:
-        raise HTTPException(status_code=400, detail=f"CSRF token validation error:{e.message}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"CSRF token validation error: {e.message}. Ensure your client is sending the CSRF token correctly (e.g., in a header or form field).",
+        )
 
     if await user_service.get_total_users_count(db) > 0:
         flash(request, "Setup has already been completed.", "warning")

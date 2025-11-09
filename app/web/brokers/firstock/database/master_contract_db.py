@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pandas as pd
 from sqlalchemy import Float, Index, Integer, Sequence, String, select
-from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import os
 
 from app.core.schemas import get_db
@@ -10,14 +10,17 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 from app.utils.web.socketio import socketio
 
+
 class Base(DeclarativeBase):
     pass
 
 
 # Define SymToken table
 class SymToken(Base):
-    __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
+    __tablename__ = "symtoken"
+    id: Mapped[int] = mapped_column(
+        Integer, Sequence("symtoken_id_seq"), primary_key=True
+    )
     symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
     brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String)
@@ -31,12 +34,14 @@ class SymToken(Base):
     tick_size: Mapped[float] = mapped_column(Float)
 
     # Define a composite index on symbol and exchange columns
-    __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
+    __table_args__ = (Index("idx_symbol_exchange", "symbol", "exchange"),)
+
 
 def init_db():
     db = next(get_db())
     logger.info("Initializing Master Contract DB")
     Base.metadata.create_all(bind=db.get_bind())
+
 
 def delete_symtoken_table():
     db = next(get_db())
@@ -44,31 +49,40 @@ def delete_symtoken_table():
     db.query(SymToken).delete()
     db.commit()
 
+
 def copy_from_dataframe(df):
     db = next(get_db())
     logger.info("Performing Bulk Insert")
-    data_dict = df.to_dict(orient='records')
-    existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}
-    filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
+    data_dict = df.to_dict(orient="records")
+    existing_tokens = {
+        result.token for result in db.execute(select(SymToken.token)).scalars().all()
+    }
+    filtered_data_dict = [
+        row for row in data_dict if row["token"] not in existing_tokens
+    ]
 
     try:
         if filtered_data_dict:
             db.bulk_insert_mappings(SymToken, filtered_data_dict)
             db.commit()
-            logger.info(f"Bulk insert completed successfully with {len(filtered_data_dict)} new records.")
+            logger.info(
+                f"Bulk insert completed successfully with {len(filtered_data_dict)} new records."
+            )
         else:
             logger.info("No new records to insert.")
     except Exception as e:
         logger.error(f"Error during bulk insert: {e}")
         db.rollback()
 
+
 # Firstock URLs for downloading symbol files
 firstock_urls = {
     "NSE": "https://openapi.thefirstock.com/NSESymbolDownload?ref=wikiconnect.thefirstock.com",
     "BSE": "https://openapi.thefirstock.com/BSESymbolDownload?ref=wikiconnect.thefirstock.com",
     "NFO": "https://openapi.thefirstock.com/NFOSymbolDownload?ref=wikiconnect.thefirstock.com",
-    "BFO": "https://openapi.thefirstock.com/BFOSymbolDownload?ref=wikiconnect.thefirstock.com"
+    "BFO": "https://openapi.thefirstock.com/BFOSymbolDownload?ref=wikiconnect.thefirstock.com",
 }
+
 
 def download_firstock_data(output_path):
     """
@@ -98,19 +112,25 @@ def download_firstock_data(output_path):
                 response = client.get(url, timeout=30)
 
                 if response.status_code == 200:
-                    file_path = f'{output_path}/{exchange}_symbols.csv'
-                    with open(file_path, 'w') as f:
+                    file_path = f"{output_path}/{exchange}_symbols.csv"
+                    with open(file_path, "w") as f:
                         f.write(response.text)
                     downloaded_files.append(f"{exchange}_symbols.csv")
                     logger.info(f"Successfully downloaded {exchange} data")
                 else:
-                    logger.error(f"Failed to download {exchange} data. Status code: {response.status_code}")
+                    logger.error(
+                        f"Failed to download {exchange} data. Status code: {response.status_code}"
+                    )
 
             except Exception as e:
                 if "timeout" in str(e).lower():
-                    logger.error(f"Timeout while downloading {exchange} data - please try again")
+                    logger.error(
+                        f"Timeout while downloading {exchange} data - please try again"
+                    )
                 elif "connection" in str(e).lower():
-                    logger.error(f"Connection error while downloading {exchange} data - please check your internet connection")
+                    logger.error(
+                        f"Connection error while downloading {exchange} data - please check your internet connection"
+                    )
                 else:
                     logger.error(f"Error downloading {exchange} data: {str(e)}")
 
@@ -118,6 +138,7 @@ def download_firstock_data(output_path):
         logger.error(f"Error initializing HTTP client: {str(e)}")
 
     return downloaded_files
+
 
 def process_firstock_nse_data(output_path):
     """
@@ -127,83 +148,104 @@ def process_firstock_nse_data(output_path):
     Index symbols are identified by having 0 values in ISIN, TickSize, and FreezeQty columns.
     """
     logger.info("Processing Firstock NSE Data")
-    file_path = f'{output_path}/NSE_symbols.csv'
+    file_path = f"{output_path}/NSE_symbols.csv"
 
     # Read the NSE symbols file with all columns
     df = pd.read_csv(file_path)
 
     # Identify index symbols based on zero values in specific columns
-    df['is_index'] = (df['ISIN'].isna() | df['ISIN'].eq('')) & df['TickSize'].eq(0.0) & df['FreezeQty'].eq(0.0)
+    df["is_index"] = (
+        (df["ISIN"].isna() | df["ISIN"].eq(""))
+        & df["TickSize"].eq(0.0)
+        & df["FreezeQty"].eq(0.0)
+    )
 
     # Rename columns to match schema
     column_mapping = {
-        'Exchange': 'exchange',
-        'Token': 'token',
-        'LotSize': 'lotsize',
-        'TradingSymbol': 'brsymbol',
-        'CompanyName': 'name',
-        'TickSize': 'tick_size'
+        "Exchange": "exchange",
+        "Token": "token",
+        "LotSize": "lotsize",
+        "TradingSymbol": "brsymbol",
+        "CompanyName": "name",
+        "TickSize": "tick_size",
     }
     df = df.rename(columns=column_mapping)
 
     # Initialize symbol with brsymbol
-    df['symbol'] = df['brsymbol']
+    df["symbol"] = df["brsymbol"]
 
     # Apply transformation for OpenAlgo symbols
     def get_openalgo_symbol(broker_symbol):
-        if '-EQ' in broker_symbol:
-            return broker_symbol.replace('-EQ', '')
-        elif '-BE' in broker_symbol:
-            return broker_symbol.replace('-BE', '')
+        if "-EQ" in broker_symbol:
+            return broker_symbol.replace("-EQ", "")
+        elif "-BE" in broker_symbol:
+            return broker_symbol.replace("-BE", "")
         else:
             return broker_symbol
 
     # Update the symbol column
-    df['symbol'] = df['brsymbol'].apply(get_openalgo_symbol)
+    df["symbol"] = df["brsymbol"].apply(get_openalgo_symbol)
 
     # Map index symbols to OpenAlgo standard format
     index_symbol_mapping = {
-        'Nifty 50': 'NIFTY',
-        'Nifty Fin Service': 'FINNIFTY',
-        'Nifty Bank': 'BANKNIFTY',
-        'NIFTY MID SELECT': 'MIDCPNIFTY',
-        'INDIAVIX': 'INDIAVIX'
+        "Nifty 50": "NIFTY",
+        "Nifty Fin Service": "FINNIFTY",
+        "Nifty Bank": "BANKNIFTY",
+        "NIFTY MID SELECT": "MIDCPNIFTY",
+        "INDIAVIX": "INDIAVIX",
     }
 
     # Apply index symbol mapping
-    df['symbol'] = df['symbol'].replace(index_symbol_mapping)
+    df["symbol"] = df["symbol"].replace(index_symbol_mapping)
 
     # Set instrument type based on is_index flag and trading symbol
     def get_instrument_type(row):
-        if row['is_index']:
-            return 'INDEX'
-        elif '-BE' in row['brsymbol']:
-            return 'BE'
+        if row["is_index"]:
+            return "INDEX"
+        elif "-BE" in row["brsymbol"]:
+            return "BE"
         else:
-            return 'EQ'
+            return "EQ"
 
     # Set instrument type
-    df['instrumenttype'] = df.apply(get_instrument_type, axis=1)
+    df["instrumenttype"] = df.apply(get_instrument_type, axis=1)
 
     # Define Exchange: 'NSE' for EQ and BE, 'NSE_INDEX' for indexes
-    df['exchange'] = df.apply(lambda row: 'NSE_INDEX' if row['instrumenttype'] == 'INDEX' else 'NSE', axis=1)
+    df["exchange"] = df.apply(
+        lambda row: "NSE_INDEX" if row["instrumenttype"] == "INDEX" else "NSE", axis=1
+    )
     # brexchange should always be 'NSE' for Firstock (including indices)
-    df['brexchange'] = 'NSE'
+    df["brexchange"] = "NSE"
 
     # Set empty columns for expiry and strike
-    df['expiry'] = ''
-    df['strike'] = -1
+    df["expiry"] = ""
+    df["strike"] = -1
 
     # Handle missing or invalid numeric values
-    df['lotsize'] = pd.to_numeric(df['lotsize'], errors='coerce').fillna(0).astype(int)
-    df['tick_size'] = pd.to_numeric(df['tick_size'], errors='coerce').fillna(0).astype(float)
+    df["lotsize"] = pd.to_numeric(df["lotsize"], errors="coerce").fillna(0).astype(int)
+    df["tick_size"] = (
+        pd.to_numeric(df["tick_size"], errors="coerce").fillna(0).astype(float)
+    )
 
     # Reorder the columns to match the database structure
-    columns_to_keep = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange', 'token', 'expiry', 'strike', 'lotsize', 'instrumenttype', 'tick_size']
+    columns_to_keep = [
+        "symbol",
+        "brsymbol",
+        "name",
+        "exchange",
+        "brexchange",
+        "token",
+        "expiry",
+        "strike",
+        "lotsize",
+        "instrumenttype",
+        "tick_size",
+    ]
     df_filtered = df[columns_to_keep]
 
     # Return the processed DataFrame
     return df_filtered
+
 
 def process_firstock_nfo_data(output_path):
     """
@@ -211,58 +253,66 @@ def process_firstock_nfo_data(output_path):
     Handles both futures and options formatting.
     """
     logger.info("Processing Firstock NFO Data")
-    file_path = f'{output_path}/NFO_symbols.csv'
+    file_path = f"{output_path}/NFO_symbols.csv"
 
     # Read the NFO symbols file
     df = pd.read_csv(file_path)
 
     # Rename columns to match schema
     column_mapping = {
-        'Exchange': 'exchange',
-        'Token': 'token',
-        'LotSize': 'lotsize',
-        'Symbol': 'name',
-        'TradingSymbol': 'brsymbol',
-        'Expiry': 'expiry',
-        'Instrument': 'instrumenttype',
-        'OptionType': 'optiontype',
-        'StrikePrice': 'strike',
-        'TickSize': 'tick_size'
+        "Exchange": "exchange",
+        "Token": "token",
+        "LotSize": "lotsize",
+        "Symbol": "name",
+        "TradingSymbol": "brsymbol",
+        "Expiry": "expiry",
+        "Instrument": "instrumenttype",
+        "OptionType": "optiontype",
+        "StrikePrice": "strike",
+        "TickSize": "tick_size",
     }
     df = df.rename(columns=column_mapping)
 
     # Fill missing values
-    df['expiry'] = df['expiry'].fillna('')
-    df['strike'] = df['strike'].fillna(-1)
+    df["expiry"] = df["expiry"].fillna("")
+    df["strike"] = df["strike"].fillna(-1)
 
     # Format expiry date as DDMMMYY
     def format_expiry_date(date_str):
         try:
-            return datetime.strptime(date_str, '%d-%b-%Y').strftime('%d%b%y').upper()
+            return datetime.strptime(date_str, "%d-%b-%Y").strftime("%d%b%y").upper()
         except ValueError:
             logger.info(f"Invalid expiry date format: {date_str}")
             return None
 
     # Apply the expiry date format
-    df['expiry'] = df['expiry'].apply(format_expiry_date)
+    df["expiry"] = df["expiry"].apply(format_expiry_date)
 
     # Set instrument type based on option type
-    df['instrumenttype'] = df.apply(lambda row: 'FUT' if row['optiontype'] == 'XX' else row['optiontype'], axis=1)
+    df["instrumenttype"] = df.apply(
+        lambda row: "FUT" if row["optiontype"] == "XX" else row["optiontype"], axis=1
+    )
 
     # Format symbol based on instrument type
     def format_symbol(row):
-        if row['instrumenttype'] == 'FUT':
+        if row["instrumenttype"] == "FUT":
             return f"{row['name']}{row['expiry']}FUT"
         else:
             # Ensure strike prices are either integers or floats
-            formatted_strike = int(row['strike']) if float(row['strike']).is_integer() else row['strike']
-            return f"{row['name']}{row['expiry']}{formatted_strike}{row['instrumenttype']}"
+            formatted_strike = (
+                int(row["strike"])
+                if float(row["strike"]).is_integer()
+                else row["strike"]
+            )
+            return (
+                f"{row['name']}{row['expiry']}{formatted_strike}{row['instrumenttype']}"
+            )
 
-    df['symbol'] = df.apply(format_symbol, axis=1)
+    df["symbol"] = df.apply(format_symbol, axis=1)
 
     # Set exchange
-    df['exchange'] = 'NFO'
-    df['brexchange'] = df['exchange']
+    df["exchange"] = "NFO"
+    df["brexchange"] = df["exchange"]
 
     # Handle strike prices
     def handle_strike_price(strike):
@@ -274,17 +324,32 @@ def process_firstock_nfo_data(output_path):
         except (ValueError, TypeError):
             return -1
 
-    df['strike'] = df['strike'].apply(handle_strike_price)
+    df["strike"] = df["strike"].apply(handle_strike_price)
 
     # Handle numeric values
-    df['lotsize'] = pd.to_numeric(df['lotsize'], errors='coerce').fillna(0).astype(int)
-    df['tick_size'] = pd.to_numeric(df['tick_size'], errors='coerce').fillna(0).astype(float)
+    df["lotsize"] = pd.to_numeric(df["lotsize"], errors="coerce").fillna(0).astype(int)
+    df["tick_size"] = (
+        pd.to_numeric(df["tick_size"], errors="coerce").fillna(0).astype(float)
+    )
 
     # Reorder columns
-    columns_to_keep = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange', 'token', 'expiry', 'strike', 'lotsize', 'instrumenttype', 'tick_size']
+    columns_to_keep = [
+        "symbol",
+        "brsymbol",
+        "name",
+        "exchange",
+        "brexchange",
+        "token",
+        "expiry",
+        "strike",
+        "lotsize",
+        "instrumenttype",
+        "tick_size",
+    ]
     df_filtered = df[columns_to_keep]
 
     return df_filtered
+
 
 def process_firstock_bse_data(output_path):
     """
@@ -292,53 +357,68 @@ def process_firstock_bse_data(output_path):
     Ensures that the instrument type is always 'EQ'.
     """
     logger.info("Processing Firstock BSE Data")
-    file_path = f'{output_path}/BSE_symbols.csv'
+    file_path = f"{output_path}/BSE_symbols.csv"
 
     # Read the BSE symbols file
     df = pd.read_csv(file_path)
 
     # Rename columns to match schema
     column_mapping = {
-        'Exchange': 'exchange',
-        'Token': 'token',
-        'LotSize': 'lotsize',
-        'TradingSymbol': 'brsymbol',
-        'CompanyName': 'name',
-        'TickSize': 'tick_size'
+        "Exchange": "exchange",
+        "Token": "token",
+        "LotSize": "lotsize",
+        "TradingSymbol": "brsymbol",
+        "CompanyName": "name",
+        "TickSize": "tick_size",
     }
     df = df.rename(columns=column_mapping)
 
     # Initialize symbol with brsymbol
-    df['symbol'] = df['brsymbol']
+    df["symbol"] = df["brsymbol"]
 
     # Apply transformation for OpenAlgo symbols (no special logic needed for BSE)
     def get_openalgo_symbol(broker_symbol):
         return broker_symbol
 
     # Update the symbol column
-    df['symbol'] = df['brsymbol'].apply(get_openalgo_symbol)
+    df["symbol"] = df["brsymbol"].apply(get_openalgo_symbol)
 
     # Set Exchange: 'BSE' for all rows
-    df['exchange'] = 'BSE'
-    df['brexchange'] = df['exchange']
+    df["exchange"] = "BSE"
+    df["brexchange"] = df["exchange"]
 
     # Set empty columns for expiry and strike
-    df['expiry'] = ''
-    df['strike'] = -1
+    df["expiry"] = ""
+    df["strike"] = -1
 
     # Set instrument type to 'EQ' for all rows
-    df['instrumenttype'] = 'EQ'
+    df["instrumenttype"] = "EQ"
 
     # Handle missing or invalid numeric values
-    df['lotsize'] = pd.to_numeric(df['lotsize'], errors='coerce').fillna(0).astype(int)
-    df['tick_size'] = pd.to_numeric(df['tick_size'], errors='coerce').fillna(0).astype(float)
+    df["lotsize"] = pd.to_numeric(df["lotsize"], errors="coerce").fillna(0).astype(int)
+    df["tick_size"] = (
+        pd.to_numeric(df["tick_size"], errors="coerce").fillna(0).astype(float)
+    )
 
     # Reorder the columns to match the database structure
-    columns_to_keep = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange', 'token', 'expiry', 'strike', 'lotsize', 'instrumenttype', 'tick_size']
+    columns_to_keep = [
+        "symbol",
+        "brsymbol",
+        "name",
+        "exchange",
+        "brexchange",
+        "token",
+        "expiry",
+        "strike",
+        "lotsize",
+        "instrumenttype",
+        "tick_size",
+    ]
     df_filtered = df[columns_to_keep]
 
     # Return the processed DataFrame
     return df_filtered
+
 
 def process_firstock_bfo_data(output_path):
     """
@@ -346,58 +426,66 @@ def process_firstock_bfo_data(output_path):
     Similar to NFO but for BSE derivatives.
     """
     logger.info("Processing Firstock BFO Data")
-    file_path = f'{output_path}/BFO_symbols.csv'
+    file_path = f"{output_path}/BFO_symbols.csv"
 
     # Read the BFO symbols file
     df = pd.read_csv(file_path)
 
     # Rename columns to match schema
     column_mapping = {
-        'Exchange': 'exchange',
-        'Token': 'token',
-        'LotSize': 'lotsize',
-        'Symbol': 'name',
-        'TradingSymbol': 'brsymbol',
-        'Expiry': 'expiry',
-        'Instrument': 'instrumenttype',
-        'OptionType': 'optiontype',
-        'StrikePrice': 'strike',
-        'TickSize': 'tick_size'
+        "Exchange": "exchange",
+        "Token": "token",
+        "LotSize": "lotsize",
+        "Symbol": "name",
+        "TradingSymbol": "brsymbol",
+        "Expiry": "expiry",
+        "Instrument": "instrumenttype",
+        "OptionType": "optiontype",
+        "StrikePrice": "strike",
+        "TickSize": "tick_size",
     }
     df = df.rename(columns=column_mapping)
 
     # Fill missing values
-    df['expiry'] = df['expiry'].fillna('')
-    df['strike'] = df['strike'].fillna(-1)
+    df["expiry"] = df["expiry"].fillna("")
+    df["strike"] = df["strike"].fillna(-1)
 
     # Format expiry date as DDMMMYY
     def format_expiry_date(date_str):
         try:
-            return datetime.strptime(date_str, '%d-%b-%Y').strftime('%d%b%y').upper()
+            return datetime.strptime(date_str, "%d-%b-%Y").strftime("%d%b%y").upper()
         except ValueError:
             logger.info(f"Invalid expiry date format: {date_str}")
             return None
 
     # Apply the expiry date format
-    df['expiry'] = df['expiry'].apply(format_expiry_date)
+    df["expiry"] = df["expiry"].apply(format_expiry_date)
 
     # Set instrument type based on option type
-    df['instrumenttype'] = df.apply(lambda row: 'FUT' if row['optiontype'] == 'XX' else row['optiontype'], axis=1)
+    df["instrumenttype"] = df.apply(
+        lambda row: "FUT" if row["optiontype"] == "XX" else row["optiontype"], axis=1
+    )
 
     # Format symbol based on instrument type
     def format_symbol(row):
-        if row['instrumenttype'] == 'FUT':
+        if row["instrumenttype"] == "FUT":
             return f"{row['name']}{row['expiry']}FUT"
         else:
             # Ensure strike prices are either integers or floats
-            formatted_strike = int(row['strike']) if float(row['strike']).is_integer() else row['strike']
-            return f"{row['name']}{row['expiry']}{formatted_strike}{row['instrumenttype']}"
+            formatted_strike = (
+                int(row["strike"])
+                if float(row["strike"]).is_integer()
+                else row["strike"]
+            )
+            return (
+                f"{row['name']}{row['expiry']}{formatted_strike}{row['instrumenttype']}"
+            )
 
-    df['symbol'] = df.apply(format_symbol, axis=1)
+    df["symbol"] = df.apply(format_symbol, axis=1)
 
     # Set exchange
-    df['exchange'] = 'BFO'
-    df['brexchange'] = df['exchange']
+    df["exchange"] = "BFO"
+    df["brexchange"] = df["exchange"]
 
     # Handle strike prices
     def handle_strike_price(strike):
@@ -409,17 +497,32 @@ def process_firstock_bfo_data(output_path):
         except (ValueError, TypeError):
             return -1
 
-    df['strike'] = df['strike'].apply(handle_strike_price)
+    df["strike"] = df["strike"].apply(handle_strike_price)
 
     # Handle numeric values
-    df['lotsize'] = pd.to_numeric(df['lotsize'], errors='coerce').fillna(0).astype(int)
-    df['tick_size'] = pd.to_numeric(df['tick_size'], errors='coerce').fillna(0).astype(float)
+    df["lotsize"] = pd.to_numeric(df["lotsize"], errors="coerce").fillna(0).astype(int)
+    df["tick_size"] = (
+        pd.to_numeric(df["tick_size"], errors="coerce").fillna(0).astype(float)
+    )
 
     # Reorder columns
-    columns_to_keep = ['symbol', 'brsymbol', 'name', 'exchange', 'brexchange', 'token', 'expiry', 'strike', 'lotsize', 'instrumenttype', 'tick_size']
+    columns_to_keep = [
+        "symbol",
+        "brsymbol",
+        "name",
+        "exchange",
+        "brexchange",
+        "token",
+        "expiry",
+        "strike",
+        "lotsize",
+        "instrumenttype",
+        "tick_size",
+    ]
     df_filtered = df[columns_to_keep]
 
     return df_filtered
+
 
 def delete_firstock_temp_data(output_path):
     """Deletes the temporary CSV files after processing."""
@@ -429,13 +532,14 @@ def delete_firstock_temp_data(output_path):
             os.remove(file_path)
             logger.info(f"Deleted {file_path}")
 
+
 def master_contract_download():
     """Downloads and processes Firstock contract data."""
     logger.info("Starting master contract download")
-    output_path = 'tmp'
+    output_path = "tmp"
 
     try:
-        socketio.emit('download_progress', 'Starting download...')
+        socketio.emit("download_progress", "Starting download...")
 
         # Initialize database
         init_db()
@@ -446,19 +550,19 @@ def master_contract_download():
 
         if downloaded_files:
             # Process each exchange
-            if 'NSE_symbols.csv' in downloaded_files:
+            if "NSE_symbols.csv" in downloaded_files:
                 token_df = process_firstock_nse_data(output_path)
                 copy_from_dataframe(token_df)
 
-            if 'BSE_symbols.csv' in downloaded_files:
+            if "BSE_symbols.csv" in downloaded_files:
                 token_df = process_firstock_bse_data(output_path)
                 copy_from_dataframe(token_df)
 
-            if 'NFO_symbols.csv' in downloaded_files:
+            if "NFO_symbols.csv" in downloaded_files:
                 token_df = process_firstock_nfo_data(output_path)
                 copy_from_dataframe(token_df)
 
-            if 'BFO_symbols.csv' in downloaded_files:
+            if "BFO_symbols.csv" in downloaded_files:
                 token_df = process_firstock_bfo_data(output_path)
                 copy_from_dataframe(token_df)
 
@@ -466,11 +570,11 @@ def master_contract_download():
             delete_firstock_temp_data(output_path)
 
             logger.info("Master contract download completed successfully")
-            socketio.emit('download_progress', 'Download completed')
+            socketio.emit("download_progress", "Download completed")
         else:
             logger.info("No files were downloaded")
-            socketio.emit('download_progress', 'Download failed')
+            socketio.emit("download_progress", "Download failed")
 
     except Exception as e:
         logger.error(f"Error in master contract download: {e}")
-        socketio.emit('download_progress', f'Error: {str(e)}')
+        socketio.emit("download_progress", f"Error: {str(e)}")

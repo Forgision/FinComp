@@ -35,17 +35,10 @@ def authenticate_broker(userid, encKey):
         checksum = hashlib.sha256(checksum_input.encode()).hexdigest()
 
         # Step 3: Prepare request payload with exact parameters matching their API documentation
-        payload = {
-                "userId": userid,
-                "userData": checksum,
-                "source": "WEB"
-                }
+        payload = {"userId": userid, "userData": checksum, "source": "WEB"}
 
         # Set the headers exactly as expected by their API
-        headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
         # Step 4: Make the API request to get session ID
         logger.debug("Making getUserSID request to AliceBlue API")
@@ -62,32 +55,38 @@ def authenticate_broker(userid, encKey):
         # Handle all possible response formats from AliceBlue API
 
         # Case 1: Check if response has sessionID field (typical success case)
-        if data_dict.get('sessionID'):
+        if data_dict.get("sessionID"):
             logger.info(f"Authentication successful for user {userid}")
-            return data_dict.get('sessionID'), None
+            return data_dict.get("sessionID"), None
 
         # Case 2: Check for specific error messages and handle them
-        if 'emsg' in data_dict and data_dict['emsg']:
-            error_msg = data_dict['emsg']
+        if "emsg" in data_dict and data_dict["emsg"]:
+            error_msg = data_dict["emsg"]
             # Special case handling for common errors
             if "User does not login" in error_msg:
                 logger.error(f"User not logged in: {error_msg}")
-                return None, "User is not logged in. Please login to the AliceBlue platform first and then try again."
+                return (
+                    None,
+                    "User is not logged in. Please login to the AliceBlue platform first and then try again.",
+                )
             elif "Invalid Input" in error_msg:
                 logger.error(f"Invalid input error: {error_msg}")
-                return None, "Invalid input. Please check your user ID and API credentials."
+                return (
+                    None,
+                    "Invalid input. Please check your user ID and API credentials.",
+                )
             else:
                 logger.error(f"API error: {error_msg}")
                 return None, f"API error: {error_msg}"
 
         # Case 3: Handle status field
-        if data_dict.get('stat') == 'Not ok':
-            error_msg = data_dict.get('emsg', 'Unknown error occurred')
+        if data_dict.get("stat") == "Not ok":
+            error_msg = data_dict.get("emsg", "Unknown error occurred")
             logger.error(f"API returned Not ok status: {error_msg}")
             return None, f"API error: {error_msg}"
 
         # Case 4: Try to find any field that might contain the session token
-        for field_name in ['sessionID', 'session_id', 'sessionId', 'token']:
+        for field_name in ["sessionID", "session_id", "sessionId", "token"]:
             if field_name in data_dict and data_dict[field_name]:
                 session_id = data_dict[field_name]
                 logger.info(f"Found session ID in field {field_name}")
@@ -95,7 +94,10 @@ def authenticate_broker(userid, encKey):
 
         # Case 5: If we got this far, we couldn't find a session ID
         logger.error(f"Couldn't extract session ID from response: {data_dict}")
-        return None, "Failed to extract session ID from response. Please check API credentials and try again."
+        return (
+            None,
+            "Failed to extract session ID from response. Please check API credentials and try again.",
+        )
 
     except json.JSONDecodeError:
         # Handle invalid JSON response

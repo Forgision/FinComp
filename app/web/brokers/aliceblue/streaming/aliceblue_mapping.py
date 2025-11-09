@@ -9,8 +9,9 @@ from app.web.websocket.mapping import BrokerCapabilityRegistry, ExchangeMapper
 
 class AliceBlueFeedType:
     """AliceBlue feed type constants"""
+
     MARKET_DATA = "t"  # Tick data (LTP, Change, OHLC, Volume)
-    DEPTH = "d"        # Market depth data
+    DEPTH = "d"  # Market depth data
     UNSUBSCRIBE = "u"  # Unsubscribe
 
 
@@ -21,15 +22,15 @@ class AliceBlueExchangeMapper(ExchangeMapper):
         # Map from standard exchange codes to AliceBlue exchange codes
         self._exchange_mapping = {
             "NSE": "NSE",
-            "NSE_INDEX": "NSE",    # NSE indices map to NSE
+            "NSE_INDEX": "NSE",  # NSE indices map to NSE
             "BSE": "BSE",
-            "BSE_INDEX": "BSE",    # BSE indices map to BSE
-            "NFO": "NFO",          # NSE F&O
-            "BFO": "BFO",          # BSE F&O
-            "CDS": "CDS",          # Currency Derivatives
-            "BCD": "BCD",          # BSE Currency Derivatives
-            "MCX": "MCX",          # Multi Commodity Exchange
-            "MCX_INDEX": "MCX"     # MCX indices map to MCX
+            "BSE_INDEX": "BSE",  # BSE indices map to BSE
+            "NFO": "NFO",  # NSE F&O
+            "BFO": "BFO",  # BSE F&O
+            "CDS": "CDS",  # Currency Derivatives
+            "BCD": "BCD",  # BSE Currency Derivatives
+            "MCX": "MCX",  # Multi Commodity Exchange
+            "MCX_INDEX": "MCX",  # MCX indices map to MCX
         }
 
         # Reverse mapping for AliceBlue to standard
@@ -56,26 +57,28 @@ class AliceBlueCapabilityRegistry(BrokerCapabilityRegistry):
 
         # Define supported data types
         self._supported_data_types = {
-            "tick_data",      # LTP, change, OHLC, volume
-            "market_depth",   # Order book depth
-            "order_updates"   # Order status updates
+            "tick_data",  # LTP, change, OHLC, volume
+            "market_depth",  # Order book depth
+            "order_updates",  # Order status updates
         }
 
         # Define supported exchanges
-        self._supported_exchanges = {
-            "NSE", "BSE", "NFO", "BFO", "CDS", "BCD", "MCX"
-        }
+        self._supported_exchanges = {"NSE", "BSE", "NFO", "BFO", "CDS", "BCD", "MCX"}
 
         # Define supported instruments
         self._supported_instruments = {
-            "equity", "futures", "options", "currency", "commodity"
+            "equity",
+            "futures",
+            "options",
+            "currency",
+            "commodity",
         }
 
         # Define rate limits (approximate)
         self._rate_limits = {
             "subscriptions_per_second": 10,
             "max_concurrent_subscriptions": 1000,
-            "reconnect_interval": 5
+            "reconnect_interval": 5,
         }
 
     def supports_data_type(self, data_type: str) -> bool:
@@ -131,28 +134,51 @@ class AliceBlueMessageMapper:
                 raw_symbol = message.get("ts", "")
                 # Log the raw symbol for debugging
                 import logging
+
                 logger = logging.getLogger("aliceblue_mapping")
                 logger.debug(f"Raw symbol from AliceBlue: '{raw_symbol}'")
                 clean_symbol = raw_symbol.split("-")[0] if raw_symbol else ""
                 logger.debug(f"Cleaned symbol: '{clean_symbol}'")
-                parsed.update({
-                    "symbol": clean_symbol,
-                    "ltp": float(message.get("lp", 0)) if message.get("lp") else 0.0,
-                    "volume": int(message.get("v", 0)) if message.get("v") else 0,
-                    "open": float(message.get("o", 0)) if message.get("o") else 0.0,
-                    "high": float(message.get("h", 0)) if message.get("h") else 0.0,
-                    "low": float(message.get("l", 0)) if message.get("l") else 0.0,
-                    "close": float(message.get("c", 0)) if message.get("c") else 0.0,
-                    "change_percent": float(message.get("pc", 0)) if message.get("pc") else 0.0,
-                    "change_value": float(message.get("cv", 0)) if message.get("cv") else 0.0,
-                    "average_price": float(message.get("ap", 0)) if message.get("ap") else 0.0,
-                    "timestamp": message.get("ft", ""),
-                    "total_oi": int(message.get("toi", 0)) if message.get("toi") else 0,
-                    "tick_size": float(message.get("ti", 0)) if message.get("ti") else 0.0,
-                    "lot_size": int(message.get("ls", 0)) if message.get("ls") else 0,
-                    "market_lot": int(message.get("ml", 0)) if message.get("ml") else 0,
-                    "price_precision": int(message.get("pp", 0)) if message.get("pp") else 0,
-                })
+                parsed.update(
+                    {
+                        "symbol": clean_symbol,
+                        "ltp": float(message.get("lp", 0))
+                        if message.get("lp")
+                        else 0.0,
+                        "volume": int(message.get("v", 0)) if message.get("v") else 0,
+                        "open": float(message.get("o", 0)) if message.get("o") else 0.0,
+                        "high": float(message.get("h", 0)) if message.get("h") else 0.0,
+                        "low": float(message.get("l", 0)) if message.get("l") else 0.0,
+                        "close": float(message.get("c", 0))
+                        if message.get("c")
+                        else 0.0,
+                        "change_percent": float(message.get("pc", 0))
+                        if message.get("pc")
+                        else 0.0,
+                        "change_value": float(message.get("cv", 0))
+                        if message.get("cv")
+                        else 0.0,
+                        "average_price": float(message.get("ap", 0))
+                        if message.get("ap")
+                        else 0.0,
+                        "timestamp": message.get("ft", ""),
+                        "total_oi": int(message.get("toi", 0))
+                        if message.get("toi")
+                        else 0,
+                        "tick_size": float(message.get("ti", 0))
+                        if message.get("ti")
+                        else 0.0,
+                        "lot_size": int(message.get("ls", 0))
+                        if message.get("ls")
+                        else 0,
+                        "market_lot": int(message.get("ml", 0))
+                        if message.get("ml")
+                        else 0,
+                        "price_precision": int(message.get("pp", 0))
+                        if message.get("pp")
+                        else 0,
+                    }
+                )
 
             # For 'tf' (tick feed) messages, only include fields that are present
             elif msg_type == "tf":
@@ -171,8 +197,12 @@ class AliceBlueMessageMapper:
                 for key in ["o", "h", "l", "c", "cv", "ap"]:
                     if key in message:
                         mapped_key = {
-                            "o": "open", "h": "high", "l": "low", "c": "close",
-                            "cv": "change_value", "ap": "average_price"
+                            "o": "open",
+                            "h": "high",
+                            "l": "low",
+                            "c": "close",
+                            "cv": "change_value",
+                            "ap": "average_price",
                         }.get(key, key)
                         parsed[mapped_key] = float(message[key])
 
@@ -191,7 +221,7 @@ class AliceBlueMessageMapper:
                     "ap": ("average_price", float),
                     "ft": ("timestamp", str),
                     "toi": ("total_oi", int),
-                    "ts": ("symbol", str)
+                    "ts": ("symbol", str),
                 }
 
                 for src_key, (dest_key, converter) in field_mappings.items():
@@ -200,7 +230,9 @@ class AliceBlueMessageMapper:
                             if dest_key == "symbol" and src_key == "ts":
                                 # Clean symbol for OpenAlgo format (remove -EQ suffix)
                                 raw_symbol = message[src_key]
-                                clean_symbol = raw_symbol.split("-")[0] if raw_symbol else ""
+                                clean_symbol = (
+                                    raw_symbol.split("-")[0] if raw_symbol else ""
+                                )
                                 parsed[dest_key] = clean_symbol
                             else:
                                 parsed[dest_key] = converter(message[src_key])
@@ -221,10 +253,10 @@ class AliceBlueMessageMapper:
 
             # AliceBlue depth data structure parsing
             for i in range(5):  # Assuming 5 levels of depth
-                bid_price = message.get(f"bp{i+1}", "0")
-                bid_qty = message.get(f"bq{i+1}", "0")
-                ask_price = message.get(f"sp{i+1}", "0")
-                ask_qty = message.get(f"sq{i+1}", "0")
+                bid_price = message.get(f"bp{i + 1}", "0")
+                bid_qty = message.get(f"bq{i + 1}", "0")
+                ask_price = message.get(f"sp{i + 1}", "0")
+                ask_qty = message.get(f"sq{i + 1}", "0")
 
                 try:
                     bid_price_float = float(bid_price)
@@ -250,26 +282,25 @@ class AliceBlueMessageMapper:
                 "bids": bids,
                 "asks": asks,
                 "timestamp": message.get("ft", ""),
-                "ltp": float(message.get("lp", 0)) if message.get("lp") else 0.0
+                "ltp": float(message.get("lp", 0)) if message.get("lp") else 0.0,
             }
             return parsed
         except (ValueError, KeyError) as e:
             return {"type": "error", "message": f"Failed to parse depth data: {e}"}
 
     @staticmethod
-    def create_subscription_message(exchange: str, token: str, feed_type: str = "t") -> Dict:
+    def create_subscription_message(
+        exchange: str, token: str, feed_type: str = "t"
+    ) -> Dict:
         """Create subscription message in AliceBlue format"""
         # AliceBlue expects the subscription key in the format "EXCHANGE|TOKEN"
         # For multiple subscriptions, they should be separated by # in a single message
         return {
             "k": f"{exchange}|{token}",
-            "t": feed_type  # "t" for tick data, "d" for depth data
+            "t": feed_type,  # "t" for tick data, "d" for depth data
         }
 
     @staticmethod
     def create_unsubsciption_message(exchange: str, token: str) -> Dict:
         """Create unsubscription message in AliceBlue format"""
-        return {
-            "k": f"{exchange}|{token}",
-            "t": "u"
-        }
+        return {"k": f"{exchange}|{token}", "t": "u"}

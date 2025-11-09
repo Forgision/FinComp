@@ -28,20 +28,21 @@ dtlmktdata_dict = {}
 cmptmktdata_dict = {}
 snpqtdata_dict = {}
 
+
 # WebSocket message handlers
 def on_message(ws, message):
     try:
         # Try to parse as JSON first
         try:
             data = json.loads(message)
-            if isinstance(data, dict) and 'mode' in data:
-                mode = data['mode']
+            if isinstance(data, dict) and "mode" in data:
+                mode = data["mode"]
             else:
                 # If no mode in JSON, try binary parsing
-                mode = struct.unpack('>b', message[0:1])[0]
+                mode = struct.unpack(">b", message[0:1])[0]
         except Exception:
             # If JSON parsing fails, assume binary
-            mode = struct.unpack('>b', message[0:1])[0]
+            mode = struct.unpack(">b", message[0:1])[0]
 
         # Process based on message mode
         if mode == 1:  # Detailed market data
@@ -81,15 +82,20 @@ def on_message(ws, message):
     except Exception as e:
         logger.error(f"Error processing WebSocket message: {str(e)}")
 
+
 def on_error(ws, error):
     logger.error(f"WebSocket error: {str(error)}")
     global ws_connected
     ws_connected = False
 
+
 def on_close(ws, close_status_code=None, close_msg=None):
-    logger.info(f"WebSocket connection closed: code={close_status_code}, message={close_msg}")
+    logger.info(
+        f"WebSocket connection closed: code={close_status_code}, message={close_msg}"
+    )
     global ws_connected
     ws_connected = False
+
 
 def on_open(ws):
     logger.info("WebSocket connection established")
@@ -100,11 +106,17 @@ def on_open(ws):
     global ws_connected
     ws_connected = True
 
+
 def heartbeat_thread(client_socket):
     """Send periodic heartbeats to keep the connection alive"""
     while True:
         try:
-            if ws_connected and client_socket and client_socket.sock and getattr(client_socket.sock, 'connected', False):
+            if (
+                ws_connected
+                and client_socket
+                and client_socket.sock
+                and getattr(client_socket.sock, "connected", False)
+            ):
                 client_socket.send(json.dumps({"a": "h"}))
                 logger.debug("Heartbeat sent")
             else:
@@ -115,47 +127,57 @@ def heartbeat_thread(client_socket):
             time.sleep(5)  # Wait a bit before retrying on error
         time.sleep(8)
 
+
 def get_snapquotedata():
     """Get the latest snapquote data"""
     return snapquote_marketdata_response
+
 
 def get_compact_marketdata():
     """Get the latest compact market data"""
     return compact_marketdata_response
 
+
 def get_detailed_marketdata():
     """Get the latest detailed market data"""
     return detailed_marketdata_response
+
 
 def get_order_update():
     """Get the latest order update"""
     return order_update_response
 
+
 def get_trade_update():
     """Get the latest trade update"""
     return trade_update_response
+
 
 def get_multiple_detailed_marketdata():
     """Get multiple detailed market data"""
     return dtlmktdata_dict
 
+
 def get_multiple_compact_marketdata():
     """Get multiple compact market data"""
     return cmptmktdata_dict
+
 
 def get_multiple_snapquotedata():
     """Get multiple snapquote data"""
     return snpqtdata_dict
 
+
 def get_ws_connection_status():
     """Check if WebSocket is connected"""
     return ws_connected
+
 
 class PocketfulSocket(object):
     base_url = "https://trade.pocketful.in"
 
     def __init__(self, client_id, access_token):
-        self.headers = {'Content-type': 'application/json'}
+        self.headers = {"Content-type": "application/json"}
         self.access_token = access_token
         self.client_id = client_id
 
@@ -166,8 +188,6 @@ class PocketfulSocket(object):
             url = self.base_url.replace("http", "ws")
         self.websocket_url = url
 
-
-
     def print_access_token(self):
         return self.access_token
 
@@ -176,31 +196,33 @@ class PocketfulSocket(object):
 
     def get_request(self, url, params):
         headers = self.headers
-        headers['Authorization'] = f'Bearer {self.access_token}'
-        res = requests.get(f'{self.base_url}{url}' , params=params, headers=headers)
+        headers["Authorization"] = f"Bearer {self.access_token}"
+        res = requests.get(f"{self.base_url}{url}", params=params, headers=headers)
         return res.json()
 
     def post_request(self, url, data):
         headers = self.headers
-        headers['Authorization'] = f'Bearer {self.access_token}'
-        res = requests.post(f'{self.base_url}{url}', headers=headers, data=json.dumps(data))
+        headers["Authorization"] = f"Bearer {self.access_token}"
+        res = requests.post(
+            f"{self.base_url}{url}", headers=headers, data=json.dumps(data)
+        )
         logger.info(f"{res}")
         return res.json()
 
     def put_request(self, url, data):
         headers = self.headers
-        headers['Authorization'] = f'Bearer {self.access_token}'
-        res = requests.put(f'{self.base_url}{url}', headers=headers, data=json.dumps(data))
+        headers["Authorization"] = f"Bearer {self.access_token}"
+        res = requests.put(
+            f"{self.base_url}{url}", headers=headers, data=json.dumps(data)
+        )
         logger.info(f"{res}")
         return res.json()
 
     def delete_request(self, url, params):
         headers = self.headers
-        headers['Authorization'] = f'Bearer {self.access_token}'
-        res = requests.delete(f'{self.base_url}{url}' , params=params, headers=headers)
+        headers["Authorization"] = f"Bearer {self.access_token}"
+        res = requests.delete(f"{self.base_url}{url}", params=params, headers=headers)
         return res.json()
-
-
 
     def run_socket(self):
         """Connect to the WebSocket server with proper thread safety"""
@@ -229,7 +251,7 @@ class PocketfulSocket(object):
                 websocket_url = self.websocket_url
 
                 # Create WebSocket connection URL
-                full_url = f'{websocket_url}/ws/v1/feeds?login_id={client_id}&access_token={access_token}'
+                full_url = f"{websocket_url}/ws/v1/feeds?login_id={client_id}&access_token={access_token}"
                 logger.info(f"Connecting to WebSocket: {full_url}")
 
                 # Connect to WebSocket
@@ -261,10 +283,9 @@ class PocketfulSocket(object):
     def _connect(self, url):
         """Create WebSocket connection"""
         websocket.enableTrace(False)
-        ws = websocket.WebSocketApp(url,
-                                   on_message=on_message,
-                                   on_error=on_error,
-                                   on_close=on_close)
+        ws = websocket.WebSocketApp(
+            url, on_message=on_message, on_error=on_error, on_close=on_close
+        )
         ws.on_open = on_open
         return ws
 
@@ -272,19 +293,21 @@ class PocketfulSocket(object):
         """Start WebSocket connection"""
         ws.run_forever()
 
-
     def subscribe_detailed_marketdata(self, detailedmarketdata_payload):
         """Subscribe to detailed market data"""
         try:
-            subscription_pkt = [[detailedmarketdata_payload['exchangeCode'], detailedmarketdata_payload['instrumentToken']]]
+            subscription_pkt = [
+                [
+                    detailedmarketdata_payload["exchangeCode"],
+                    detailedmarketdata_payload["instrumentToken"],
+                ]
+            ]
             global websock
-            sub_packet = {
-                "a": "subscribe",
-                "v": subscription_pkt,
-                "m": "marketdata"
-            }
+            sub_packet = {"a": "subscribe", "v": subscription_pkt, "m": "marketdata"}
             websock.send(json.dumps(sub_packet))
-            logger.info(f"Subscribed to detailed market data: {detailedmarketdata_payload}")
+            logger.info(
+                f"Subscribed to detailed market data: {detailedmarketdata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error subscribing to detailed market data: {str(e)}")
@@ -298,24 +321,30 @@ class PocketfulSocket(object):
     def unsubscribe_detailed_marketdata(self, detailedmarketdata_payload):
         """Unsubscribe from detailed market data"""
         try:
-            unsubscription_pkt = [[detailedmarketdata_payload['exchangeCode'], detailedmarketdata_payload['instrumentToken']]]
+            unsubscription_pkt = [
+                [
+                    detailedmarketdata_payload["exchangeCode"],
+                    detailedmarketdata_payload["instrumentToken"],
+                ]
+            ]
             global websock
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "marketdata"
+                "m": "marketdata",
             }
             websock.send(json.dumps(sub_packet))
             # Clear data
             global detailed_marketdata_response, dtlmktdata_dict
             detailed_marketdata_response = {}
             dtlmktdata_dict = {}
-            logger.info(f"Unsubscribed from detailed market data: {detailedmarketdata_payload}")
+            logger.info(
+                f"Unsubscribed from detailed market data: {detailedmarketdata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error unsubscribing from detailed market data: {str(e)}")
             return False
-
 
     def subscribe_compact_marketdata(self, compactmarketdata_payload):
         """Subscribe to compact market data with reconnection support"""
@@ -325,8 +354,16 @@ class PocketfulSocket(object):
         for attempt in range(3):
             try:
                 # Check if we need to reconnect
-                if not ws_connected or not websock or not hasattr(websock, 'sock') or not websock.sock or not getattr(websock.sock, 'connected', False):
-                    logger.warning(f"WebSocket not connected on attempt {attempt+1}, reconnecting...")
+                if (
+                    not ws_connected
+                    or not websock
+                    or not hasattr(websock, "sock")
+                    or not websock.sock
+                    or not getattr(websock.sock, "connected", False)
+                ):
+                    logger.warning(
+                        f"WebSocket not connected on attempt {attempt + 1}, reconnecting..."
+                    )
                     self.run_socket()
                     time.sleep(1)  # Give it time to connect
 
@@ -335,18 +372,27 @@ class PocketfulSocket(object):
                     continue  # Try again
 
                 # Proceed with subscription
-                subscription_pkt = [[compactmarketdata_payload['exchangeCode'], compactmarketdata_payload['instrumentToken']]]
+                subscription_pkt = [
+                    [
+                        compactmarketdata_payload["exchangeCode"],
+                        compactmarketdata_payload["instrumentToken"],
+                    ]
+                ]
                 sub_packet = {
                     "a": "subscribe",
                     "v": subscription_pkt,
-                    "m": "compact_marketdata"
+                    "m": "compact_marketdata",
                 }
                 websock.send(json.dumps(sub_packet))
-                logger.info(f"Subscribed to compact market data: {compactmarketdata_payload}")
+                logger.info(
+                    f"Subscribed to compact market data: {compactmarketdata_payload}"
+                )
                 return True
 
             except Exception as e:
-                logger.error(f"Error subscribing to compact market data (attempt {attempt+1}): {str(e)}")
+                logger.error(
+                    f"Error subscribing to compact market data (attempt {attempt + 1}): {str(e)}"
+                )
                 # Force reconnection on next attempt
                 ws_connected = False
                 time.sleep(0.5 * (attempt + 1))  # Increasing backoff
@@ -360,18 +406,31 @@ class PocketfulSocket(object):
 
         try:
             # Only attempt to unsubscribe if we have a connection
-            if not ws_connected or not websock or not hasattr(websock, 'sock') or not websock.sock or not getattr(websock.sock, 'connected', False):
-                logger.warning("Cannot unsubscribe from compact market data, WebSocket not connected")
+            if (
+                not ws_connected
+                or not websock
+                or not hasattr(websock, "sock")
+                or not websock.sock
+                or not getattr(websock.sock, "connected", False)
+            ):
+                logger.warning(
+                    "Cannot unsubscribe from compact market data, WebSocket not connected"
+                )
                 # Still clear data even if we can't unsubscribe
                 compact_marketdata_response = {}
                 cmptmktdata_dict = {}
                 return False
 
-            unsubscription_pkt = [[compactmarketdata_payload['exchangeCode'], compactmarketdata_payload['instrumentToken']]]
+            unsubscription_pkt = [
+                [
+                    compactmarketdata_payload["exchangeCode"],
+                    compactmarketdata_payload["instrumentToken"],
+                ]
+            ]
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "compact_marketdata"
+                "m": "compact_marketdata",
             }
             websock.send(json.dumps(sub_packet))
 
@@ -379,7 +438,9 @@ class PocketfulSocket(object):
             compact_marketdata_response = {}
             cmptmktdata_dict = {}
 
-            logger.info(f"Unsubscribed from compact market data: {compactmarketdata_payload}")
+            logger.info(
+                f"Unsubscribed from compact market data: {compactmarketdata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error unsubscribing from compact market data: {str(e)}")
@@ -401,8 +462,15 @@ class PocketfulSocket(object):
         for attempt in range(3):
             try:
                 # Check if we need to reconnect
-                if not ws_connected or not websock or not websock.sock or not websock.sock.connected:
-                    logger.warning(f"WebSocket not connected on attempt {attempt+1}, reconnecting...")
+                if (
+                    not ws_connected
+                    or not websock
+                    or not websock.sock
+                    or not websock.sock.connected
+                ):
+                    logger.warning(
+                        f"WebSocket not connected on attempt {attempt + 1}, reconnecting..."
+                    )
                     self.run_socket()
                     time.sleep(1)  # Give it time to connect
 
@@ -411,18 +479,25 @@ class PocketfulSocket(object):
                     continue  # Try again
 
                 # Proceed with subscription
-                subscription_pkt = [[snapquotedata_payload['exchangeCode'], snapquotedata_payload['instrumentToken']]]
+                subscription_pkt = [
+                    [
+                        snapquotedata_payload["exchangeCode"],
+                        snapquotedata_payload["instrumentToken"],
+                    ]
+                ]
                 sub_packet = {
                     "a": "subscribe",
                     "v": subscription_pkt,
-                    "m": "full_snapquote"  # Try full_snapquote instead of snapquote
+                    "m": "full_snapquote",  # Try full_snapquote instead of snapquote
                 }
                 websock.send(json.dumps(sub_packet))
                 logger.info(f"Subscribed to snapquote data: {snapquotedata_payload}")
                 return True
 
             except Exception as e:
-                logger.error(f"Error subscribing to snapquote data (attempt {attempt+1}): {str(e)}")
+                logger.error(
+                    f"Error subscribing to snapquote data (attempt {attempt + 1}): {str(e)}"
+                )
                 # Force reconnection on next attempt
                 ws_connected = False
                 time.sleep(0.5 * (attempt + 1))  # Increasing backoff
@@ -436,18 +511,29 @@ class PocketfulSocket(object):
 
         try:
             # Only attempt to unsubscribe if we have a connection
-            if not ws_connected or not websock or not hasattr(websock, 'sock') or not websock.sock or not getattr(websock.sock, 'connected', False):
+            if (
+                not ws_connected
+                or not websock
+                or not hasattr(websock, "sock")
+                or not websock.sock
+                or not getattr(websock.sock, "connected", False)
+            ):
                 logger.warning("Cannot unsubscribe, WebSocket not connected")
                 # Still clear data even if we can't unsubscribe
                 snapquote_marketdata_response = {}
                 snpqtdata_dict = {}
                 return False
 
-            unsubscription_pkt = [[snapquotedata_payload['exchangeCode'], snapquotedata_payload['instrumentToken']]]
+            unsubscription_pkt = [
+                [
+                    snapquotedata_payload["exchangeCode"],
+                    snapquotedata_payload["instrumentToken"],
+                ]
+            ]
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "full_snapquote"  # Match subscription mode
+                "m": "full_snapquote",  # Match subscription mode
             }
             websock.send(json.dumps(sub_packet))
 
@@ -477,17 +563,24 @@ class PocketfulSocket(object):
                 # Construct the message based on expected format for order/trade updates
                 # This is a placeholder; actual message format needs to be confirmed
                 message = {
-                    "a": "subscribe" if message_type.startswith("OrderUpdate") or message_type.startswith("TradeUpdate") else "message",
+                    "a": "subscribe"
+                    if message_type.startswith("OrderUpdate")
+                    or message_type.startswith("TradeUpdate")
+                    else "message",
                     "v": payload,
-                    "m": message_type
+                    "m": message_type,
                 }
                 websock.send(json.dumps(message))
-                logger.info(f"Sent {message_type} message to WebSocket with payload: {payload}")
+                logger.info(
+                    f"Sent {message_type} message to WebSocket with payload: {payload}"
+                )
                 return True
             except Exception as e:
                 logger.error(f"Error sending {message_type} message to WebSocket: {e}")
         else:
-            logger.warning(f"WebSocket not connected, cannot send {message_type} message.")
+            logger.warning(
+                f"WebSocket not connected, cannot send {message_type} message."
+            )
         return False
 
     def _unsubscribe_from_ws(self, message_type, payload):
@@ -495,28 +588,36 @@ class PocketfulSocket(object):
         global websock
         if websock and ws_connected:
             try:
-                message = {
-                    "a": "unsubscribe",
-                    "v": payload,
-                    "m": message_type
-                }
+                message = {"a": "unsubscribe", "v": payload, "m": message_type}
                 websock.send(json.dumps(message))
-                logger.info(f"Sent unsubscribe {message_type} message to WebSocket with payload: {payload}")
+                logger.info(
+                    f"Sent unsubscribe {message_type} message to WebSocket with payload: {payload}"
+                )
                 return True
             except Exception as e:
-                logger.error(f"Error sending unsubscribe {message_type} message to WebSocket: {e}")
+                logger.error(
+                    f"Error sending unsubscribe {message_type} message to WebSocket: {e}"
+                )
         else:
-            logger.warning(f"WebSocket not connected, cannot send unsubscribe {message_type} message.")
+            logger.warning(
+                f"WebSocket not connected, cannot send unsubscribe {message_type} message."
+            )
         return False
 
     def subscribe_order_update(self, orderupdate_payload):
-        subscription_pkt = [orderupdate_payload['client_id'], "web"]
-        th_order_update = threading.Thread(target=self._send_message_to_ws, args=('OrderUpdateMessage', subscription_pkt))
+        subscription_pkt = [orderupdate_payload["client_id"], "web"]
+        th_order_update = threading.Thread(
+            target=self._send_message_to_ws,
+            args=("OrderUpdateMessage", subscription_pkt),
+        )
         th_order_update.start()
 
     def unsubscribe_order_update(self, orderupdate_payload):
-        unsubscription_pkt = [orderupdate_payload['client_id'], "web"]
-        th_order_update = threading.Thread(target=self._unsubscribe_from_ws, args=('OrderUpdateMessage', unsubscription_pkt))
+        unsubscription_pkt = [orderupdate_payload["client_id"], "web"]
+        th_order_update = threading.Thread(
+            target=self._unsubscribe_from_ws,
+            args=("OrderUpdateMessage", unsubscription_pkt),
+        )
         th_order_update.start()
 
     def read_order_update_data(self):
@@ -524,13 +625,19 @@ class PocketfulSocket(object):
         return data
 
     def subscribe_trade_update(self, tradeupdate_payload):
-        subscription_pkt = [tradeupdate_payload['client_id'], "web"]
-        th_trade_update = threading.Thread(target=self._send_message_to_ws, args=('TradeUpdateMessage', subscription_pkt))
+        subscription_pkt = [tradeupdate_payload["client_id"], "web"]
+        th_trade_update = threading.Thread(
+            target=self._send_message_to_ws,
+            args=("TradeUpdateMessage", subscription_pkt),
+        )
         th_trade_update.start()
 
     def unsubscribe_trade_update(self, tradeupdate_payload):
-        unsubscription_pkt = [tradeupdate_payload['client_id'], "web"]
-        th_trade_update = threading.Thread(target=self._unsubscribe_from_ws, args=('TradeUpdateMessage', unsubscription_pkt))
+        unsubscription_pkt = [tradeupdate_payload["client_id"], "web"]
+        th_trade_update = threading.Thread(
+            target=self._unsubscribe_from_ws,
+            args=("TradeUpdateMessage", unsubscription_pkt),
+        )
         th_trade_update.start()
 
     def read_trade_update_data(self):
@@ -542,20 +649,20 @@ class PocketfulSocket(object):
         try:
             subscription_pkt = []
             for payload in detailedmarketdata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 subscription_pkt.append(pkt)
 
             global websock
-            sub_packet = {
-                "a": "subscribe",
-                "v": subscription_pkt,
-                "m": "marketdata"
-            }
+            sub_packet = {"a": "subscribe", "v": subscription_pkt, "m": "marketdata"}
             websock.send(json.dumps(sub_packet))
-            logger.info(f"Subscribed to multiple detailed market data: {detailedmarketdata_payload}")
+            logger.info(
+                f"Subscribed to multiple detailed market data: {detailedmarketdata_payload}"
+            )
             return True
         except Exception as e:
-            logger.error(f"Error subscribing to multiple detailed market data: {str(e)}")
+            logger.error(
+                f"Error subscribing to multiple detailed market data: {str(e)}"
+            )
             return False
 
     def unsubscribe_multiple_detailed_marketdata(self, detailedmarketdata_payload):
@@ -563,24 +670,28 @@ class PocketfulSocket(object):
         try:
             unsubscription_pkt = []
             for payload in detailedmarketdata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 unsubscription_pkt.append(pkt)
 
             global websock
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "marketdata"
+                "m": "marketdata",
             }
             websock.send(json.dumps(sub_packet))
             # Clear data
             global detailed_marketdata_response, dtlmktdata_dict
             detailed_marketdata_response = {}
             dtlmktdata_dict = {}
-            logger.info(f"Unsubscribed from multiple detailed market data: {detailedmarketdata_payload}")
+            logger.info(
+                f"Unsubscribed from multiple detailed market data: {detailedmarketdata_payload}"
+            )
             return True
         except Exception as e:
-            logger.error(f"Error unsubscribing from multiple detailed market data: {str(e)}")
+            logger.error(
+                f"Error unsubscribing from multiple detailed market data: {str(e)}"
+            )
             return False
 
     def read_multiple_detailed_marketdata(self):
@@ -593,17 +704,19 @@ class PocketfulSocket(object):
         try:
             subscription_pkt = []
             for payload in compactmarketdata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 subscription_pkt.append(pkt)
 
             global websock
             sub_packet = {
                 "a": "subscribe",
                 "v": subscription_pkt,
-                "m": "compact_marketdata"
+                "m": "compact_marketdata",
             }
             websock.send(json.dumps(sub_packet))
-            logger.info(f"Subscribed to multiple compact market data: {compactmarketdata_payload}")
+            logger.info(
+                f"Subscribed to multiple compact market data: {compactmarketdata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error subscribing to multiple compact market data: {str(e)}")
@@ -614,24 +727,28 @@ class PocketfulSocket(object):
         try:
             unsubscription_pkt = []
             for payload in compactmarketdata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 unsubscription_pkt.append(pkt)
 
             global websock
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "compact_marketdata"
+                "m": "compact_marketdata",
             }
             websock.send(json.dumps(sub_packet))
             # Clear data
             global compact_marketdata_response, cmptmktdata_dict
             compact_marketdata_response = {}
             cmptmktdata_dict = {}
-            logger.info(f"Unsubscribed from multiple compact market data: {compactmarketdata_payload}")
+            logger.info(
+                f"Unsubscribed from multiple compact market data: {compactmarketdata_payload}"
+            )
             return True
         except Exception as e:
-            logger.error(f"Error unsubscribing from multiple compact market data: {str(e)}")
+            logger.error(
+                f"Error unsubscribing from multiple compact market data: {str(e)}"
+            )
             return False
 
     def read_multiple_compact_marketdata(self):
@@ -644,17 +761,19 @@ class PocketfulSocket(object):
         try:
             subscription_pkt = []
             for payload in snapquotedata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 subscription_pkt.append(pkt)
 
             global websock
             sub_packet = {
                 "a": "subscribe",
                 "v": subscription_pkt,
-                "m": "full_snapquote"
+                "m": "full_snapquote",
             }
             websock.send(json.dumps(sub_packet))
-            logger.info(f"Subscribed to multiple snapquote data: {snapquotedata_payload}")
+            logger.info(
+                f"Subscribed to multiple snapquote data: {snapquotedata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error subscribing to multiple snapquote data: {str(e)}")
@@ -665,21 +784,23 @@ class PocketfulSocket(object):
         try:
             unsubscription_pkt = []
             for payload in snapquotedata_payload:
-                pkt = [payload['exchangeCode'], payload['instrumentToken']]
+                pkt = [payload["exchangeCode"], payload["instrumentToken"]]
                 unsubscription_pkt.append(pkt)
 
             global websock
             sub_packet = {
                 "a": "unsubscribe",
                 "v": unsubscription_pkt,
-                "m": "full_snapquote"
+                "m": "full_snapquote",
             }
             websock.send(json.dumps(sub_packet))
             # Clear data
             global snapquote_marketdata_response, snpqtdata_dict
             snapquote_marketdata_response = {}
             snpqtdata_dict = {}
-            logger.info(f"Unsubscribed from multiple snapquote data: {snapquotedata_payload}")
+            logger.info(
+                f"Unsubscribed from multiple snapquote data: {snapquotedata_payload}"
+            )
             return True
         except Exception as e:
             logger.error(f"Error unsubscribing from multiple snapquote data: {str(e)}")

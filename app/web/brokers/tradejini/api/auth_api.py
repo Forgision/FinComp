@@ -6,7 +6,8 @@ from app.core.config import settings
 from .....utils.httpx_client import get_httpx_client
 from .....utils.logging import logger
 
-BASE_URL = 'https://api.tradejini.com/v2'
+BASE_URL = "https://api.tradejini.com/v2"
+
 
 def authenticate_broker(password=None, twofa=None, twofa_type=None):
     """
@@ -20,29 +21,25 @@ def authenticate_broker(password=None, twofa=None, twofa_type=None):
     """
     try:
         if not all([password, twofa]):
-            return None, 'Password and TOTP code are required'
+            return None, "Password and TOTP code are required"
 
         # Force twofa_type to be totp
-        twofa_type = 'totp'
+        twofa_type = "totp"
 
         BROKER_API_SECRET = settings.BROKER_API_SECRET
         if not BROKER_API_SECRET:
-            return None, 'BROKER_API_SECRET environment variable not set'
+            return None, "BROKER_API_SECRET environment variable not set"
 
-        url = f'{BASE_URL}/api-gw/oauth/individual-token-v2'
+        url = f"{BASE_URL}/api-gw/oauth/individual-token-v2"
 
         # Set up headers with bearer token
         headers = {
-            'Authorization': f'Bearer {BROKER_API_SECRET}',
-            'Content-Type': 'application/x-www-form-urlencoded'
+            "Authorization": f"Bearer {BROKER_API_SECRET}",
+            "Content-Type": "application/x-www-form-urlencoded",
         }
 
         # Set up form data
-        data = {
-            'password': password,
-            'twoFa': twofa,
-            'twoFaTyp': twofa_type
-        }
+        data = {"password": password, "twoFa": twofa, "twoFaTyp": twofa_type}
 
         # Get the shared httpx client with connection pooling
         client = get_httpx_client()
@@ -57,20 +54,21 @@ def authenticate_broker(password=None, twofa=None, twofa_type=None):
 
         if response.status_code == 200:
             # API returns: {scope, access_token, token_type, expires_in}
-            if 'access_token' not in response_data:
-                return None, 'No access token in response'
+            if "access_token" not in response_data:
+                return None, "No access token in response"
 
-            if response_data.get('token_type') != 'Bearer':
-                return None, 'Invalid token type in response'
+            if response_data.get("token_type") != "Bearer":
+                return None, "Invalid token type in response"
 
-            return response_data['access_token'], None
+            return response_data["access_token"], None
         else:
-            error_msg = response_data.get('message', 'Authentication failed')
+            error_msg = response_data.get("message", "Authentication failed")
             return None, error_msg
     except json.JSONDecodeError:
-        return None, 'Invalid JSON response from server'
+        return None, "Invalid JSON response from server"
     except Exception as e:
         return None, str(e)
+
 
 def get_auth_url():
     """
@@ -80,27 +78,28 @@ def get_auth_url():
     REDIRECT_URI = settings.REDIRECT_URI
 
     params = {
-        'client_id': BROKER_API_SECRET,
-        'redirect_uri': REDIRECT_URI,
-        'response_type': 'code',
-        'scope': 'general',
-        'state': 'random_state'
+        "client_id": BROKER_API_SECRET,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": "general",
+        "state": "random_state",
     }
 
-    return f'{BASE_URL}/api-gw/oauth/authorize?{urlencode(params)}'
+    return f"{BASE_URL}/api-gw/oauth/authorize?{urlencode(params)}"
+
 
 def authenticate_broker_oauth(code):
     try:
         BROKER_API_KEY = settings.BROKER_API_KEY
         BROKER_API_SECRET = settings.BROKER_API_SECRET
 
-        url = f'{BASE_URL}/api-gw/oauth/token'
+        url = f"{BASE_URL}/api-gw/oauth/token"
         data = {
-            'code': code,
-            'client_id': BROKER_API_KEY,
-            'client_secret': BROKER_API_SECRET,
-            'redirect_uri': settings.REDIRECT_URI,
-            'grant_type': 'authorization_code'
+            "code": code,
+            "client_id": BROKER_API_KEY,
+            "client_secret": BROKER_API_SECRET,
+            "redirect_uri": settings.REDIRECT_URI,
+            "grant_type": "authorization_code",
         }
 
         # Get the shared httpx client with connection pooling
@@ -109,12 +108,12 @@ def authenticate_broker_oauth(code):
 
         if response.status_code == 200:
             response_data = response.json()
-            if 'access_token' in response_data:
-                return response_data['access_token'], None
+            if "access_token" in response_data:
+                return response_data["access_token"], None
             else:
-                return None, 'No access token in response'
+                return None, "No access token in response"
         else:
-            return None, f'Authentication failed: {response.text}'
+            return None, f"Authentication failed: {response.text}"
 
     except Exception as e:
         return None, str(e)

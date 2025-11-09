@@ -14,6 +14,7 @@ from .websocket_service import register_market_data_callback
 
 # Initialize logger
 
+
 class MarketDataService:
     """
     Singleton service for managing market data across the application.
@@ -60,10 +61,10 @@ class MarketDataService:
 
         # Performance metrics
         self.metrics = {
-            'total_updates': 0,
-            'cache_hits': 0,
-            'cache_misses': 0,
-            'last_cleanup': time.time()
+            "total_updates": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "last_cleanup": time.time(),
         }
 
         # Start cleanup thread
@@ -80,10 +81,10 @@ class MarketDataService:
             data: Market data dictionary from WebSocket
         """
         try:
-            symbol = data.get('symbol')
-            exchange = data.get('exchange')
-            mode = data.get('mode')
-            market_data = data.get('data', {})
+            symbol = data.get("symbol")
+            exchange = data.get("exchange")
+            mode = data.get("mode")
+            market_data = data.get("data", {})
 
             if not symbol or not exchange:
                 return
@@ -94,48 +95,46 @@ class MarketDataService:
             with self.data_lock:
                 # Initialize cache entry if needed
                 if symbol_key not in self.market_data_cache:
-                    self.market_data_cache[symbol_key] = {
-                        'last_update': timestamp
-                    }
+                    self.market_data_cache[symbol_key] = {"last_update": timestamp}
 
                 cache_entry = self.market_data_cache[symbol_key]
 
                 # Update based on mode
                 if mode == 1:  # LTP
-                    cache_entry['ltp'] = {
-                        'value': market_data.get('ltp', 0),
-                        'timestamp': market_data.get('timestamp', timestamp),
-                        'volume': market_data.get('volume', 0)
+                    cache_entry["ltp"] = {
+                        "value": market_data.get("ltp", 0),
+                        "timestamp": market_data.get("timestamp", timestamp),
+                        "volume": market_data.get("volume", 0),
                     }
                 elif mode == 2:  # Quote
-                    cache_entry['quote'] = {
-                        'open': market_data.get('open', 0),
-                        'high': market_data.get('high', 0),
-                        'low': market_data.get('low', 0),
-                        'close': market_data.get('close', 0),
-                        'ltp': market_data.get('ltp', 0),
-                        'volume': market_data.get('volume', 0),
-                        'timestamp': market_data.get('timestamp', timestamp)
+                    cache_entry["quote"] = {
+                        "open": market_data.get("open", 0),
+                        "high": market_data.get("high", 0),
+                        "low": market_data.get("low", 0),
+                        "close": market_data.get("close", 0),
+                        "ltp": market_data.get("ltp", 0),
+                        "volume": market_data.get("volume", 0),
+                        "timestamp": market_data.get("timestamp", timestamp),
                     }
                     # Also update LTP from quote
-                    cache_entry['ltp'] = {
-                        'value': market_data.get('ltp', 0),
-                        'timestamp': market_data.get('timestamp', timestamp),
-                        'volume': market_data.get('volume', 0)
+                    cache_entry["ltp"] = {
+                        "value": market_data.get("ltp", 0),
+                        "timestamp": market_data.get("timestamp", timestamp),
+                        "volume": market_data.get("volume", 0),
                     }
                 elif mode == 3:  # Depth
-                    cache_entry['depth'] = {
-                        'buy': market_data.get('depth', {}).get('buy', []),
-                        'sell': market_data.get('depth', {}).get('sell', []),
-                        'ltp': market_data.get('ltp', 0),
-                        'timestamp': market_data.get('timestamp', timestamp)
+                    cache_entry["depth"] = {
+                        "buy": market_data.get("depth", {}).get("buy", []),
+                        "sell": market_data.get("depth", {}).get("sell", []),
+                        "ltp": market_data.get("ltp", 0),
+                        "timestamp": market_data.get("timestamp", timestamp),
                     }
                 else:
                     logger.warning(f"Unknown mode: {mode}")
                     raise ValueError(f"Unknown mode: {mode}")
 
-                cache_entry['last_update'] = timestamp
-                self.metrics['total_updates'] += 1
+                cache_entry["last_update"] = timestamp
+                self.metrics["total_updates"] += 1
 
             # Broadcast to subscribers
             self._broadcast_update(symbol_key, mode, data)
@@ -157,11 +156,11 @@ class MarketDataService:
         symbol_key = f"{exchange}:{symbol}"
 
         with self.data_lock:
-            self.metrics['cache_hits'] += 1
+            self.metrics["cache_hits"] += 1
             if symbol_key in self.market_data_cache:
-                return self.market_data_cache[symbol_key].get('ltp')
+                return self.market_data_cache[symbol_key].get("ltp")
 
-        self.metrics['cache_misses'] += 1
+        self.metrics["cache_misses"] += 1
         return None
 
     def get_quote(self, symbol: str, exchange: str) -> Optional[Dict[str, Any]]:
@@ -178,11 +177,11 @@ class MarketDataService:
         symbol_key = f"{exchange}:{symbol}"
 
         with self.data_lock:
-            self.metrics['cache_hits'] += 1
+            self.metrics["cache_hits"] += 1
             if symbol_key in self.market_data_cache:
-                return self.market_data_cache[symbol_key].get('quote')
+                return self.market_data_cache[symbol_key].get("quote")
 
-        self.metrics['cache_misses'] += 1
+        self.metrics["cache_misses"] += 1
         return None
 
     def get_market_depth(self, symbol: str, exchange: str) -> Optional[Dict[str, Any]]:
@@ -199,11 +198,11 @@ class MarketDataService:
         symbol_key = f"{exchange}:{symbol}"
 
         with self.data_lock:
-            self.metrics['cache_hits'] += 1
+            self.metrics["cache_hits"] += 1
             if symbol_key in self.market_data_cache:
-                return self.market_data_cache[symbol_key].get('depth')
+                return self.market_data_cache[symbol_key].get("depth")
 
-        self.metrics['cache_misses'] += 1
+        self.metrics["cache_misses"] += 1
         return None
 
     def get_all_data(self, symbol: str, exchange: str) -> Dict[str, Any]:
@@ -239,18 +238,23 @@ class MarketDataService:
 
         with self.data_lock:
             for symbol_info in symbols:
-                symbol = symbol_info.get('symbol')
-                exchange = symbol_info.get('exchange')
+                symbol = symbol_info.get("symbol")
+                exchange = symbol_info.get("exchange")
                 if symbol and exchange:
                     symbol_key = f"{exchange}:{symbol}"
                     if symbol_key in self.market_data_cache:
-                        ltp_data = self.market_data_cache[symbol_key].get('ltp')
+                        ltp_data = self.market_data_cache[symbol_key].get("ltp")
                         if ltp_data:
                             result[symbol_key] = ltp_data
 
         return result
 
-    def subscribe_to_updates(self, event_type: str, callback: Callable, filter_symbols: Optional[Set[str]] = None) -> int:
+    def subscribe_to_updates(
+        self,
+        event_type: str,
+        callback: Callable,
+        filter_symbols: Optional[Set[str]] = None,
+    ) -> int:
         """
         Subscribe to market data updates
 
@@ -267,8 +271,8 @@ class MarketDataService:
             subscriber_id = self.subscriber_id_counter
 
             self.subscribers[event_type][subscriber_id] = {
-                'callback': callback,
-                'filter': filter_symbols
+                "callback": callback,
+                "filter": filter_symbols,
             }
 
         logger.info(f"Added subscriber {subscriber_id} for {event_type} updates")
@@ -303,6 +307,7 @@ class MarketDataService:
         Returns:
             Success status
         """
+
         def user_callback(data):
             try:
                 self.process_market_data(data)
@@ -329,19 +334,27 @@ class MarketDataService:
     def get_cache_metrics(self) -> Dict[str, Any]:
         """Get performance metrics"""
         with self.data_lock:
-            total_requests = self.metrics['cache_hits'] + self.metrics['cache_misses']
-            hit_rate = (self.metrics['cache_hits'] / total_requests * 100) if total_requests > 0 else 0
+            total_requests = self.metrics["cache_hits"] + self.metrics["cache_misses"]
+            hit_rate = (
+                (self.metrics["cache_hits"] / total_requests * 100)
+                if total_requests > 0
+                else 0
+            )
 
             return {
-                'total_symbols': len(self.market_data_cache),
-                'total_updates': self.metrics['total_updates'],
-                'cache_hits': self.metrics['cache_hits'],
-                'cache_misses': self.metrics['cache_misses'],
-                'hit_rate': round(hit_rate, 2),
-                'total_subscribers': sum(len(subs) for subs in self.subscribers.values())
+                "total_symbols": len(self.market_data_cache),
+                "total_updates": self.metrics["total_updates"],
+                "cache_hits": self.metrics["cache_hits"],
+                "cache_misses": self.metrics["cache_misses"],
+                "hit_rate": round(hit_rate, 2),
+                "total_subscribers": sum(
+                    len(subs) for subs in self.subscribers.values()
+                ),
             }
 
-    def clear_cache(self, symbol: Optional[str] = None, exchange: Optional[str] = None) -> None:
+    def clear_cache(
+        self, symbol: Optional[str] = None, exchange: Optional[str] = None
+    ) -> None:
         """
         Clear market data cache
 
@@ -359,7 +372,9 @@ class MarketDataService:
                 self.market_data_cache.clear()
                 logger.info("Cleared entire market data cache")
 
-    def _broadcast_update(self, symbol_key: str, mode: int, data: Dict[str, Any]) -> None:
+    def _broadcast_update(
+        self, symbol_key: str, mode: int, data: Dict[str, Any]
+    ) -> None:
         """
         Broadcast updates to subscribers
 
@@ -368,22 +383,22 @@ class MarketDataService:
             mode: Update mode (1=LTP, 2=Quote, 3=Depth)
             data: Full data to broadcast
         """
-        mode_to_event = {1: 'ltp', 2: 'quote', 3: 'depth'}
-        event_type = mode_to_event.get(mode, 'all')
+        mode_to_event = {1: "ltp", 2: "quote", 3: "depth"}
+        event_type = mode_to_event.get(mode, "all")
 
         # Broadcast to specific event subscribers
         with self.data_lock:
             subscribers = list(self.subscribers[event_type].values())
-            all_subscribers = list(self.subscribers['all'].values())
+            all_subscribers = list(self.subscribers["all"].values())
 
         for subscriber in subscribers + all_subscribers:
             try:
                 # Check filter
-                if subscriber['filter'] and symbol_key not in subscriber['filter']:
+                if subscriber["filter"] and symbol_key not in subscriber["filter"]:
                     continue
 
                 # Call the callback
-                subscriber['callback'](data)
+                subscriber["callback"](data)
             except Exception as e:
                 logger.error(f"Error in subscriber callback: {e}")
 
@@ -400,7 +415,7 @@ class MarketDataService:
                     # Clean up stale market data
                     stale_symbols = []
                     for symbol_key, data in self.market_data_cache.items():
-                        if current_time - data.get('last_update', 0) > stale_threshold:
+                        if current_time - data.get("last_update", 0) > stale_threshold:
                             stale_symbols.append(symbol_key)
 
                     for symbol_key in stale_symbols:
@@ -410,8 +425,8 @@ class MarketDataService:
                     for user_id in list(self.user_access_tracking.keys()):
                         user_data = self.user_access_tracking[user_id]
                         stale_accesses = [
-                            symbol_key for symbol_key, last_access
-                            in user_data.items()
+                            symbol_key
+                            for symbol_key, last_access in user_data.items()
                             if current_time - last_access > stale_threshold
                         ]
                         for symbol_key in stale_accesses:
@@ -420,10 +435,12 @@ class MarketDataService:
                         if not user_data:
                             del self.user_access_tracking[user_id]
 
-                    self.metrics['last_cleanup'] = current_time
+                    self.metrics["last_cleanup"] = current_time
 
                 if stale_symbols:
-                    logger.info(f"Cleaned up {len(stale_symbols)} stale market data entries")
+                    logger.info(
+                        f"Cleaned up {len(stale_symbols)} stale market data entries"
+                    )
 
             except Exception as e:
                 logger.error(f"Error in cleanup loop: {e}")
@@ -432,26 +449,36 @@ class MarketDataService:
 # Global instance
 _market_data_service = MarketDataService()
 
+
 # Convenience functions
 def get_market_data_service() -> MarketDataService:
     """Get the global MarketDataService instance"""
     return _market_data_service
 
+
 def get_ltp(symbol: str, exchange: str) -> Optional[Dict[str, Any]]:
     """Get LTP for a symbol"""
     return _market_data_service.get_ltp(symbol, exchange)
+
 
 def get_quote(symbol: str, exchange: str) -> Optional[Dict[str, Any]]:
     """Get quote for a symbol"""
     return _market_data_service.get_quote(symbol, exchange)
 
+
 def get_market_depth(symbol: str, exchange: str) -> Optional[Dict[str, Any]]:
     """Get market depth for a symbol"""
     return _market_data_service.get_market_depth(symbol, exchange)
 
-def subscribe_to_market_updates(event_type: str, callback: Callable, filter_symbols: Optional[Set[str]] = None) -> int:
+
+def subscribe_to_market_updates(
+    event_type: str, callback: Callable, filter_symbols: Optional[Set[str]] = None
+) -> int:
     """Subscribe to market data updates"""
-    return _market_data_service.subscribe_to_updates(event_type, callback, filter_symbols)
+    return _market_data_service.subscribe_to_updates(
+        event_type, callback, filter_symbols
+    )
+
 
 def unsubscribe_from_market_updates(subscriber_id: int) -> bool:
     """Unsubscribe from market data updates"""

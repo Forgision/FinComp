@@ -41,34 +41,30 @@ def get_access_token_via_totp(api_key, api_secret):
         # Use EXACT format from official Groww SDK
         # From auth.ts: Authorization header with Bearer token + TOTP in body
         headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
         }
 
         # Exact payload format from SDK
-        payload = {
-            'totp': totp
-        }
+        payload = {"totp": totp}
 
         # Exact endpoint from SDK config
-        endpoint = 'https://api.groww.in/v1/token/api/access'
+        endpoint = "https://api.groww.in/v1/token/api/access"
 
         try:
-            response = client.post(
-                endpoint,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
+            response = client.post(endpoint, headers=headers, json=payload, timeout=30)
 
             if response.status_code == 200:
                 response_data = response.json()
 
                 # Based on AccessToken.ts, expect 'token' field
-                if 'token' in response_data:
-                    return response_data['token'], None
+                if "token" in response_data:
+                    return response_data["token"], None
                 else:
-                    return None, f"Authentication succeeded but no token found in response: {response_data}"
+                    return (
+                        None,
+                        f"Authentication succeeded but no token found in response: {response_data}",
+                    )
             else:
                 try:
                     error_data = response.json()
@@ -79,7 +75,10 @@ def get_access_token_via_totp(api_key, api_secret):
         except Exception as e:
             return None, f"Request failed: {str(e)}"
 
-        return None, "Unable to authenticate with Groww API. Please verify your API credentials and ensure you have an active API subscription."
+        return (
+            None,
+            "Unable to authenticate with Groww API. Please verify your API credentials and ensure you have an active API subscription.",
+        )
 
     except Exception as e:
         return None, f"Authentication error: {str(e)}"
@@ -102,12 +101,13 @@ def authenticate_broker(code):
         BROKER_API_SECRET = settings.BROKER_API_SECRET
 
         if not BROKER_API_KEY or not BROKER_API_SECRET:
-            return None, "BROKER_API_KEY and BROKER_API_SECRET environment variables are required for Groww TOTP authentication"
+            return (
+                None,
+                "BROKER_API_KEY and BROKER_API_SECRET environment variables are required for Groww TOTP authentication",
+            )
 
         # Use TOTP flow to get access token
         return get_access_token_via_totp(BROKER_API_KEY, BROKER_API_SECRET)
 
     except Exception as e:
         return None, f"An exception occurred: {str(e)}"
-
-

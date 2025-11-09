@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 
 from app.utils.time_utils import format_ist_time
 
+
 def generate_csv(logs: List[Dict[str, Any]]) -> str:
     """Generate CSV file from latency logs"""
     output = io.StringIO()

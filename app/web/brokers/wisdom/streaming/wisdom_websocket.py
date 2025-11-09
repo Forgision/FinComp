@@ -20,7 +20,9 @@ class WisdomWebSocketClient:
     # Socket.IO endpoints - Updated based on XTS API documentation
     SOCKET_PATH = "/apimarketdata/socket.io"
     API_BASE_URL = f"{MARKET_DATA_URL}/instruments/subscription"
-    API_UNSUBSCRIBE_URL = f"{MARKET_DATA_URL}/instruments/subscription"  # Same endpoint, different method
+    API_UNSUBSCRIBE_URL = (
+        f"{MARKET_DATA_URL}/instruments/subscription"  # Same endpoint, different method
+    )
 
     # Available Actions
     SUBSCRIBE_ACTION = 1
@@ -38,7 +40,9 @@ class WisdomWebSocketClient:
     BSE_FO = 4
     MCX_FO = 5
 
-    def __init__(self, api_key: str, api_secret: str, user_id: str, base_url: str = None):
+    def __init__(
+        self, api_key: str, api_secret: str, user_id: str, base_url: str = None
+    ):
         """
         Initialize the Wisdom XTS Socket.IO client
 
@@ -84,28 +88,28 @@ class WisdomWebSocketClient:
         self.sio = socketio.Client(logger=False, engineio_logger=False)
 
         # Register event handlers
-        self.sio.on('connect', self._on_connect)
-        self.sio.on('disconnect', self._on_disconnect)
-        self.sio.on('message', self._on_message_handler)
+        self.sio.on("connect", self._on_connect)
+        self.sio.on("disconnect", self._on_disconnect)
+        self.sio.on("message", self._on_message_handler)
 
         # Register XTS specific message handlers
-        self.sio.on('1501-json-full', self._on_message_1501_json_full)
-        self.sio.on('1501-json-partial', self._on_message_1501_json_partial)
-        self.sio.on('1502-json-full', self._on_message_1502_json_full)
-        self.sio.on('1502-json-partial', self._on_message_1502_json_partial)
-        self.sio.on('1505-json-full', self._on_message_1505_json_full)
-        self.sio.on('1505-json-partial', self._on_message_1505_json_partial)
-        self.sio.on('1510-json-full', self._on_message_1510_json_full)
-        self.sio.on('1510-json-partial', self._on_message_1510_json_partial)
-        self.sio.on('1512-json-full', self._on_message_1512_json_full)
-        self.sio.on('1512-json-partial', self._on_message_1512_json_partial)
+        self.sio.on("1501-json-full", self._on_message_1501_json_full)
+        self.sio.on("1501-json-partial", self._on_message_1501_json_partial)
+        self.sio.on("1502-json-full", self._on_message_1502_json_full)
+        self.sio.on("1502-json-partial", self._on_message_1502_json_partial)
+        self.sio.on("1505-json-full", self._on_message_1505_json_full)
+        self.sio.on("1505-json-partial", self._on_message_1505_json_partial)
+        self.sio.on("1510-json-full", self._on_message_1510_json_full)
+        self.sio.on("1510-json-partial", self._on_message_1510_json_partial)
+        self.sio.on("1512-json-full", self._on_message_1512_json_full)
+        self.sio.on("1512-json-partial", self._on_message_1512_json_partial)
 
         # Register handler for 1105 events (binary market data)
-        self.sio.on('1105-json-partial', self._on_message_1105_json_partial)
-        self.sio.on('1105-json-full', self._on_message_1105_json_full)
+        self.sio.on("1105-json-partial", self._on_message_1105_json_partial)
+        self.sio.on("1105-json-full", self._on_message_1105_json_full)
 
         # Add catch-all handler for any unhandled events
-        self.sio.on('*', self._on_catch_all)
+        self.sio.on("*", self._on_catch_all)
 
     def marketdata_login(self):
         """
@@ -120,20 +124,15 @@ class WisdomWebSocketClient:
             login_payload = {
                 "appKey": self.api_key,
                 "secretKey": self.api_secret,
-                "source": "WebAPI"
+                "source": "WebAPI",
             }
 
-            headers = {
-                'Content-Type': 'application/json'
-            }
+            headers = {"Content-Type": "application/json"}
 
             self.logger.info(f"[MARKET DATA LOGIN] Attempting login to: {login_url}")
 
             response = requests.post(
-                login_url,
-                json=login_payload,
-                headers=headers,
-                timeout=30
+                login_url, json=login_payload, headers=headers, timeout=30
             )
 
             if response.status_code == 200:
@@ -146,16 +145,24 @@ class WisdomWebSocketClient:
                     self.actual_user_id = login_result.get("userID")
 
                     if self.market_data_token and self.actual_user_id:
-                        self.logger.info(f"[MARKET DATA LOGIN] Success! Token obtained, UserID: {self.actual_user_id}")
+                        self.logger.info(
+                            f"[MARKET DATA LOGIN] Success! Token obtained, UserID: {self.actual_user_id}"
+                        )
                         return True
                     else:
-                        self.logger.error("[MARKET DATA LOGIN] Missing token or userID in response")
+                        self.logger.error(
+                            "[MARKET DATA LOGIN] Missing token or userID in response"
+                        )
                         return False
                 else:
-                    self.logger.error(f"[MARKET DATA LOGIN] API returned error: {result}")
+                    self.logger.error(
+                        f"[MARKET DATA LOGIN] API returned error: {result}"
+                    )
                     return False
             else:
-                self.logger.error(f"[MARKET DATA LOGIN] HTTP Error: {response.status_code}, Response: {response.text}")
+                self.logger.error(
+                    f"[MARKET DATA LOGIN] HTTP Error: {response.status_code}, Response: {response.text}"
+                )
                 return False
 
         except Exception as e:
@@ -170,8 +177,8 @@ class WisdomWebSocketClient:
                 raise Exception("Market data login failed")
 
             # Build connection URL with proper market data token and user ID
-            publish_format = 'JSON'
-            broadcast_mode = 'FULL'  # or 'PARTIAL'
+            publish_format = "JSON"
+            broadcast_mode = "FULL"  # or 'PARTIAL'
 
             # Use the market data token and actual user ID from login response
             connection_url = f"{self.base_url}/?token={self.market_data_token}&userID={self.actual_user_id}&publishFormat={publish_format}&broadcastMode={broadcast_mode}"
@@ -182,9 +189,9 @@ class WisdomWebSocketClient:
             self.sio.connect(
                 connection_url,
                 headers={},
-                transports=['websocket'],
+                transports=["websocket"],
                 namespaces=None,
-                socketio_path=self.SOCKET_PATH
+                socketio_path=self.SOCKET_PATH,
             )
 
             self.running = True
@@ -234,7 +241,7 @@ class WisdomWebSocketClient:
         mode_to_xts_code = {
             1: 1512,  # LTP mode -> 1512 (LTP)
             2: 1501,  # Quote mode -> 1501 (Full Market Data)
-            3: 1502   # Depth mode -> 1502 (Market Depth)
+            3: 1502,  # Depth mode -> 1502 (Market Depth)
         }
 
         xts_message_code = mode_to_xts_code.get(mode, 1501)
@@ -242,52 +249,60 @@ class WisdomWebSocketClient:
         # Prepare subscription request
         subscription_request = {
             "instruments": instruments,
-            "xtsMessageCode": xts_message_code
+            "xtsMessageCode": xts_message_code,
         }
 
         # Store subscription for reconnection
         self.subscriptions[correlation_id] = {
             "mode": mode,
             "instruments": instruments,
-            "xts_message_code": xts_message_code
+            "xts_message_code": xts_message_code,
         }
 
         # Send subscription via HTTP POST (like the official XTS SDK)
         try:
             headers = {
-                'Authorization': self.market_data_token,
-                'Content-Type': 'application/json'
+                "Authorization": self.market_data_token,
+                "Content-Type": "application/json",
             }
 
             response = requests.post(
                 self.API_BASE_URL,
                 json=subscription_request,
                 headers=headers,
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code == 200:
                 result = response.json()
-                self.logger.info(f"[SUBSCRIPTION SUCCESS] Code: {xts_message_code}, Instruments: {len(instruments)}, Response: {result}")
+                self.logger.info(
+                    f"[SUBSCRIPTION SUCCESS] Code: {xts_message_code}, Instruments: {len(instruments)}, Response: {result}"
+                )
 
                 # Process initial quote data from listQuotes if available
-                if result.get('type') == 'success' and 'result' in result:
-                    list_quotes = result['result'].get('listQuotes', [])
+                if result.get("type") == "success" and "result" in result:
+                    list_quotes = result["result"].get("listQuotes", [])
                     for quote_str in list_quotes:
                         try:
                             quote_data = json.loads(quote_str)
-                            self.logger.info(f"[INITIAL QUOTE] Processing initial quote: {quote_data}")
+                            self.logger.info(
+                                f"[INITIAL QUOTE] Processing initial quote: {quote_data}"
+                            )
                             if self.on_data:
                                 self.on_data(self, quote_data)
                         except json.JSONDecodeError as e:
                             self.logger.error(f"Error parsing initial quote: {e}")
             else:
-                self.logger.error(f"[SUBSCRIPTION ERROR] Status: {response.status_code}, Response: {response.text}")
+                self.logger.error(
+                    f"[SUBSCRIPTION ERROR] Status: {response.status_code}, Response: {response.text}"
+                )
 
         except Exception as e:
             self.logger.error(f"[SUBSCRIPTION EXCEPTION] Error: {e}")
 
-        self.logger.info(f"Subscribed to {len(instruments)} instruments with XTS code {xts_message_code} (mode {mode})")
+        self.logger.info(
+            f"Subscribed to {len(instruments)} instruments with XTS code {xts_message_code} (mode {mode})"
+        )
 
     def unsubscribe(self, correlation_id: str, mode: int, instruments: List[Dict]):
         """
@@ -303,12 +318,12 @@ class WisdomWebSocketClient:
 
         # Get the XTS message code from stored subscription
         subscription = self.subscriptions.get(correlation_id, {})
-        xts_message_code = subscription.get('xts_message_code', 1501)
+        xts_message_code = subscription.get("xts_message_code", 1501)
 
         # Prepare unsubscription request
         unsubscription_request = {
             "instruments": instruments,
-            "xtsMessageCode": xts_message_code
+            "xtsMessageCode": xts_message_code,
         }
 
         # Remove from subscriptions
@@ -318,8 +333,8 @@ class WisdomWebSocketClient:
         # Send unsubscription via HTTP PUT (different from subscription POST)
         try:
             headers = {
-                'Authorization': self.market_data_token,
-                'Content-Type': 'application/json'
+                "Authorization": self.market_data_token,
+                "Content-Type": "application/json",
             }
 
             # Use PUT method for unsubscription as per XTS API
@@ -327,14 +342,18 @@ class WisdomWebSocketClient:
                 self.API_UNSUBSCRIBE_URL,
                 json=unsubscription_request,
                 headers=headers,
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code == 200:
                 result = response.json()
-                self.logger.info(f"[UNSUBSCRIPTION SUCCESS] Code: {xts_message_code}, Instruments: {len(instruments)}, Response: {result}")
+                self.logger.info(
+                    f"[UNSUBSCRIPTION SUCCESS] Code: {xts_message_code}, Instruments: {len(instruments)}, Response: {result}"
+                )
             else:
-                self.logger.error(f"[UNSUBSCRIPTION ERROR] Status: {response.status_code}, Response: {response.text}")
+                self.logger.error(
+                    f"[UNSUBSCRIPTION ERROR] Status: {response.status_code}, Response: {response.text}"
+                )
 
         except Exception as e:
             self.logger.error(f"[UNSUBSCRIPTION EXCEPTION] Error: {e}")
@@ -459,16 +478,16 @@ class WisdomWebSocketClient:
                 return
 
             # Parse format: t:12_1140025,110:2067.75,111:516.95
-            parts = data.split(',')
-            if not parts or not parts[0].startswith('t:'):
+            parts = data.split(",")
+            if not parts or not parts[0].startswith("t:"):
                 return
 
             # Extract instrument info from first part
             instrument_part = parts[0][2:]  # Remove 't:'
-            if '_' not in instrument_part:
+            if "_" not in instrument_part:
                 return
 
-            exchange_segment, instrument_id = instrument_part.split('_', 1)
+            exchange_segment, instrument_id = instrument_part.split("_", 1)
 
             # FILTER: Only process data for subscribed instruments
             exchange_segment_int = int(exchange_segment)
@@ -478,9 +497,11 @@ class WisdomWebSocketClient:
             is_subscribed = False
             for sub in self.subscriptions.values():
                 # Get instruments from the subscription
-                for instrument in sub.get('instruments', []):
-                    if (instrument.get('exchangeSegment') == exchange_segment_int and
-                        instrument.get('exchangeInstrumentID') == instrument_id_int):
+                for instrument in sub.get("instruments", []):
+                    if (
+                        instrument.get("exchangeSegment") == exchange_segment_int
+                        and instrument.get("exchangeInstrumentID") == instrument_id_int
+                    ):
                         is_subscribed = True
                         break
                 if is_subscribed:
@@ -492,34 +513,36 @@ class WisdomWebSocketClient:
 
             # Parse field-value pairs only for subscribed instruments
             market_data = {
-                'ExchangeSegment': exchange_segment_int,
-                'ExchangeInstrumentID': instrument_id_int
+                "ExchangeSegment": exchange_segment_int,
+                "ExchangeInstrumentID": instrument_id_int,
             }
 
             # Map common field codes to standard names
             field_mapping = {
-                '110': 'LastTradedPrice',  # LTP
-                '111': 'LastTradedQuantity',  # LTQ
-                '112': 'TotalTradedQuantity',  # Volume
-                '113': 'AverageTradedPrice',
-                '114': 'Open',
-                '115': 'High',
-                '116': 'Low',
-                '117': 'Close',
-                '118': 'TotalBuyQuantity',
-                '119': 'TotalSellQuantity'
+                "110": "LastTradedPrice",  # LTP
+                "111": "LastTradedQuantity",  # LTQ
+                "112": "TotalTradedQuantity",  # Volume
+                "113": "AverageTradedPrice",
+                "114": "Open",
+                "115": "High",
+                "116": "Low",
+                "117": "Close",
+                "118": "TotalBuyQuantity",
+                "119": "TotalSellQuantity",
             }
 
             for part in parts[1:]:
-                if ':' in part:
-                    field_code, value = part.split(':', 1)
-                    field_name = field_mapping.get(field_code, f'Field_{field_code}')
+                if ":" in part:
+                    field_code, value = part.split(":", 1)
+                    field_name = field_mapping.get(field_code, f"Field_{field_code}")
                     try:
                         market_data[field_name] = float(value)
                     except ValueError:
                         market_data[field_name] = value
 
-            self.logger.info(f"[1105-PROCESSED] Subscribed instrument data: {market_data}")
+            self.logger.info(
+                f"[1105-PROCESSED] Subscribed instrument data: {market_data}"
+            )
 
             # Call the standard data handler
             if self.on_data:
@@ -531,20 +554,20 @@ class WisdomWebSocketClient:
     def _on_catch_all(self, event, *args):
         """Catch-all handler for any unhandled Socket.IO events"""
         # Don't log connect/disconnect/joined events as they are handled separately
-        if event not in ['connect', 'disconnect', 'joined', 'message']:
+        if event not in ["connect", "disconnect", "joined", "message"]:
             self.logger.info(f"[CATCH-ALL] Unhandled event: {event}")
             if args:
                 for i, arg in enumerate(args):
-                    self.logger.info(f"  Arg[{i}]: Type={type(arg)}, Value={str(arg)[:200]}...")
+                    self.logger.info(
+                        f"  Arg[{i}]: Type={type(arg)}, Value={str(arg)[:200]}..."
+                    )
 
     def resubscribe_all(self):
         """Resubscribe to all stored subscriptions after reconnection"""
         for correlation_id, sub_data in self.subscriptions.items():
             try:
                 self.subscribe(
-                    correlation_id,
-                    sub_data["mode"],
-                    sub_data["instruments"]
+                    correlation_id, sub_data["mode"], sub_data["instruments"]
                 )
             except Exception as e:
                 self.logger.error(f"Error resubscribing {correlation_id}: {e}")

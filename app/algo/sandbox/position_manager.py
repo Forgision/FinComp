@@ -58,8 +58,8 @@ class PositionManager:
             from datetime import datetime, time, timedelta
 
             # Get session expiry time from config (e.g., '03:00')
-            session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')
-            expiry_hour, expiry_minute = map(int, session_expiry_str.split(':'))
+            session_expiry_str = os.getenv("SESSION_EXPIRY_TIME", "03:00")
+            expiry_hour, expiry_minute = map(int, session_expiry_str.split(":"))
 
             # Get current time
             now = datetime.now()
@@ -72,7 +72,9 @@ class PositionManager:
             if now.time() < session_expiry_time:
                 # We're before today's session expiry (e.g., before 3 AM)
                 # Last session expired yesterday at 3 AM
-                last_session_expiry = datetime.combine(today - timedelta(days=1), session_expiry_time)
+                last_session_expiry = datetime.combine(
+                    today - timedelta(days=1), session_expiry_time
+                )
             else:
                 # We're after today's session expiry (e.g., after 3 AM)
                 # Last session expired today at 3 AM
@@ -95,7 +97,7 @@ class PositionManager:
                 if position.updated_at >= last_session_expiry:
                     positions.append(position)
                 # If position was updated before last session expiry, only include NRML with non-zero quantity
-                elif position.product == 'NRML' and position.quantity != 0:
+                elif position.product == "NRML" and position.quantity != 0:
                     positions.append(position)
                 # Skip MIS and CNC positions from previous session
 
@@ -103,8 +105,10 @@ class PositionManager:
                 self._update_positions_mtm(positions)
 
             positions_list = []
-            total_unrealized_pnl = Decimal('0.00')  # Only from open positions
-            total_display_pnl = Decimal('0.00')     # For display (includes closed positions)
+            total_unrealized_pnl = Decimal("0.00")  # Only from open positions
+            total_display_pnl = Decimal(
+                "0.00"
+            )  # For display (includes closed positions)
 
             for position in positions:
                 pnl = Decimal(str(position.pnl))
@@ -117,46 +121,55 @@ class PositionManager:
                 if position.quantity != 0:
                     total_unrealized_pnl += pnl
 
-                positions_list.append({
-                    'symbol': position.symbol,
-                    'exchange': position.exchange,
-                    'product': position.product,
-                    'quantity': position.quantity,
-                    'average_price': float(position.average_price),
-                    'ltp': float(position.ltp) if position.ltp else 0.0,
-                    'pnl': float(pnl),
-                    'pnl_percent': float(position.pnl_percent),
-                })
+                positions_list.append(
+                    {
+                        "symbol": position.symbol,
+                        "exchange": position.exchange,
+                        "product": position.product,
+                        "quantity": position.quantity,
+                        "average_price": float(position.average_price),
+                        "ltp": float(position.ltp) if position.ltp else 0.0,
+                        "pnl": float(pnl),
+                        "pnl_percent": float(position.pnl_percent),
+                    }
+                )
 
             # Update fund unrealized P&L (only from open positions)
             # Closed position P&L is already in realized_pnl, so don't include it here
             if update_mtm:
                 self.fund_manager.update_unrealized_pnl(total_unrealized_pnl)
 
-            return True, {
-                'status': 'success',
-                'data': positions_list,
-                'total_pnl': float(total_display_pnl),  # Display total includes all positions
-                'mode': 'analyze'
-            }, 200
+            return (
+                True,
+                {
+                    "status": "success",
+                    "data": positions_list,
+                    "total_pnl": float(
+                        total_display_pnl
+                    ),  # Display total includes all positions
+                    "mode": "analyze",
+                },
+                200,
+            )
 
         except Exception as e:
             logger.error(f"Error getting positions for user {self.user_id}: {e}")
-            return False, {
-                'status': 'error',
-                'message': f'Error getting positions: {str(e)}',
-                'mode': 'analyze'
-            }, 500
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": f"Error getting positions: {str(e)}",
+                    "mode": "analyze",
+                },
+                500,
+            )
 
     def get_position_for_symbol(self, symbol, exchange, product):
         """Get position for a specific symbol"""
         db = next(get_db())
         try:
             stmt = select(SandboxPositions).filter_by(
-                user_id=self.user_id,
-                symbol=symbol,
-                exchange=exchange,
-                product=product
+                user_id=self.user_id, symbol=symbol, exchange=exchange, product=product
             )
             position = db.execute(stmt).scalars().first()
 
@@ -167,14 +180,14 @@ class PositionManager:
             self._update_single_position_mtm(position)
 
             return {
-                'symbol': position.symbol,
-                'exchange': position.exchange,
-                'product': position.product,
-                'quantity': position.quantity,
-                'average_price': float(position.average_price),
-                'ltp': float(position.ltp) if position.ltp else 0.0,
-                'pnl': float(position.pnl),
-                'pnl_percent': float(position.pnl_percent),
+                "symbol": position.symbol,
+                "exchange": position.exchange,
+                "product": position.product,
+                "quantity": position.quantity,
+                "average_price": float(position.average_price),
+                "ltp": float(position.ltp) if position.ltp else 0.0,
+                "pnl": float(position.pnl),
+                "pnl_percent": float(position.pnl_percent),
             }
 
         except Exception as e:
@@ -209,25 +222,25 @@ class PositionManager:
 
                 quote = quote_cache.get((position.symbol, position.exchange))
                 if quote:
-                    ltp = Decimal(str(quote.get('ltp', 0)))
+                    ltp = Decimal(str(quote.get("ltp", 0)))
                     if ltp > 0:
                         position.ltp = ltp
 
                         # Calculate current unrealized P&L for open position
                         current_unrealized_pnl = self._calculate_position_pnl(
-                            position.quantity,
-                            position.average_price,
-                            ltp
+                            position.quantity, position.average_price, ltp
                         )
 
                         # Display = accumulated realized P&L + current unrealized P&L
-                        accumulated_realized = position.accumulated_realized_pnl if position.accumulated_realized_pnl else Decimal('0.00')
+                        accumulated_realized = (
+                            position.accumulated_realized_pnl
+                            if position.accumulated_realized_pnl
+                            else Decimal("0.00")
+                        )
                         position.pnl = accumulated_realized + current_unrealized_pnl
 
                         position.pnl_percent = self._calculate_pnl_percent(
-                            position.average_price,
-                            ltp,
-                            position.quantity
+                            position.average_price, ltp, position.quantity
                         )
 
             db.commit()
@@ -247,18 +260,14 @@ class PositionManager:
 
             quote = self._fetch_quote(position.symbol, position.exchange)
             if quote:
-                ltp = Decimal(str(quote.get('ltp', 0)))
+                ltp = Decimal(str(quote.get("ltp", 0)))
                 if ltp > 0:
                     position.ltp = ltp
                     position.pnl = self._calculate_position_pnl(
-                        position.quantity,
-                        position.average_price,
-                        ltp
+                        position.quantity, position.average_price, ltp
                     )
                     position.pnl_percent = self._calculate_pnl_percent(
-                        position.average_price,
-                        ltp,
-                        position.quantity
+                        position.average_price, ltp, position.quantity
                     )
                     db.commit()
 
@@ -284,7 +293,7 @@ class PositionManager:
 
         except Exception as e:
             logger.error(f"Error calculating position P&L: {e}")
-            return Decimal('0.00')
+            return Decimal("0.00")
 
     def _calculate_pnl_percent(self, avg_price, ltp, quantity):
         """Calculate P&L percentage"""
@@ -293,20 +302,20 @@ class PositionManager:
             ltp = Decimal(str(ltp))
 
             if avg_price <= 0:
-                return Decimal('0.00')
+                return Decimal("0.00")
 
             if quantity > 0:
                 # Long position
-                pnl_percent = ((ltp - avg_price) / avg_price) * Decimal('100')
+                pnl_percent = ((ltp - avg_price) / avg_price) * Decimal("100")
             else:
                 # Short position
-                pnl_percent = ((avg_price - ltp) / avg_price) * Decimal('100')
+                pnl_percent = ((avg_price - ltp) / avg_price) * Decimal("100")
 
             return pnl_percent
 
         except Exception as e:
             logger.error(f"Error calculating P&L percent: {e}")
-            return Decimal('0.00')
+            return Decimal("0.00")
 
     def _fetch_quote(self, symbol, exchange):
         """Fetch real-time quote for a symbol using API key"""
@@ -325,15 +334,15 @@ class PositionManager:
 
             # Use quotes service with API key authentication
             success, response, status_code = get_quotes(
-                symbol=symbol,
-                exchange=exchange,
-                api_key=api_key
+                symbol=symbol, exchange=exchange, api_key=api_key
             )
 
-            if success and 'data' in response:
-                return response['data']
+            if success and "data" in response:
+                return response["data"]
             else:
-                logger.warning(f"Failed to fetch quote for {symbol}: {response.get('message', 'Unknown error')}")
+                logger.warning(
+                    f"Failed to fetch quote for {symbol}: {response.get('message', 'Unknown error')}"
+                )
                 return None
 
         except Exception as e:
@@ -348,58 +357,70 @@ class PositionManager:
         db = next(get_db())
         try:
             stmt = select(SandboxPositions).filter_by(
-                user_id=self.user_id,
-                symbol=symbol,
-                exchange=exchange,
-                product=product
+                user_id=self.user_id, symbol=symbol, exchange=exchange, product=product
             )
             position = db.execute(stmt).scalars().first()
 
             if not position:
-                return False, {
-                    'status': 'error',
-                    'message': f'No open position found for {symbol}',
-                    'mode': 'analyze'
-                }, 404
+                return (
+                    False,
+                    {
+                        "status": "error",
+                        "message": f"No open position found for {symbol}",
+                        "mode": "analyze",
+                    },
+                    404,
+                )
 
             # Determine action (opposite of current position)
-            action = 'SELL' if position.quantity > 0 else 'BUY'
+            action = "SELL" if position.quantity > 0 else "BUY"
             quantity = abs(position.quantity)
 
             # Create market order to close position
             from sandbox.order_manager import OrderManager
+
             order_manager = OrderManager(self.user_id)
 
             order_data = {
-                'symbol': symbol,
-                'exchange': exchange,
-                'action': action,
-                'quantity': quantity,
-                'price_type': 'MARKET',
-                'product': product,
-                'strategy': 'AUTO_SQUARE_OFF'
+                "symbol": symbol,
+                "exchange": exchange,
+                "action": action,
+                "quantity": quantity,
+                "price_type": "MARKET",
+                "product": product,
+                "strategy": "AUTO_SQUARE_OFF",
             }
 
             success, response, status_code = order_manager.place_order(order_data)
 
             if success:
-                logger.info(f"Position close order placed: {symbol} {action} {quantity}")
-                return True, {
-                    'status': 'success',
-                    'message': f'Position close order placed for {symbol}',
-                    'orderid': response.get('orderid'),
-                    'mode': 'analyze'
-                }, 200
+                logger.info(
+                    f"Position close order placed: {symbol} {action} {quantity}"
+                )
+                return (
+                    True,
+                    {
+                        "status": "success",
+                        "message": f"Position close order placed for {symbol}",
+                        "orderid": response.get("orderid"),
+                        "mode": "analyze",
+                    },
+                    200,
+                )
             else:
                 return False, response, status_code
 
         except Exception as e:
             logger.error(f"Error closing position {symbol}: {e}")
-            return False, {
-                'status': 'error',
-                'message': f'Error closing position: {str(e)}',
-                'mode': 'analyze'
-            }, 500
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": f"Error closing position: {str(e)}",
+                    "mode": "analyze",
+                },
+                500,
+            )
 
     def get_tradebook(self):
         """Get all executed trades for the user for current session only"""
@@ -409,8 +430,8 @@ class PositionManager:
             from datetime import datetime, time, timedelta
 
             # Get session expiry time from config (e.g., '03:00')
-            session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')
-            expiry_hour, expiry_minute = map(int, session_expiry_str.split(':'))
+            session_expiry_str = os.getenv("SESSION_EXPIRY_TIME", "03:00")
+            expiry_hour, expiry_minute = map(int, session_expiry_str.split(":"))
 
             # Get current time
             now = datetime.now()
@@ -424,54 +445,68 @@ class PositionManager:
             if now.time() < session_expiry_time:
                 # We're in the early morning before session expiry
                 # Session started yesterday at expiry time
-                session_start = datetime.combine(today - timedelta(days=1), session_expiry_time)
+                session_start = datetime.combine(
+                    today - timedelta(days=1), session_expiry_time
+                )
             else:
                 # We're after session expiry time
                 # Session started today at expiry time
                 session_start = datetime.combine(today, session_expiry_time)
 
-            stmt = select(SandboxTrades).filter(
-                SandboxTrades.user_id == self.user_id,
-                SandboxTrades.trade_timestamp >= session_start
-            ).order_by(
-                SandboxTrades.trade_timestamp.desc()
+            stmt = (
+                select(SandboxTrades)
+                .filter(
+                    SandboxTrades.user_id == self.user_id,
+                    SandboxTrades.trade_timestamp >= session_start,
+                )
+                .order_by(SandboxTrades.trade_timestamp.desc())
             )
             trades = db.execute(stmt).scalars().all()
 
             tradebook = []
             for trade in trades:
                 price = float(trade.price)
-                quantity = abs(trade.quantity)  # Use absolute value for trade_value calculation
+                quantity = abs(
+                    trade.quantity
+                )  # Use absolute value for trade_value calculation
                 trade_value = round(price * quantity, 2)  # Round to 2 decimal places
 
-                tradebook.append({
-                    'tradeid': trade.tradeid,
-                    'orderid': trade.orderid,
-                    'symbol': trade.symbol,
-                    'exchange': trade.exchange,
-                    'action': trade.action,
-                    'quantity': trade.quantity,
-                    'average_price': round(price, 2),  # Round to 2 decimal places
-                    'price': round(price, 2),  # Round to 2 decimal places
-                    'trade_value': trade_value,  # Trade value already rounded above
-                    'product': trade.product,
-                    'strategy': trade.strategy or '',
-                    'timestamp': trade.trade_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                })
+                tradebook.append(
+                    {
+                        "tradeid": trade.tradeid,
+                        "orderid": trade.orderid,
+                        "symbol": trade.symbol,
+                        "exchange": trade.exchange,
+                        "action": trade.action,
+                        "quantity": trade.quantity,
+                        "average_price": round(price, 2),  # Round to 2 decimal places
+                        "price": round(price, 2),  # Round to 2 decimal places
+                        "trade_value": trade_value,  # Trade value already rounded above
+                        "product": trade.product,
+                        "strategy": trade.strategy or "",
+                        "timestamp": trade.trade_timestamp.strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                    }
+                )
 
-            return True, {
-                'status': 'success',
-                'data': tradebook,
-                'mode': 'analyze'
-            }, 200
+            return (
+                True,
+                {"status": "success", "data": tradebook, "mode": "analyze"},
+                200,
+            )
 
         except Exception as e:
             logger.error(f"Error getting tradebook: {e}")
-            return False, {
-                'status': 'error',
-                'message': f'Error getting tradebook: {str(e)}',
-                'mode': 'analyze'
-            }, 500
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": f"Error getting tradebook: {str(e)}",
+                    "mode": "analyze",
+                },
+                500,
+            )
 
     def process_session_settlement(self):
         """
@@ -488,7 +523,7 @@ class PositionManager:
             from datetime import date
 
             # Get session expiry time from config
-            session_expiry_str = os.getenv('SESSION_EXPIRY_TIME', '03:00')
+            session_expiry_str = os.getenv("SESSION_EXPIRY_TIME", "03:00")
             logger.info(f"Processing session settlement at {session_expiry_str}")
 
             # Get all open positions
@@ -499,7 +534,7 @@ class PositionManager:
                 if position.quantity == 0:
                     continue  # Skip closed positions
 
-                if position.product == 'MIS':
+                if position.product == "MIS":
                     # Auto square-off MIS positions at market close
                     # Create a reverse order to square off
                     quantity = abs(position.quantity)
@@ -511,9 +546,11 @@ class PositionManager:
                     position.pnl = position.accumulated_realized_pnl
                     db.commit()
 
-                    logger.info(f"Auto squared-off MIS position: {position.symbol} qty: {quantity}")
+                    logger.info(
+                        f"Auto squared-off MIS position: {position.symbol} qty: {quantity}"
+                    )
 
-                elif position.product == 'CNC' and position.quantity > 0:
+                elif position.product == "CNC" and position.quantity > 0:
                     # Move CNC buy positions to holdings (T+1 settlement)
                     # CNC sell positions are already closed (no short delivery allowed)
 
@@ -521,7 +558,7 @@ class PositionManager:
                     holdings_stmt = select(SandboxHoldings).filter_by(
                         user_id=self.user_id,
                         symbol=position.symbol,
-                        exchange=position.exchange
+                        exchange=position.exchange,
                     )
                     holdings = db.execute(holdings_stmt).scalars().first()
 
@@ -529,10 +566,9 @@ class PositionManager:
                         # Update existing holdings
                         holdings.quantity += position.quantity
                         holdings.average_price = (
-                            (holdings.average_price * holdings.quantity +
-                             position.average_price * position.quantity) /
-                            (holdings.quantity + position.quantity)
-                        )
+                            holdings.average_price * holdings.quantity
+                            + position.average_price * position.quantity
+                        ) / (holdings.quantity + position.quantity)
                     else:
                         # Create new holdings
                         holdings = SandboxHoldings(
@@ -541,7 +577,7 @@ class PositionManager:
                             exchange=position.exchange,
                             quantity=position.quantity,
                             average_price=position.average_price,
-                            settlement_date=date.today()
+                            settlement_date=date.today(),
                         )
                         db.add(holdings)
 
@@ -550,24 +586,34 @@ class PositionManager:
                     position.pnl = position.accumulated_realized_pnl
                     db.commit()
 
-                    logger.info(f"Moved CNC position to holdings: {position.symbol} qty: {position.quantity}")
+                    logger.info(
+                        f"Moved CNC position to holdings: {position.symbol} qty: {position.quantity}"
+                    )
 
                 # NRML positions remain as-is (carry forward)
 
-            return True, {
-                'status': 'success',
-                'message': 'Session settlement completed',
-                'mode': 'analyze'
-            }, 200
+            return (
+                True,
+                {
+                    "status": "success",
+                    "message": "Session settlement completed",
+                    "mode": "analyze",
+                },
+                200,
+            )
 
         except Exception as e:
             logger.error(f"Error in EOD settlement: {e}")
             db.rollback()
-            return False, {
-                'status': 'error',
-                'message': f'Error in EOD settlement: {str(e)}',
-                'mode': 'analyze'
-            }, 500
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": f"Error in EOD settlement: {str(e)}",
+                    "mode": "analyze",
+                },
+                500,
+            )
 
 
 def update_all_positions_mtm():
@@ -583,7 +629,9 @@ def update_all_positions_mtm():
             return
 
         users = set(p.user_id for p in positions)
-        logger.info(f"Updating MTM for {len(positions)} positions across {len(users)} users")
+        logger.info(
+            f"Updating MTM for {len(positions)} positions across {len(users)} users"
+        )
 
         for user_id in users:
             pm = PositionManager(user_id)
@@ -644,13 +692,17 @@ def catchup_missed_settlements():
     """
     db = next(get_db())
     try:
-        ist = pytz.timezone('Asia/Kolkata')
+        ist = pytz.timezone("Asia/Kolkata")
         today = datetime.now(ist).date()
         cutoff_time = datetime.combine(today, datetime.min.time())
 
-        stmt = select(SandboxPositions).filter_by(product='CNC').filter(
-            SandboxPositions.quantity != 0,
-            SandboxPositions.created_at < cutoff_time
+        stmt = (
+            select(SandboxPositions)
+            .filter_by(product="CNC")
+            .filter(
+                SandboxPositions.quantity != 0,
+                SandboxPositions.created_at < cutoff_time,
+            )
         )
         cnc_positions = db.execute(stmt).scalars().all()
 
@@ -658,7 +710,9 @@ def catchup_missed_settlements():
             logger.info("No CNC positions for catch-up settlement")
             return
 
-        logger.info(f"Found {len(cnc_positions)} CNC positions that need catch-up settlement")
+        logger.info(
+            f"Found {len(cnc_positions)} CNC positions that need catch-up settlement"
+        )
 
         users = set(p.user_id for p in cnc_positions)
 
@@ -670,7 +724,9 @@ def catchup_missed_settlements():
                 if success:
                     logger.info(f"Catch-up settlement completed for user {user_id}")
                 else:
-                    logger.error(f"Catch-up settlement failed for user {user_id}: {message}")
+                    logger.error(
+                        f"Catch-up settlement failed for user {user_id}: {message}"
+                    )
 
             except Exception as e:
                 logger.error(f"Error in catch-up settlement for user {user_id}: {e}")
@@ -682,13 +738,13 @@ def catchup_missed_settlements():
         logger.error(f"Error in catch-up settlement: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """Run MTM updater in standalone mode"""
     logger.info("Starting Sandbox MTM Updater")
 
     init_db()
 
-    mtm_interval = int(get_config('mtm_update_interval', '5'))
+    mtm_interval = int(get_config("mtm_update_interval", "5"))
 
     if mtm_interval == 0:
         logger.info("Automatic MTM updates disabled (interval = 0)")

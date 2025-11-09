@@ -26,7 +26,7 @@ class ExecutionEngineThread(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True, name="SandboxExecutionEngine")
         self.stop_event = threading.Event()
-        self.check_interval = int(get_config('order_check_interval', '5'))
+        self.check_interval = int(get_config("order_check_interval", "5"))
 
     def run(self):
         """Main thread loop"""
@@ -115,7 +115,7 @@ def is_execution_engine_running():
 def get_execution_engine_status():
     """Get status information about the execution engine"""
     return {
-        'running': is_execution_engine_running(),
-        'thread_name': _execution_thread.name if _execution_thread else None,
-        'check_interval': int(get_config('order_check_interval', '5'))
+        "running": is_execution_engine_running(),
+        "thread_name": _execution_thread.name if _execution_thread else None,
+        "check_interval": int(get_config("order_check_interval", "5")),
     }

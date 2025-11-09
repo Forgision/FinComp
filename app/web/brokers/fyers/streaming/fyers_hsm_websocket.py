@@ -15,7 +15,6 @@ import websocket
 from typing import Dict, List, Optional
 
 
-
 class FyersHSMWebSocket:
     """
     Fyers HSM WebSocket client using binary protocol
@@ -27,38 +26,87 @@ class FyersHSMWebSocket:
 
     # Data field mappings (from official library map.json)
     DATA_FIELDS = [
-        "ltp", "vol_traded_today", "last_traded_time", "exch_feed_time",
-        "bid_size", "ask_size", "bid_price", "ask_price", "last_traded_qty",
-        "tot_buy_qty", "tot_sell_qty", "avg_trade_price", "OI", "low_price",
-        "high_price", "Yhigh", "Ylow", "lower_ckt", "upper_ckt", "open_price",
-        "prev_close_price", "type", "symbol"
+        "ltp",
+        "vol_traded_today",
+        "last_traded_time",
+        "exch_feed_time",
+        "bid_size",
+        "ask_size",
+        "bid_price",
+        "ask_price",
+        "last_traded_qty",
+        "tot_buy_qty",
+        "tot_sell_qty",
+        "avg_trade_price",
+        "OI",
+        "low_price",
+        "high_price",
+        "Yhigh",
+        "Ylow",
+        "lower_ckt",
+        "upper_ckt",
+        "open_price",
+        "prev_close_price",
+        "type",
+        "symbol",
     ]
 
     INDEX_FIELDS = [
-        "ltp", "prev_close_price", "exch_feed_time", "high_price", "low_price",
-        "open_price", "type", "symbol"
+        "ltp",
+        "prev_close_price",
+        "exch_feed_time",
+        "high_price",
+        "low_price",
+        "open_price",
+        "type",
+        "symbol",
     ]
 
     DEPTH_FIELDS = [
-        "bid_price1", "bid_price2", "bid_price3", "bid_price4", "bid_price5",
-        "ask_price1", "ask_price2", "ask_price3", "ask_price4", "ask_price5",
-        "bid_size1", "bid_size2", "bid_size3", "bid_size4", "bid_size5",
-        "ask_size1", "ask_size2", "ask_size3", "ask_size4", "ask_size5",
-        "bid_order1", "bid_order2", "bid_order3", "bid_order4", "bid_order5",
-        "ask_order1", "ask_order2", "ask_order3", "ask_order4", "ask_order5",
-        "type", "symbol"
+        "bid_price1",
+        "bid_price2",
+        "bid_price3",
+        "bid_price4",
+        "bid_price5",
+        "ask_price1",
+        "ask_price2",
+        "ask_price3",
+        "ask_price4",
+        "ask_price5",
+        "bid_size1",
+        "bid_size2",
+        "bid_size3",
+        "bid_size4",
+        "bid_size5",
+        "ask_size1",
+        "ask_size2",
+        "ask_size3",
+        "ask_size4",
+        "ask_size5",
+        "bid_order1",
+        "bid_order2",
+        "bid_order3",
+        "bid_order4",
+        "bid_order5",
+        "ask_order1",
+        "ask_order2",
+        "ask_order3",
+        "ask_order4",
+        "ask_order5",
+        "type",
+        "symbol",
     ]
 
     # Exchange segment mapping
     EXCHANGE_SEGMENTS = {
-        "1010": "nse_cm",    # NSE Cash
-        "1011": "nse_fo",    # NSE F&O
-        "1120": "mcx_fo",    # MCX F&O
-        "1210": "bse_cm",    # BSE Cash
-        "1211": "bse_fo",    # BSE F&O
-        "1212": "bcs_fo",    # BSE Currency
-        "1012": "cde_fo",    # CDE F&O
-        "1020": "nse_com"    # NSE Commodity
+        "1010": "nse_cm",  # NSE Cash
+        "1011": "nse_fo",  # NSE F&O
+        "1120": "mcx_fo",  # MCX F&O
+        "1210": "bse_cm",  # BSE Cash
+        "1211": "bse_fo",  # BSE F&O
+        "1212": "bcs_fo",  # BSE Currency
+        "1012": "cde_fo",  # CDE F&O
+        "1020": "nse_com",  # NSE Commodity
     }
 
     def __init__(self, access_token: str, log_path: str = ""):
@@ -90,8 +138,8 @@ class FyersHSMWebSocket:
         self.subscriptions = {}  # topic_id -> topic_name mapping
         self.symbol_mappings = {}  # hsm_token -> original_symbol
         self.scrips_data = {}  # topic_id -> data for scrips
-        self.index_data = {}   # topic_id -> data for indices
-        self.depth_data = {}   # topic_id -> data for depth
+        self.index_data = {}  # topic_id -> data for indices
+        self.depth_data = {}  # topic_id -> data for depth
 
         # Callbacks
         self.on_message_callback = None
@@ -185,7 +233,7 @@ class FyersHSMWebSocket:
         # Field-2: Mode
         byte_buffer.extend(bytes([2]))  # Field ID
         byte_buffer.extend(struct.pack("!H", 1))
-        byte_buffer.extend(self.mode.encode('utf-8'))
+        byte_buffer.extend(self.mode.encode("utf-8"))
 
         # Field-3: Unknown flag
         byte_buffer.extend(bytes([3]))  # Field ID
@@ -199,7 +247,9 @@ class FyersHSMWebSocket:
 
         return byte_buffer
 
-    def _create_subscription_message(self, hsm_symbols: List[str], channel: int = 11) -> bytearray:
+    def _create_subscription_message(
+        self, hsm_symbols: List[str], channel: int = 11
+    ) -> bytearray:
         """
         Create subscription message in binary format
 
@@ -210,7 +260,7 @@ class FyersHSMWebSocket:
         Returns:
             Binary subscription message
         """
-        #self.logger.info(f"Creating subscription message for {len(hsm_symbols)} symbols")
+        # self.logger.info(f"Creating subscription message for {len(hsm_symbols)} symbols")
 
         # Create scrips data
         scrips_data = bytearray()
@@ -221,7 +271,9 @@ class FyersHSMWebSocket:
             symbol_bytes = str(symbol).encode("ascii")
             scrips_data.append(len(symbol_bytes))
             scrips_data.extend(symbol_bytes)
-            self.logger.debug(f"  Symbol {i}/{len(hsm_symbols)}: {symbol} ({len(symbol_bytes)} bytes)")
+            self.logger.debug(
+                f"  Symbol {i}/{len(hsm_symbols)}: {symbol} ({len(symbol_bytes)} bytes)"
+            )
 
         # Build complete message
         data_len = 6 + len(scrips_data)
@@ -266,7 +318,9 @@ class FyersHSMWebSocket:
 
             elif msg_type == 6:
                 # Data feed message
-                self.logger.debug(f"Received data feed message (type 6): {len(data)} bytes")
+                self.logger.debug(
+                    f"Received data feed message (type 6): {len(data)} bytes"
+                )
                 self._parse_data_feed(data)
 
             elif msg_type == 13:
@@ -278,7 +332,9 @@ class FyersHSMWebSocket:
                 self.logger.debug("Subscription acknowledged")
 
             else:
-                self.logger.debug(f"Received message type: {msg_type}, length: {len(data)} bytes")
+                self.logger.debug(
+                    f"Received message type: {msg_type}, length: {len(data)} bytes"
+                )
 
         except Exception as e:
             self.logger.error(f"Error parsing binary message: {e}")
@@ -308,10 +364,12 @@ class FyersHSMWebSocket:
                     break
 
                 # Get data type
-                data_type = struct.unpack("B", data[offset:offset + 1])[0]
+                data_type = struct.unpack("B", data[offset : offset + 1])[0]
                 offset += 1
 
-                self.logger.debug(f"Processing scrip {i+1}/{scrip_count}, data_type: {data_type}")
+                self.logger.debug(
+                    f"Processing scrip {i + 1}/{scrip_count}, data_type: {data_type}"
+                )
 
                 if data_type == 83:  # Snapshot data feed
                     offset = self._parse_snapshot_data(data, offset)
@@ -340,18 +398,18 @@ class FyersHSMWebSocket:
                 return offset
 
             # Get topic ID
-            topic_id = struct.unpack("H", data[offset:offset + 2])[0]
+            topic_id = struct.unpack("H", data[offset : offset + 2])[0]
             offset += 2
 
             # Get topic name length
-            topic_name_len = struct.unpack("B", data[offset:offset + 1])[0]
+            topic_name_len = struct.unpack("B", data[offset : offset + 1])[0]
             offset += 1
 
             if offset + topic_name_len > len(data):
                 return offset
 
             # Get topic name (HSM token)
-            topic_name = data[offset:offset + topic_name_len].decode("utf-8")
+            topic_name = data[offset : offset + topic_name_len].decode("utf-8")
             offset += topic_name_len
 
             # Store mapping
@@ -371,13 +429,15 @@ class FyersHSMWebSocket:
 
         return offset
 
-    def _parse_scrip_snapshot(self, data: bytearray, offset: int, topic_id: int, topic_name: str) -> int:
+    def _parse_scrip_snapshot(
+        self, data: bytearray, offset: int, topic_id: int, topic_name: str
+    ) -> int:
         """Parse scrip snapshot data"""
         try:
             if offset + 1 > len(data):
                 return offset
 
-            field_count = struct.unpack("B", data[offset:offset + 1])[0]
+            field_count = struct.unpack("B", data[offset : offset + 1])[0]
             offset += 1
 
             scrip_data = {"type": "sf"}
@@ -387,7 +447,7 @@ class FyersHSMWebSocket:
                 if offset + 4 > len(data):
                     break
 
-                value = struct.unpack(">i", data[offset:offset + 4])[0]
+                value = struct.unpack(">i", data[offset : offset + 4])[0]
                 offset += 4
 
                 if value != -2147483648 and index < len(self.DATA_FIELDS):
@@ -400,11 +460,11 @@ class FyersHSMWebSocket:
                 return offset
 
             # Get multiplier and precision
-            multiplier = struct.unpack(">H", data[offset:offset + 2])[0]
+            multiplier = struct.unpack(">H", data[offset : offset + 2])[0]
             scrip_data["multiplier"] = multiplier
             offset += 2
 
-            precision = struct.unpack("B", data[offset:offset + 1])[0]
+            precision = struct.unpack("B", data[offset : offset + 1])[0]
             scrip_data["precision"] = precision
             offset += 1
 
@@ -414,22 +474,28 @@ class FyersHSMWebSocket:
                 if offset + 1 > len(data):
                     break
 
-                string_len = struct.unpack("B", data[offset:offset + 1])[0]
+                string_len = struct.unpack("B", data[offset : offset + 1])[0]
                 offset += 1
 
                 if offset + string_len > len(data):
                     break
 
-                string_data = data[offset:offset + string_len].decode("utf-8", errors='ignore')
+                string_data = data[offset : offset + string_len].decode(
+                    "utf-8", errors="ignore"
+                )
                 scrip_data[field] = string_data
                 offset += string_len
 
             # Add original symbol mapping and HSM token
             if topic_name in self.symbol_mappings:
                 scrip_data["original_symbol"] = self.symbol_mappings[topic_name]
-                self.logger.debug(f"Symbol mapping: {topic_name} -> {self.symbol_mappings[topic_name]}")
+                self.logger.debug(
+                    f"Symbol mapping: {topic_name} -> {self.symbol_mappings[topic_name]}"
+                )
             else:
-                self.logger.warning(f"No symbol mapping found for topic_name: {topic_name}")
+                self.logger.warning(
+                    f"No symbol mapping found for topic_name: {topic_name}"
+                )
 
             # Add HSM token for reliable matching in adapter
             scrip_data["hsm_token"] = topic_name
@@ -439,26 +505,36 @@ class FyersHSMWebSocket:
 
             # Send to callback
             if self.on_message_callback:
-                self.logger.debug(f"Sending scrip data to callback: {scrip_data.get('symbol', 'Unknown')} LTP={scrip_data.get('ltp', 'N/A')}")
+                self.logger.debug(
+                    f"Sending scrip data to callback: {scrip_data.get('symbol', 'Unknown')} LTP={scrip_data.get('ltp', 'N/A')}"
+                )
                 # Debug: Log all available fields in HSM data
-                self.logger.debug(f"Complete HSM scrip_data fields: {list(scrip_data.keys())}")
-                self.logger.debug(f"OHLC values: open={scrip_data.get('open_price', 'N/A')}, high={scrip_data.get('high_price', 'N/A')}, low={scrip_data.get('low_price', 'N/A')}, close={scrip_data.get('prev_close_price', 'N/A')}")
+                self.logger.debug(
+                    f"Complete HSM scrip_data fields: {list(scrip_data.keys())}"
+                )
+                self.logger.debug(
+                    f"OHLC values: open={scrip_data.get('open_price', 'N/A')}, high={scrip_data.get('high_price', 'N/A')}, low={scrip_data.get('low_price', 'N/A')}, close={scrip_data.get('prev_close_price', 'N/A')}"
+                )
                 self.on_message_callback(scrip_data)
             else:
-                self.logger.warning(f"No callback set for scrip data: {scrip_data.get('symbol', 'Unknown')}")
+                self.logger.warning(
+                    f"No callback set for scrip data: {scrip_data.get('symbol', 'Unknown')}"
+                )
 
         except Exception as e:
             self.logger.error(f"Error parsing scrip snapshot: {e}")
 
         return offset
 
-    def _parse_index_snapshot(self, data: bytearray, offset: int, topic_id: int, topic_name: str) -> int:
+    def _parse_index_snapshot(
+        self, data: bytearray, offset: int, topic_id: int, topic_name: str
+    ) -> int:
         """Parse index snapshot data"""
         try:
             if offset + 1 > len(data):
                 return offset
 
-            field_count = struct.unpack("B", data[offset:offset + 1])[0]
+            field_count = struct.unpack("B", data[offset : offset + 1])[0]
             offset += 1
 
             index_data = {"type": "if"}
@@ -468,7 +544,7 @@ class FyersHSMWebSocket:
                 if offset + 4 > len(data):
                     break
 
-                value = struct.unpack(">i", data[offset:offset + 4])[0]
+                value = struct.unpack(">i", data[offset : offset + 4])[0]
                 offset += 4
 
                 if value != -2147483648 and index < len(self.INDEX_FIELDS):
@@ -493,13 +569,15 @@ class FyersHSMWebSocket:
 
         return offset
 
-    def _parse_depth_snapshot(self, data: bytearray, offset: int, topic_id: int, topic_name: str) -> int:
+    def _parse_depth_snapshot(
+        self, data: bytearray, offset: int, topic_id: int, topic_name: str
+    ) -> int:
         """Parse depth snapshot data"""
         try:
             if offset + 1 > len(data):
                 return offset
 
-            field_count = struct.unpack("B", data[offset:offset + 1])[0]
+            field_count = struct.unpack("B", data[offset : offset + 1])[0]
             offset += 1
 
             depth_data = {"type": "dp"}
@@ -509,7 +587,7 @@ class FyersHSMWebSocket:
                 if offset + 4 > len(data):
                     break
 
-                value = struct.unpack(">i", data[offset:offset + 4])[0]
+                value = struct.unpack(">i", data[offset : offset + 4])[0]
                 offset += 4
 
                 if value != -2147483648 and index < len(self.DEPTH_FIELDS):
@@ -522,11 +600,11 @@ class FyersHSMWebSocket:
                 return offset
 
             # Get multiplier and precision (depth data also has these)
-            multiplier = struct.unpack(">H", data[offset:offset + 2])[0]
+            multiplier = struct.unpack(">H", data[offset : offset + 2])[0]
             depth_data["multiplier"] = multiplier
             offset += 2
 
-            precision = struct.unpack("B", data[offset:offset + 1])[0]
+            precision = struct.unpack("B", data[offset : offset + 1])[0]
             depth_data["precision"] = precision
             offset += 1
 
@@ -536,13 +614,15 @@ class FyersHSMWebSocket:
                 if offset + 1 > len(data):
                     break
 
-                string_len = struct.unpack("B", data[offset:offset + 1])[0]
+                string_len = struct.unpack("B", data[offset : offset + 1])[0]
                 offset += 1
 
                 if offset + string_len > len(data):
                     break
 
-                string_data = data[offset:offset + string_len].decode("utf-8", errors='ignore')
+                string_data = data[offset : offset + string_len].decode(
+                    "utf-8", errors="ignore"
+                )
                 depth_data[field] = string_data
                 offset += string_len
 
@@ -557,9 +637,11 @@ class FyersHSMWebSocket:
             self.depth_data[topic_id] = depth_data
 
             # Log depth data for debugging
-            #self.logger.info(f"Parsed depth data: {depth_data.get('symbol', 'Unknown')}")
-            self.logger.debug(f"Depth fields: bid_price1={depth_data.get('bid_price1', 'N/A')}, ask_price1={depth_data.get('ask_price1', 'N/A')}")
-            #self.logger.info(f"Multiplier={multiplier}, Precision={precision}")
+            # self.logger.info(f"Parsed depth data: {depth_data.get('symbol', 'Unknown')}")
+            self.logger.debug(
+                f"Depth fields: bid_price1={depth_data.get('bid_price1', 'N/A')}, ask_price1={depth_data.get('ask_price1', 'N/A')}"
+            )
+            # self.logger.info(f"Multiplier={multiplier}, Precision={precision}")
 
             # Send to callback
             if self.on_message_callback:
@@ -586,11 +668,11 @@ class FyersHSMWebSocket:
                 return offset
 
             # Get topic ID
-            topic_id = struct.unpack("H", data[offset:offset + 2])[0]
+            topic_id = struct.unpack("H", data[offset : offset + 2])[0]
             offset += 2
 
             # Get field count
-            field_count = struct.unpack("B", data[offset:offset + 1])[0]
+            field_count = struct.unpack("B", data[offset : offset + 1])[0]
             offset += 1
 
             # Determine data type based on topic ID
@@ -603,19 +685,25 @@ class FyersHSMWebSocket:
                         if offset + 4 > len(data):
                             break
 
-                        value = struct.unpack(">i", data[offset:offset + 4])[0]
+                        value = struct.unpack(">i", data[offset : offset + 4])[0]
                         offset += 4
 
                         if value != -2147483648 and index < len(self.DATA_FIELDS):
-                            old_value = self.scrips_data[topic_id].get(self.DATA_FIELDS[index])
+                            old_value = self.scrips_data[topic_id].get(
+                                self.DATA_FIELDS[index]
+                            )
                             if old_value != value:
-                                self.scrips_data[topic_id][self.DATA_FIELDS[index]] = value
+                                self.scrips_data[topic_id][self.DATA_FIELDS[index]] = (
+                                    value
+                                )
 
                                 # Send update to callback
                                 if self.on_message_callback:
                                     update_data = self.scrips_data[topic_id].copy()
                                     update_data["update_type"] = "live"
-                                    self.logger.debug(f"Sending live update: {update_data.get('symbol', 'Unknown')} LTP={update_data.get('ltp', 'N/A')}")
+                                    self.logger.debug(
+                                        f"Sending live update: {update_data.get('symbol', 'Unknown')} LTP={update_data.get('ltp', 'N/A')}"
+                                    )
                                     self.on_message_callback(update_data)
 
                 elif topic_name.startswith("if|") and topic_id in self.index_data:
@@ -624,13 +712,17 @@ class FyersHSMWebSocket:
                         if offset + 4 > len(data):
                             break
 
-                        value = struct.unpack(">i", data[offset:offset + 4])[0]
+                        value = struct.unpack(">i", data[offset : offset + 4])[0]
                         offset += 4
 
                         if value != -2147483648 and index < len(self.INDEX_FIELDS):
-                            old_value = self.index_data[topic_id].get(self.INDEX_FIELDS[index])
+                            old_value = self.index_data[topic_id].get(
+                                self.INDEX_FIELDS[index]
+                            )
                             if old_value != value:
-                                self.index_data[topic_id][self.INDEX_FIELDS[index]] = value
+                                self.index_data[topic_id][self.INDEX_FIELDS[index]] = (
+                                    value
+                                )
 
                                 # Send update to callback
                                 if self.on_message_callback:
@@ -644,19 +736,25 @@ class FyersHSMWebSocket:
                         if offset + 4 > len(data):
                             break
 
-                        value = struct.unpack(">i", data[offset:offset + 4])[0]
+                        value = struct.unpack(">i", data[offset : offset + 4])[0]
                         offset += 4
 
                         if value != -2147483648 and index < len(self.DEPTH_FIELDS):
-                            old_value = self.depth_data[topic_id].get(self.DEPTH_FIELDS[index])
+                            old_value = self.depth_data[topic_id].get(
+                                self.DEPTH_FIELDS[index]
+                            )
                             if old_value != value:
-                                self.depth_data[topic_id][self.DEPTH_FIELDS[index]] = value
+                                self.depth_data[topic_id][self.DEPTH_FIELDS[index]] = (
+                                    value
+                                )
 
                                 # Send update to callback
                                 if self.on_message_callback:
                                     update_data = self.depth_data[topic_id].copy()
                                     update_data["update_type"] = "live"
-                                    self.logger.debug(f"Sending live depth update: {update_data.get('symbol', 'Unknown')}")
+                                    self.logger.debug(
+                                        f"Sending live depth update: {update_data.get('symbol', 'Unknown')}"
+                                    )
                                     self.on_message_callback(update_data)
             else:
                 # Skip unknown data
@@ -667,7 +765,9 @@ class FyersHSMWebSocket:
 
         return offset
 
-    def set_callbacks(self, on_message=None, on_error=None, on_open=None, on_close=None):
+    def set_callbacks(
+        self, on_message=None, on_error=None, on_open=None, on_close=None
+    ):
         """Set callback functions"""
         self.on_message_callback = on_message
         self.on_error_callback = on_error
@@ -677,12 +777,12 @@ class FyersHSMWebSocket:
     def _on_ws_open(self, ws):
         """Handle WebSocket open event"""
         self.connected = True
-        #self.logger.info("HSM WebSocket connected")
+        # self.logger.info("HSM WebSocket connected")
 
         # Send authentication message
         auth_msg = self._create_auth_message()
         ws.send(auth_msg, opcode=websocket.ABNF.OPCODE_BINARY)
-        #self.logger.info(f"Sent HSM authentication ({len(auth_msg)} bytes)")
+        # self.logger.info(f"Sent HSM authentication ({len(auth_msg)} bytes)")
 
     def _on_ws_message(self, ws, message):
         """Handle WebSocket message event"""
@@ -701,7 +801,7 @@ class FyersHSMWebSocket:
         """Handle WebSocket close event"""
         self.connected = False
         self.authenticated = False
-        #self.logger.info(f"HSM WebSocket closed: {close_msg} ({close_status_code})")
+        # self.logger.info(f"HSM WebSocket closed: {close_msg} ({close_status_code})")
         if self.on_close_callback:
             self.on_close_callback()
 
@@ -720,15 +820,14 @@ class FyersHSMWebSocket:
             on_error=self._on_ws_error,
             on_close=self._on_ws_close,
             header={
-                'Authorization': self.access_token,
-                'User-Agent': f'{self.source}/1.0'
-            }
+                "Authorization": self.access_token,
+                "User-Agent": f"{self.source}/1.0",
+            },
         )
 
         # Run in separate thread
         self.ws_thread = threading.Thread(
-            target=self.ws.run_forever,
-            kwargs={'sslopt': {"cert_reqs": ssl.CERT_NONE}}
+            target=self.ws.run_forever, kwargs={"sslopt": {"cert_reqs": ssl.CERT_NONE}}
         )
         self.ws_thread.daemon = True
         self.ws_thread.start()
@@ -767,7 +866,7 @@ class FyersHSMWebSocket:
             if self.ws:
                 try:
                     self.ws.close()
-                    #self.logger.info("WebSocket connection closed")
+                    # self.logger.info("WebSocket connection closed")
                 except Exception as e:
                     self.logger.error(f"Error closing WebSocket: {e}")
                 finally:
@@ -778,7 +877,9 @@ class FyersHSMWebSocket:
                 try:
                     self.ws_thread.join(timeout=5)
                     if self.ws_thread.is_alive():
-                        self.logger.warning("WebSocket thread did not terminate within 5 seconds")
+                        self.logger.warning(
+                            "WebSocket thread did not terminate within 5 seconds"
+                        )
                     else:
                         self.logger.debug("WebSocket thread terminated successfully")
                 except Exception as e:
@@ -789,7 +890,7 @@ class FyersHSMWebSocket:
             # Reset connection parameters
             self.hsm_key = None
 
-            #self.logger.info("HSM WebSocket disconnect and cleanup completed")
+            # self.logger.info("HSM WebSocket disconnect and cleanup completed")
 
         except Exception as e:
             self.logger.error(f"Error during HSM WebSocket disconnect: {e}")
@@ -799,7 +900,9 @@ class FyersHSMWebSocket:
             self.connected = False
             self.authenticated = False
 
-    def subscribe_symbols(self, hsm_symbols: List[str], symbol_mappings: Dict[str, str] = None):
+    def subscribe_symbols(
+        self, hsm_symbols: List[str], symbol_mappings: Dict[str, str] = None
+    ):
         """
         Subscribe to symbols using HSM format
 
@@ -812,16 +915,18 @@ class FyersHSMWebSocket:
 
         if symbol_mappings:
             self.symbol_mappings.update(symbol_mappings)
-            self.logger.debug(f"Updated symbol mappings. Total mappings: {len(self.symbol_mappings)}")
+            self.logger.debug(
+                f"Updated symbol mappings. Total mappings: {len(self.symbol_mappings)}"
+            )
 
         # Create and send subscription message
         sub_msg = self._create_subscription_message(hsm_symbols, channel=11)
         self.ws.send(sub_msg, opcode=websocket.ABNF.OPCODE_BINARY)
 
-        #self.logger.info(f"\n✅ Sent subscription request for {len(hsm_symbols)} HSM symbols")
+        # self.logger.info(f"\n✅ Sent subscription request for {len(hsm_symbols)} HSM symbols")
         for i, symbol in enumerate(hsm_symbols, 1):
-            symbol_mappings.get(symbol, 'Unknown') if symbol_mappings else 'N/A'
-            #self.logger.info(f"  {i}. {symbol} => {mapped_symbol}")
+            symbol_mappings.get(symbol, "Unknown") if symbol_mappings else "N/A"
+            # self.logger.info(f"  {i}. {symbol} => {mapped_symbol}")
         self.logger.debug(f"Total active subscriptions in HSM: {len(hsm_symbols)}")
 
     def is_connected(self) -> bool:
@@ -833,12 +938,13 @@ class FyersHSMWebSocket:
         Destructor to ensure proper cleanup when HSM WebSocket is destroyed
         """
         try:
-            if hasattr(self, 'logger'):
+            if hasattr(self, "logger"):
                 self.logger.debug("FyersHSMWebSocket destructor called")
             self.disconnect()
         except Exception as e:
             # Fallback logging if self.logger is not available
             import logging
+
             logger = logging.getLogger("fyers_hsm_websocket")
             logger.error(f"Error in HSM WebSocket destructor: {e}")
 
@@ -853,33 +959,36 @@ class FyersHSMWebSocket:
             self.authenticated = False
 
             # Force clear data structures
-            if hasattr(self, 'subscriptions'):
+            if hasattr(self, "subscriptions"):
                 self.subscriptions.clear()
-            if hasattr(self, 'symbol_mappings'):
+            if hasattr(self, "symbol_mappings"):
                 self.symbol_mappings.clear()
-            if hasattr(self, 'scrips_data'):
+            if hasattr(self, "scrips_data"):
                 self.scrips_data.clear()
-            if hasattr(self, 'index_data'):
+            if hasattr(self, "index_data"):
                 self.index_data.clear()
-            if hasattr(self, 'depth_data'):
+            if hasattr(self, "depth_data"):
                 self.depth_data.clear()
 
             # Force close WebSocket
-            if hasattr(self, 'ws') and self.ws:
+            if hasattr(self, "ws") and self.ws:
                 try:
                     self.ws.close()
                 except Exception as e:
-                    self.logger.error(f"Error closing WebSocket during force cleanup: {e}")
+                    self.logger.error(
+                        f"Error closing WebSocket during force cleanup: {e}"
+                    )
                 self.ws = None
 
             # Reset thread
-            if hasattr(self, 'ws_thread'):
+            if hasattr(self, "ws_thread"):
                 self.ws_thread = None
 
-            #print("HSM WebSocket force cleanup completed")
+            # print("HSM WebSocket force cleanup completed")
 
         except Exception as e:
             # Fallback logging if self.logger is not available
             import logging
+
             logger = logging.getLogger("fyers_hsm_websocket")
             logger.error(f"Error in HSM WebSocket force_cleanup: {e}")

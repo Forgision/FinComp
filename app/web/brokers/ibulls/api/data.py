@@ -252,7 +252,6 @@ class BrokerData:
     async def get_history(self, symbol, exchange, timeframe, from_date, to_date):
         """Get historical data for a symbol"""
         try:
-
             # Map timeframe to compression value
             compression_map = {
                 "1s": "1",

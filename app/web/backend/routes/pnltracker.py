@@ -520,15 +520,17 @@ async def get_pnl_data(
 
             # Now get historical data and calculate PnL for each position window
             try:
-                success, hist_response, _ = (
-                    await get_history(  # Assuming get_history is async
-                        symbol=symbol,
-                        exchange=exchange,
-                        interval="1m",
-                        start_date=today_str,
-                        end_date=today_str,
-                        api_key=api_key,
-                    )
+                (
+                    success,
+                    hist_response,
+                    _,
+                ) = await get_history(  # Assuming get_history is async
+                    symbol=symbol,
+                    exchange=exchange,
+                    interval="1m",
+                    start_date=today_str,
+                    end_date=today_str,
+                    api_key=api_key,
                 )
 
                 if success and "data" in hist_response:
@@ -682,15 +684,17 @@ async def get_pnl_data(
 
                 try:
                     # Get historical data for this position
-                    success, hist_response, _ = (
-                        await get_history(  # Assuming get_history is async
-                            symbol=symbol,
-                            exchange=exchange,
-                            interval="1m",
-                            start_date=today_str,
-                            end_date=today_str,
-                            api_key=api_key,
-                        )
+                    (
+                        success,
+                        hist_response,
+                        _,
+                    ) = await get_history(  # Assuming get_history is async
+                        symbol=symbol,
+                        exchange=exchange,
+                        interval="1m",
+                        start_date=today_str,
+                        end_date=today_str,
+                        api_key=api_key,
                     )
 
                     if success and "data" in hist_response:
@@ -786,9 +790,7 @@ async def get_pnl_data(
                     # Create a zero PnL series from market open to first trade
                     pre_trade_index = pd.date_range(
                         start=market_open, end=first_trade_time, freq="1min", tz=ist
-                    )[
-                        :-1
-                    ]  # Exclude the first trade time itself
+                    )[:-1]  # Exclude the first trade time itself
 
                     if len(pre_trade_index) > 0:
                         # Create zero PnL dataframe for pre-trade period

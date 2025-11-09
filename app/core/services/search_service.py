@@ -6,7 +6,9 @@ from app.core.schemas.symbol import enhanced_search_symbols
 from app.utils.logging import logger
 
 
-def search_symbols(query: str, exchange: str = None, api_key: str = None) -> Tuple[bool, Dict[str, Any], int]:
+def search_symbols(
+    query: str, exchange: str = None, api_key: str = None
+) -> Tuple[bool, Dict[str, Any], int]:
     """
     Search for symbols in the database
 
@@ -24,18 +26,23 @@ def search_symbols(query: str, exchange: str = None, api_key: str = None) -> Tup
             user_id = verify_api_key(api_key)
             if not user_id:
                 logger.warning("Invalid API key provided for search")
-                return False, {
-                    'status': 'error',
-                    'message': 'Invalid openalgo apikey'
-                }, 403
+                return (
+                    False,
+                    {"status": "error", "message": "Invalid openalgo apikey"},
+                    403,
+                )
 
         # Validate input
         if not query or not query.strip():
             logger.warning("Empty search query provided")
-            return False, {
-                'status': 'error',
-                'message': 'Query parameter is required and cannot be empty'
-            }, 400
+            return (
+                False,
+                {
+                    "status": "error",
+                    "message": "Query parameter is required and cannot be empty",
+                },
+                400,
+            )
 
         query = query.strip()
         logger.info(f"Searching symbols for query: {query}, exchange: {exchange}")
@@ -45,41 +52,50 @@ def search_symbols(query: str, exchange: str = None, api_key: str = None) -> Tup
 
         if not results:
             logger.info(f"No results found for query: {query}")
-            return True, {
-                'status': 'success',
-                'message': 'No matching symbols found',
-                'data': []
-            }, 200
+            return (
+                True,
+                {
+                    "status": "success",
+                    "message": "No matching symbols found",
+                    "data": [],
+                },
+                200,
+            )
 
         # Convert results to dict format
         results_data = []
         for result in results:
             result_dict = {
-                'symbol': result.symbol,
-                'brsymbol': result.brsymbol,
-                'name': result.name,
-                'exchange': result.exchange,
-                'brexchange': result.brexchange,
-                'token': result.token,
-                'expiry': result.expiry,
-                'strike': result.strike,
-                'lotsize': result.lotsize,
-                'instrumenttype': result.instrumenttype,
-                'tick_size': result.tick_size
+                "symbol": result.symbol,
+                "brsymbol": result.brsymbol,
+                "name": result.name,
+                "exchange": result.exchange,
+                "brexchange": result.brexchange,
+                "token": result.token,
+                "expiry": result.expiry,
+                "strike": result.strike,
+                "lotsize": result.lotsize,
+                "instrumenttype": result.instrumenttype,
+                "tick_size": result.tick_size,
             }
             results_data.append(result_dict)
 
         logger.info(f"Found {len(results_data)} results for query: {query}")
 
-        return True, {
-            'status': 'success',
-            'message': f'Found {len(results_data)} matching symbols',
-            'data': results_data
-        }, 200
+        return (
+            True,
+            {
+                "status": "success",
+                "message": f"Found {len(results_data)} matching symbols",
+                "data": results_data,
+            },
+            200,
+        )
 
     except Exception as e:
         logger.exception(f"Error in search_symbols: {e}")
-        return False, {
-            'status': 'error',
-            'message': 'An error occurred while searching symbols'
-        }, 500
+        return (
+            False,
+            {"status": "error", "message": "An error occurred while searching symbols"},
+            500,
+        )

@@ -2,6 +2,7 @@
 High-level, AliceBlue-style adapter for Kotak broker WebSocket streaming.
 Each instance is fully isolated and safe for multi-client use.
 """
+
 import threading
 import time
 
@@ -18,6 +19,7 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
     Adapter for Kotak WebSocket streaming, suitable for OpenAlgo or similar frameworks.
     Each instance is isolated and manages its own KotakWebSocket client.
     """
+
     def __init__(self):
         super().__init__()  # ← Initialize base adapter (sets up ZMQ)
         self._ws_client = None
@@ -55,7 +57,9 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
             logger.error("Invalid authentication token format")
             raise ValueError("Invalid authentication token format")
 
-        self._auth_config = dict(zip(['auth_token', 'sid', 'hs_server_id', 'access_token'], auth_parts))
+        self._auth_config = dict(
+            zip(["auth_token", "sid", "hs_server_id", "access_token"], auth_parts)
+        )
 
         # Create websocket client
         self._ws_client = KotakWebSocket(self._auth_config)
@@ -67,6 +71,7 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
     def _setup_internal_callbacks(self):
         """Setup internal callbacks - following AliceBlue's _on_data_received pattern."""
+
         def on_quote_internal(quote):
             """Internal callback - mirrors AliceBlue's _on_data_received method."""
             try:
@@ -88,8 +93,7 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
         if self._ws_client:
             logger.debug("Setting up internal callbacks on KotakWebSocket client")
             self._ws_client.set_callbacks(
-                on_quote=on_quote_internal,
-                on_depth=on_depth_internal
+                on_quote=on_quote_internal, on_depth=on_depth_internal
             )
 
     def _on_data_received(self, parsed_data):
@@ -104,12 +108,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 return
 
             # Extract key identifiers - following AliceBlue pattern
-            token = str(parsed_data.get('tk', ''))
-            broker_exchange = parsed_data.get('e', 'UNKNOWN')
-            ltp = parsed_data.get('ltp')
+            token = str(parsed_data.get("tk", ""))
+            broker_exchange = parsed_data.get("e", "UNKNOWN")
+            ltp = parsed_data.get("ltp")
 
             # **CRITICAL FIX**: Check if this is depth data (has bids/asks) or LTP data
-            has_depth_data = 'bids' in parsed_data and 'asks' in parsed_data
+            has_depth_data = "bids" in parsed_data and "asks" in parsed_data
             has_ltp_data = ltp and float(ltp) > 0
 
             # Create symbol key - following AliceBlue pattern
@@ -124,36 +128,47 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     logger.debug(f"Initializing state for partial update: {symbol_key}")
                     # Create initial state with proper default values
                     initial_state = {
-                        'tk': parsed_data.get('tk', ''),
-                        'e': parsed_data.get('e', ''),
-                        'ts': parsed_data.get('ts', ''),
-                        'ltp': 0.0,
-                        'open': 0.0,
-                        'high': 0.0,
-                        'low': 0.0,
-                        'prev_close': 0.0,
-                        'volume': 0.0,
-                        'bid': 0.0,
-                        'ask': 0.0,
-                        'bids': [],
-                        'asks': []
+                        "tk": parsed_data.get("tk", ""),
+                        "e": parsed_data.get("e", ""),
+                        "ts": parsed_data.get("ts", ""),
+                        "ltp": 0.0,
+                        "open": 0.0,
+                        "high": 0.0,
+                        "low": 0.0,
+                        "prev_close": 0.0,
+                        "volume": 0.0,
+                        "bid": 0.0,
+                        "ask": 0.0,
+                        "bids": [],
+                        "asks": [],
                     }
 
                     # **CRITICAL**: Copy any non-zero/non-empty values from the partial update
                     for key, value in parsed_data.items():
                         if key in initial_state:
                             # Don't overwrite with zero values for price fields
-                            if key in ['open', 'high', 'low', 'prev_close', 'bid', 'ask']:
-                                if value != 0.0 and value != 21474836.48:  # Kotak's invalid value
+                            if key in [
+                                "open",
+                                "high",
+                                "low",
+                                "prev_close",
+                                "bid",
+                                "ask",
+                            ]:
+                                if (
+                                    value != 0.0 and value != 21474836.48
+                                ):  # Kotak's invalid value
                                     initial_state[key] = value
-                            elif key in ['ltp']:
+                            elif key in ["ltp"]:
                                 # **CRITICAL FIX**: Only update LTP if it's a valid positive value
                                 if value and float(value) > 0:
                                     initial_state[key] = value
-                            elif key in ['volume']:
-                                if value != 0.0 and value != 2147483648:  # Kotak's invalid volume
+                            elif key in ["volume"]:
+                                if (
+                                    value != 0.0 and value != 2147483648
+                                ):  # Kotak's invalid volume
                                     initial_state[key] = value
-                            elif key in ['ts']:
+                            elif key in ["ts"]:
                                 if value:  # Non-empty symbol name
                                     initial_state[key] = value
                             else:
@@ -164,79 +179,117 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 # --- CRITICAL: Merge depth levels per level, not just per side ---
                 if has_depth_data:
                     prev_state = self._symbol_state.get(symbol_key, {})
-                    prev_bids = prev_state.get('bids', []) if prev_state else []
-                    prev_asks = prev_state.get('asks', []) if prev_state else []
-                    new_bids = parsed_data.get('bids', [])
-                    new_asks = parsed_data.get('asks', [])
+                    prev_bids = prev_state.get("bids", []) if prev_state else []
+                    prev_asks = prev_state.get("asks", []) if prev_state else []
+                    new_bids = parsed_data.get("bids", [])
+                    new_asks = parsed_data.get("asks", [])
                     merged_bids = []
                     merged_asks = []
                     for i in range(5):
                         # --- BUY SIDE ---
                         if i < len(new_bids):
                             b = new_bids[i]
-                            prev_b = prev_bids[i] if i < len(prev_bids) else {'price': 0, 'quantity': 0, 'orders': 0}
-                            merged_bids.append({
-                                'price': b.get('price', 0) if b.get('price', 0) != 0 else prev_b.get('price', 0),
-                                'quantity': b.get('quantity', 0) if b.get('quantity', 0) != 0 else prev_b.get('quantity', 0),
-                                'orders': b.get('orders', 0) if b.get('orders', 0) != 0 else prev_b.get('orders', 0),
-                            })
+                            prev_b = (
+                                prev_bids[i]
+                                if i < len(prev_bids)
+                                else {"price": 0, "quantity": 0, "orders": 0}
+                            )
+                            merged_bids.append(
+                                {
+                                    "price": b.get("price", 0)
+                                    if b.get("price", 0) != 0
+                                    else prev_b.get("price", 0),
+                                    "quantity": b.get("quantity", 0)
+                                    if b.get("quantity", 0) != 0
+                                    else prev_b.get("quantity", 0),
+                                    "orders": b.get("orders", 0)
+                                    if b.get("orders", 0) != 0
+                                    else prev_b.get("orders", 0),
+                                }
+                            )
                         elif i < len(prev_bids):
                             merged_bids.append(prev_bids[i])
                         else:
-                            merged_bids.append({'price': 0, 'quantity': 0, 'orders': 0})
+                            merged_bids.append({"price": 0, "quantity": 0, "orders": 0})
 
                         # --- SELL SIDE ---
                         if i < len(new_asks):
                             a = new_asks[i]
-                            prev_a = prev_asks[i] if i < len(prev_asks) else {'price': 0, 'quantity': 0, 'orders': 0}
-                            merged_asks.append({
-                                'price': a.get('price', 0) if a.get('price', 0) != 0 else prev_a.get('price', 0),
-                                'quantity': a.get('quantity', 0) if a.get('quantity', 0) != 0 else prev_a.get('quantity', 0),
-                                'orders': a.get('orders', 0) if a.get('orders', 0) != 0 else prev_a.get('orders', 0),
-                            })
+                            prev_a = (
+                                prev_asks[i]
+                                if i < len(prev_asks)
+                                else {"price": 0, "quantity": 0, "orders": 0}
+                            )
+                            merged_asks.append(
+                                {
+                                    "price": a.get("price", 0)
+                                    if a.get("price", 0) != 0
+                                    else prev_a.get("price", 0),
+                                    "quantity": a.get("quantity", 0)
+                                    if a.get("quantity", 0) != 0
+                                    else prev_a.get("quantity", 0),
+                                    "orders": a.get("orders", 0)
+                                    if a.get("orders", 0) != 0
+                                    else prev_a.get("orders", 0),
+                                }
+                            )
                         elif i < len(prev_asks):
                             merged_asks.append(prev_asks[i])
                         else:
-                            merged_asks.append({'price': 0, 'quantity': 0, 'orders': 0})
+                            merged_asks.append({"price": 0, "quantity": 0, "orders": 0})
                     # Update parsed_data with merged depth
-                    parsed_data['bids'] = merged_bids
-                    parsed_data['asks'] = merged_asks
+                    parsed_data["bids"] = merged_bids
+                    parsed_data["asks"] = merged_asks
 
                 # **CRITICAL FIX FOR PARTIAL UPDATES**: Implement AliceBlue-style state merging
                 if is_partial_update and symbol_key in self._symbol_state:
                     logger.debug(f"Partial update detected for {symbol_key}")
                     merged_data = self._symbol_state[symbol_key].copy()
                     for key, value in parsed_data.items():
-                        if key not in ['tk', 'e']:
+                        if key not in ["tk", "e"]:
                             # **CRITICAL FIX**: Add 'ltp' to protected price fields
-                            if key in ['open', 'high', 'low', 'prev_close', 'bid', 'ask', 'ltp'] and value == 0.0:
+                            if (
+                                key
+                                in [
+                                    "open",
+                                    "high",
+                                    "low",
+                                    "prev_close",
+                                    "bid",
+                                    "ask",
+                                    "ltp",
+                                ]
+                                and value == 0.0
+                            ):
                                 continue  # Skip zero values for all price fields including LTP
-                            elif key == 'ltp':
+                            elif key == "ltp":
                                 # **ENHANCED FIX**: Additional LTP validation
                                 if value and float(value) > 0:
                                     merged_data[key] = value
                                 # If LTP is 0 or invalid, skip updating (preserve previous value)
                                 continue
-                            elif key == 'volume' and value == 0.0:
+                            elif key == "volume" and value == 0.0:
                                 continue
-                            elif key == 'ts' and not value:
+                            elif key == "ts" and not value:
                                 continue
                             else:
                                 merged_data[key] = value
                         else:
                             merged_data[key] = value
                     parsed_data = merged_data
-                    logger.debug(f"Merged data: {dict((k, v) for k, v in parsed_data.items() if k not in ['tk'])}")
-                    ltp = parsed_data.get('ltp')
-                    has_depth_data = 'bids' in parsed_data and 'asks' in parsed_data
+                    logger.debug(
+                        f"Merged data: {dict((k, v) for k, v in parsed_data.items() if k not in ['tk'])}"
+                    )
+                    ltp = parsed_data.get("ltp")
+                    has_depth_data = "bids" in parsed_data and "asks" in parsed_data
                     has_ltp_data = ltp and float(ltp) > 0
 
                 # Store the complete data (either original complete data or merged data)
                 # --- CRITICAL: Store per-symbol state, including merged bids/asks for this symbol only ---
                 self._symbol_state[symbol_key] = {
                     **parsed_data,
-                    'bids': parsed_data.get('bids', []),
-                    'asks': parsed_data.get('asks', [])
+                    "bids": parsed_data.get("bids", []),
+                    "asks": parsed_data.get("asks", []),
                 }
 
                 # Skip if neither LTP nor depth data is present (after merging)
@@ -257,11 +310,11 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     # For depth data, update depth cache
                     if has_depth_data:
                         depth_data = {
-                            'buy': parsed_data.get('bids', []),
-                            'sell': parsed_data.get('asks', []),
-                            'totalbuyqty': parsed_data.get('totalbuyqty', 0),
-                            'totalsellqty': parsed_data.get('totalsellqty', 0),
-                            'ltp': float(ltp) if has_ltp_data else 0.0
+                            "buy": parsed_data.get("bids", []),
+                            "sell": parsed_data.get("asks", []),
+                            "totalbuyqty": parsed_data.get("totalbuyqty", 0),
+                            "totalsellqty": parsed_data.get("totalsellqty", 0),
+                            "ltp": float(ltp) if has_ltp_data else 0.0,
                         }
                         self._depth_cache[cache_key] = depth_data
 
@@ -272,42 +325,48 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     active_modes = self._symbol_modes.get(mapping_key, set())
 
                     for mode in active_modes:
-                        mode_map = {1: 'LTP', 2: 'QUOTE', 3: 'DEPTH'}
-                        mode_str = mode_map.get(mode, 'LTP')
+                        mode_map = {1: "LTP", 2: "QUOTE", 3: "DEPTH"}
+                        mode_str = mode_map.get(mode, "LTP")
                         topic = f"{exchange}_{symbol}_{mode_str}"
                         if mode == 1 and has_ltp_data:
                             publish_data = {
-                                'ltp': float(ltp),
-                                'ltt': parsed_data.get('timestamp', int(time.time() * 1000))
+                                "ltp": float(ltp),
+                                "ltt": parsed_data.get(
+                                    "timestamp", int(time.time() * 1000)
+                                ),
                             }
                         elif mode == 2:
                             publish_data = {
-                                'ltp': float(ltp) if has_ltp_data else 0.0,
-                                'ltt': parsed_data.get('timestamp', int(time.time() * 1000)),
-                                'volume': parsed_data.get('volume', 0),
-                                'open': parsed_data.get('open', 0.0),
-                                'high': parsed_data.get('high', 0.0),
-                                'low': parsed_data.get('low', 0.0),
-                                'close': parsed_data.get('prev_close', 0.0)
+                                "ltp": float(ltp) if has_ltp_data else 0.0,
+                                "ltt": parsed_data.get(
+                                    "timestamp", int(time.time() * 1000)
+                                ),
+                                "volume": parsed_data.get("volume", 0),
+                                "open": parsed_data.get("open", 0.0),
+                                "high": parsed_data.get("high", 0.0),
+                                "low": parsed_data.get("low", 0.0),
+                                "close": parsed_data.get("prev_close", 0.0),
                             }
                         elif mode == 3 and has_depth_data:
                             publish_data = {
-                                'ltp': float(ltp) if has_ltp_data else 0.0,
-                                'timestamp': int(time.time() * 1000),
-                                'depth': {
-                                    'buy': parsed_data.get('bids', []),
-                                    'sell': parsed_data.get('asks', [])
+                                "ltp": float(ltp) if has_ltp_data else 0.0,
+                                "timestamp": int(time.time() * 1000),
+                                "depth": {
+                                    "buy": parsed_data.get("bids", []),
+                                    "sell": parsed_data.get("asks", []),
                                 },
-                                'totalbuyqty': parsed_data.get('totalbuyqty', 0),
-                                'totalsellqty': parsed_data.get('totalsellqty', 0)
+                                "totalbuyqty": parsed_data.get("totalbuyqty", 0),
+                                "totalsellqty": parsed_data.get("totalsellqty", 0),
                             }
                         else:
                             continue
-                        publish_data.update({
-                            'symbol': symbol,
-                            'exchange': exchange,
-                            'timestamp': int(time.time() * 1000)
-                        })
+                        publish_data.update(
+                            {
+                                "symbol": symbol,
+                                "exchange": exchange,
+                                "timestamp": int(time.time() * 1000),
+                            }
+                        )
                         logger.debug(f"Publishing to ZMQ topic: {topic}")
                         self.publish_market_data(topic, publish_data)
 
@@ -320,29 +379,28 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
         except Exception as e:
             logger.error(f"Error processing received data: {e}")
 
-
     def _is_partial_update(self, parsed_data):
         """
         Determine if this is a partial update based on missing expected fields.
         Less aggressive detection to avoid skipping valid updates.
         """
         # If we have LTP and symbol name, treat as valid update
-        ltp = parsed_data.get('ltp', 0.0)
-        symbol_name = parsed_data.get('ts', '')
+        ltp = parsed_data.get("ltp", 0.0)
+        symbol_name = parsed_data.get("ts", "")
 
         if ltp and float(ltp) > 0 and symbol_name:
             return False  # Complete enough to process
 
         # Check for quote mode partial updates
-        quote_fields = ['open', 'high', 'low', 'prev_close']
-        has_quote_fields = any(field in parsed_data and parsed_data[field] != 0.0
-                            for field in quote_fields)
+        quote_fields = ["open", "high", "low", "prev_close"]
+        has_quote_fields = any(
+            field in parsed_data and parsed_data[field] != 0.0 for field in quote_fields
+        )
 
         if not has_quote_fields and not symbol_name:
             return True  # Definitely partial
 
         return False  # Default to processing the update
-
 
     def connect(self):
         """Connect to WebSocket - following AliceBlue pattern."""
@@ -376,7 +434,9 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Subscribe to a symbol - FIXED for multi-client support."""
         if not self._ws_client:
             logger.error("WebSocket client not initialized.")
-            return self._create_error_response("NOT_INITIALIZED", "WebSocket client not initialized.")
+            return self._create_error_response(
+                "NOT_INITIALIZED", "WebSocket client not initialized."
+            )
 
         try:
             logger.debug(f"Subscribing to {exchange}:{symbol} with mode {mode}")
@@ -389,31 +449,41 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 success = self.subscribe_depth(exchange, symbol, mode)
             else:
                 logger.error(f"Unknown subscribe mode: {mode}")
-                return self._create_error_response("INVALID_MODE", f"Unknown subscribe mode: {mode}")
+                return self._create_error_response(
+                    "INVALID_MODE", f"Unknown subscribe mode: {mode}"
+                )
 
             if success:
                 # Track subscription - following AliceBlue pattern with detailed tracking
                 sub_key = f"{exchange}|{symbol}|{mode}"
                 with self._lock:
                     self.subscriptions[sub_key] = {
-                        'symbol': symbol,
-                        'exchange': exchange,
-                        'mode': mode,
-                        'depth_level': depth_level
+                        "symbol": symbol,
+                        "exchange": exchange,
+                        "mode": mode,
+                        "depth_level": depth_level,
                     }
-                return self._create_success_response(f"Subscribed to {exchange}:{symbol} mode {mode}")
+                return self._create_success_response(
+                    f"Subscribed to {exchange}:{symbol} mode {mode}"
+                )
             else:
-                return self._create_error_response("SUBSCRIPTION_FAILED", f"Failed to subscribe to {exchange}:{symbol}")
+                return self._create_error_response(
+                    "SUBSCRIPTION_FAILED", f"Failed to subscribe to {exchange}:{symbol}"
+                )
 
         except Exception as e:
             logger.error(f"Error in subscribe: {e}")
-            return self._create_error_response("SUBSCRIPTION_ERROR", f"Error subscribing: {str(e)}")
+            return self._create_error_response(
+                "SUBSCRIPTION_ERROR", f"Error subscribing: {str(e)}"
+            )
 
     def unsubscribe(self, symbol, exchange, mode):
         """Unsubscribe from a symbol - FIXED for multi-client support."""
         if not self._ws_client:
             logger.error("WebSocket client not initialized.")
-            return self._create_error_response("NOT_INITIALIZED", "WebSocket client not initialized.")
+            return self._create_error_response(
+                "NOT_INITIALIZED", "WebSocket client not initialized."
+            )
 
         try:
             logger.debug(f"Unsubscribing from {exchange}:{symbol} with mode {mode}")
@@ -444,11 +514,15 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                         self._quote_cache.pop(cache_key, None)
                         self._depth_cache.pop(cache_key, None)
 
-            return self._create_success_response(f"Unsubscribed from {exchange}:{symbol}")
+            return self._create_success_response(
+                f"Unsubscribed from {exchange}:{symbol}"
+            )
 
         except Exception as e:
             logger.error(f"Error in unsubscribe: {e}")
-            return self._create_error_response("UNSUBSCRIPTION_ERROR", f"Error unsubscribing: {str(e)}")
+            return self._create_error_response(
+                "UNSUBSCRIPTION_ERROR", f"Error unsubscribing: {str(e)}"
+            )
 
     def subscribe_quote(self, exchange, symbol, mode):
         """Subscribe to quote (LTP) - FIXED for multi-client support."""
@@ -480,11 +554,15 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self._symbol_modes[mapping_key].add(mode)
 
                 logger.debug(f"Stored mapping: {mapping_key} -> ({exchange}, {symbol})")
-                logger.debug(f"Active modes for {mapping_key}: {self._symbol_modes[mapping_key]}")
+                logger.debug(
+                    f"Active modes for {mapping_key}: {self._symbol_modes[mapping_key]}"
+                )
 
             # Subscribe using Kotak's market watch streaming
             self._ws_client.subscribe(kotak_exchange, token, sub_type="mws")
-            logger.debug(f"Subscribed to quote: {exchange}:{symbol} (kotak: {kotak_exchange}|{token})")
+            logger.debug(
+                f"Subscribed to quote: {exchange}:{symbol} (kotak: {kotak_exchange}|{token})"
+            )
             return True
 
         except Exception as e:
@@ -518,11 +596,15 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                     # Only unsubscribe from broker if no LTP/QUOTE modes are active
                     ltp_quote_modes = {1, 2}
-                    active_ltp_quote_modes = self._symbol_modes[mapping_key] & ltp_quote_modes
+                    active_ltp_quote_modes = (
+                        self._symbol_modes[mapping_key] & ltp_quote_modes
+                    )
 
                     if not active_ltp_quote_modes:
                         # No more LTP/QUOTE modes active, unsubscribe from broker
-                        self._ws_client.unsubscribe(kotak_exchange, token, sub_type="mwu")
+                        self._ws_client.unsubscribe(
+                            kotak_exchange, token, sub_type="mwu"
+                        )
                         logger.debug(f"Unsubscribed from broker: {exchange}:{symbol}")
 
                     # Clean up mapping only if NO modes are active
@@ -562,7 +644,9 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 self._symbol_modes[mapping_key].add(mode)
 
             self._ws_client.subscribe(kotak_exchange, token, sub_type="dps")
-            logger.debug(f"Subscribed to depth: {exchange}:{symbol} (kotak: {kotak_exchange}|{token})")
+            logger.debug(
+                f"Subscribed to depth: {exchange}:{symbol} (kotak: {kotak_exchange}|{token})"
+            )
             return True
 
         except Exception as e:
@@ -597,8 +681,12 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     # Only unsubscribe from broker if no DEPTH modes are active
                     if 3 not in self._symbol_modes[mapping_key]:
                         # No more DEPTH modes active, unsubscribe from broker
-                        self._ws_client.unsubscribe(kotak_exchange, token, sub_type="dpu")
-                        logger.debug(f"Unsubscribed from broker depth: {exchange}:{symbol}")
+                        self._ws_client.unsubscribe(
+                            kotak_exchange, token, sub_type="dpu"
+                        )
+                        logger.debug(
+                            f"Unsubscribed from broker depth: {exchange}:{symbol}"
+                        )
 
                     # Clean up mapping only if NO modes are active
                     if not self._symbol_modes[mapping_key]:
@@ -621,8 +709,8 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     ltp_dict[exchange] = {}
 
                 ltp_dict[exchange][symbol] = {
-                    'ltp': ltp_value,
-                    'timestamp': int(time.time() * 1000)
+                    "ltp": ltp_value,
+                    "timestamp": int(time.time() * 1000),
                 }
 
             logger.debug(f"get_ltp returning: {ltp_dict}")
@@ -640,13 +728,13 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 # Build complete quote data from cached state
                 quote_dict[exchange][symbol] = {
-                    'timestamp': int(time.time() * 1000),
-                    'ltp': quote_data.get('ltp', 0.0),
-                    'open': quote_data.get('open', 0.0),
-                    'high': quote_data.get('high', 0.0),
-                    'low': quote_data.get('low', 0.0),
-                    'close': quote_data.get('prev_close', 0.0),
-                    'volume': quote_data.get('volume', 0)
+                    "timestamp": int(time.time() * 1000),
+                    "ltp": quote_data.get("ltp", 0.0),
+                    "open": quote_data.get("open", 0.0),
+                    "high": quote_data.get("high", 0.0),
+                    "low": quote_data.get("low", 0.0),
+                    "close": quote_data.get("prev_close", 0.0),
+                    "volume": quote_data.get("volume", 0),
                 }
 
             logger.debug(f"get_quote returning: {quote_dict}")
@@ -662,45 +750,57 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     depth_dict[exchange] = {}
 
                 prev_depth = self._symbol_state.get(f"{exchange}|{symbol}", {})
-                prev_buy = prev_depth.get('buyBook', {}) if prev_depth else {}
-                prev_sell = prev_depth.get('sellBook', {}) if prev_depth else {}
+                prev_buy = prev_depth.get("buyBook", {}) if prev_depth else {}
+                prev_sell = prev_depth.get("sellBook", {}) if prev_depth else {}
 
                 buy_book = {}
-                for i, level in enumerate(depth_data.get('buy', [])[:5], 1):
+                for i, level in enumerate(depth_data.get("buy", [])[:5], 1):
                     # If this level is all zero, use previous value if available
-                    if (level.get('price', 0) == 0 and level.get('quantity', 0) == 0 and level.get('orders', 0) == 0):
-                        prev = prev_buy.get(str(i), {'price': '0', 'qty': '0', 'orders': '0'})
+                    if (
+                        level.get("price", 0) == 0
+                        and level.get("quantity", 0) == 0
+                        and level.get("orders", 0) == 0
+                    ):
+                        prev = prev_buy.get(
+                            str(i), {"price": "0", "qty": "0", "orders": "0"}
+                        )
                         buy_book[str(i)] = prev
                     else:
                         buy_book[str(i)] = {
-                            'price': str(level.get('price', 0)),
-                            'qty': str(level.get('quantity', 0)),
-                            'orders': str(level.get('orders', 0))
+                            "price": str(level.get("price", 0)),
+                            "qty": str(level.get("quantity", 0)),
+                            "orders": str(level.get("orders", 0)),
                         }
 
                 sell_book = {}
-                for i, level in enumerate(depth_data.get('sell', [])[:5], 1):
-                    if (level.get('price', 0) == 0 and level.get('quantity', 0) == 0 and level.get('orders', 0) == 0):
-                        prev = prev_sell.get(str(i), {'price': '0', 'qty': '0', 'orders': '0'})
+                for i, level in enumerate(depth_data.get("sell", [])[:5], 1):
+                    if (
+                        level.get("price", 0) == 0
+                        and level.get("quantity", 0) == 0
+                        and level.get("orders", 0) == 0
+                    ):
+                        prev = prev_sell.get(
+                            str(i), {"price": "0", "qty": "0", "orders": "0"}
+                        )
                         sell_book[str(i)] = prev
                     else:
                         sell_book[str(i)] = {
-                            'price': str(level.get('price', 0)),
-                            'qty': str(level.get('quantity', 0)),
-                            'orders': str(level.get('orders', 0))
+                            "price": str(level.get("price", 0)),
+                            "qty": str(level.get("quantity", 0)),
+                            "orders": str(level.get("orders", 0)),
                         }
 
                 # Save merged state for next poll
                 self._symbol_state[f"{exchange}|{symbol}"] = {
-                    'buyBook': buy_book,
-                    'sellBook': sell_book
+                    "buyBook": buy_book,
+                    "sellBook": sell_book,
                 }
 
                 depth_dict[exchange][symbol] = {
-                    'timestamp': int(time.time() * 1000),
-                    'ltp': depth_data.get('ltp', 0.0),
-                    'buyBook': buy_book,
-                    'sellBook': sell_book
+                    "timestamp": int(time.time() * 1000),
+                    "ltp": depth_data.get("ltp", 0.0),
+                    "buyBook": buy_book,
+                    "sellBook": sell_book,
                 }
 
             logger.debug(f"get_depth returning: {depth_dict}")
@@ -721,7 +821,15 @@ class KotakWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Check if WebSocket is connected."""
         return self._ws_client.is_connected() if self._ws_client else False
 
-    def set_callbacks(self, on_quote=None, on_depth=None, on_index=None, on_error=None, on_open=None, on_close=None):
+    def set_callbacks(
+        self,
+        on_quote=None,
+        on_depth=None,
+        on_index=None,
+        on_error=None,
+        on_open=None,
+        on_close=None,
+    ):
         """Set additional user callbacks - following AliceBlue pattern."""
         # Internal callbacks are already set up during initialization
         # This method is for additional user callbacks if needed

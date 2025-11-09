@@ -2,6 +2,7 @@
 Shoonya WebSocket Adapter for OpenAlgo
 Handles market data streaming from Shoonya broker
 """
+
 import json
 import threading
 import time
@@ -32,11 +33,11 @@ class Config:
     MODE_DEPTH = 3
 
     # Message types
-    MSG_AUTH = 'ck'
-    MSG_TOUCHLINE_FULL = 'tf'
-    MSG_TOUCHLINE_PARTIAL = 'tk'
-    MSG_DEPTH_FULL = 'df'
-    MSG_DEPTH_PARTIAL = 'dk'
+    MSG_AUTH = "ck"
+    MSG_TOUCHLINE_FULL = "tf"
+    MSG_TOUCHLINE_PARTIAL = "tk"
+    MSG_DEPTH_FULL = "df"
+    MSG_DEPTH_PARTIAL = "dk"
 
 
 class MarketDataCache:
@@ -77,15 +78,17 @@ class MarketDataCache:
                 cache_size = len(self._cache)
                 self._cache.clear()
                 self._initialized_tokens.clear()
-                self.logger.info(f"Cleared all cached market data ({cache_size} tokens)")
+                self.logger.info(
+                    f"Cleared all cached market data ({cache_size} tokens)"
+                )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
             return {
-                'total_tokens': len(self._cache),
-                'initialized_tokens': len(self._initialized_tokens),
-                'tokens': list(self._cache.keys())
+                "total_tokens": len(self._cache),
+                "initialized_tokens": len(self._initialized_tokens),
+                "tokens": list(self._cache.keys()),
             }
 
     def _merge_data(self, cached: Dict, new: Dict, token: str) -> Dict:
@@ -103,10 +106,12 @@ class MarketDataCache:
         self._preserve_missing_fields(merged, new, cached)
         return merged
 
-    def _should_preserve_cached_value(self, key: str, new_value: Any, cached: Dict) -> bool:
+    def _should_preserve_cached_value(
+        self, key: str, new_value: Any, cached: Dict
+    ) -> bool:
         """Determine if cached value should be preserved over new value"""
         # Preserve non-zero OHLC values when new value is zero
-        if key in ['o', 'h', 'l', 'c', 'ap'] and self._is_zero_value(new_value):
+        if key in ["o", "h", "l", "c", "ap"] and self._is_zero_value(new_value):
             cached_value = cached.get(key)
             return cached_value is not None and not self._is_zero_value(cached_value)
         return False
@@ -119,16 +124,31 @@ class MarketDataCache:
 
     def _is_zero_value(self, value: Any) -> bool:
         """Check if value represents zero"""
-        return value in [None, '', '0', 0, '0.0', 0.0]
+        return value in [None, "", "0", 0, "0.0", 0.0]
 
     def _log_cache_initialization(self, token: str, data: Dict) -> None:
         """Log cache initialization details"""
-        basic_fields = ['lp', 'o', 'h', 'l', 'c', 'v', 'ap', 'pc', 'ltq', 'ltt', 'tbq', 'tsq']
+        basic_fields = [
+            "lp",
+            "o",
+            "h",
+            "l",
+            "c",
+            "v",
+            "ap",
+            "pc",
+            "ltq",
+            "ltt",
+            "tbq",
+            "tsq",
+        ]
         present_fields = sum(1 for field in basic_fields if field in data)
         completeness = present_fields / len(basic_fields)
 
-        self.logger.info(f"Initializing cache for token {token} - "
-                        f"{present_fields}/{len(basic_fields)} fields present ({completeness:.1%})")
+        self.logger.info(
+            f"Initializing cache for token {token} - "
+            f"{present_fields}/{len(basic_fields)} fields present ({completeness:.1%})"
+        )
 
 
 class LTPNormalizer:
@@ -137,9 +157,9 @@ class LTPNormalizer:
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         return {
-            'mode': Config.MODE_LTP,
-            'ltp': safe_float(data.get('lp')),
-            'shoonya_timestamp': safe_int(data.get('ltt'))
+            "mode": Config.MODE_LTP,
+            "ltp": safe_float(data.get("lp")),
+            "shoonya_timestamp": safe_int(data.get("ltt")),
         }
 
 
@@ -149,18 +169,18 @@ class QuoteNormalizer:
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         return {
-            'mode': Config.MODE_QUOTE,
-            'ltp': safe_float(data.get('lp')),
-            'volume': safe_int(data.get('v')),
-            'open': safe_float(data.get('o')),
-            'high': safe_float(data.get('h')),
-            'low': safe_float(data.get('l')),
-            'close': safe_float(data.get('c')),
-            'average_price': safe_float(data.get('ap')),
-            'percent_change': safe_float(data.get('pc')),
-            'last_quantity': safe_int(data.get('ltq')),
-            'last_trade_time': data.get('ltt'),
-            'shoonya_timestamp': safe_int(data.get('ltt'))
+            "mode": Config.MODE_QUOTE,
+            "ltp": safe_float(data.get("lp")),
+            "volume": safe_int(data.get("v")),
+            "open": safe_float(data.get("o")),
+            "high": safe_float(data.get("h")),
+            "low": safe_float(data.get("l")),
+            "close": safe_float(data.get("c")),
+            "average_price": safe_float(data.get("ap")),
+            "percent_change": safe_float(data.get("pc")),
+            "last_quantity": safe_int(data.get("ltq")),
+            "last_trade_time": data.get("ltt"),
+            "shoonya_timestamp": safe_int(data.get("ltt")),
         }
 
 
@@ -170,50 +190,92 @@ class DepthNormalizer:
     @staticmethod
     def normalize(data: Dict[str, Any], msg_type: str) -> Dict[str, Any]:
         result = {
-            'mode': Config.MODE_DEPTH,
-            'ltp': safe_float(data.get('lp')),
-            'volume': safe_int(data.get('v')),
-            'open': safe_float(data.get('o')),
-            'high': safe_float(data.get('h')),
-            'low': safe_float(data.get('l')),
-            'close': safe_float(data.get('c')),
-            'average_price': safe_float(data.get('ap')),
-            'percent_change': safe_float(data.get('pc')),
-            'last_quantity': safe_int(data.get('ltq')),
-            'last_trade_time': data.get('ltt'),
-            'total_buy_quantity': safe_int(data.get('tbq')),
-            'total_sell_quantity': safe_int(data.get('tsq')),
-            'shoonya_timestamp': safe_int(data.get('ltt'))
+            "mode": Config.MODE_DEPTH,
+            "ltp": safe_float(data.get("lp")),
+            "volume": safe_int(data.get("v")),
+            "open": safe_float(data.get("o")),
+            "high": safe_float(data.get("h")),
+            "low": safe_float(data.get("l")),
+            "close": safe_float(data.get("c")),
+            "average_price": safe_float(data.get("ap")),
+            "percent_change": safe_float(data.get("pc")),
+            "last_quantity": safe_int(data.get("ltq")),
+            "last_trade_time": data.get("ltt"),
+            "total_buy_quantity": safe_int(data.get("tbq")),
+            "total_sell_quantity": safe_int(data.get("tsq")),
+            "shoonya_timestamp": safe_int(data.get("ltt")),
         }
 
         # Add depth data
         if msg_type in (Config.MSG_DEPTH_FULL, Config.MSG_DEPTH_PARTIAL):
-            result['depth'] = {
-                'buy': [
-                    {'price': safe_float(data.get('bp1')), 'quantity': safe_int(data.get('bq1')), 'orders': safe_int(data.get('bo1'))},
-                    {'price': safe_float(data.get('bp2')), 'quantity': safe_int(data.get('bq2')), 'orders': safe_int(data.get('bo2'))},
-                    {'price': safe_float(data.get('bp3')), 'quantity': safe_int(data.get('bq3')), 'orders': safe_int(data.get('bo3'))},
-                    {'price': safe_float(data.get('bp4')), 'quantity': safe_int(data.get('bq4')), 'orders': safe_int(data.get('bo4'))},
-                    {'price': safe_float(data.get('bp5')), 'quantity': safe_int(data.get('bq5')), 'orders': safe_int(data.get('bo5'))}
+            result["depth"] = {
+                "buy": [
+                    {
+                        "price": safe_float(data.get("bp1")),
+                        "quantity": safe_int(data.get("bq1")),
+                        "orders": safe_int(data.get("bo1")),
+                    },
+                    {
+                        "price": safe_float(data.get("bp2")),
+                        "quantity": safe_int(data.get("bq2")),
+                        "orders": safe_int(data.get("bo2")),
+                    },
+                    {
+                        "price": safe_float(data.get("bp3")),
+                        "quantity": safe_int(data.get("bq3")),
+                        "orders": safe_int(data.get("bo3")),
+                    },
+                    {
+                        "price": safe_float(data.get("bp4")),
+                        "quantity": safe_int(data.get("bq4")),
+                        "orders": safe_int(data.get("bo4")),
+                    },
+                    {
+                        "price": safe_float(data.get("bp5")),
+                        "quantity": safe_int(data.get("bq5")),
+                        "orders": safe_int(data.get("bo5")),
+                    },
                 ],
-                'sell': [
-                    {'price': safe_float(data.get('sp1')), 'quantity': safe_int(data.get('sq1')), 'orders': safe_int(data.get('so1'))},
-                    {'price': safe_float(data.get('sp2')), 'quantity': safe_int(data.get('sq2')), 'orders': safe_int(data.get('so2'))},
-                    {'price': safe_float(data.get('sp3')), 'quantity': safe_int(data.get('sq3')), 'orders': safe_int(data.get('so3'))},
-                    {'price': safe_float(data.get('sp4')), 'quantity': safe_int(data.get('sq4')), 'orders': safe_int(data.get('so4'))},
-                    {'price': safe_float(data.get('sp5')), 'quantity': safe_int(data.get('sq5')), 'orders': safe_int(data.get('so5'))}
-                ]
+                "sell": [
+                    {
+                        "price": safe_float(data.get("sp1")),
+                        "quantity": safe_int(data.get("sq1")),
+                        "orders": safe_int(data.get("so1")),
+                    },
+                    {
+                        "price": safe_float(data.get("sp2")),
+                        "quantity": safe_int(data.get("sq2")),
+                        "orders": safe_int(data.get("so2")),
+                    },
+                    {
+                        "price": safe_float(data.get("sp3")),
+                        "quantity": safe_int(data.get("sq3")),
+                        "orders": safe_int(data.get("so3")),
+                    },
+                    {
+                        "price": safe_float(data.get("sp4")),
+                        "quantity": safe_int(data.get("sq4")),
+                        "orders": safe_int(data.get("so4")),
+                    },
+                    {
+                        "price": safe_float(data.get("sp5")),
+                        "quantity": safe_int(data.get("sq5")),
+                        "orders": safe_int(data.get("so5")),
+                    },
+                ],
             }
-            result['depth_level'] = 5
+            result["depth_level"] = 5
 
             # Add circuit limits and additional data
-            result.update({
-                'upper_circuit': safe_float(data.get('uc')),
-                'lower_circuit': safe_float(data.get('lc')),
-                '52_week_high': safe_float(data.get('52h')),
-                '52_week_low': safe_float(data.get('52l')),
-                'total_traded_value': safe_int(data.get('toi'))
-            })
+            result.update(
+                {
+                    "upper_circuit": safe_float(data.get("uc")),
+                    "lower_circuit": safe_float(data.get("lc")),
+                    "52_week_high": safe_float(data.get("52h")),
+                    "52_week_low": safe_float(data.get("52l")),
+                    "total_traded_value": safe_int(data.get("toi")),
+                }
+            )
 
         return result
 
@@ -254,10 +316,12 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.normalizers = {
             Config.MODE_LTP: LTPNormalizer(),
             Config.MODE_QUOTE: QuoteNormalizer(),
-            Config.MODE_DEPTH: DepthNormalizer()
+            Config.MODE_DEPTH: DepthNormalizer(),
         }
 
-    def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
+    def initialize(
+        self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None
+    ) -> None:
         """Initialize connection with Shoonya WebSocket API"""
         self.user_id = user_id
         self.broker_name = broker_name
@@ -286,7 +350,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             on_message=self._on_message,
             on_error=self._on_error,
             on_close=self._on_close,
-            on_open=self._on_open
+            on_open=self._on_open,
         )
 
         self.running = True
@@ -294,7 +358,9 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def connect(self) -> None:
         """Establish connection to Shoonya WebSocket endpoint"""
         if not self.ws_client:
-            self.logger.error("WebSocket client not initialized. Call initialize() first.")
+            self.logger.error(
+                "WebSocket client not initialized. Call initialize() first."
+            )
             return
 
         self.logger.info("Connecting to Shoonya WebSocket...")
@@ -329,42 +395,60 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.cleanup_zmq()
 
         self.connected = False
-        self.logger.info("Disconnected from Shoonya WebSocket and cleaned up all resources")
+        self.logger.info(
+            "Disconnected from Shoonya WebSocket and cleaned up all resources"
+        )
 
-    def subscribe(self, symbol: str, exchange: str, mode: int = Config.MODE_QUOTE, depth_level: int = 5) -> Dict[str, Any]:
+    def subscribe(
+        self,
+        symbol: str,
+        exchange: str,
+        mode: int = Config.MODE_QUOTE,
+        depth_level: int = 5,
+    ) -> Dict[str, Any]:
         """Subscribe to market data with improved error handling"""
         try:
             self.logger.info(f"[SUBSCRIBE] Request for {symbol}.{exchange} mode={mode}")
 
             # Validate inputs
             if not self._validate_subscription_params(symbol, exchange, mode):
-                return self._create_error_response("INVALID_PARAMS", "Invalid subscription parameters")
+                return self._create_error_response(
+                    "INVALID_PARAMS", "Invalid subscription parameters"
+                )
 
             # Get token information
             token_info = self._get_token_info(symbol, exchange)
             if not token_info:
-                return self._create_error_response("SYMBOL_NOT_FOUND", f"Symbol {symbol} not found")
+                return self._create_error_response(
+                    "SYMBOL_NOT_FOUND", f"Symbol {symbol} not found"
+                )
 
             # Create subscription
-            subscription = self._create_subscription(symbol, exchange, mode, depth_level, token_info)
+            subscription = self._create_subscription(
+                symbol, exchange, mode, depth_level, token_info
+            )
 
             # Generate a unique correlation_id for each subscription
             # This allows multiple clients to subscribe to the same symbol
             import uuid
+
             unique_id = str(uuid.uuid4())[:8]
             correlation_id = f"{symbol}_{exchange}_{mode}_{unique_id}"
 
             # Check if we need to subscribe to WebSocket
             base_correlation_id = f"{symbol}_{exchange}_{mode}"
             already_ws_subscribed = any(
-                cid.startswith(base_correlation_id)
-                for cid in self.subscriptions.keys()
+                cid.startswith(base_correlation_id) for cid in self.subscriptions.keys()
             )
 
             if already_ws_subscribed:
-                self.logger.info(f"[SUBSCRIBE] WebSocket already subscribed for {base_correlation_id}, adding client subscription {correlation_id}")
+                self.logger.info(
+                    f"[SUBSCRIBE] WebSocket already subscribed for {base_correlation_id}, adding client subscription {correlation_id}"
+                )
             else:
-                self.logger.info(f"[SUBSCRIBE] New WebSocket subscription needed for {correlation_id}")
+                self.logger.info(
+                    f"[SUBSCRIBE] New WebSocket subscription needed for {correlation_id}"
+                )
 
             # Always store the subscription (each client gets their own entry)
             self._store_subscription(correlation_id, subscription)
@@ -373,35 +457,49 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if self.connected:
                 self._websocket_subscribe(subscription)
                 if not already_ws_subscribed:
-                    self.logger.info(f"[SUBSCRIBE] WebSocket subscription sent for {subscription['scrip']}")
+                    self.logger.info(
+                        f"[SUBSCRIBE] WebSocket subscription sent for {subscription['scrip']}"
+                    )
             else:
-                self.logger.warning(f"[SUBSCRIBE] Not connected, cannot subscribe to {subscription['scrip']}")
+                self.logger.warning(
+                    f"[SUBSCRIBE] Not connected, cannot subscribe to {subscription['scrip']}"
+                )
 
             # Log current ZMQ port and subscription state
             self.logger.info(f"[SUBSCRIBE] Publishing to ZMQ port: {self.zmq_port}")
-            self.logger.info(f"[SUBSCRIBE] Total active subscriptions: {len(self.subscriptions)}")
+            self.logger.info(
+                f"[SUBSCRIBE] Total active subscriptions: {len(self.subscriptions)}"
+            )
 
-            return self._create_success_response(f'Subscribed to {symbol}.{exchange}',
-                                               symbol=symbol, exchange=exchange, mode=mode)
+            return self._create_success_response(
+                f"Subscribed to {symbol}.{exchange}",
+                symbol=symbol,
+                exchange=exchange,
+                mode=mode,
+            )
 
         except Exception as e:
             self.logger.error(f"Subscription error for {symbol}.{exchange}: {e}")
             return self._create_error_response("SUBSCRIPTION_ERROR", str(e))
 
-    def unsubscribe(self, symbol: str, exchange: str, mode: int = Config.MODE_QUOTE) -> Dict[str, Any]:
+    def unsubscribe(
+        self, symbol: str, exchange: str, mode: int = Config.MODE_QUOTE
+    ) -> Dict[str, Any]:
         """Unsubscribe from market data"""
         base_correlation_id = f"{symbol}_{exchange}_{mode}"
 
         with self.lock:
             # Find the first matching subscription for this client
             matching_subscriptions = [
-                (cid, sub) for cid, sub in self.subscriptions.items()
+                (cid, sub)
+                for cid, sub in self.subscriptions.items()
                 if cid.startswith(base_correlation_id)
             ]
 
             if not matching_subscriptions:
-                return self._create_error_response("NOT_SUBSCRIBED",
-                                                  f"Not subscribed to {symbol}.{exchange}")
+                return self._create_error_response(
+                    "NOT_SUBSCRIBED", f"Not subscribed to {symbol}.{exchange}"
+                )
 
             # Remove the first matching subscription
             correlation_id, subscription = matching_subscriptions[0]
@@ -413,116 +511,134 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             del self.subscriptions[correlation_id]
 
             # Clean up token mapping if no other subscriptions use it
-            token = subscription['token']
-            if not any(sub['token'] == token for sub in self.subscriptions.values()):
+            token = subscription["token"]
+            if not any(sub["token"] == token for sub in self.subscriptions.values()):
                 self.token_to_symbol.pop(token, None)
 
             # Only unsubscribe from WebSocket if this was the last subscription
             if is_last:
-                scrip = subscription['scrip']
+                scrip = subscription["scrip"]
                 if scrip in self.ws_subscription_refs:
                     if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
-                        self.ws_subscription_refs[scrip]['touchline_count'] -= 1
-                        if self.ws_subscription_refs[scrip]['touchline_count'] <= 0:
+                        self.ws_subscription_refs[scrip]["touchline_count"] -= 1
+                        if self.ws_subscription_refs[scrip]["touchline_count"] <= 0:
                             self._websocket_unsubscribe(subscription)
                     elif mode == Config.MODE_DEPTH:
-                        self.ws_subscription_refs[scrip]['depth_count'] -= 1
-                        if self.ws_subscription_refs[scrip]['depth_count'] <= 0:
+                        self.ws_subscription_refs[scrip]["depth_count"] -= 1
+                        if self.ws_subscription_refs[scrip]["depth_count"] <= 0:
                             self._websocket_unsubscribe(subscription)
 
         return self._create_success_response(
             f"Unsubscribed from {symbol}.{exchange}",
-            symbol=symbol, exchange=exchange, mode=mode
+            symbol=symbol,
+            exchange=exchange,
+            mode=mode,
         )
 
-    def _validate_subscription_params(self, symbol: str, exchange: str, mode: int) -> bool:
+    def _validate_subscription_params(
+        self, symbol: str, exchange: str, mode: int
+    ) -> bool:
         """Validate subscription parameters"""
-        return (symbol and exchange and
-                mode in [Config.MODE_LTP, Config.MODE_QUOTE, Config.MODE_DEPTH])
+        return (
+            symbol
+            and exchange
+            and mode in [Config.MODE_LTP, Config.MODE_QUOTE, Config.MODE_DEPTH]
+        )
 
     def _get_token_info(self, symbol: str, exchange: str) -> Optional[Dict]:
         """Get token information for symbol and exchange"""
         self.logger.info(f"Looking up token for {symbol}.{exchange}")
         token_info = SymbolMapper.get_token_from_symbol(symbol, exchange)
         if token_info:
-            self.logger.info(f"Token found: {token_info['token']}, brexchange: {token_info['brexchange']}")
+            self.logger.info(
+                f"Token found: {token_info['token']}, brexchange: {token_info['brexchange']}"
+            )
         return token_info
 
-    def _create_subscription(self, symbol: str, exchange: str, mode: int, depth_level: int, token_info: Dict) -> Dict:
+    def _create_subscription(
+        self, symbol: str, exchange: str, mode: int, depth_level: int, token_info: Dict
+    ) -> Dict:
         """Create subscription object"""
-        token = token_info['token']
-        brexchange = token_info['brexchange']
+        token = token_info["token"]
+        brexchange = token_info["brexchange"]
         shoonya_exchange = ShoonyaExchangeMapper.to_shoonya_exchange(brexchange)
         scrip = f"{shoonya_exchange}|{token}"
 
         return {
-            'symbol': symbol,
-            'exchange': exchange,
-            'mode': mode,
-            'depth_level': depth_level,
-            'token': token,
-            'scrip': scrip
+            "symbol": symbol,
+            "exchange": exchange,
+            "mode": mode,
+            "depth_level": depth_level,
+            "token": token,
+            "scrip": scrip,
         }
 
     def _store_subscription(self, correlation_id: str, subscription: Dict) -> None:
         """Store subscription and update mappings"""
         with self.lock:
             self.subscriptions[correlation_id] = subscription
-            self.token_to_symbol[subscription['token']] = (subscription['symbol'], subscription['exchange'])
+            self.token_to_symbol[subscription["token"]] = (
+                subscription["symbol"],
+                subscription["exchange"],
+            )
 
     def _websocket_subscribe(self, subscription: Dict) -> None:
         """Handle WebSocket subscription with reference counting"""
-        scrip = subscription['scrip']
-        mode = subscription['mode']
+        scrip = subscription["scrip"]
+        mode = subscription["mode"]
 
         # Initialize reference count for this scrip if not exists
         if scrip not in self.ws_subscription_refs:
-            self.ws_subscription_refs[scrip] = {'touchline_count': 0, 'depth_count': 0}
+            self.ws_subscription_refs[scrip] = {"touchline_count": 0, "depth_count": 0}
 
         if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
-            if self.ws_subscription_refs[scrip]['touchline_count'] == 0:
+            if self.ws_subscription_refs[scrip]["touchline_count"] == 0:
                 self.logger.info(f"First touchline subscription for {scrip}")
                 self.ws_client.subscribe_touchline(scrip)
-                self.ws_subscription_refs[scrip]['touchline_count'] = 1
+                self.ws_subscription_refs[scrip]["touchline_count"] = 1
             else:
                 # Already subscribed, just increment the count
-                self.ws_subscription_refs[scrip]['touchline_count'] += 1
-                self.logger.info(f"Additional touchline subscription for {scrip}, count: {self.ws_subscription_refs[scrip]['touchline_count']}")
+                self.ws_subscription_refs[scrip]["touchline_count"] += 1
+                self.logger.info(
+                    f"Additional touchline subscription for {scrip}, count: {self.ws_subscription_refs[scrip]['touchline_count']}"
+                )
         elif mode == Config.MODE_DEPTH:
-            if self.ws_subscription_refs[scrip]['depth_count'] == 0:
+            if self.ws_subscription_refs[scrip]["depth_count"] == 0:
                 self.logger.info(f"First depth subscription for {scrip}")
                 self.ws_client.subscribe_depth(scrip)
-                self.ws_subscription_refs[scrip]['depth_count'] = 1
+                self.ws_subscription_refs[scrip]["depth_count"] = 1
             else:
                 # Already subscribed, just increment the count
-                self.ws_subscription_refs[scrip]['depth_count'] += 1
-                self.logger.info(f"Additional depth subscription for {scrip}, count: {self.ws_subscription_refs[scrip]['depth_count']}")
+                self.ws_subscription_refs[scrip]["depth_count"] += 1
+                self.logger.info(
+                    f"Additional depth subscription for {scrip}, count: {self.ws_subscription_refs[scrip]['depth_count']}"
+                )
 
     def _websocket_unsubscribe(self, subscription: Dict) -> None:
         """Handle WebSocket unsubscription with reference counting"""
-        scrip = subscription['scrip']
-        mode = subscription['mode']
+        scrip = subscription["scrip"]
+        mode = subscription["mode"]
 
         if scrip not in self.ws_subscription_refs:
             return
 
         if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
-            self.ws_subscription_refs[scrip]['touchline_count'] -= 1
-            if self.ws_subscription_refs[scrip]['touchline_count'] <= 0:
+            self.ws_subscription_refs[scrip]["touchline_count"] -= 1
+            if self.ws_subscription_refs[scrip]["touchline_count"] <= 0:
                 self.logger.info(f"Last touchline subscription for {scrip}")
                 self.ws_client.unsubscribe_touchline(scrip)
-                self.ws_subscription_refs[scrip]['touchline_count'] = 0
+                self.ws_subscription_refs[scrip]["touchline_count"] = 0
         elif mode == Config.MODE_DEPTH:
-            self.ws_subscription_refs[scrip]['depth_count'] -= 1
-            if self.ws_subscription_refs[scrip]['depth_count'] <= 0:
+            self.ws_subscription_refs[scrip]["depth_count"] -= 1
+            if self.ws_subscription_refs[scrip]["depth_count"] <= 0:
                 self.logger.info(f"Last depth subscription for {scrip}")
                 self.ws_client.unsubscribe_depth(scrip)
-                self.ws_subscription_refs[scrip]['depth_count'] = 0
+                self.ws_subscription_refs[scrip]["depth_count"] = 0
 
     def _remove_subscription(self, correlation_id: str, subscription: Dict) -> None:
         """Remove subscription and clean up mappings"""
-        token = subscription['token']
-        scrip = subscription['scrip']
+        token = subscription["token"]
+        scrip = subscription["scrip"]
 
         # Remove subscription
         if correlation_id in self.subscriptions:
@@ -530,13 +646,15 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         # Clean up reference count if both counts are 0
         if scrip in self.ws_subscription_refs:
-            if (self.ws_subscription_refs[scrip]['touchline_count'] <= 0 and
-                self.ws_subscription_refs[scrip]['depth_count'] <= 0):
+            if (
+                self.ws_subscription_refs[scrip]["touchline_count"] <= 0
+                and self.ws_subscription_refs[scrip]["depth_count"] <= 0
+            ):
                 del self.ws_subscription_refs[scrip]
                 self.logger.debug(f"Removed reference counts for {scrip}")
 
         # Remove token mapping if no other subscriptions use it
-        if not any(sub.get('token') == token for sub in self.subscriptions.values()):
+        if not any(sub.get("token") == token for sub in self.subscriptions.values()):
             if token in self.token_to_symbol:
                 del self.token_to_symbol[token]
                 self.logger.debug(f"Removed token mapping for {token}")
@@ -555,7 +673,9 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
     def _on_close(self, ws, close_status_code, close_msg):
         """Handle WebSocket connection close"""
-        self.logger.info(f"Shoonya WebSocket connection closed: {close_status_code} - {close_msg}")
+        self.logger.info(
+            f"Shoonya WebSocket connection closed: {close_status_code} - {close_msg}"
+        )
         self.connected = False
 
         if self.running:
@@ -576,11 +696,13 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return
 
         delay = min(
-            Config.BASE_RECONNECT_DELAY * (2 ** self.reconnect_attempts),
-            Config.MAX_RECONNECT_DELAY
+            Config.BASE_RECONNECT_DELAY * (2**self.reconnect_attempts),
+            Config.MAX_RECONNECT_DELAY,
         )
 
-        self.logger.info(f"Reconnecting in {delay}s (attempt {self.reconnect_attempts + 1})")
+        self.logger.info(
+            f"Reconnecting in {delay}s (attempt {self.reconnect_attempts + 1})"
+        )
         threading.Timer(delay, self._attempt_reconnection).start()
 
     def _attempt_reconnection(self) -> None:
@@ -596,7 +718,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 on_message=self._on_message,
                 on_error=self._on_error,
                 on_close=self._on_close,
-                on_open=self._on_open
+                on_open=self._on_open,
             )
 
             if self.ws_client.connect():
@@ -620,32 +742,39 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             depth_scrips = set()
 
             for subscription in self.subscriptions.values():
-                scrip = subscription['scrip']
-                mode = subscription['mode']
+                scrip = subscription["scrip"]
+                mode = subscription["mode"]
 
                 # Initialize reference count
                 if scrip not in self.ws_subscription_refs:
-                    self.ws_subscription_refs[scrip] = {'touchline_count': 0, 'depth_count': 0}
+                    self.ws_subscription_refs[scrip] = {
+                        "touchline_count": 0,
+                        "depth_count": 0,
+                    }
 
                 if mode in [Config.MODE_LTP, Config.MODE_QUOTE]:
                     if scrip not in touchline_scrips:
                         touchline_scrips.add(scrip)
-                    self.ws_subscription_refs[scrip]['touchline_count'] += 1
+                    self.ws_subscription_refs[scrip]["touchline_count"] += 1
                 elif mode == Config.MODE_DEPTH:
                     if scrip not in depth_scrips:
                         depth_scrips.add(scrip)
-                    self.ws_subscription_refs[scrip]['depth_count'] += 1
+                    self.ws_subscription_refs[scrip]["depth_count"] += 1
 
             # Resubscribe in batches
             if touchline_scrips:
-                scrip_list = '#'.join(touchline_scrips)
+                scrip_list = "#".join(touchline_scrips)
                 self.ws_client.subscribe_touchline(scrip_list)
-                self.logger.info(f"Resubscribed to {len(touchline_scrips)} touchline scrips with total {sum(self.ws_subscription_refs[s]['touchline_count'] for s in touchline_scrips)} subscriptions")
+                self.logger.info(
+                    f"Resubscribed to {len(touchline_scrips)} touchline scrips with total {sum(self.ws_subscription_refs[s]['touchline_count'] for s in touchline_scrips)} subscriptions"
+                )
 
             if depth_scrips:
-                scrip_list = '#'.join(depth_scrips)
+                scrip_list = "#".join(depth_scrips)
                 self.ws_client.subscribe_depth(scrip_list)
-                self.logger.info(f"Resubscribed to {len(depth_scrips)} depth scrips with total {sum(self.ws_subscription_refs[s]['depth_count'] for s in depth_scrips)} subscriptions")
+                self.logger.info(
+                    f"Resubscribed to {len(depth_scrips)} depth scrips with total {sum(self.ws_subscription_refs[s]['depth_count'] for s in depth_scrips)} subscriptions"
+                )
 
     def _on_message(self, ws, message):
         """Handle incoming market data messages"""
@@ -653,7 +782,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         try:
             data = json.loads(message)
-            msg_type = data.get('t')
+            msg_type = data.get("t")
 
             # Handle authentication acknowledgment
             if msg_type == Config.MSG_AUTH:
@@ -661,8 +790,12 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 return
 
             # Process market data messages
-            if msg_type in (Config.MSG_TOUCHLINE_FULL, Config.MSG_TOUCHLINE_PARTIAL,
-                           Config.MSG_DEPTH_FULL, Config.MSG_DEPTH_PARTIAL):
+            if msg_type in (
+                Config.MSG_TOUCHLINE_FULL,
+                Config.MSG_TOUCHLINE_PARTIAL,
+                Config.MSG_DEPTH_FULL,
+                Config.MSG_DEPTH_PARTIAL,
+            ):
                 self._process_market_message(data)
             else:
                 self.logger.debug(f"Unknown message type {msg_type}: {data}")
@@ -675,8 +808,8 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def _process_market_message(self, data: Dict[str, Any]) -> None:
         """Process market data messages with better error handling"""
         try:
-            msg_type = data.get('t')
-            token = data.get('tk')
+            msg_type = data.get("t")
+            token = data.get("tk")
 
             if not self._is_valid_market_message(msg_type, token):
                 return
@@ -688,8 +821,10 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             matching_subscriptions = self._find_matching_subscriptions(token)
 
             for subscription in matching_subscriptions:
-                if self._should_process_message(msg_type, subscription['mode']):
-                    self._process_subscription_message(data, subscription, symbol, exchange)
+                if self._should_process_message(msg_type, subscription["mode"]):
+                    self._process_subscription_message(
+                        data, subscription, symbol, exchange
+                    )
 
         except Exception as e:
             self.logger.error(f"Message processing error: {e}")
@@ -705,7 +840,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def _find_matching_subscriptions(self, token: str) -> List[Dict]:
         """Find all subscriptions matching the token"""
         with self.lock:
-            return [sub for sub in self.subscriptions.values() if sub['token'] == token]
+            return [sub for sub in self.subscriptions.values() if sub["token"] == token]
 
     def _should_process_message(self, msg_type: str, mode: int) -> bool:
         """Determine if message should be processed for given mode"""
@@ -719,29 +854,39 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         return False
 
-    def _process_subscription_message(self, data: Dict, subscription: Dict, symbol: str, exchange: str) -> None:
+    def _process_subscription_message(
+        self, data: Dict, subscription: Dict, symbol: str, exchange: str
+    ) -> None:
         """Process message for a specific subscription"""
-        mode = subscription['mode']
-        msg_type = data.get('t')
+        mode = subscription["mode"]
+        msg_type = data.get("t")
 
         # Normalize data
         normalized_data = self._normalize_market_data(data, msg_type, mode)
-        normalized_data.update({
-            'symbol': symbol,
-            'exchange': exchange,
-            'timestamp': int(time.time() * 1000)
-        })
+        normalized_data.update(
+            {
+                "symbol": symbol,
+                "exchange": exchange,
+                "timestamp": int(time.time() * 1000),
+            }
+        )
 
         # Create topic and publish
-        mode_str = {Config.MODE_LTP: 'LTP', Config.MODE_QUOTE: 'QUOTE', Config.MODE_DEPTH: 'DEPTH'}[mode]
+        mode_str = {
+            Config.MODE_LTP: "LTP",
+            Config.MODE_QUOTE: "QUOTE",
+            Config.MODE_DEPTH: "DEPTH",
+        }[mode]
         topic = f"{exchange}_{symbol}_{mode_str}"
 
         self.logger.debug(f"[{mode_str}] Publishing data for {symbol}")
         self.publish_market_data(topic, normalized_data)
 
-    def _normalize_market_data(self, data: Dict[str, Any], msg_type: str, mode: int) -> Dict[str, Any]:
+    def _normalize_market_data(
+        self, data: Dict[str, Any], msg_type: str, mode: int
+    ) -> Dict[str, Any]:
         """Normalize market data based on mode with improved structure"""
-        token = data.get('tk')
+        token = data.get("tk")
         if token:
             # Use cache to handle partial updates
             data = self.market_cache.update(token, data)
@@ -766,7 +911,7 @@ class ShoonyaWebSocketAdapter(BaseBrokerWebSocketAdapter):
 # Utility functions
 def safe_float(value: Any, default: float = 0.0) -> float:
     """Safely convert value to float with default"""
-    if value is None or value == '' or value == '-':
+    if value is None or value == "" or value == "-":
         return default
     try:
         return float(value)
@@ -776,7 +921,7 @@ def safe_float(value: Any, default: float = 0.0) -> float:
 
 def safe_int(value: Any, default: int = 0) -> int:
     """Safely convert value to int with default"""
-    if value is None or value == '' or value == '-':
+    if value is None or value == "" or value == "-":
         return default
     try:
         return int(float(value))

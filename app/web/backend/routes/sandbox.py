@@ -327,7 +327,6 @@ async def reset_config(request: Request, db: AsyncSession = Depends(get_db)):
 async def reload_squareoff(db: AsyncSession = Depends(get_db)):
     """Manually reload square-off schedule from config"""
     try:
-
         success, response, status_code = sandbox_reload_squareoff_schedule()
 
         if success:
@@ -437,7 +436,7 @@ def validate_config(config_key, config_value):
                 "Sunday",
             ]
             if config_value not in valid_days:
-                return f'Reset day must be one of: {", ".join(valid_days)}'
+                return f"Reset day must be one of: {', '.join(valid_days)}"
 
         return None  # No validation error
 

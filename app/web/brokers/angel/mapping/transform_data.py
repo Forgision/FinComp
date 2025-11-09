@@ -1,14 +1,14 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Angel Broking Parameters https://smartapi.angelbroking.com/docs/Orders
 
 from app.core.schemas.token_db import get_br_symbol
 
 
-def transform_data(data,token):
+def transform_data(data, token):
     """
     Transforms the new API request structure to the current expected structure.
     """
-    symbol = get_br_symbol(data["symbol"],data["exchange"])
+    symbol = get_br_symbol(data["symbol"], data["exchange"])
     # Basic mapping
     transformed = {
         "apikey": data["apikey"],
@@ -24,9 +24,8 @@ def transform_data(data,token):
         "squareoff": "0",  # Assuming not applicable; adjust if needed
         "stoploss": data.get("trigger_price", "0"),
         "disclosedquantity": data.get("disclosed_quantity", "0"),
-        "quantity": data["quantity"]
+        "quantity": data["quantity"],
     }
-
 
     # Extended mapping for fields that might need conditional logic or additional processing
     transformed["disclosedquantity"] = data.get("disclosed_quantity", "0")
@@ -48,9 +47,8 @@ def transform_modify_order_data(data, token):
         "symboltoken": token,
         "exchange": data["exchange"],
         "disclosedquantity": data.get("disclosed_quantity", "0"),
-        "stoploss": data.get("trigger_price", "0")
+        "stoploss": data.get("trigger_price", "0"),
     }
-
 
 
 def map_order_type(pricetype):
@@ -61,9 +59,10 @@ def map_order_type(pricetype):
         "MARKET": "MARKET",
         "LIMIT": "LIMIT",
         "SL": "STOPLOSS_LIMIT",
-        "SL-M": "STOPLOSS_MARKET"
+        "SL-M": "STOPLOSS_MARKET",
     }
     return order_type_mapping.get(pricetype, "MARKET")  # Default to MARKET if not found
+
 
 def map_product_type(product):
     """
@@ -74,7 +73,9 @@ def map_product_type(product):
         "NRML": "CARRYFORWARD",
         "MIS": "INTRADAY",
     }
-    return product_type_mapping.get(product, "INTRADAY")  # Default to DELIVERY if not found
+    return product_type_mapping.get(
+        product, "INTRADAY"
+    )  # Default to DELIVERY if not found
 
 
 def map_variety(pricetype):
@@ -85,7 +86,7 @@ def map_variety(pricetype):
         "MARKET": "NORMAL",
         "LIMIT": "NORMAL",
         "SL": "STOPLOSS",
-        "SL-M": "STOPLOSS"
+        "SL-M": "STOPLOSS",
     }
     return variety_mapping.get(pricetype, "NORMAL")  # Default to DELIVERY if not found
 
@@ -100,4 +101,3 @@ def reverse_map_product_type(product):
         "INTRADAY": "MIS",
     }
     return reverse_product_type_mapping.get(product)
-

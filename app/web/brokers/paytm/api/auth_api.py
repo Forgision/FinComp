@@ -25,21 +25,21 @@ def authenticate_broker(request_token):
         BROKER_API_KEY = settings.BROKER_API_KEY
         BROKER_API_SECRET = settings.BROKER_API_SECRET
 
-        url = 'https://developer.paytmmoney.com/accounts/v2/gettoken'
+        url = "https://developer.paytmmoney.com/accounts/v2/gettoken"
         data = {
-            'api_key': BROKER_API_KEY,
-            'api_secret_key': BROKER_API_SECRET,
-            'request_token': request_token
+            "api_key": BROKER_API_KEY,
+            "api_secret_key": BROKER_API_SECRET,
+            "request_token": request_token,
         }
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
         client = get_httpx_client()
         response = client.post(url, json=data, headers=headers)
 
         if response.status_code == 200:
             response_data = response.json()
-            if 'access_token' in response_data:
+            if "access_token" in response_data:
                 logger.debug("Successfully authenticated and received access token.")
-                return response_data['access_token'], None
+                return response_data["access_token"], None
             else:
                 error_msg = "Authentication succeeded but no access token was returned."
                 logger.error(error_msg)
@@ -49,13 +49,21 @@ def authenticate_broker(request_token):
             # Parsing the error message from the API response
             try:
                 error_detail = response.json()
-                error_messages = error_detail.get('errors', [])
-                detailed_error_message = "; ".join([error['message'] for error in error_messages])
-                error_msg = f"API error: {detailed_error_message}" if detailed_error_message else f"Authentication failed with response: {response.text}"
+                error_messages = error_detail.get("errors", [])
+                detailed_error_message = "; ".join(
+                    [error["message"] for error in error_messages]
+                )
+                error_msg = (
+                    f"API error: {detailed_error_message}"
+                    if detailed_error_message
+                    else f"Authentication failed with response: {response.text}"
+                )
             except Exception:
                 error_msg = f"Authentication failed with status code {response.status_code} and non-JSON response: {response.text}"
 
-            logger.error(f"Authentication failed with status code {response.status_code}. Error: {error_msg}")
+            logger.error(
+                f"Authentication failed with status code {response.status_code}. Error: {error_msg}"
+            )
             return None, error_msg
     except Exception:
         logger.exception("An exception occurred during authentication.")

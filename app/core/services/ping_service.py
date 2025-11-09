@@ -19,15 +19,18 @@ def ping_with_auth(auth_token: str, broker: str) -> Tuple[bool, Dict[str, Any], 
     """
     # Since we've already validated the auth_token by getting here,
     # we can simply return a pong response
-    return True, {
-        'status': 'success',
-        'data': {
-            'message': 'pong',
-            'broker': broker
-        }
-    }, 200
+    return (
+        True,
+        {"status": "success", "data": {"message": "pong", "broker": broker}},
+        200,
+    )
 
-def get_ping(api_key: Optional[str] = None, auth_token: Optional[str] = None, broker: Optional[str] = None) -> Tuple[bool, Dict[str, Any], int]:
+
+def get_ping(
+    api_key: Optional[str] = None,
+    auth_token: Optional[str] = None,
+    broker: Optional[str] = None,
+) -> Tuple[bool, Dict[str, Any], int]:
     """
     Ping endpoint to check API connectivity and authentication.
     Supports both API-based authentication and direct internal calls.
@@ -47,10 +50,7 @@ def get_ping(api_key: Optional[str] = None, auth_token: Optional[str] = None, br
     if api_key and not (auth_token and broker):
         AUTH_TOKEN, broker_name = get_auth_token_broker(api_key)
         if AUTH_TOKEN is None:
-            return False, {
-                'status': 'error',
-                'message': 'Invalid openalgo apikey'
-            }, 403
+            return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         return ping_with_auth(AUTH_TOKEN, broker_name)
 
     # Case 2: Direct internal call with auth_token and broker
@@ -59,7 +59,11 @@ def get_ping(api_key: Optional[str] = None, auth_token: Optional[str] = None, br
 
     # Case 3: Invalid parameters
     else:
-        return False, {
-            'status': 'error',
-            'message': 'Either api_key or both auth_token and broker must be provided'
-        }, 400
+        return (
+            False,
+            {
+                "status": "error",
+                "message": "Either api_key or both auth_token and broker must be provided",
+            },
+            400,
+        )

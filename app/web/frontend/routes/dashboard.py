@@ -43,7 +43,9 @@ async def dashboard(
 
     # For now, let's assume get_funds is not heavily blocking for the sake of refactoring
     # This might need to be revisited for production performance.
-    success, response, status_code = await get_funds(db, auth_token=AUTH_TOKEN, broker=broker)
+    success, response, status_code = await get_funds(
+        db, auth_token=AUTH_TOKEN, broker=broker
+    )
 
     if not success:
         logger.error(

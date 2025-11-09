@@ -1,5 +1,5 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping Groww API Parameters based on SDK documentation
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping Groww API Parameters based on SDK documentation
 
 # Groww API constants based on the SDK documentation
 
@@ -46,6 +46,7 @@ ORDER_STATUS_CANCELLATION_REQUESTED = "CANCELLATION_REQUESTED"
 ORDER_STATUS_MODIFICATION_REQUESTED = "MODIFICATION_REQUESTED"
 ORDER_STATUS_COMPLETED = "COMPLETED"
 ORDER_STATUS_REJECTED = "REJECTED"
+
 
 def transform_data(data, token):
     """
@@ -95,7 +96,7 @@ def transform_data(data, token):
         transformed["order_reference_id"] = data["order_reference_id"]
     elif data.get("strategy"):
         # Use strategy as reference ID if provided, truncating to 8 chars if needed
-        reference_id = data["strategy"][:8].ljust(8, '0')
+        reference_id = data["strategy"][:8].ljust(8, "0")
         transformed["order_reference_id"] = reference_id
 
     return transformed
@@ -145,10 +146,11 @@ def map_order_type(pricetype):
         "MARKET": ORDER_TYPE_MARKET,
         "LIMIT": ORDER_TYPE_LIMIT,
         "SL": ORDER_TYPE_SL,
-        "SL-M": ORDER_TYPE_SLM
+        "SL-M": ORDER_TYPE_SLM,
     }
-    return order_type_mapping.get(pricetype.upper(), ORDER_TYPE_MARKET)  # Default to MARKET if not found
-
+    return order_type_mapping.get(
+        pricetype.upper(), ORDER_TYPE_MARKET
+    )  # Default to MARKET if not found
 
 
 def map_exchange_type(exchange):
@@ -159,10 +161,11 @@ def map_exchange_type(exchange):
         "NSE": EXCHANGE_NSE,
         "BSE": EXCHANGE_BSE,
         "NFO": EXCHANGE_NSE,  # NFO is part of NSE for Groww
-        "BFO": EXCHANGE_BSE  # BSE futures & options
+        "BFO": EXCHANGE_BSE,  # BSE futures & options
     }
-    return exchange_mapping.get(exchange.upper(), EXCHANGE_NSE)  # Default to NSE if not found
-
+    return exchange_mapping.get(
+        exchange.upper(), EXCHANGE_NSE
+    )  # Default to NSE if not found
 
 
 def map_exchange(brexchange):
@@ -173,10 +176,9 @@ def map_exchange(brexchange):
         EXCHANGE_NSE: "NSE",
         EXCHANGE_BSE: "BSE",
         "NSE_FNO": "NFO",
-        "BSE_FNO": "BFO"
+        "BSE_FNO": "BFO",
     }
     return exchange_mapping.get(brexchange, "NSE")  # Default to NSE if not found
-
 
 
 def map_product_type(product):
@@ -184,22 +186,22 @@ def map_product_type(product):
     Maps the OpenAlgo product type to Groww product type.
     """
     product_type_mapping = {
-        "CNC": PRODUCT_CNC,    # Cash and Carry
+        "CNC": PRODUCT_CNC,  # Cash and Carry
         "NRML": PRODUCT_NRML,  # Normal delivery
-        "MIS": PRODUCT_MIS,    # Intraday
+        "MIS": PRODUCT_MIS,  # Intraday
     }
-    return product_type_mapping.get(product.upper(), PRODUCT_CNC)  # Default to CNC if not found
+    return product_type_mapping.get(
+        product.upper(), PRODUCT_CNC
+    )  # Default to CNC if not found
+
 
 def reverse_map_product_type(product):
     """
     Maps the Groww product type to the OpenAlgo product type.
     """
-    product_mapping = {
-        PRODUCT_CNC: "CNC",
-        PRODUCT_NRML: "NRML",
-        PRODUCT_MIS: "MIS"
-    }
+    product_mapping = {PRODUCT_CNC: "CNC", PRODUCT_NRML: "NRML", PRODUCT_MIS: "MIS"}
     return product_mapping.get(product)  # Return None if not found
+
 
 def get_segment(exchange):
     """
@@ -209,9 +211,12 @@ def get_segment(exchange):
         "NSE": SEGMENT_CASH,
         "BSE": SEGMENT_CASH,
         "NFO": SEGMENT_FNO,
-        "BFO": SEGMENT_FNO
+        "BFO": SEGMENT_FNO,
     }
-    return segment_mapping.get(exchange.upper(), SEGMENT_CASH)  # Default to CASH if not found
+    return segment_mapping.get(
+        exchange.upper(), SEGMENT_CASH
+    )  # Default to CASH if not found
+
 
 def map_segment_type(exchange):
     """
@@ -221,9 +226,12 @@ def map_segment_type(exchange):
         "NSE": SEGMENT_CASH,
         "BSE": SEGMENT_CASH,
         "NFO": SEGMENT_FNO,
-        "BFO": SEGMENT_FNO
+        "BFO": SEGMENT_FNO,
     }
-    return segment_mapping.get(exchange.upper(), SEGMENT_CASH)  # Default to CASH if not found
+    return segment_mapping.get(
+        exchange.upper(), SEGMENT_CASH
+    )  # Default to CASH if not found
+
 
 def map_validity(validity):
     """
@@ -232,9 +240,12 @@ def map_validity(validity):
     validity_mapping = {
         "DAY": VALIDITY_DAY,
         "IOC": VALIDITY_IOC,
-        "GTC": VALIDITY_DAY  # Groww doesn't support GTC, defaulting to DAY
+        "GTC": VALIDITY_DAY,  # Groww doesn't support GTC, defaulting to DAY
     }
-    return validity_mapping.get(validity.upper(), VALIDITY_DAY)  # Default to DAY if not found
+    return validity_mapping.get(
+        validity.upper(), VALIDITY_DAY
+    )  # Default to DAY if not found
+
 
 def map_transaction_type(action):
     """
@@ -242,6 +253,8 @@ def map_transaction_type(action):
     """
     transaction_type_mapping = {
         "BUY": TRANSACTION_TYPE_BUY,
-        "SELL": TRANSACTION_TYPE_SELL
+        "SELL": TRANSACTION_TYPE_SELL,
     }
-    return transaction_type_mapping.get(action.upper(), TRANSACTION_TYPE_BUY)  # Default to BUY if not found
+    return transaction_type_mapping.get(
+        action.upper(), TRANSACTION_TYPE_BUY
+    )  # Default to BUY if not found

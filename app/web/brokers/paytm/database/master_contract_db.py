@@ -1,4 +1,4 @@
-#database/master_contract_db.py
+# database/master_contract_db.py
 
 
 import pandas as pd
@@ -11,17 +11,26 @@ from app.utils.logging import logger
 from app.utils.web.socketio import socketio  # Import SocketIO
 from app.core.schemas import get_db
 
+
 class Base(DeclarativeBase):
     pass
 
 
 class SymToken(Base):
-    __tablename__ = 'symtoken'
-    id: Mapped[int] = mapped_column(Integer, Sequence('symtoken_id_seq'), primary_key=True)
-    symbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
-    brsymbol: Mapped[str] = mapped_column(String, nullable=False, index=True)  # Single column index
+    __tablename__ = "symtoken"
+    id: Mapped[int] = mapped_column(
+        Integer, Sequence("symtoken_id_seq"), primary_key=True
+    )
+    symbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
+    brsymbol: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # Single column index
     name: Mapped[str] = mapped_column(String)
-    exchange: Mapped[str] = mapped_column(String, index=True)  # Include this column in a composite index
+    exchange: Mapped[str] = mapped_column(
+        String, index=True
+    )  # Include this column in a composite index
     brexchange: Mapped[str] = mapped_column(String, index=True)
     token: Mapped[str] = mapped_column(String, index=True)  # Indexed for performance
     expiry: Mapped[str] = mapped_column(String)
@@ -31,12 +40,14 @@ class SymToken(Base):
     tick_size: Mapped[float] = mapped_column(Float)
 
     # Define a composite index on symbol and exchange columns
-    __table_args__ = (Index('idx_symbol_exchange', 'symbol', 'exchange'),)
+    __table_args__ = (Index("idx_symbol_exchange", "symbol", "exchange"),)
+
 
 def init_db():
     db = next(get_db())
     logger.debug("Initializing Master Contract DB")
     Base.metadata.create_all(bind=db.get_bind())
+
 
 def delete_symtoken_table():
     db = next(get_db())
@@ -44,17 +55,22 @@ def delete_symtoken_table():
     db.query(SymToken).delete()
     db.commit()
 
+
 def copy_from_dataframe(df):
     db = next(get_db())
     logger.info("Performing Bulk Insert")
     # Convert DataFrame to a list of dictionaries
-    data_dict = df.to_dict(orient='records')
+    data_dict = df.to_dict(orient="records")
 
     # Retrieve existing tokens to filter them out from the insert
-    existing_tokens = {result.token for result in db.execute(select(SymToken.token)).scalars().all()}
+    existing_tokens = {
+        result.token for result in db.execute(select(SymToken.token)).scalars().all()
+    }
 
     # Filter out data_dict entries with tokens that already exist
-    filtered_data_dict = [row for row in data_dict if row['token'] not in existing_tokens]
+    filtered_data_dict = [
+        row for row in data_dict if row["token"] not in existing_tokens
+    ]
 
     # Insert in bulk the filtered records
     try:
@@ -65,12 +81,12 @@ def copy_from_dataframe(df):
 
             for record in filtered_data_dict:
                 # Allow indices ("I") even if symbol is missing
-                if record.get('instrumenttype') == 'I':
+                if record.get("instrumenttype") == "I":
                     valid_records.append(record)
                 else:
                     # Check if symbol exists and is not empty/null
-                    symbol = record.get('symbol')
-                    if not symbol or pd.isna(symbol) or str(symbol).strip() == '':
+                    symbol = record.get("symbol")
+                    if not symbol or pd.isna(symbol) or str(symbol).strip() == "":
                         invalid_records.append(record)
                         logger.error(f"Schema validation failed for record: {record}")
                         logger.debug("Symbol is missing, empty, or null")
@@ -80,23 +96,24 @@ def copy_from_dataframe(df):
             if valid_records:
                 db.bulk_insert_mappings(SymToken.__mapper__, valid_records)
                 db.commit()
-                logger.info(f"Bulk insert completed successfully with {len(valid_records)} new records.")
+                logger.info(
+                    f"Bulk insert completed successfully with {len(valid_records)} new records."
+                )
 
             if invalid_records:
-                logger.warning(f"{len(invalid_records)} records failed schema validation and were skipped.")
+                logger.warning(
+                    f"{len(invalid_records)} records failed schema validation and were skipped."
+                )
         else:
             logger.info("No new records to insert.")
     except Exception as e:
         logger.exception(f"Error during bulk insert: {e}")
-        if hasattr(e, '__cause__'):
+        if hasattr(e, "__cause__"):
             logger.error(f"Caused by: {e.__cause__}")
         db.rollback()
 
 
-
-
 def download_csv_paytm_data(output_path):
-
     logger.info("Downloading Master Contract CSV Files")
     # Create output directory if it doesn't exist
     if not settings.BASE_DIR.joinpath(output_path).exists():
@@ -117,11 +134,11 @@ def download_csv_paytm_data(output_path):
             # Send GET request using httpx client
             client = get_httpx_client()
             response = client.get(url)
-            response.raise_for_status() # Raise an exception for bad status codes
+            response.raise_for_status()  # Raise an exception for bad status codes
             # Construct the full output path for the file
             file_path = settings.BASE_DIR.joinpath(output_path, f"{key}.csv")
             # Write the content to the file
-            with open(file_path, 'wb') as file:
+            with open(file_path, "wb") as file:
                 file.write(response.content)
             downloaded_files.append(file_path)
             logger.info(f"Successfully downloaded {key} from {url}")
@@ -131,37 +148,43 @@ def download_csv_paytm_data(output_path):
 
 def reformat_symbol(row):
     # Use trading symbol as base instead of name
-    symbol = row['symbol']
-    instrument_type = row['instrument_type']
-    expiry = row['expiry_date'].replace('-', '').upper()
+    symbol = row["symbol"]
+    instrument_type = row["instrument_type"]
+    expiry = row["expiry_date"].replace("-", "").upper()
 
     # For equity instruments, use the symbol as is
-    if instrument_type in ['ES']:
+    if instrument_type in ["ES"]:
         return symbol
 
     # For index instruments, use name without spaces and set it as both symbol and brsymbol
-    elif instrument_type in ['I']:
-        symbol = "".join(row['name'].split())
-        row['symbol'] = symbol  # Set the symbol in the row
+    elif instrument_type in ["I"]:
+        symbol = "".join(row["name"].split())
+        row["symbol"] = symbol  # Set the symbol in the row
         return symbol
 
     # For futures
-    elif instrument_type in ['FUTSTK', 'FUTIDX']:
+    elif instrument_type in ["FUTSTK", "FUTIDX"]:
         # Remove any spaces and standardize format
-        parts = row['name'].split(' ')
+        parts = row["name"].split(" ")
         base_symbol = parts[0].strip()
         return f"{base_symbol}{expiry}FUT"
 
     # For options
-    elif instrument_type in ['OPTIDX', 'OPTSTK']:
-        parts = row['name'].split(' ')
+    elif instrument_type in ["OPTIDX", "OPTSTK"]:
+        parts = row["name"].split(" ")
         base_symbol = parts[0].strip()
 
         # Get strike price from the row directly instead of parsing from symbol
-        strike = str(int(float(row['strike_price'])))
+        strike = str(int(float(row["strike_price"])))
 
         # Determine option type (CE/PE)
-        option_type = 'CE' if 'CALL' in row['name'].upper() else 'PE' if 'PUT' in row['name'].upper() else parts[-1]
+        option_type = (
+            "CE"
+            if "CALL" in row["name"].upper()
+            else "PE"
+            if "PUT" in row["name"].upper()
+            else parts[-1]
+        )
 
         return f"{base_symbol}{expiry}{strike}{option_type}"
 
@@ -169,36 +192,42 @@ def reformat_symbol(row):
     else:
         return symbol
 
+
 # Define the function to apply conditions
 def assign_values(row):
-    #Paytm Exchange Mappings are simply NSE and BSE. No other complications
+    # Paytm Exchange Mappings are simply NSE and BSE. No other complications
     # Handle equity segment
-    if row['exchange'] == 'NSE' and (row['instrument_type'] == 'ETF' or row['instrument_type'] == 'ES'):
-        return 'NSE', 'NSE', 'EQ'
-    elif row['exchange'] == 'BSE' and (row['instrument_type'] == 'ETF' or row['instrument_type'] == 'ES'):
-        return 'BSE', 'BSE', 'EQ'
+    if row["exchange"] == "NSE" and (
+        row["instrument_type"] == "ETF" or row["instrument_type"] == "ES"
+    ):
+        return "NSE", "NSE", "EQ"
+    elif row["exchange"] == "BSE" and (
+        row["instrument_type"] == "ETF" or row["instrument_type"] == "ES"
+    ):
+        return "BSE", "BSE", "EQ"
 
     # Handle indices
-    elif row['exchange'] == 'NSE' and row['instrument_type'] == 'I':
-        return 'NSE_INDEX', 'NSE', 'INDEX'
-    elif row['exchange'] == 'BSE' and row['instrument_type'] == 'I':
-        return 'BSE_INDEX', 'BSE', 'INDEX'
+    elif row["exchange"] == "NSE" and row["instrument_type"] == "I":
+        return "NSE_INDEX", "NSE", "INDEX"
+    elif row["exchange"] == "BSE" and row["instrument_type"] == "I":
+        return "BSE_INDEX", "BSE", "INDEX"
 
     # Handle futures
-    elif row['exchange'] == 'NSE' and row['instrument_type'] in ['FUTIDX', 'FUTSTK']:
-        return 'NFO', 'NSE', 'FUT'
-    elif row['exchange'] == 'BSE' and row['instrument_type'] in ['FUTIDX', 'FUTSTK']:
-        return 'BFO', 'BSE', 'FUT'
+    elif row["exchange"] == "NSE" and row["instrument_type"] in ["FUTIDX", "FUTSTK"]:
+        return "NFO", "NSE", "FUT"
+    elif row["exchange"] == "BSE" and row["instrument_type"] in ["FUTIDX", "FUTSTK"]:
+        return "BFO", "BSE", "FUT"
 
     # Handle options
-    elif row['exchange'] == 'NSE' and row['instrument_type'] in ['OPTIDX', 'OPTSTK']:
-        return 'NFO', 'NSE', 'OPT'
-    elif row['exchange'] == 'BSE' and row['instrument_type'] in ['OPTIDX', 'OPTSTK']:
-        return 'BFO', 'BSE', 'OPT'
+    elif row["exchange"] == "NSE" and row["instrument_type"] in ["OPTIDX", "OPTSTK"]:
+        return "NFO", "NSE", "OPT"
+    elif row["exchange"] == "BSE" and row["instrument_type"] in ["OPTIDX", "OPTSTK"]:
+        return "BFO", "BSE", "OPT"
 
     # Handle unknown cases
     else:
-        return 'Unknown', 'Unknown', 'Unknown'
+        return "Unknown", "Unknown", "Unknown"
+
 
 def process_paytm_csv(path):
     """Processes the Paytm CSV file to fit the existing database schema and performs exchange name mapping."""
@@ -209,42 +238,54 @@ def process_paytm_csv(path):
     df.columns = df.columns.str.strip()
 
     # Attempt to convert all date entries to datetime objects, errors are coerced to NaT
-    df['expiry_date'] = pd.to_datetime(df['expiry_date'], errors='coerce')
+    df["expiry_date"] = pd.to_datetime(df["expiry_date"], errors="coerce")
 
     # Format all non-NaT datetime objects to the desired format "DD-MMM-YY"
-    df['expiry_date'] = df['expiry_date'].dt.strftime('%d-%b-%y')
+    df["expiry_date"] = df["expiry_date"].dt.strftime("%d-%b-%y")
 
     # Handle NaT values by replacing them with '-1'
-    df['expiry_date'] = df['expiry_date'].fillna('-1')
+    df["expiry_date"] = df["expiry_date"].fillna("-1")
 
     # Assigning headers to the DataFrame
-    df['token'] = df['security_id']
-    df['name'] = df['name']
-    df['expiry'] = df['expiry_date'].str.upper()
-    df['strike'] = df['strike_price']
-    df['lotsize'] = df['lot_size']
-    df['tick_size'] = df['tick_size']
-    df['brsymbol'] = df['symbol']
+    df["token"] = df["security_id"]
+    df["name"] = df["name"]
+    df["expiry"] = df["expiry_date"].str.upper()
+    df["strike"] = df["strike_price"]
+    df["lotsize"] = df["lot_size"]
+    df["tick_size"] = df["tick_size"]
+    df["brsymbol"] = df["symbol"]
 
     # For indices, set brsymbol to be the same as the formatted symbol
-    indices_mask = df['instrument_type'] == 'I'
-    df.loc[indices_mask, 'brsymbol'] = df.loc[indices_mask, 'name'].apply(lambda x: "".join(x.split()))
+    indices_mask = df["instrument_type"] == "I"
+    df.loc[indices_mask, "brsymbol"] = df.loc[indices_mask, "name"].apply(
+        lambda x: "".join(x.split())
+    )
 
     # Apply the function to get exchange mappings
-    df[['exchange', 'brexchange', 'instrumenttype']] = df.apply(assign_values, axis=1, result_type='expand')
+    df[["exchange", "brexchange", "instrumenttype"]] = df.apply(
+        assign_values, axis=1, result_type="expand"
+    )
 
     # Generate symbol field and ensure it's not null
-    df['symbol'] = df.apply(reformat_symbol, axis=1)
-    df['symbol'] = df['symbol'].fillna(df['brsymbol'])  # Use brsymbol as fallback if reformat_symbol returns None
+    df["symbol"] = df.apply(reformat_symbol, axis=1)
+    df["symbol"] = df["symbol"].fillna(
+        df["brsymbol"]
+    )  # Use brsymbol as fallback if reformat_symbol returns None
 
     # Remove rows where symbol is still null
-    df = df.dropna(subset=['symbol'])
+    df = df.dropna(subset=["symbol"])
 
     # List of columns to remove
     columns_to_remove = [
-        "security_id", "series", "lot_size",
-        "segment", "upper_limit", "lower_limit",
-        "expiry_date", "strike_price", "freeze_quantity"
+        "security_id",
+        "series",
+        "lot_size",
+        "segment",
+        "upper_limit",
+        "lower_limit",
+        "expiry_date",
+        "strike_price",
+        "freeze_quantity",
     ]
 
     # Removing the specified columns
@@ -252,13 +293,16 @@ def process_paytm_csv(path):
 
     # Common Index Symbol Formats
 
-    token_df['symbol'] = token_df['symbol'].replace({
-    'NIFTYNEXT50': 'NIFTYNXT50',
-    'NIFTYMIDCAP150': 'MIDCPNIFTY',
-    'SNSX50': 'SENSEX50'
-    })
+    token_df["symbol"] = token_df["symbol"].replace(
+        {
+            "NIFTYNEXT50": "NIFTYNXT50",
+            "NIFTYMIDCAP150": "MIDCPNIFTY",
+            "SNSX50": "SENSEX50",
+        }
+    )
 
     return token_df
+
 
 def delete_paytm_temp_data(output_path):
     # Check each file in the directory
@@ -271,28 +315,32 @@ def delete_paytm_temp_data(output_path):
 def master_contract_download():
     logger.info("Downloading Master Contract")
 
-
-    output_path = 'tmp'
+    output_path = "tmp"
     try:
         download_csv_paytm_data(output_path)
         delete_symtoken_table()
         token_df = process_paytm_csv(output_path)
         copy_from_dataframe(token_df)
         delete_paytm_temp_data(output_path)
-        #token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
+        # token_df['token'] = pd.to_numeric(token_df['token'], errors='coerce').fillna(-1).astype(int)
 
-        #token_df = token_df.drop_duplicates(subset='symbol', keep='first')
+        # token_df = token_df.drop_duplicates(subset='symbol', keep='first')
 
-        return socketio.emit('master_contract_download', {'status': 'success', 'message': 'Successfully Downloaded'})
-
+        return socketio.emit(
+            "master_contract_download",
+            {"status": "success", "message": "Successfully Downloaded"},
+        )
 
     except Exception as e:
         logger.exception(f"An error occurred during master contract download: {e}")
-        return socketio.emit('master_contract_download', {'status': 'error', 'message': str(e)})
-
+        return socketio.emit(
+            "master_contract_download", {"status": "error", "message": str(e)}
+        )
 
 
 def search_symbols(symbol, exchange):
     db = next(get_db())
-    stmt = select(SymToken).filter(SymToken.symbol.like(f'%{symbol}%'), SymToken.exchange == exchange)
+    stmt = select(SymToken).filter(
+        SymToken.symbol.like(f"%{symbol}%"), SymToken.exchange == exchange
+    )
     return db.scalars(stmt).all()

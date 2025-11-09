@@ -94,11 +94,11 @@ def validate_smart_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str
         field for field in REQUIRED_SMART_ORDER_FIELDS if field not in order_data
     ]
     if missing_fields:
-        return False, f'Missing mandatory field(s): {", ".join(missing_fields)}'
+        return False, f"Missing mandatory field(s): {', '.join(missing_fields)}"
 
     # Validate exchange
     if "exchange" in order_data and order_data["exchange"] not in VALID_EXCHANGES:
-        return False, f'Invalid exchange. Must be one of: {", ".join(VALID_EXCHANGES)}'
+        return False, f"Invalid exchange. Must be one of: {', '.join(VALID_EXCHANGES)}"
 
     # Convert action to uppercase and validate
     if "action" in order_data:
@@ -106,14 +106,14 @@ def validate_smart_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str
         if order_data["action"] not in VALID_ACTIONS:
             return (
                 False,
-                f'Invalid action. Must be one of: {", ".join(VALID_ACTIONS)} (case insensitive)',
+                f"Invalid action. Must be one of: {', '.join(VALID_ACTIONS)} (case insensitive)",
             )
 
     # Validate price type if provided
     if "price_type" in order_data and order_data["price_type"] not in VALID_PRICE_TYPES:
         return (
             False,
-            f'Invalid price type. Must be one of: {", ".join(VALID_PRICE_TYPES)}',
+            f"Invalid price type. Must be one of: {', '.join(VALID_PRICE_TYPES)}",
         )
 
     # Validate product type if provided
@@ -123,7 +123,7 @@ def validate_smart_order(order_data: Dict[str, Any]) -> Tuple[bool, Optional[str
     ):
         return (
             False,
-            f'Invalid product type. Must be one of: {", ".join(VALID_PRODUCT_TYPES)}',
+            f"Invalid product type. Must be one of: {', '.join(VALID_PRODUCT_TYPES)}",
         )
 
     return True, None

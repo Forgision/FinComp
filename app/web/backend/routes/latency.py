@@ -5,7 +5,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core.schemas.latency_db import OrderLatency, get_recent_logs, get_latency_stats, get_histogram_data
+from app.core.schemas.latency_db import (
+    OrderLatency,
+    get_recent_logs,
+    get_latency_stats,
+    get_histogram_data,
+)
 from app.core.schemas import get_db
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
@@ -25,7 +30,12 @@ async def latency_dashboard(request: Request, db: AsyncSession = Depends(get_db)
 
     # Get histogram data for each broker
     broker_histograms = {}
-    brokers = [b[0] for b in (await db.execute(select(OrderLatency.broker).distinct())).scalars().all()]
+    brokers = [
+        b[0]
+        for b in (await db.execute(select(OrderLatency.broker).distinct()))
+        .scalars()
+        .all()
+    ]
     for broker in brokers:
         if broker:  # Skip None values
             broker_histograms[broker] = await get_histogram_data(db, broker)

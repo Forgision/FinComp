@@ -10,37 +10,34 @@ class IbullsExchangeMapper:
     # "NSECM": 1, "NSEFO": 2, "NSECD": 3, "BSECM": 11, "BSEFO": 12, "MCXFO": 51
     EXCHANGE_TYPES = {
         # NSE Segments
-        'NSE': 1,        # NSECM - NSE Cash Market
-        'NFO': 2,        # NSEFO - NSE F&O
-        'NSE_INDEX': 1,  # NSE Index
-        'CDS': 3,        # NSECD - NSE Currency Derivatives
-
+        "NSE": 1,  # NSECM - NSE Cash Market
+        "NFO": 2,  # NSEFO - NSE F&O
+        "NSE_INDEX": 1,  # NSE Index
+        "CDS": 3,  # NSECD - NSE Currency Derivatives
         # BSE Segments
-        'BSE': 11,       # BSECM - BSE Cash Market
-        'BFO': 12,       # BSEFO - BSE F&O
-        'BSE_INDEX': 11, # BSE Index
-
+        "BSE": 11,  # BSECM - BSE Cash Market
+        "BFO": 12,  # BSEFO - BSE F&O
+        "BSE_INDEX": 11,  # BSE Index
         # MCX Segment
-        'MCX': 51,       # MCXFO - MCX F&O
-
+        "MCX": 51,  # MCXFO - MCX F&O
         # Broker specific codes
-        'NSECM': 1,      # NSE Cash Market
-        'NSEFO': 2,      # NSE F&O
-        'NSECD': 3,      # NSE Currency Derivatives
-        'BSECM': 11,     # BSE Cash Market
-        'BSEFO': 12,     # BSE F&O
-        'MCXFO': 51      # MCX F&O
+        "NSECM": 1,  # NSE Cash Market
+        "NSEFO": 2,  # NSE F&O
+        "NSECD": 3,  # NSE Currency Derivatives
+        "BSECM": 11,  # BSE Cash Market
+        "BSEFO": 12,  # BSE F&O
+        "MCXFO": 51,  # MCX F&O
     }
 
     # Reverse mapping for converting iBulls exchange codes to OpenAlgo format
     # Format: {iBulls_Exchange_Code: OpenAlgo_Exchange}
     REVERSE_EXCHANGE_TYPES = {
-        1: 'NSE',       # NSECM
-        2: 'NFO',       # NSEFO
-        3: 'CDS',       # NSECD
-        11: 'BSE',      # BSECM
-        12: 'BFO',      # BSEFO
-        51: 'MCX'       # MCXFO
+        1: "NSE",  # NSECM
+        2: "NFO",  # NSEFO
+        3: "CDS",  # NSECD
+        11: "BSE",  # BSECM
+        12: "BFO",  # BSEFO
+        51: "MCX",  # MCXFO
     }
 
     @staticmethod
@@ -66,32 +63,29 @@ class IbullsExchangeMapper:
         # "NSECM": 1, "NSEFO": 2, "NSECD": 3, "BSECM": 11, "BSEFO": 12, "MCXFO": 51
         all_exchange_mappings = {
             # OpenAlgo standard codes
-            'NSE': 1,        # NSE Cash Market
-            'NFO': 2,        # NSE F&O
-            'CDS': 3,        # NSE Currency Derivatives
-            'BSE': 11,       # BSE Cash Market
-            'BFO': 12,       # BSE F&O
-            'MCX': 51,       # MCX F&O
-
+            "NSE": 1,  # NSE Cash Market
+            "NFO": 2,  # NSE F&O
+            "CDS": 3,  # NSE Currency Derivatives
+            "BSE": 11,  # BSE Cash Market
+            "BFO": 12,  # BSE F&O
+            "MCX": 51,  # MCX F&O
             # Broker specific codes (from API docs)
-            'NSECM': 1,      # NSE Cash Market
-            'NSEFO': 2,      # NSE F&O
-            'NSECD': 3,      # NSE Currency Derivatives
-            'BSECM': 11,     # BSE Cash Market
-            'BSEFO': 12,     # BSE F&O
-            'MCXFO': 51,     # MCX F&O
-
+            "NSECM": 1,  # NSE Cash Market
+            "NSEFO": 2,  # NSE F&O
+            "NSECD": 3,  # NSE Currency Derivatives
+            "BSECM": 11,  # BSE Cash Market
+            "BSEFO": 12,  # BSE F&O
+            "MCXFO": 51,  # MCX F&O
             # Additional mappings for index segments
-            'NSE_INDEX': 1,  # NSE Index
-            'BSE_INDEX': 11, # BSE Index
-
+            "NSE_INDEX": 1,  # NSE Index
+            "BSE_INDEX": 11,  # BSE Index
             # Numeric string mappings (in case exchange comes as string number)
-            '1': 1,          # NSECM
-            '2': 2,          # NSEFO
-            '3': 3,          # NSECD
-            '11': 11,        # BSECM
-            '12': 12,        # BSEFO
-            '51': 51         # MCXFO
+            "1": 1,  # NSECM
+            "2": 2,  # NSEFO
+            "3": 3,  # NSECD
+            "11": 11,  # BSECM
+            "12": 12,  # BSEFO
+            "51": 51,  # MCXFO
         }
 
         # Try to find the exchange in our mapping
@@ -116,7 +110,9 @@ class IbullsExchangeMapper:
         Returns:
             str: OpenAlgo exchange code
         """
-        return IbullsExchangeMapper.REVERSE_EXCHANGE_TYPES.get(ibulls_code, 'NSE')  # Default to NSE if not found
+        return IbullsExchangeMapper.REVERSE_EXCHANGE_TYPES.get(
+            ibulls_code, "NSE"
+        )  # Default to NSE if not found
 
 
 class IbullsCapabilityRegistry:
@@ -126,15 +122,15 @@ class IbullsCapabilityRegistry:
     """
 
     # Ibulls XTS broker capabilities
-    exchanges = ['NSE', 'NFO', 'CDS', 'BSE', 'BFO', 'MCX']
+    exchanges = ["NSE", "NFO", "CDS", "BSE", "BFO", "MCX"]
     subscription_modes = [1, 2, 3]  # 1: LTP, 2: Quote, 3: Depth
     depth_support = {
-        'NSE': [5, 20],   # NSE supports 5 and 20 levels
-        'NFO': [5, 20],   # NFO supports 5 and 20 levels
-        'CDS': [5],       # Currency derivatives supports 5 levels
-        'BSE': [5],       # BSE supports only 5 levels
-        'BFO': [5],       # BSE F&O supports only 5 levels
-        'MCX': [5]        # MCX supports 5 levels
+        "NSE": [5, 20],  # NSE supports 5 and 20 levels
+        "NFO": [5, 20],  # NFO supports 5 and 20 levels
+        "CDS": [5],  # Currency derivatives supports 5 levels
+        "BSE": [5],  # BSE supports only 5 levels
+        "BFO": [5],  # BSE F&O supports only 5 levels
+        "MCX": [5],  # MCX supports 5 levels
     }
 
     @classmethod

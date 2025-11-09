@@ -14,6 +14,7 @@ def handle_disconnected_session(f):
     """
     Decorator to handle disconnected session errors in Socket.IO event handlers
     """
+
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         try:
@@ -30,7 +31,9 @@ def handle_disconnected_session(f):
                 disconnect()
                 return None
             raise
+
     return wrapper
+
 
 def init_socketio_error_handling(socketio_instance):
     """

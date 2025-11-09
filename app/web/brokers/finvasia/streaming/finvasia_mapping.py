@@ -1,18 +1,20 @@
 from typing import Dict, Optional
 
+
 class FinvasiaExchangeMapper:
     """
     NOTE: This is a placeholder implementation.
     """
+
     EXCHANGE_MAP = {
-        'NSE': 'NSE',
-        'BSE': 'BSE',
-        'NFO': 'NFO',
-        'BFO': 'BFO',
-        'MCX': 'MCX',
-        'CDS': 'CDS',
-        'NSE_INDEX': 'NSE',
-        'BSE_INDEX': 'BSE'
+        "NSE": "NSE",
+        "BSE": "BSE",
+        "NFO": "NFO",
+        "BFO": "BFO",
+        "MCX": "MCX",
+        "CDS": "CDS",
+        "NSE_INDEX": "NSE",
+        "BSE_INDEX": "BSE",
     }
     FINVASIA_TO_OPENALGO = {v: k for k, v in EXCHANGE_MAP.items()}
 
@@ -24,10 +26,12 @@ class FinvasiaExchangeMapper:
     def to_oa_exchange(cls, finvasia_exchange: str) -> Optional[str]:
         return cls.FINVASIA_TO_OPENALGO.get(finvasia_exchange.upper())
 
+
 class FinvasiaCapabilityRegistry:
     """
     NOTE: This is a placeholder implementation.
     """
+
     SUPPORTED_MODES = {1, 2, 3}
     SUPPORTED_DEPTH_LEVELS = {5}
     MAX_SUBSCRIPTIONS = 5000
@@ -48,8 +52,8 @@ class FinvasiaCapabilityRegistry:
     @classmethod
     def get_capabilities(cls) -> Dict[str, any]:
         return {
-            'supported_modes': list(cls.SUPPORTED_MODES),
-            'supported_depth_levels': list(cls.SUPPORTED_DEPTH_LEVELS),
-            'max_subscriptions': cls.MAX_SUBSCRIPTIONS,
-            'max_instruments_per_request': cls.MAX_INSTRUMENTS_PER_REQUEST
+            "supported_modes": list(cls.SUPPORTED_MODES),
+            "supported_depth_levels": list(cls.SUPPORTED_DEPTH_LEVELS),
+            "max_subscriptions": cls.MAX_SUBSCRIPTIONS,
+            "max_instruments_per_request": cls.MAX_INSTRUMENTS_PER_REQUEST,
         }

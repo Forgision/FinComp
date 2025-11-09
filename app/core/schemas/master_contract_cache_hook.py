@@ -41,24 +41,30 @@ async def load_symbols_to_cache(broker: str) -> bool:
             )
 
             # Emit success event to frontend
-            await sio.emit('cache_loaded', {
-                'status': 'success',
-                'broker': broker,
-                'total_symbols': stats['total_symbols'],
-                'memory_usage_mb': stats['stats']['memory_usage_mb'],
-                'load_time': f"{load_time:.2f}"
-            })
+            await sio.emit(
+                "cache_loaded",
+                {
+                    "status": "success",
+                    "broker": broker,
+                    "total_symbols": stats["total_symbols"],
+                    "memory_usage_mb": stats["stats"]["memory_usage_mb"],
+                    "load_time": f"{load_time:.2f}",
+                },
+            )
 
             return True
         else:
             logger.error(f"Failed to load symbols into cache for broker: {broker}")
 
             # Emit error event to frontend
-            await sio.emit('cache_loaded', {
-                'status': 'error',
-                'broker': broker,
-                'message': 'Failed to load symbols into cache'
-            })
+            await sio.emit(
+                "cache_loaded",
+                {
+                    "status": "error",
+                    "broker": broker,
+                    "message": "Failed to load symbols into cache",
+                },
+            )
 
             return False
 
@@ -66,13 +72,12 @@ async def load_symbols_to_cache(broker: str) -> bool:
         logger.error(f"Error loading symbols to cache: {e}")
 
         # Emit error event to frontend
-        await sio.emit('cache_loaded', {
-            'status': 'error',
-            'broker': broker,
-            'message': str(e)
-        })
+        await sio.emit(
+            "cache_loaded", {"status": "error", "broker": broker, "message": str(e)}
+        )
 
         return False
+
 
 async def hook_into_master_contract_download(db: AsyncSession, broker: str):
     """
@@ -95,7 +100,9 @@ async def hook_into_master_contract_download(db: AsyncSession, broker: str):
                 restore_strategies_after_login,
             )
 
-            logger.info("Attempting to restore Python strategies after master contract download")
+            logger.info(
+                "Attempting to restore Python strategies after master contract download"
+            )
             success, message = restore_strategies_after_login(db, None)
             logger.info(f"Python strategy restoration result: {message}")
         except ImportError:
@@ -105,6 +112,7 @@ async def hook_into_master_contract_download(db: AsyncSession, broker: str):
 
     except Exception as e:
         logger.error(f"Error in master contract cache hook: {e}")
+
 
 def clear_cache_on_logout():
     """
@@ -116,7 +124,7 @@ def clear_cache_on_logout():
 
         # Get stats before clearing
         stats = get_cache_stats()
-        symbols_cleared = stats.get('total_symbols', 0)
+        symbols_cleared = stats.get("total_symbols", 0)
 
         # Clear the cache
         clear_cache()
@@ -125,6 +133,7 @@ def clear_cache_on_logout():
 
     except Exception as e:
         logger.error(f"Error clearing cache on logout: {e}")
+
 
 async def refresh_cache_if_needed(broker: str):
     """
@@ -147,6 +156,7 @@ async def refresh_cache_if_needed(broker: str):
     except Exception as e:
         logger.error(f"Error checking cache validity: {e}")
 
+
 def get_cache_health() -> dict:
     """
     Get cache health information for monitoring
@@ -160,9 +170,9 @@ def get_cache_health() -> dict:
         stats = get_cache_stats()
 
         # Calculate health score
-        hit_rate = float(stats['stats']['hit_rate'].rstrip('%'))
-        cache_loaded = stats['cache_loaded']
-        cache_valid = stats['cache_valid']
+        hit_rate = float(stats["stats"]["hit_rate"].rstrip("%"))
+        cache_loaded = stats["cache_loaded"]
+        cache_valid = stats["cache_valid"]
 
         health_score = 100
         if not cache_loaded:
@@ -173,24 +183,25 @@ def get_cache_health() -> dict:
             health_score = 75
 
         return {
-            'health_score': health_score,
-            'status': 'healthy' if health_score >= 75 else 'degraded' if health_score >= 50 else 'unhealthy',
-            'cache_loaded': cache_loaded,
-            'cache_valid': cache_valid,
-            'hit_rate': stats['stats']['hit_rate'],
-            'total_symbols': stats['total_symbols'],
-            'memory_usage_mb': stats['stats']['memory_usage_mb'],
-            'db_queries': stats['stats']['db_queries'],
-            'recommendations': _get_health_recommendations(health_score, stats)
+            "health_score": health_score,
+            "status": "healthy"
+            if health_score >= 75
+            else "degraded"
+            if health_score >= 50
+            else "unhealthy",
+            "cache_loaded": cache_loaded,
+            "cache_valid": cache_valid,
+            "hit_rate": stats["stats"]["hit_rate"],
+            "total_symbols": stats["total_symbols"],
+            "memory_usage_mb": stats["stats"]["memory_usage_mb"],
+            "db_queries": stats["stats"]["db_queries"],
+            "recommendations": _get_health_recommendations(health_score, stats),
         }
 
     except Exception as e:
         logger.error(f"Error getting cache health: {e}")
-        return {
-            'health_score': 0,
-            'status': 'error',
-            'error': str(e)
-        }
+        return {"health_score": 0, "status": "error", "error": str(e)}
+
 
 def _get_health_recommendations(health_score: int, stats: dict) -> list:
     """
@@ -208,14 +219,20 @@ def _get_health_recommendations(health_score: int, stats: dict) -> list:
     if health_score == 0:
         recommendations.append("Cache is not loaded. Run master contract download.")
     elif health_score == 50:
-        recommendations.append("Cache has expired. Login again or refresh master contract.")
+        recommendations.append(
+            "Cache has expired. Login again or refresh master contract."
+        )
     elif health_score == 75:
-        hit_rate = float(stats['stats']['hit_rate'].rstrip('%'))
+        hit_rate = float(stats["stats"]["hit_rate"].rstrip("%"))
         if hit_rate < 90:
-            recommendations.append(f"Cache hit rate is low ({hit_rate}%). Consider checking symbol mappings.")
+            recommendations.append(
+                f"Cache hit rate is low ({hit_rate}%). Consider checking symbol mappings."
+            )
 
-    db_queries = stats['stats'].get('db_queries', 0)
+    db_queries = stats["stats"].get("db_queries", 0)
     if db_queries > 100:
-        recommendations.append(f"High number of DB queries ({db_queries}). Cache may not be working properly.")
+        recommendations.append(
+            f"High number of DB queries ({db_queries}). Cache may not be working properly."
+        )
 
     return recommendations if recommendations else ["Cache is operating optimally."]

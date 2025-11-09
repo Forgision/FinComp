@@ -10,17 +10,11 @@ def get_margin_data(auth_token):
     # Get the shared httpx client with connection pooling
     client = get_httpx_client()
 
-    headers = {
-        'X-Kite-Version': '3',
-        'Authorization': f'token {auth_token}'
-    }
+    headers = {"X-Kite-Version": "3", "Authorization": f"token {auth_token}"}
 
     try:
         # Make the GET request using the shared client
-        response = client.get(
-            'https://api.kite.trade/user/margins',
-            headers=headers
-        )
+        response = client.get("https://api.kite.trade/user/margins", headers=headers)
         response.raise_for_status()  # Raises an exception for 4XX/5XX responses
 
         # Parse the response
@@ -28,9 +22,9 @@ def get_margin_data(auth_token):
     except Exception as e:
         error_message = str(e)
         try:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 error_detail = e.response.json()
-                error_message = error_detail.get('message', str(e))
+                error_message = error_detail.get("message", str(e))
         except Exception:
             pass
 
@@ -39,40 +33,50 @@ def get_margin_data(auth_token):
 
     logger.info(f"Funds Details: {margin_data}")
 
-    if margin_data.get('status') == 'error':
+    if margin_data.get("status") == "error":
         # Log the error or return an empty dictionary to indicate failure
         logger.info(f"Error fetching margin data: {margin_data.get('errors')}")
         return {}
 
     try:
         # Calculate the sum of net values for available margin
-        total_available_margin = sum([
-            margin_data['data']['commodity']['net'],
-            margin_data['data']['equity']['net']
-        ])
+        total_available_margin = sum(
+            [
+                margin_data["data"]["commodity"]["net"],
+                margin_data["data"]["equity"]["net"],
+            ]
+        )
         # Calculate the sum of debits for used margin
-        total_used_margin = sum([
-            margin_data['data']['commodity']['utilised']['debits'],
-            margin_data['data']['equity']['utilised']['debits']
-        ])
+        total_used_margin = sum(
+            [
+                margin_data["data"]["commodity"]["utilised"]["debits"],
+                margin_data["data"]["equity"]["utilised"]["debits"],
+            ]
+        )
 
         # Calculate the sum of collateral values
-        total_collateral = sum([
-            margin_data['data']['commodity']['available']['collateral'],
-            margin_data['data']['equity']['available']['collateral']
-        ])
+        total_collateral = sum(
+            [
+                margin_data["data"]["commodity"]["available"]["collateral"],
+                margin_data["data"]["equity"]["available"]["collateral"],
+            ]
+        )
 
         # Calculate the sum of m2m_unrealised
-        total_unrealised = sum([
-            margin_data['data']['commodity']['utilised']['m2m_unrealised'],
-            margin_data['data']['equity']['utilised']['m2m_unrealised']
-        ])
+        total_unrealised = sum(
+            [
+                margin_data["data"]["commodity"]["utilised"]["m2m_unrealised"],
+                margin_data["data"]["equity"]["utilised"]["m2m_unrealised"],
+            ]
+        )
 
         # Calculate the sum of m2m_realised
-        total_realised = sum([
-            margin_data['data']['commodity']['utilised']['m2m_realised'],
-            margin_data['data']['equity']['utilised']['m2m_realised']
-        ])
+        total_realised = sum(
+            [
+                margin_data["data"]["commodity"]["utilised"]["m2m_realised"],
+                margin_data["data"]["equity"]["utilised"]["m2m_realised"],
+            ]
+        )
 
         # Construct and return the processed margin data
         processed_margin_data = {

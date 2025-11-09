@@ -13,7 +13,7 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-async def get_api_response(endpoint, auth, method="GET", payload=''):
+async def get_api_response(endpoint, auth, method="GET", payload=""):
     """
     Make API requests to Fyers API using shared connection pooling.
 
@@ -35,8 +35,8 @@ async def get_api_response(endpoint, auth, method="GET", payload=''):
 
         url = f"https://api-t1.fyers.in{endpoint}"
         headers = {
-            'Authorization': f'{api_key}:{AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"{api_key}:{AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         logger.debug(f"Making {method} request to Fyers API: {url}")
@@ -45,9 +45,18 @@ async def get_api_response(endpoint, auth, method="GET", payload=''):
         if method == "GET":
             response = await client.get(url, headers=headers)
         elif method == "POST":
-            response = await client.post(url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
+            response = await client.post(
+                url,
+                headers=headers,
+                json=payload if isinstance(payload, dict) else json.loads(payload),
+            )
         else:
-            response = await client.request(method, url, headers=headers, json=payload if isinstance(payload, dict) else json.loads(payload))
+            response = await client.request(
+                method,
+                url,
+                headers=headers,
+                json=payload if isinstance(payload, dict) else json.loads(payload),
+            )
 
         # Add status attribute for compatibility
         response.status = response.status_code
@@ -70,36 +79,46 @@ async def get_api_response(endpoint, auth, method="GET", payload=''):
         logger.exception("Error during API request")
         return {"s": "error", "message": f"General error: {e}"}
 
+
 async def get_order_book(auth):
-    return await get_api_response("/api/v3/orders",auth)
+    return await get_api_response("/api/v3/orders", auth)
+
 
 async def get_trade_book(auth):
-    return await get_api_response("/api/v3/tradebook",auth)
+    return await get_api_response("/api/v3/tradebook", auth)
+
 
 async def get_positions(auth):
-    return await get_api_response("/api/v3/positions",auth)
+    return await get_api_response("/api/v3/positions", auth)
+
 
 async def get_holdings(auth):
-    return await get_api_response("/api/v3/holdings",auth)
+    return await get_api_response("/api/v3/holdings", auth)
 
-async def get_open_position(tradingsymbol, exchange, product,auth):
 
-    #Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol,exchange)
-
+async def get_open_position(tradingsymbol, exchange, product, auth):
+    # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
+    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
 
     positions_data = await get_positions(auth)
-    net_qty = '0'
+    net_qty = "0"
 
-    if positions_data and positions_data.get('s') and positions_data.get('netPositions'):
-        for position in positions_data['netPositions']:
-
-            if position.get('symbol') == tradingsymbol  and position.get("productType") == product:
-                net_qty = position.get('netQty', '0')
+    if (
+        positions_data
+        and positions_data.get("s")
+        and positions_data.get("netPositions")
+    ):
+        for position in positions_data["netPositions"]:
+            if (
+                position.get("symbol") == tradingsymbol
+                and position.get("productType") == product
+            ):
+                net_qty = position.get("netQty", "0")
                 logger.debug(f"Net Quantity {net_qty}")
                 break  # Assuming you need the first match
 
     return net_qty
+
 
 async def place_order_api(data, auth):
     """
@@ -118,12 +137,12 @@ async def place_order_api(data, auth):
 
         AUTH_TOKEN = auth
         BROKER_API_KEY = settings.BROKER_API_KEY
-        data['apikey'] = BROKER_API_KEY
+        data["apikey"] = BROKER_API_KEY
 
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
         headers = {
-            'Authorization': f'{BROKER_API_KEY}:{AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"{BROKER_API_KEY}:{AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         # Transform the order data
@@ -138,42 +157,46 @@ async def place_order_api(data, auth):
         response.status = response.status_code
 
         # Parse the response
-        if response_data.get('s') == 'ok':
-            orderid = response_data['id']
+        if response_data.get("s") == "ok":
+            orderid = response_data["id"]
             logger.info(f"Order placed successfully. Order ID: {orderid}")
-        elif response_data.get('s') == 'error':
-            orderid = response_data.get('id')
+        elif response_data.get("s") == "error":
+            orderid = response_data.get("id")
             if not orderid:
                 orderid = None
-            error_msg = response_data.get('message', 'Unknown error')
+            error_msg = response_data.get("message", "Unknown error")
             logger.warning(f"Order placement failed: {error_msg}")
             logger.debug(f"Failed order payload: {json.dumps(payload, indent=2)}")
-            logger.debug(f"Failed order response: {json.dumps(response_data, indent=2)}")
+            logger.debug(
+                f"Failed order response: {json.dumps(response_data, indent=2)}"
+            )
         else:
             orderid = None
             logger.warning(f"Unexpected response format: {response_data}")
-            logger.debug(f"Unexpected response payload: {json.dumps(payload, indent=2)}")
+            logger.debug(
+                f"Unexpected response payload: {json.dumps(payload, indent=2)}"
+            )
 
         return response, response_data, orderid
 
     except httpx.HTTPError as e:
         logger.error(f"HTTP error during order placement: {e}")
-        response = type('obj', (object,), {'status_code': 500, 'status': 500})
+        response = type("obj", (object,), {"status_code": 500, "status": 500})
         return response, {"s": "error", "message": f"HTTP error: {e}"}, None
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error during order placement: {e}")
-        response = type('obj', (object,), {'status_code': 500, 'status': 500})
+        response = type("obj", (object,), {"status_code": 500, "status": 500})
         return response, {"s": "error", "message": f"Invalid JSON response: {e}"}, None
     except Exception as e:
         logger.exception("Error during order placement")
-        response = type('obj', (object,), {'status_code': 500, 'status': 500})
+        response = type("obj", (object,), {"status_code": 500, "status": 500})
         return response, {"s": "error", "message": f"General error: {e}"}, None
 
-async def place_smartorder_api(data,auth):
 
+async def place_smartorder_api(data, auth):
     AUTH_TOKEN = auth
 
-    #If no API call is made in this function then res will return None
+    # If no API call is made in this function then res will return None
     res = None
 
     # Extract necessary info from data
@@ -182,11 +205,10 @@ async def place_smartorder_api(data,auth):
     product = data.get("product")
     position_size = int(data.get("position_size", "0"))
 
-
-
     # Get current open position for the symbol
-    current_position = int(await get_open_position(symbol, exchange, map_product_type(product),AUTH_TOKEN))
-
+    current_position = int(
+        await get_open_position(symbol, exchange, map_product_type(product), AUTH_TOKEN)
+    )
 
     logger.debug(f"position_size : {position_size}")
     logger.debug(f"Open Position : {current_position}")
@@ -195,31 +217,34 @@ async def place_smartorder_api(data,auth):
     action = None
     quantity = 0
 
-
     # If both position_size and current_position are 0, do nothing
-    if position_size == 0 and current_position == 0 and int(data['quantity'])!=0:
-        action = data['action']
-        quantity = data['quantity']
-        res, response, orderid = await place_order_api(data,AUTH_TOKEN)
+    if position_size == 0 and current_position == 0 and int(data["quantity"]) != 0:
+        action = data["action"]
+        quantity = data["quantity"]
+        res, response, orderid = await place_order_api(data, AUTH_TOKEN)
 
-        return res , response, orderid
+        return res, response, orderid
 
     elif position_size == current_position:
-        if int(data['quantity'])==0:
+        if int(data["quantity"]) == 0:
             logger.info("No open position found. Not placing exit order.")
-            response = {"status": "success", "message": "No OpenPosition Found. Not placing Exit order."}
+            response = {
+                "status": "success",
+                "message": "No OpenPosition Found. Not placing Exit order.",
+            }
         else:
             logger.info("No action needed. Position size matches current position.")
-            response = {"status": "success", "message": "No action needed. Position size matches current position"}
+            response = {
+                "status": "success",
+                "message": "No action needed. Position size matches current position",
+            }
         orderid = None
         return res, response, orderid
 
-
-
-    if position_size == 0 and current_position>0 :
+    if position_size == 0 and current_position > 0:
         action = "SELL"
         quantity = abs(current_position)
-    elif position_size == 0 and current_position<0 :
+    elif position_size == 0 and current_position < 0:
         action = "BUY"
         quantity = abs(current_position)
     elif current_position == 0:
@@ -233,9 +258,6 @@ async def place_smartorder_api(data,auth):
             action = "SELL"
             quantity = current_position - position_size
 
-
-
-
     if action:
         # Prepare data for placing the order
         order_data = data.copy()
@@ -243,11 +265,9 @@ async def place_smartorder_api(data,auth):
         order_data["quantity"] = str(quantity)
 
         # Place the order
-        res, response, orderid = await place_order_api(order_data,AUTH_TOKEN)
+        res, response, orderid = await place_order_api(order_data, AUTH_TOKEN)
 
-        return res , response, orderid
-
-
+        return res, response, orderid
 
 
 async def close_all_positions(current_api_key, auth):
@@ -270,8 +290,8 @@ async def close_all_positions(current_api_key, auth):
 
         url = "https://api-t1.fyers.in/api/v3/positions"
         headers = {
-            'Authorization': f'{api_key}:{AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"{api_key}:{AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         # Prepare the payload to close all positions
@@ -282,11 +302,16 @@ async def close_all_positions(current_api_key, auth):
         response = await client.request("DELETE", url, headers=headers, json=payload)
         response_data = response.json()
 
-        logger.debug(f"Close all positions response: {json.dumps(response_data, indent=2)}")
+        logger.debug(
+            f"Close all positions response: {json.dumps(response_data, indent=2)}"
+        )
 
         # Check if the request was successful
         if response_data.get("s") == "ok":
-            return {"status": "success", "message": "All positions closed successfully"}, 200
+            return {
+                "status": "success",
+                "message": "All positions closed successfully",
+            }, 200
         else:
             error_msg = response_data.get("message", "Failed to close positions")
             logger.warning(f"Failed to close all positions: {error_msg}")
@@ -301,6 +326,7 @@ async def close_all_positions(current_api_key, auth):
     except Exception as e:
         logger.exception("Unexpected error during close all positions")
         return {"status": "error", "message": f"General error: {e}"}, 500
+
 
 async def cancel_order(orderid, auth):
     """
@@ -322,8 +348,8 @@ async def cancel_order(orderid, auth):
 
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
         headers = {
-            'Authorization': f'{api_key}:{AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"{api_key}:{AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         # Prepare the payload with order ID
@@ -338,7 +364,7 @@ async def cancel_order(orderid, auth):
 
         # Check if the request was successful
         if response_data.get("s") == "ok":
-            return {"status": "success", "orderid": response_data['id']}, 200
+            return {"status": "success", "orderid": response_data["id"]}, 200
         else:
             error_msg = response_data.get("message", "Failed to cancel order")
             logger.warning(f"Failed to cancel order {orderid}: {error_msg}")
@@ -375,8 +401,8 @@ async def modify_order(data, auth):
 
         url = "https://api-t1.fyers.in/api/v3/orders/sync"
         headers = {
-            'Authorization': f'{api_key}:{AUTH_TOKEN}',
-            'Content-Type': 'application/json'
+            "Authorization": f"{api_key}:{AUTH_TOKEN}",
+            "Content-Type": "application/json",
         }
 
         # Transform the order data
@@ -426,14 +452,15 @@ async def cancel_all_orders_api(data, auth):
     AUTH_TOKEN = auth
     order_book_response = await get_order_book(AUTH_TOKEN)
 
-    if order_book_response.get('s') != 'ok':
-        error_msg = order_book_response.get('message', 'Failed to retrieve order book')
+    if order_book_response.get("s") != "ok":
+        error_msg = order_book_response.get("message", "Failed to retrieve order book")
         logger.error(f"Could not fetch order book to cancel all orders: {error_msg}")
         return [], []
 
     orders_to_cancel = [
-        order for order in order_book_response.get('orderBook', [])
-        if order.get('status') in [4, 6]  # 4: Trigger-pending, 6: Open
+        order
+        for order in order_book_response.get("orderBook", [])
+        if order.get("status") in [4, 6]  # 4: Trigger-pending, 6: Open
     ]
 
     if not orders_to_cancel:
@@ -446,7 +473,7 @@ async def cancel_all_orders_api(data, auth):
     failed_cancellations = []
 
     for order in orders_to_cancel:
-        orderid = order.get('id')
+        orderid = order.get("id")
         if not orderid:
             logger.warning(f"Skipping order with no ID: {order}")
             continue
@@ -456,7 +483,9 @@ async def cancel_all_orders_api(data, auth):
             logger.info(f"Successfully canceled order {orderid}.")
             canceled_orders.append(orderid)
         else:
-            logger.warning(f"Failed to cancel order {orderid}: {cancel_response.get('message', 'Unknown reason')}")
+            logger.warning(
+                f"Failed to cancel order {orderid}: {cancel_response.get('message', 'Unknown reason')}"
+            )
             failed_cancellations.append(orderid)
 
     return canceled_orders, failed_cancellations

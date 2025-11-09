@@ -15,20 +15,20 @@ def get_margin_data(auth_token):
     client = get_httpx_client()
 
     headers = {
-        'Authorization': f'Bearer {auth_token}',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-UserType': 'USER',
-        'X-SourceID': 'WEB',
-        'X-ClientLocalIP': 'CLIENT_LOCAL_IP',
-        'X-ClientPublicIP': 'CLIENT_PUBLIC_IP',
-        'X-MACAddress': 'MAC_ADDRESS',
-        'X-PrivateKey': api_key
+        "Authorization": f"Bearer {auth_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-UserType": "USER",
+        "X-SourceID": "WEB",
+        "X-ClientLocalIP": "CLIENT_LOCAL_IP",
+        "X-ClientPublicIP": "CLIENT_PUBLIC_IP",
+        "X-MACAddress": "MAC_ADDRESS",
+        "X-PrivateKey": api_key,
     }
 
     response = client.get(
         "https://apiconnect.angelbroking.com/rest/secure/angelbroking/user/v1/getRMS",
-        headers=headers
+        headers=headers,
     )
 
     # Add status attribute for compatibility with the existing codebase
@@ -38,17 +38,17 @@ def get_margin_data(auth_token):
 
     logger.info(f"Margin Data: {margin_data}")
 
-    if margin_data.get('data'):
+    if margin_data.get("data"):
         required_keys = [
             "availablecash",
             "collateral",
             "m2mrealized",
             "m2munrealized",
-            "utiliseddebits"
+            "utiliseddebits",
         ]
         filtered_data = {}
         for key in required_keys:
-            value = margin_data['data'].get(key, 0)
+            value = margin_data["data"].get(key, 0)
             try:
                 formatted_value = "{:.2f}".format(float(value))
             except (ValueError, TypeError):

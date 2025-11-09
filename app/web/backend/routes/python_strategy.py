@@ -58,9 +58,9 @@ from app.utils.logging import logger
 python_strategy_router = APIRouter(prefix="/python", tags=["Python Strategies"])
 
 # Global storage with thread locks for safety
-RUNNING_STRATEGIES: Dict[str, Dict[str, Any]] = (
-    {}
-)  # {strategy_id: {'process': subprocess.Popen, 'started_at': datetime}}
+RUNNING_STRATEGIES: Dict[
+    str, Dict[str, Any]
+] = {}  # {strategy_id: {'process': subprocess.Popen, 'started_at': datetime}}
 STRATEGY_CONFIGS: Dict[str, Dict[str, Any]] = {}  # {strategy_id: config_dict}
 SCHEDULER: Optional[BackgroundScheduler] = None
 PROCESS_LOCK = threading.Lock()  # Thread lock for process operations
@@ -251,11 +251,7 @@ async def get_active_broker(db: AsyncSession):
     """Get the active broker from app.core.schemas (last logged in user's broker)"""
     try:
         # Get the most recent auth entry (last logged in user)
-        stmt = (
-            select(DBAuth)
-            .filter_by(is_revoked=False)
-            .order_by(DBAuth.id.desc())
-        )
+        stmt = select(DBAuth).filter_by(is_revoked=False).order_by(DBAuth.id.desc())
         result = await db.execute(stmt)
         auth_obj = result.scalars().first()
 
@@ -391,7 +387,9 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                     logger.warning(f"Could not set execute permission: {e}")
 
         # Check if master contracts are ready before starting strategy
-        contracts_ready, contract_message = await check_master_contract_ready(db, request)
+        contracts_ready, contract_message = await check_master_contract_ready(
+            db, request
+        )
         if not contracts_ready:
             logger.warning(f"Cannot start strategy {strategy_id}: {contract_message}")
             return False, f"Master contract dependency not met: {contract_message}"
@@ -538,9 +536,9 @@ def stop_strategy_process(strategy_id: str):
                         terminate_process_cross_platform(pid)
                         STRATEGY_CONFIGS[strategy_id]["is_running"] = False
                         STRATEGY_CONFIGS[strategy_id]["pid"] = None
-                        STRATEGY_CONFIGS[strategy_id][
-                            "last_stopped"
-                        ] = get_ist_time().isoformat()
+                        STRATEGY_CONFIGS[strategy_id]["last_stopped"] = (
+                            get_ist_time().isoformat()
+                        )
                         save_configs()
                         return True, "Strategy stopped"
                     except psutil.Error as e:
@@ -805,7 +803,6 @@ async def start_strategy_process_for_scheduler(db: AsyncSession, strategy_id: st
     success, message = await start_strategy_process(strategy_id, db, dummy_request)
     if not success:
         logger.error(f"Scheduled start of strategy {strategy_id} failed: {message}")
-    
 
 
 def unschedule_strategy(strategy_id: str):
@@ -825,7 +822,9 @@ def unschedule_strategy(strategy_id: str):
     logger.info(f"Unscheduled strategy {strategy_id}")
 
 
-async def restore_strategies_after_login(db: AsyncSession, request: Request | None = None):
+async def restore_strategies_after_login(
+    db: AsyncSession, request: Request | None = None
+):
     """Called after successful login to restore strategies that were waiting"""
     logger.info("Checking for strategies to restore after login...")
 
@@ -1064,7 +1063,9 @@ async def stop_strategy(strategy_id: str):
 @python_strategy_router.post(
     "/schedule/{strategy_id}", dependencies=[Depends(check_session_validity_fastapi)]
 )
-async def schedule_strategy_route(strategy_id: str, data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+async def schedule_strategy_route(
+    strategy_id: str, data: Dict[str, Any], db: AsyncSession = Depends(get_db)
+):
     """Schedule a strategy"""
     if strategy_id not in STRATEGY_CONFIGS:
         raise HTTPException(status_code=404, detail="Strategy not found")
@@ -1356,7 +1357,9 @@ async def status_route(db: AsyncSession = Depends(get_db), request: Request = No
 @python_strategy_router.post(
     "/check-contracts", dependencies=[Depends(check_session_validity_fastapi)]
 )
-async def check_contracts_route(db: AsyncSession = Depends(get_db), request: Request = None):
+async def check_contracts_route(
+    db: AsyncSession = Depends(get_db), request: Request = None
+):
     """Check master contracts and start pending strategies"""
     try:
         success, message = await check_and_start_pending_strategies(db, request)
@@ -1730,7 +1733,9 @@ async def restore_strategy_states(db: AsyncSession, request: Request):
             if not strategy_restored:
                 logger.info(f"Attempting to restart strategy {strategy_id}...")
                 try:
-                    success, message = await start_strategy_process(strategy_id, db, request)
+                    success, message = await start_strategy_process(
+                        strategy_id, db, request
+                    )
                     if success:
                         logger.info(f"Successfully restarted strategy {strategy_id}")
                         restored_count += 1
@@ -1745,7 +1750,15 @@ async def restore_strategy_states(db: AsyncSession, request: Request):
                             f"Failed to restart strategy {strategy_id}: {message}"
                         )
                         error_count += 1
-                except (psutil.Error, SQLAlchemyError, OSError, JSONDecodeError, InvalidToken, ValueError, subprocess.SubprocessError) as e:
+                except (
+                    psutil.Error,
+                    SQLAlchemyError,
+                    OSError,
+                    JSONDecodeError,
+                    InvalidToken,
+                    ValueError,
+                    subprocess.SubprocessError,
+                ) as e:
                     # Mark as error state
                     config["is_running"] = False
                     config["is_error"] = True
@@ -1784,7 +1797,6 @@ async def check_and_start_pending_strategies(db: AsyncSession, request: Request)
             "Waiting for master contracts" in config.get("error_message", "")
             or "Master contract dependency not met" in config.get("error_message", "")
         ):
-
             logger.info(
                 f"Attempting to start strategy {strategy_id} after master contract became ready"
             )

@@ -10,7 +10,7 @@ import os
 from app.core.config import settings
 
 # Add parent directory to path to allow imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
 
 from app.websocket.base_adapter import BaseBrokerWebSocketAdapter
 from app.websocket.mapping import SymbolMapper
@@ -33,7 +33,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         self.market_snapshots = {}  # {token: snapshot_data} - retains previous values
         self.ws_subscription_refs = {}  # Reference counting for WebSocket subscriptions
 
-    def initialize(self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None) -> None:
+    def initialize(
+        self, broker_name: str, user_id: str, auth_data: Optional[Dict[str, str]] = None
+    ) -> None:
         """
         Initialize connection with Firstock WebSocket API
 
@@ -58,8 +60,12 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             if not auth_token:
                 self.logger.error(f"No authentication token found for user {user_id}")
-                self.logger.error("For Firstock, the auth_token must be the 'susertoken' from the login API")
-                raise ValueError(f"No authentication token found for user {user_id}. Please login through Firstock's login API first.")
+                self.logger.error(
+                    "For Firstock, the auth_token must be the 'susertoken' from the login API"
+                )
+                raise ValueError(
+                    f"No authentication token found for user {user_id}. Please login through Firstock's login API first."
+                )
 
             self.auth_token = auth_token
 
@@ -68,40 +74,52 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             broker_api_key = settings.BROKER_API_KEY
             if broker_api_key:
                 # Extract the user ID part (remove _API suffix if present)
-                self.firstock_user_id = broker_api_key.replace('_API', '')
-                self.logger.info(f"Using Firstock user ID '{self.firstock_user_id}' from BROKER_API_KEY")
+                self.firstock_user_id = broker_api_key.replace("_API", "")
+                self.logger.info(
+                    f"Using Firstock user ID '{self.firstock_user_id}' from BROKER_API_KEY"
+                )
             else:
                 # Fallback to OpenAlgo user ID if BROKER_API_KEY not set
                 self.firstock_user_id = user_id
-                self.logger.warning(f"BROKER_API_KEY not found in environment. Using OpenAlgo user ID '{user_id}' which may fail authentication")
+                self.logger.warning(
+                    f"BROKER_API_KEY not found in environment. Using OpenAlgo user ID '{user_id}' which may fail authentication"
+                )
 
         else:
             # Use provided tokens
             # IMPORTANT: For Firstock, this must be the 'susertoken' from login API response
-            auth_token = auth_data.get('auth_token')
+            auth_token = auth_data.get("auth_token")
 
             if not auth_token:
                 self.logger.error("Missing required authentication data")
-                self.logger.error("For Firstock, the auth_token must be the 'susertoken' from the login API")
+                self.logger.error(
+                    "For Firstock, the auth_token must be the 'susertoken' from the login API"
+                )
                 raise ValueError("Missing required authentication data")
 
             self.auth_token = auth_token
 
             # Check if broker-specific user ID is provided
-            if 'broker_user_id' in auth_data:
-                self.firstock_user_id = auth_data['broker_user_id']
-                self.logger.info(f"Using Firstock user ID '{self.firstock_user_id}' from auth_data")
+            if "broker_user_id" in auth_data:
+                self.firstock_user_id = auth_data["broker_user_id"]
+                self.logger.info(
+                    f"Using Firstock user ID '{self.firstock_user_id}' from auth_data"
+                )
             else:
                 # Get from BROKER_API_KEY environment variable
                 broker_api_key = settings.BROKER_API_KEY
                 if broker_api_key:
                     # Extract the user ID part (remove _API suffix if present)
-                    self.firstock_user_id = broker_api_key.replace('_API', '')
-                    self.logger.info(f"Using Firstock user ID '{self.firstock_user_id}' from BROKER_API_KEY")
+                    self.firstock_user_id = broker_api_key.replace("_API", "")
+                    self.logger.info(
+                        f"Using Firstock user ID '{self.firstock_user_id}' from BROKER_API_KEY"
+                    )
                 else:
                     # Fallback to OpenAlgo user ID if BROKER_API_KEY not set
                     self.firstock_user_id = user_id
-                    self.logger.warning(f"BROKER_API_KEY not found in environment. Using OpenAlgo user ID '{user_id}' which may fail authentication")
+                    self.logger.warning(
+                        f"BROKER_API_KEY not found in environment. Using OpenAlgo user ID '{user_id}' which may fail authentication"
+                    )
 
         # Create FirstockWebSocket instance
         # Use Firstock-specific user ID if available
@@ -109,7 +127,7 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             user_id=self.firstock_user_id,
             auth_token=self.auth_token,
             max_retry_attempt=5,
-            retry_delay=5
+            retry_delay=5,
         )
 
         # Set callbacks
@@ -124,7 +142,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
     def connect(self) -> None:
         """Establish connection to Firstock WebSocket"""
         if not self.ws_client:
-            self.logger.error("WebSocket client not initialized. Call initialize() first.")
+            self.logger.error(
+                "WebSocket client not initialized. Call initialize() first."
+            )
             return
 
         try:
@@ -146,7 +166,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Clean up ZeroMQ resources
         self.cleanup_zmq()
 
-    def subscribe(self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5) -> Dict[str, Any]:
+    def subscribe(
+        self, symbol: str, exchange: str, mode: int = 2, depth_level: int = 5
+    ) -> Dict[str, Any]:
         """
         Subscribe to market data with Firstock-specific implementation
 
@@ -167,11 +189,12 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Map symbol to token using symbol mapper
         token_info = SymbolMapper.get_token_from_symbol(symbol, exchange)
         if not token_info:
-            return self._create_error_response("SYMBOL_NOT_FOUND",
-                                              f"Symbol {symbol} not found for exchange {exchange}")
+            return self._create_error_response(
+                "SYMBOL_NOT_FOUND", f"Symbol {symbol} not found for exchange {exchange}"
+            )
 
-        token = token_info['token']
-        brexchange = token_info['brexchange']
+        token = token_info["token"]
+        brexchange = token_info["brexchange"]
 
         # Create subscription token in Firstock format (EXCHANGE:TOKEN)
         subscription_token = f"{brexchange}:{token}"
@@ -179,31 +202,35 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Generate a unique correlation_id for each subscription
         # This allows multiple clients to subscribe to the same symbol
         import uuid
+
         unique_id = str(uuid.uuid4())[:8]
         correlation_id = f"{symbol}_{exchange}_{mode}_{unique_id}"
 
         # Check if we need to subscribe to WebSocket
         base_correlation_id = f"{symbol}_{exchange}_{mode}"
         already_ws_subscribed = any(
-            cid.startswith(base_correlation_id)
-            for cid in self.subscriptions.keys()
+            cid.startswith(base_correlation_id) for cid in self.subscriptions.keys()
         )
 
         if already_ws_subscribed:
-            self.logger.info(f"[SUBSCRIBE] WebSocket already subscribed for {base_correlation_id}, adding client subscription {correlation_id}")
+            self.logger.info(
+                f"[SUBSCRIBE] WebSocket already subscribed for {base_correlation_id}, adding client subscription {correlation_id}"
+            )
         else:
-            self.logger.info(f"[SUBSCRIBE] New WebSocket subscription needed for {correlation_id}")
+            self.logger.info(
+                f"[SUBSCRIBE] New WebSocket subscription needed for {correlation_id}"
+            )
 
         # Always store the subscription (each client gets their own entry)
         with self.lock:
             self.subscriptions[correlation_id] = {
-                'symbol': symbol,
-                'exchange': exchange,
-                'brexchange': brexchange,
-                'token': token,
-                'subscription_token': subscription_token,
-                'mode': mode,
-                'depth_level': depth_level
+                "symbol": symbol,
+                "exchange": exchange,
+                "brexchange": brexchange,
+                "token": token,
+                "subscription_token": subscription_token,
+                "mode": mode,
+                "depth_level": depth_level,
             }
 
         # Subscribe via WebSocket (reference counting will handle duplicates)
@@ -212,31 +239,36 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if self._should_ws_subscribe(subscription_token, mode):
                 try:
                     # Create token list for Firstock WebSocket client
-                    token_list = [{
-                        "exchangeType": brexchange,
-                        "tokens": [token]
-                    }]
+                    token_list = [{"exchangeType": brexchange, "tokens": [token]}]
 
                     self.ws_client.subscribe(correlation_id, mode, token_list)
-                    self.logger.info(f"[SUBSCRIBE] WebSocket subscription sent for {subscription_token}")
+                    self.logger.info(
+                        f"[SUBSCRIBE] WebSocket subscription sent for {subscription_token}"
+                    )
                 except Exception as e:
                     self.logger.error(f"Error subscribing to {symbol}.{exchange}: {e}")
                     return self._create_error_response("SUBSCRIPTION_ERROR", str(e))
             else:
-                self.logger.info(f"[SUBSCRIBE] WebSocket already has active subscription for {subscription_token}")
+                self.logger.info(
+                    f"[SUBSCRIBE] WebSocket already has active subscription for {subscription_token}"
+                )
         else:
-            self.logger.warning(f"[SUBSCRIBE] Not connected, cannot subscribe to {symbol}.{exchange}")
+            self.logger.warning(
+                f"[SUBSCRIBE] Not connected, cannot subscribe to {symbol}.{exchange}"
+            )
 
         # Log current subscription state
-        self.logger.info(f"[SUBSCRIBE] Total active subscriptions: {len(self.subscriptions)}")
+        self.logger.info(
+            f"[SUBSCRIBE] Total active subscriptions: {len(self.subscriptions)}"
+        )
 
         # Return success
         return self._create_success_response(
-            'Subscription requested',
+            "Subscription requested",
             symbol=symbol,
             exchange=exchange,
             mode=mode,
-            depth_level=5  # Firstock always provides 5-level depth
+            depth_level=5,  # Firstock always provides 5-level depth
         )
 
     def unsubscribe(self, symbol: str, exchange: str, mode: int = 2) -> Dict[str, Any]:
@@ -254,11 +286,12 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Map symbol to token
         token_info = SymbolMapper.get_token_from_symbol(symbol, exchange)
         if not token_info:
-            return self._create_error_response("SYMBOL_NOT_FOUND",
-                                              f"Symbol {symbol} not found for exchange {exchange}")
+            return self._create_error_response(
+                "SYMBOL_NOT_FOUND", f"Symbol {symbol} not found for exchange {exchange}"
+            )
 
-        token = token_info['token']
-        brexchange = token_info['brexchange']
+        token = token_info["token"]
+        brexchange = token_info["brexchange"]
 
         # Create subscription token in Firstock format
         subscription_token = f"{brexchange}:{token}"
@@ -269,13 +302,15 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         with self.lock:
             # Find the first matching subscription for this client
             matching_subscriptions = [
-                (cid, sub) for cid, sub in self.subscriptions.items()
+                (cid, sub)
+                for cid, sub in self.subscriptions.items()
                 if cid.startswith(base_correlation_id)
             ]
 
             if not matching_subscriptions:
-                return self._create_error_response("NOT_SUBSCRIBED",
-                                                  f"Not subscribed to {symbol}.{exchange}")
+                return self._create_error_response(
+                    "NOT_SUBSCRIBED", f"Not subscribed to {symbol}.{exchange}"
+                )
 
             # Remove the first matching subscription
             correlation_id, subscription = matching_subscriptions[0]
@@ -292,21 +327,22 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
                 if self.ws_client and self.ws_client.is_connected():
                     try:
                         # Create token list for Firstock WebSocket client
-                        token_list = [{
-                            "exchangeType": brexchange,
-                            "tokens": [token]
-                        }]
+                        token_list = [{"exchangeType": brexchange, "tokens": [token]}]
 
                         self.ws_client.unsubscribe(correlation_id, mode, token_list)
-                        self.logger.info(f"WebSocket unsubscribed from {symbol}.{exchange}")
+                        self.logger.info(
+                            f"WebSocket unsubscribed from {symbol}.{exchange}"
+                        )
                     except Exception as e:
-                        self.logger.error(f"Error unsubscribing from {symbol}.{exchange}: {e}")
+                        self.logger.error(
+                            f"Error unsubscribing from {symbol}.{exchange}: {e}"
+                        )
 
         return self._create_success_response(
             f"Unsubscribed from {symbol}.{exchange}",
             symbol=symbol,
             exchange=exchange,
-            mode=mode
+            mode=mode,
         )
 
     def _on_open(self, ws) -> None:
@@ -331,39 +367,47 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
                 if subscription_key not in unique_subscriptions:
                     unique_subscriptions[subscription_key] = {
-                        'brexchange': sub['brexchange'],
-                        'token': sub['token'],
-                        'mode': sub['mode'],
-                        'subscription_token': sub['subscription_token'],
-                        'count': 1
+                        "brexchange": sub["brexchange"],
+                        "token": sub["token"],
+                        "mode": sub["mode"],
+                        "subscription_token": sub["subscription_token"],
+                        "count": 1,
                     }
                 else:
-                    unique_subscriptions[subscription_key]['count'] += 1
+                    unique_subscriptions[subscription_key]["count"] += 1
 
                 # Update reference counts
-                if sub['subscription_token'] not in self.ws_subscription_refs:
-                    self.ws_subscription_refs[sub['subscription_token']] = {}
+                if sub["subscription_token"] not in self.ws_subscription_refs:
+                    self.ws_subscription_refs[sub["subscription_token"]] = {}
 
                 mode_key = f"mode_{sub['mode']}"
-                if mode_key not in self.ws_subscription_refs[sub['subscription_token']]:
-                    self.ws_subscription_refs[sub['subscription_token']][mode_key] = 0
-                self.ws_subscription_refs[sub['subscription_token']][mode_key] += 1
+                if mode_key not in self.ws_subscription_refs[sub["subscription_token"]]:
+                    self.ws_subscription_refs[sub["subscription_token"]][mode_key] = 0
+                self.ws_subscription_refs[sub["subscription_token"]][mode_key] += 1
 
             # Resubscribe unique subscriptions
             for sub_key, sub_info in unique_subscriptions.items():
                 try:
                     # Create token list for resubscription
-                    token_list = [{
-                        "exchangeType": sub_info['brexchange'],
-                        "tokens": [sub_info['token']]
-                    }]
+                    token_list = [
+                        {
+                            "exchangeType": sub_info["brexchange"],
+                            "tokens": [sub_info["token"]],
+                        }
+                    ]
 
                     # Use any correlation_id for WebSocket subscription
                     temp_correlation_id = f"resubscribe_{sub_key}"
-                    self.ws_client.subscribe(temp_correlation_id, sub_info['mode'], token_list)
-                    self.logger.info(f"Resubscribed to {sub_info['subscription_token']} with {sub_info['count']} client subscriptions")
+                    self.ws_client.subscribe(
+                        temp_correlation_id, sub_info["mode"], token_list
+                    )
+                    self.logger.info(
+                        f"Resubscribed to {sub_info['subscription_token']} with {sub_info['count']} client subscriptions"
+                    )
                 except Exception as e:
-                    self.logger.error(f"Error resubscribing to {sub_info['subscription_token']}: {e}")
+                    self.logger.error(
+                        f"Error resubscribing to {sub_info['subscription_token']}: {e}"
+                    )
 
     def _should_ws_subscribe(self, subscription_token: str, mode: int) -> bool:
         """
@@ -386,7 +430,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             return True
         else:
             self.ws_subscription_refs[subscription_token][mode_key] += 1
-            self.logger.info(f"Additional subscription for {subscription_token} mode {mode}, count: {self.ws_subscription_refs[subscription_token][mode_key]}")
+            self.logger.info(
+                f"Additional subscription for {subscription_token} mode {mode}, count: {self.ws_subscription_refs[subscription_token][mode_key]}"
+            )
             return False
 
     def _should_ws_unsubscribe(self, subscription_token: str, mode: int) -> bool:
@@ -440,13 +486,13 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             self.logger.info(f"Received data from Firstock WebSocket: {data}")
 
             # Handle market data
-            if isinstance(data, dict) and 'c_symbol' in data:
+            if isinstance(data, dict) and "c_symbol" in data:
                 self._process_market_data(data)
             # Handle order updates
-            elif isinstance(data, dict) and 'norenordno' in data:
+            elif isinstance(data, dict) and "norenordno" in data:
                 self._process_order_update(data)
             # Handle position updates
-            elif isinstance(data, dict) and 'netqty' in data and 'pcode' in data:
+            elif isinstance(data, dict) and "netqty" in data and "pcode" in data:
                 self._process_position_update(data)
             else:
                 self.logger.debug(f"Received unknown data type: {data}")
@@ -454,7 +500,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         except Exception as e:
             self.logger.error(f"Error processing data: {e}", exc_info=True)
 
-    def _update_market_snapshot(self, token: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _update_market_snapshot(
+        self, token: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Update market snapshot for value retention.
         Only updates non-zero/non-invalid values to retain previous valid data.
@@ -465,17 +513,35 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         # Fields to merge (only if not invalid/zero)
         merge_fields = [
             # Price fields
-            'i_last_traded_price', 'i_open_price', 'i_high_price', 'i_low_price', 'i_closing_price',
-            'i_average_trade_price', 'i_upper_circuit_limit', 'i_lower_circuit_limit',
+            "i_last_traded_price",
+            "i_open_price",
+            "i_high_price",
+            "i_low_price",
+            "i_closing_price",
+            "i_average_trade_price",
+            "i_upper_circuit_limit",
+            "i_lower_circuit_limit",
             # Quantity/volume fields
-            'i_volume_traded_today', 'i_last_trade_quantity', 'i_total_buy_quantity', 'i_total_sell_quantity',
-            'i_open_interest', 'i_total_open_interest',
+            "i_volume_traded_today",
+            "i_last_trade_quantity",
+            "i_total_buy_quantity",
+            "i_total_sell_quantity",
+            "i_open_interest",
+            "i_total_open_interest",
             # Time fields
-            'i_last_trade_time', 'i_feed_time', 'c_exch_feed_time'
+            "i_last_trade_time",
+            "i_feed_time",
+            "c_exch_feed_time",
         ]
 
         # Always update these fields (metadata)
-        always_update = ['c_symbol', 'c_exch_seg', 'c_net_change_indicator', 'i_buy_depth_size', 'i_sell_depth_size']
+        always_update = [
+            "c_symbol",
+            "c_exch_seg",
+            "c_net_change_indicator",
+            "i_buy_depth_size",
+            "i_sell_depth_size",
+        ]
 
         # Update snapshot with always-update fields
         for field in always_update:
@@ -488,11 +554,24 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if field in data:
                 value = data[field]
                 # Skip Firstock's invalid values (9223372036854775808 or 0 for prices)
-                if (isinstance(value, (int, float)) and
-                    value != 9223372036854775808 and
-                    (field not in ['i_last_traded_price', 'i_open_price', 'i_high_price', 'i_low_price',
-                                   'i_closing_price', 'i_average_trade_price', 'i_upper_circuit_limit',
-                                   'i_lower_circuit_limit'] or value != 0)):
+                if (
+                    isinstance(value, (int, float))
+                    and value != 9223372036854775808
+                    and (
+                        field
+                        not in [
+                            "i_last_traded_price",
+                            "i_open_price",
+                            "i_high_price",
+                            "i_low_price",
+                            "i_closing_price",
+                            "i_average_trade_price",
+                            "i_upper_circuit_limit",
+                            "i_lower_circuit_limit",
+                        ]
+                        or value != 0
+                    )
+                ):
                     snapshot[field] = value
                     updated_fields.append(field)
                 elif not isinstance(value, (int, float)):
@@ -501,36 +580,48 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
                     updated_fields.append(field)
 
         # Handle depth data separately - only update if we have valid depth data
-        if 'best_buy' in data and 'best_sell' in data:
-            new_buy_depth = self._filter_depth_data(data.get('best_buy', []))
-            new_sell_depth = self._filter_depth_data(data.get('best_sell', []))
+        if "best_buy" in data and "best_sell" in data:
+            new_buy_depth = self._filter_depth_data(data.get("best_buy", []))
+            new_sell_depth = self._filter_depth_data(data.get("best_sell", []))
 
-            self.logger.debug(f"Token {token} depth analysis - buy entries: {len(new_buy_depth)}, sell entries: {len(new_sell_depth)}")
+            self.logger.debug(
+                f"Token {token} depth analysis - buy entries: {len(new_buy_depth)}, sell entries: {len(new_sell_depth)}"
+            )
 
             # Only update depth if we have valid new data, otherwise retain previous snapshot
             if new_buy_depth:  # Has valid buy data
-                snapshot['best_buy'] = new_buy_depth
-                updated_fields.append('best_buy')
-                self.logger.debug(f"Token {token} updated buy depth with {len(new_buy_depth)} valid entries")
-            elif 'best_buy' not in snapshot:  # No previous data, initialize empty
-                snapshot['best_buy'] = []
+                snapshot["best_buy"] = new_buy_depth
+                updated_fields.append("best_buy")
+                self.logger.debug(
+                    f"Token {token} updated buy depth with {len(new_buy_depth)} valid entries"
+                )
+            elif "best_buy" not in snapshot:  # No previous data, initialize empty
+                snapshot["best_buy"] = []
             else:
-                self.logger.debug(f"Token {token} retaining previous buy depth ({len(snapshot.get('best_buy', []))} entries)")
+                self.logger.debug(
+                    f"Token {token} retaining previous buy depth ({len(snapshot.get('best_buy', []))} entries)"
+                )
 
             if new_sell_depth:  # Has valid sell data
-                snapshot['best_sell'] = new_sell_depth
-                updated_fields.append('best_sell')
-                self.logger.debug(f"Token {token} updated sell depth with {len(new_sell_depth)} valid entries")
-            elif 'best_sell' not in snapshot:  # No previous data, initialize empty
-                snapshot['best_sell'] = []
+                snapshot["best_sell"] = new_sell_depth
+                updated_fields.append("best_sell")
+                self.logger.debug(
+                    f"Token {token} updated sell depth with {len(new_sell_depth)} valid entries"
+                )
+            elif "best_sell" not in snapshot:  # No previous data, initialize empty
+                snapshot["best_sell"] = []
             else:
-                self.logger.debug(f"Token {token} retaining previous sell depth ({len(snapshot.get('best_sell', []))} entries)")
+                self.logger.debug(
+                    f"Token {token} retaining previous sell depth ({len(snapshot.get('best_sell', []))} entries)"
+                )
 
         # Update stored snapshot
         self.market_snapshots[token] = snapshot
 
         if updated_fields:
-            self.logger.debug(f"Updated snapshot fields for token {token}: {updated_fields}")
+            self.logger.debug(
+                f"Updated snapshot fields for token {token}: {updated_fields}"
+            )
 
         return snapshot
 
@@ -538,13 +629,17 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Filter out invalid depth entries and retain valid ones"""
         filtered_depth = []
         for level in depth_list:
-            price = level.get('price', 0)
-            quantity = level.get('quantity', 0)
-            orders = level.get('orders', 0)
+            price = level.get("price", 0)
+            quantity = level.get("quantity", 0)
+            orders = level.get("orders", 0)
 
             # Keep entries that have valid data (not the invalid marker)
-            if (price != 9223372036854775808 and quantity != 9223372036854775808 and
-                orders != 9223372036854775808 and (price > 0 or quantity > 0)):
+            if (
+                price != 9223372036854775808
+                and quantity != 9223372036854775808
+                and orders != 9223372036854775808
+                and (price > 0 or quantity > 0)
+            ):
                 filtered_depth.append(level)
 
         return filtered_depth
@@ -553,22 +648,28 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
         """Process market data from Firstock"""
         try:
             # Extract token from c_symbol field
-            token = data.get('c_symbol', '')
-            exchange_seg = data.get('c_exch_seg', '')
+            token = data.get("c_symbol", "")
+            exchange_seg = data.get("c_exch_seg", "")
 
-            self.logger.debug(f"Processing market data for token: {token}, exchange: {exchange_seg}")
+            self.logger.debug(
+                f"Processing market data for token: {token}, exchange: {exchange_seg}"
+            )
             self.logger.debug(f"Raw data keys: {list(data.keys())}")
 
             # Find ALL subscriptions that match this token - we need to publish for each mode
             matching_subscriptions = []
             with self.lock:
                 for sub in self.subscriptions.values():
-                    if sub['token'] == token and sub['brexchange'] == exchange_seg:
+                    if sub["token"] == token and sub["brexchange"] == exchange_seg:
                         matching_subscriptions.append(sub)
 
             if not matching_subscriptions:
-                self.logger.warning(f"Received data for unsubscribed token: {token} on {exchange_seg}")
-                self.logger.debug(f"Available subscriptions: {list(self.subscriptions.keys())}")
+                self.logger.warning(
+                    f"Received data for unsubscribed token: {token} on {exchange_seg}"
+                )
+                self.logger.debug(
+                    f"Available subscriptions: {list(self.subscriptions.keys())}"
+                )
                 return
 
             # Update snapshot with current data (retains previous values for invalid/zero fields)
@@ -576,26 +677,30 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
             # Publish data for each subscribed mode
             for subscription in matching_subscriptions:
-                symbol = subscription['symbol']
-                exchange = subscription['exchange']
-                mode = subscription['mode']
+                symbol = subscription["symbol"]
+                exchange = subscription["exchange"]
+                mode = subscription["mode"]
 
                 # Firstock provides all data in one feed, so we publish based on requested mode
-                mode_str = {1: 'LTP', 2: 'QUOTE', 3: 'DEPTH'}[mode]
+                mode_str = {1: "LTP", 2: "QUOTE", 3: "DEPTH"}[mode]
                 topic = f"{exchange}_{symbol}_{mode_str}"
 
                 # Normalize the data based on the requested mode using processed snapshot
                 market_data = self._normalize_market_data(processed_data, mode)
 
                 # Add metadata
-                market_data.update({
-                    'symbol': symbol,
-                    'exchange': exchange,
-                    'mode': mode,
-                    'timestamp': int(time.time() * 1000)  # Current timestamp in ms
-                })
+                market_data.update(
+                    {
+                        "symbol": symbol,
+                        "exchange": exchange,
+                        "mode": mode,
+                        "timestamp": int(time.time() * 1000),  # Current timestamp in ms
+                    }
+                )
 
-                self.logger.info(f"Publishing {mode_str} data for {symbol}.{exchange}: {market_data}")
+                self.logger.info(
+                    f"Publishing {mode_str} data for {symbol}.{exchange}: {market_data}"
+                )
 
                 # Publish to ZeroMQ
                 self.publish_market_data(topic, market_data)
@@ -618,51 +723,55 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         if mode == 1:  # LTP mode
             return {
-                'ltp': float(data.get('i_last_traded_price', 0)) / 100.0,
-                'ltt': data.get('i_last_trade_time', 0)
+                "ltp": float(data.get("i_last_traded_price", 0)) / 100.0,
+                "ltt": data.get("i_last_trade_time", 0),
             }
         elif mode == 2:  # Quote mode
             return {
-                'ltp': float(data.get('i_last_traded_price', 0)) / 100.0,
-                'ltt': data.get('i_last_trade_time', 0),
-                'volume': data.get('i_volume_traded_today', 0),
-                'open': float(data.get('i_open_price', 0)) / 100.0,
-                'high': float(data.get('i_high_price', 0)) / 100.0,
-                'low': float(data.get('i_low_price', 0)) / 100.0,
-                'close': float(data.get('i_closing_price', 0)) / 100.0,
-                'last_quantity': data.get('i_last_trade_quantity', 0),
-                'average_price': float(data.get('i_average_trade_price', 0)) / 100.0,
-                'total_buy_quantity': data.get('i_total_buy_quantity', 0),
-                'total_sell_quantity': data.get('i_total_sell_quantity', 0),
-                'oi': data.get('i_open_interest', 0),
-                'upper_circuit': float(data.get('i_upper_circuit_limit', 0)) / 100.0,
-                'lower_circuit': float(data.get('i_lower_circuit_limit', 0)) / 100.0
+                "ltp": float(data.get("i_last_traded_price", 0)) / 100.0,
+                "ltt": data.get("i_last_trade_time", 0),
+                "volume": data.get("i_volume_traded_today", 0),
+                "open": float(data.get("i_open_price", 0)) / 100.0,
+                "high": float(data.get("i_high_price", 0)) / 100.0,
+                "low": float(data.get("i_low_price", 0)) / 100.0,
+                "close": float(data.get("i_closing_price", 0)) / 100.0,
+                "last_quantity": data.get("i_last_trade_quantity", 0),
+                "average_price": float(data.get("i_average_trade_price", 0)) / 100.0,
+                "total_buy_quantity": data.get("i_total_buy_quantity", 0),
+                "total_sell_quantity": data.get("i_total_sell_quantity", 0),
+                "oi": data.get("i_open_interest", 0),
+                "upper_circuit": float(data.get("i_upper_circuit_limit", 0)) / 100.0,
+                "lower_circuit": float(data.get("i_lower_circuit_limit", 0)) / 100.0,
             }
         elif mode == 3:  # Depth mode
             result = {
-                'ltp': float(data.get('i_last_traded_price', 0)) / 100.0,
-                'ltt': data.get('i_last_trade_time', 0),
-                'volume': data.get('i_volume_traded_today', 0),
-                'open': float(data.get('i_open_price', 0)) / 100.0,
-                'high': float(data.get('i_high_price', 0)) / 100.0,
-                'low': float(data.get('i_low_price', 0)) / 100.0,
-                'close': float(data.get('i_closing_price', 0)) / 100.0,
-                'oi': data.get('i_total_open_interest', 0),
-                'upper_circuit': float(data.get('i_upper_circuit_limit', 0)) / 100.0,
-                'lower_circuit': float(data.get('i_lower_circuit_limit', 0)) / 100.0
+                "ltp": float(data.get("i_last_traded_price", 0)) / 100.0,
+                "ltt": data.get("i_last_trade_time", 0),
+                "volume": data.get("i_volume_traded_today", 0),
+                "open": float(data.get("i_open_price", 0)) / 100.0,
+                "high": float(data.get("i_high_price", 0)) / 100.0,
+                "low": float(data.get("i_low_price", 0)) / 100.0,
+                "close": float(data.get("i_closing_price", 0)) / 100.0,
+                "oi": data.get("i_total_open_interest", 0),
+                "upper_circuit": float(data.get("i_upper_circuit_limit", 0)) / 100.0,
+                "lower_circuit": float(data.get("i_lower_circuit_limit", 0)) / 100.0,
             }
 
             # Extract depth data
-            result['depth'] = {
-                'buy': self._extract_depth_data(data.get('best_buy', []), is_buy=True),
-                'sell': self._extract_depth_data(data.get('best_sell', []), is_buy=False)
+            result["depth"] = {
+                "buy": self._extract_depth_data(data.get("best_buy", []), is_buy=True),
+                "sell": self._extract_depth_data(
+                    data.get("best_sell", []), is_buy=False
+                ),
             }
 
             return result
         else:
             return {}
 
-    def _extract_depth_data(self, depth_list: List[Dict], is_buy: bool) -> List[Dict[str, Any]]:
+    def _extract_depth_data(
+        self, depth_list: List[Dict], is_buy: bool
+    ) -> List[Dict[str, Any]]:
         """
         Extract depth data from Firstock's format (used by normalize method)
         This converts the retained snapshot depth data to the final output format
@@ -678,9 +787,9 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
 
         for level in depth_list:
             # These should already be filtered, but double-check
-            price = level.get('price', 0)
-            quantity = level.get('quantity', 0)
-            orders = level.get('orders', 0)
+            price = level.get("price", 0)
+            quantity = level.get("quantity", 0)
+            orders = level.get("orders", 0)
 
             # Convert invalid values to 0 for display
             if price == 9223372036854775808:
@@ -690,19 +799,17 @@ class FirstockWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if orders == 9223372036854775808:
                 orders = 0
 
-            depth.append({
-                'price': float(price) / 100.0,  # Convert from paise to rupees
-                'quantity': quantity,
-                'orders': orders
-            })
+            depth.append(
+                {
+                    "price": float(price) / 100.0,  # Convert from paise to rupees
+                    "quantity": quantity,
+                    "orders": orders,
+                }
+            )
 
         # Ensure we have at least 5 levels
         while len(depth) < 5:
-            depth.append({
-                'price': 0.0,
-                'quantity': 0,
-                'orders': 0
-            })
+            depth.append({"price": 0.0, "quantity": 0, "orders": 0})
 
         return depth[:5]  # Return only first 5 levels
 

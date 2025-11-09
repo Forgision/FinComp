@@ -2,6 +2,7 @@
 Shared httpx client module with connection pooling support for all broker APIs
 with automatic protocol negotiation (HTTP/2 when available, HTTP/1.1 fallback)
 """
+
 import httpx
 
 from .logging import logger
@@ -10,6 +11,7 @@ from app.core.config import settings
 
 # Global httpx client for connection pooling
 _httpx_client = None
+
 
 async def get_httpx_client() -> httpx.AsyncClient:
     """
@@ -24,14 +26,13 @@ async def get_httpx_client() -> httpx.AsyncClient:
 
     if _httpx_client is None:
         _httpx_client = await _create_http_client()
-        logger.info("Created HTTP client with automatic protocol negotiation (HTTP/2 preferred, HTTP/1.1 fallback)")
+        logger.info(
+            "Created HTTP client with automatic protocol negotiation (HTTP/2 preferred, HTTP/1.1 fallback)"
+        )
     return _httpx_client
 
-async def request(
-    method: str,
-    url: str,
-    **kwargs
-) -> httpx.Response:
+
+async def request(method: str, url: str, **kwargs) -> httpx.Response:
     """
     Make an HTTP request using the shared client with automatic protocol negotiation.
 
@@ -55,18 +56,22 @@ async def request(
 
     return response
 
+
 # Shortcut methods for common HTTP methods
 async def get(url: str, **kwargs) -> httpx.Response:
-    return await request('GET', url, **kwargs)
+    return await request("GET", url, **kwargs)
+
 
 async def post(url: str, **kwargs) -> httpx.Response:
-    return await request('POST', url, **kwargs)
+    return await request("POST", url, **kwargs)
+
 
 async def put(url: str, **kwargs) -> httpx.Response:
-    return await request('PUT', url, **kwargs)
+    return await request("PUT", url, **kwargs)
+
 
 async def delete(url: str, **kwargs) -> httpx.Response:
-    return await request('DELETE', url, **kwargs)
+    return await request("DELETE", url, **kwargs)
 
 
 async def _create_http_client() -> httpx.AsyncClient:
@@ -81,7 +86,7 @@ async def _create_http_client() -> httpx.AsyncClient:
         # Detect if running in standalone mode (Docker/production) vs integrated mode (local dev)
         # In standalone mode, disable HTTP/2 to avoid protocol negotiation issues
         app_mode = settings.APP_MODE.strip().strip("'\"")
-        is_standalone = app_mode == 'standalone'
+        is_standalone = app_mode == "standalone"
 
         # Disable HTTP/2 in standalone/Docker environments to avoid protocol negotiation issues
         http2_enabled = not is_standalone
@@ -93,16 +98,20 @@ async def _create_http_client() -> httpx.AsyncClient:
             limits=httpx.Limits(
                 max_keepalive_connections=20,  # Balanced for most broker APIs
                 max_connections=50,  # Reasonable max without overloading
-                keepalive_expiry=120.0  # 2 minutes - good balance
+                keepalive_expiry=120.0,  # 2 minutes - good balance
             ),
             # Add verify parameter to handle SSL/TLS issues in standalone mode
-            verify=True  # Can be set to False for debugging SSL issues (not recommended for production)
+            verify=True,  # Can be set to False for debugging SSL issues (not recommended for production)
         )
 
         if is_standalone:
-            logger.info("Running in standalone mode - HTTP/2 disabled for compatibility")
+            logger.info(
+                "Running in standalone mode - HTTP/2 disabled for compatibility"
+            )
         else:
-            logger.info("Running in integrated mode - HTTP/2 enabled for optimal performance")
+            logger.info(
+                "Running in integrated mode - HTTP/2 enabled for optimal performance"
+            )
 
         return client
 

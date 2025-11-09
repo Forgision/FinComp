@@ -1,6 +1,7 @@
 """
 Flattrade-specific mapping utilities for the WebSocket adapter
 """
+
 from typing import Dict, Optional
 
 
@@ -9,14 +10,14 @@ class FlattradeExchangeMapper:
 
     # OpenAlgo to Flattrade exchange mapping
     EXCHANGE_MAP = {
-        'NSE': 'NSE',
-        'BSE': 'BSE',
-        'NFO': 'NFO',
-        'BFO': 'BFO',
-        'MCX': 'MCX',
-        'CDS': 'CDS',
-        'NSE_INDEX': 'NSE',  # Indices use base exchange
-        'BSE_INDEX': 'BSE'
+        "NSE": "NSE",
+        "BSE": "BSE",
+        "NFO": "NFO",
+        "BFO": "BFO",
+        "MCX": "MCX",
+        "CDS": "CDS",
+        "NSE_INDEX": "NSE",  # Indices use base exchange
+        "BSE_INDEX": "BSE",
     }
 
     # Reverse mapping
@@ -67,8 +68,8 @@ class FlattradeCapabilityRegistry:
     def get_capabilities(cls) -> Dict[str, any]:
         """Get all capabilities"""
         return {
-            'supported_modes': list(cls.SUPPORTED_MODES),
-            'supported_depth_levels': list(cls.SUPPORTED_DEPTH_LEVELS),
-            'max_subscriptions': cls.MAX_SUBSCRIPTIONS,
-            'max_instruments_per_request': cls.MAX_INSTRUMENTS_PER_REQUEST
+            "supported_modes": list(cls.SUPPORTED_MODES),
+            "supported_depth_levels": list(cls.SUPPORTED_DEPTH_LEVELS),
+            "max_subscriptions": cls.MAX_SUBSCRIPTIONS,
+            "max_instruments_per_request": cls.MAX_INSTRUMENTS_PER_REQUEST,
         }

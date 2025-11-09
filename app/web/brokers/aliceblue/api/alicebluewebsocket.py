@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.utils.logging import logger
 import websocket
 
+
 class AliceBlueWebSocket:
     """
     WebSocket client for AliceBlue broker's market data API.
@@ -41,14 +42,14 @@ class AliceBlueWebSocket:
         self.last_message_time = datetime.now()
         self.subscribed_tokens = set()
         self.subscriptions = {}  # Dictionary to track subscribed instruments: exchange|token -> instrument object
-        self.last_quotes = {}   # Dictionary to store quote data: exchange:token -> quote data
-        self.last_depth = {}    # Dictionary to store depth data: exchange:token -> depth data
+        self.last_quotes = {}  # Dictionary to store quote data: exchange:token -> quote data
+        self.last_depth = {}  # Dictionary to store depth data: exchange:token -> depth data
         self._connect_thread = None
         self._stop_event = threading.Event()
 
         # Generate the encrypted token as required by AliceBlue
-        sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
-        self.enc_token = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
+        sha256_encryption1 = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+        self.enc_token = hashlib.sha256(sha256_encryption1.encode("utf-8")).hexdigest()
 
     def connect(self):
         """
@@ -87,7 +88,7 @@ class AliceBlueWebSocket:
                         on_open=self.on_open,
                         on_message=self.on_message,
                         on_error=self.on_error,
-                        on_close=self.on_close
+                        on_close=self.on_close,
                     )
 
                     # Reset reconnect count on successful connection attempt
@@ -110,12 +111,16 @@ class AliceBlueWebSocket:
 
             # Exponential backoff for reconnection attempts
             attempt += 1
-            sleep_time = min(2 ** attempt, 30)  # Max 30 seconds between retries
-            logger.info(f"Reconnection attempt {attempt}/{self.MAX_RECONNECT_ATTEMPTS} failed. Retrying in {sleep_time}s")
+            sleep_time = min(2**attempt, 30)  # Max 30 seconds between retries
+            logger.info(
+                f"Reconnection attempt {attempt}/{self.MAX_RECONNECT_ATTEMPTS} failed. Retrying in {sleep_time}s"
+            )
             time.sleep(sleep_time)
 
         if attempt >= self.MAX_RECONNECT_ATTEMPTS and not self.is_connected:
-            logger.error("Maximum reconnection attempts reached. Could not connect to AliceBlue WebSocket.")
+            logger.error(
+                "Maximum reconnection attempts reached. Could not connect to AliceBlue WebSocket."
+            )
 
     def disconnect(self):
         """
@@ -146,7 +151,7 @@ class AliceBlueWebSocket:
             "t": "c",
             "actid": f"{settings.BROKER_API_KEY}_API",
             "uid": f"{settings.BROKER_API_KEY}_API",
-            "source": "API"
+            "source": "API",
         }
 
         try:
@@ -168,57 +173,74 @@ class AliceBlueWebSocket:
         try:
             self.last_message_time = datetime.now()
             # Log raw message for debugging
-            logger.debug(f"Received raw WebSocket message: {message[:100]}" + ("..." if len(message) > 100 else ""))
+            logger.debug(
+                f"Received raw WebSocket message: {message[:100]}"
+                + ("..." if len(message) > 100 else "")
+            )
 
             data = json.loads(message)
             logger.debug(f"Parsed WebSocket message: {json.dumps(data, indent=2)}")
 
             # Debug log for OI values if present
-            if 'oi' in data:
-                logger.info(f"Raw OI data from AliceBlue: oi='{data.get('oi')}' (type: {type(data.get('oi'))}) for token {data.get('tk', 'unknown')}")
+            if "oi" in data:
+                logger.info(
+                    f"Raw OI data from AliceBlue: oi='{data.get('oi')}' (type: {type(data.get('oi'))}) for token {data.get('tk', 'unknown')}"
+                )
 
             # Authentication response
-            if 's' in data and data['s'] == 'OK':
+            if "s" in data and data["s"] == "OK":
                 with self.lock:
                     self.is_connected = True
                 logger.info("AliceBlue WebSocket authenticated successfully")
 
                 # Resubscribe to any tokens that were subscribed before
                 if self.subscribed_tokens:
-                    logger.info(f"Resubscribing to {len(self.subscribed_tokens)} tokens after authentication")
+                    logger.info(
+                        f"Resubscribing to {len(self.subscribed_tokens)} tokens after authentication"
+                    )
                     self._resubscribe()
 
             # Connection feedback message
-            elif 't' in data and data.get('t') == 'cf':
-                status = data.get('k', 'unknown')
+            elif "t" in data and data.get("t") == "cf":
+                status = data.get("k", "unknown")
                 logger.info(f"AliceBlue WebSocket connection feedback: {status}")
 
-                if status == 'OK':
+                if status == "OK":
                     with self.lock:
                         self.is_connected = True
                     logger.info("AliceBlue WebSocket connection confirmed")
                 else:
-                    logger.error(f"AliceBlue WebSocket connection failed with status: {status}")
+                    logger.error(
+                        f"AliceBlue WebSocket connection failed with status: {status}"
+                    )
 
             # Market data acknowledgment (tick data acknowledgment)
-            elif 't' in data and data.get('t') == 'tk':
-                logger.info(f"Received tick acknowledgment for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}")
+            elif "t" in data and data.get("t") == "tk":
+                logger.info(
+                    f"Received tick acknowledgment for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}"
+                )
                 self._process_tick_data(data)
 
             # Market data feed (tick data feed)
-            elif 't' in data and data.get('t') == 'tf':
-                logger.debug(f"Received tick feed for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}")
+            elif "t" in data and data.get("t") == "tf":
+                logger.debug(
+                    f"Received tick feed for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}"
+                )
                 # Process as tick data
                 self._process_tick_data(data)
 
             # Market depth acknowledgment
-            elif 't' in data and data.get('t') == 'dk':
-                logger.info(f"Received depth acknowledgment for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}")
+            elif "t" in data and data.get("t") == "dk":
+                logger.info(
+                    f"Received depth acknowledgment for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}"
+                )
                 self._process_depth_data(data)
 
             # Market depth feed
-            elif 't' in data and data.get('t') == 'df':
-                logger.debug(f"Received depth feed for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}")
+            elif "t" in data and data.get("t") == "df":
+                logger.debug(
+                    f"Received depth feed for {data.get('e', 'unknown')}:{data.get('tk', 'unknown')}"
+                )
                 # Process as depth data
                 self._process_depth_data(data)
 
@@ -236,8 +258,8 @@ class AliceBlueWebSocket:
         """
         try:
             # Extract token and exchange
-            token = data.get('tk', '')
-            exchange = data.get('e', '')
+            token = data.get("tk", "")
+            exchange = data.get("e", "")
 
             # Look up the original subscription to get the correct symbol
             subscription_key = f"{exchange}|{token}"
@@ -246,48 +268,62 @@ class AliceBlueWebSocket:
                 original_instrument = self.subscriptions.get(subscription_key)
 
             # Use subscription symbol if available, otherwise use broker symbol from data
-            if original_instrument and hasattr(original_instrument, 'symbol'):
+            if original_instrument and hasattr(original_instrument, "symbol"):
                 symbol = original_instrument.symbol
-                logger.info(f"✓ Using subscription symbol: {symbol} for {subscription_key}")
+                logger.info(
+                    f"✓ Using subscription symbol: {symbol} for {subscription_key}"
+                )
             else:
                 # Fallback to broker symbol from AliceBlue data
-                symbol = data.get('ts', f"TOKEN_{token}")
-                logger.warning(f"✗ Using broker symbol: {symbol} for {subscription_key} (subscription not found)")
-                logger.warning(f"Available subscriptions: {list(self.subscriptions.keys())}")
+                symbol = data.get("ts", f"TOKEN_{token}")
+                logger.warning(
+                    f"✗ Using broker symbol: {symbol} for {subscription_key} (subscription not found)"
+                )
+                logger.warning(
+                    f"Available subscriptions: {list(self.subscriptions.keys())}"
+                )
 
             # Use consistent key format for data storage: exchange:token
             key = f"{exchange}:{token}"
 
             # Message type can be 'tk' (acknowledgment) or 'tf' (feed)
-            message_type = data.get('t', 'unknown')
+            message_type = data.get("t", "unknown")
 
             # For 'tk' message, we get full data. For 'tf', we get updates, which we need to merge with existing data
-            if message_type == 'tk':
+            if message_type == "tk":
                 # Format the data in a standardized structure for full acknowledgment data
                 quote = {
-                    'exchange': exchange,
-                    'token': token,
-                    'ltp': float(data.get('lp', 0)),
-                    'open': float(data.get('o', 0)),
-                    'high': float(data.get('h', 0)),
-                    'low': float(data.get('l', 0)),
-                    'close': float(data.get('c', 0)),
-                    'volume': int(data.get('v', 0)),
-                    'last_trade_time': data.get('ft', ''),
-                    'last_trade_quantity': int(data.get('ltq', 0)),
-                    'average_trade_price': float(data.get('ap', 0)),
-                    'open_interest': int(float(data.get('oi', 0))) if data.get('oi') else 0,
-                    'prev_open_interest': int(float(data.get('poi', 0))) if data.get('poi') else 0,
-                    'total_buy_quantity': int(data.get('tbq', 0)),
-                    'total_sell_quantity': int(data.get('tsq', 0)),
-                    'symbol': symbol,  # Use OpenAlgo symbol from subscription
-                    'broker_symbol': data.get('ts', ''),  # Keep broker symbol for reference
-                    'timestamp': datetime.now().isoformat()
+                    "exchange": exchange,
+                    "token": token,
+                    "ltp": float(data.get("lp", 0)),
+                    "open": float(data.get("o", 0)),
+                    "high": float(data.get("h", 0)),
+                    "low": float(data.get("l", 0)),
+                    "close": float(data.get("c", 0)),
+                    "volume": int(data.get("v", 0)),
+                    "last_trade_time": data.get("ft", ""),
+                    "last_trade_quantity": int(data.get("ltq", 0)),
+                    "average_trade_price": float(data.get("ap", 0)),
+                    "open_interest": int(float(data.get("oi", 0)))
+                    if data.get("oi")
+                    else 0,
+                    "prev_open_interest": int(float(data.get("poi", 0)))
+                    if data.get("poi")
+                    else 0,
+                    "total_buy_quantity": int(data.get("tbq", 0)),
+                    "total_sell_quantity": int(data.get("tsq", 0)),
+                    "symbol": symbol,  # Use OpenAlgo symbol from subscription
+                    "broker_symbol": data.get(
+                        "ts", ""
+                    ),  # Keep broker symbol for reference
+                    "timestamp": datetime.now().isoformat(),
                 }
 
-                logger.debug(f"Processed full tick data for {exchange}:{token} - LTP: {quote['ltp']}")
+                logger.debug(
+                    f"Processed full tick data for {exchange}:{token} - LTP: {quote['ltp']}"
+                )
 
-            elif message_type == 'tf':
+            elif message_type == "tf":
                 # For feed updates, update only the fields that are present in the message
                 with self.lock:
                     # Get existing quote or create a new one
@@ -295,41 +331,49 @@ class AliceBlueWebSocket:
 
                     # Create updated quote by merging existing data with new data
                     quote = existing_quote.copy()
-                    quote.update({
-                        'exchange': exchange,
-                        'token': token,
-                        'timestamp': datetime.now().isoformat()
-                    })
+                    quote.update(
+                        {
+                            "exchange": exchange,
+                            "token": token,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
 
                     # Update specific fields if they exist in the feed
-                    if 'lp' in data:
-                        quote['ltp'] = float(data.get('lp', 0))
-                    if 'pc' in data:
-                        quote['percent_change'] = float(data.get('pc', 0))
-                    if 'v' in data:
-                        quote['volume'] = int(data.get('v', 0))
-                    if 'ft' in data:
-                        quote['last_trade_time'] = data.get('ft', '')
-                    if 'ltq' in data:
-                        quote['last_trade_quantity'] = int(data.get('ltq', 0))
-                    if 'bp1' in data:
-                        quote['bid'] = float(data.get('bp1', 0))
-                    if 'sp1' in data:
-                        quote['ask'] = float(data.get('sp1', 0))
-                    if 'bq1' in data:
-                        quote['bid_qty'] = int(data.get('bq1', 0))
-                    if 'sq1' in data:
-                        quote['ask_qty'] = int(data.get('sq1', 0))
-                    if 'tbq' in data:
-                        quote['total_buy_quantity'] = int(data.get('tbq', 0))
-                    if 'tsq' in data:
-                        quote['total_sell_quantity'] = int(data.get('tsq', 0))
-                    if 'oi' in data:
-                        quote['open_interest'] = int(float(data.get('oi', 0))) if data.get('oi') else 0
-                    if 'poi' in data:
-                        quote['prev_open_interest'] = int(float(data.get('poi', 0))) if data.get('poi') else 0
+                    if "lp" in data:
+                        quote["ltp"] = float(data.get("lp", 0))
+                    if "pc" in data:
+                        quote["percent_change"] = float(data.get("pc", 0))
+                    if "v" in data:
+                        quote["volume"] = int(data.get("v", 0))
+                    if "ft" in data:
+                        quote["last_trade_time"] = data.get("ft", "")
+                    if "ltq" in data:
+                        quote["last_trade_quantity"] = int(data.get("ltq", 0))
+                    if "bp1" in data:
+                        quote["bid"] = float(data.get("bp1", 0))
+                    if "sp1" in data:
+                        quote["ask"] = float(data.get("sp1", 0))
+                    if "bq1" in data:
+                        quote["bid_qty"] = int(data.get("bq1", 0))
+                    if "sq1" in data:
+                        quote["ask_qty"] = int(data.get("sq1", 0))
+                    if "tbq" in data:
+                        quote["total_buy_quantity"] = int(data.get("tbq", 0))
+                    if "tsq" in data:
+                        quote["total_sell_quantity"] = int(data.get("tsq", 0))
+                    if "oi" in data:
+                        quote["open_interest"] = (
+                            int(float(data.get("oi", 0))) if data.get("oi") else 0
+                        )
+                    if "poi" in data:
+                        quote["prev_open_interest"] = (
+                            int(float(data.get("poi", 0))) if data.get("poi") else 0
+                        )
 
-                    logger.debug(f"Updated tick data for {exchange}:{token} - LTP: {quote.get('ltp', 'N/A')}")
+                    logger.debug(
+                        f"Updated tick data for {exchange}:{token} - LTP: {quote.get('ltp', 'N/A')}"
+                    )
             else:
                 logger.warning(f"Unknown message type for tick data: {message_type}")
                 return
@@ -338,11 +382,15 @@ class AliceBlueWebSocket:
             with self.lock:
                 self.last_quotes[key] = quote
 
-            logger.info(f"✓ Stored quote data for {key} with LTP {quote.get('ltp', 'N/A')}, Symbol: {quote.get('symbol', 'N/A')}, OI: {quote.get('open_interest', 'N/A')}")
+            logger.info(
+                f"✓ Stored quote data for {key} with LTP {quote.get('ltp', 'N/A')}, Symbol: {quote.get('symbol', 'N/A')}, OI: {quote.get('open_interest', 'N/A')}"
+            )
 
             # Log the first time we get data for a token
-            if message_type == 'tk':
-                logger.info(f"Received first quote for {exchange}:{token} - LTP: {quote.get('ltp', 'N/A')}")
+            if message_type == "tk":
+                logger.info(
+                    f"Received first quote for {exchange}:{token} - LTP: {quote.get('ltp', 'N/A')}"
+                )
 
         except Exception as e:
             logger.error(f"Error processing tick data: {str(e)}")
@@ -356,8 +404,8 @@ class AliceBlueWebSocket:
         """
         try:
             # Extract token and exchange
-            token = data.get('tk', '')
-            exchange = data.get('e', '')
+            token = data.get("tk", "")
+            exchange = data.get("e", "")
 
             # Look up the original subscription to get the correct symbol
             subscription_key = f"{exchange}|{token}"
@@ -366,23 +414,29 @@ class AliceBlueWebSocket:
                 original_instrument = self.subscriptions.get(subscription_key)
 
             # Use subscription symbol if available, otherwise use broker symbol from data
-            if original_instrument and hasattr(original_instrument, 'symbol'):
+            if original_instrument and hasattr(original_instrument, "symbol"):
                 symbol = original_instrument.symbol
-                logger.info(f"✓ Using subscription symbol: {symbol} for {subscription_key}")
+                logger.info(
+                    f"✓ Using subscription symbol: {symbol} for {subscription_key}"
+                )
             else:
                 # Fallback to broker symbol from AliceBlue data
-                symbol = data.get('ts', f"TOKEN_{token}")
-                logger.warning(f"✗ Using broker symbol: {symbol} for {subscription_key} (subscription not found)")
-                logger.warning(f"Available subscriptions: {list(self.subscriptions.keys())}")
+                symbol = data.get("ts", f"TOKEN_{token}")
+                logger.warning(
+                    f"✗ Using broker symbol: {symbol} for {subscription_key} (subscription not found)"
+                )
+                logger.warning(
+                    f"Available subscriptions: {list(self.subscriptions.keys())}"
+                )
 
             # Use consistent key format for data storage: exchange:token
             key = f"{exchange}:{token}"
 
             # Message type can be 'dk' (acknowledgment) or 'df' (feed)
-            message_type = data.get('t', 'unknown')
+            message_type = data.get("t", "unknown")
 
             # For 'dk' message, we get full data. For 'df', we get updates, which we need to merge with existing data
-            if message_type == 'dk':
+            if message_type == "dk":
                 # Parse bid and ask data for full depth
                 bids = []
                 asks = []
@@ -390,108 +444,142 @@ class AliceBlueWebSocket:
                 # AliceBlue provides 5 levels of market depth
                 for i in range(1, 6):
                     # Bid data - price, quantity, orders
-                    bid_price = float(data.get(f'bp{i}', 0))
-                    bid_qty = int(data.get(f'bq{i}', 0))
-                    bid_orders = int(data.get(f'bo{i}', 0))
+                    bid_price = float(data.get(f"bp{i}", 0))
+                    bid_qty = int(data.get(f"bq{i}", 0))
+                    bid_orders = int(data.get(f"bo{i}", 0))
 
                     if bid_price > 0:
-                        bids.append({
-                            'price': bid_price,
-                            'quantity': bid_qty,
-                            'orders': bid_orders
-                        })
+                        bids.append(
+                            {
+                                "price": bid_price,
+                                "quantity": bid_qty,
+                                "orders": bid_orders,
+                            }
+                        )
 
                     # Ask data - price, quantity, orders
-                    ask_price = float(data.get(f'sp{i}', 0))
-                    ask_qty = int(data.get(f'sq{i}', 0))
-                    ask_orders = int(data.get(f'so{i}', 0))
+                    ask_price = float(data.get(f"sp{i}", 0))
+                    ask_qty = int(data.get(f"sq{i}", 0))
+                    ask_orders = int(data.get(f"so{i}", 0))
 
                     if ask_price > 0:
-                        asks.append({
-                            'price': ask_price,
-                            'quantity': ask_qty,
-                            'orders': ask_orders
-                        })
+                        asks.append(
+                            {
+                                "price": ask_price,
+                                "quantity": ask_qty,
+                                "orders": ask_orders,
+                            }
+                        )
 
                 # Format the full market depth data
                 depth = {
-                    'exchange': exchange,
-                    'token': token,
-                    'bids': bids,
-                    'asks': asks,
-                    'total_buy_quantity': int(data.get('tbq', 0)),
-                    'total_sell_quantity': int(data.get('tsq', 0)),
-                    'ltp': float(data.get('lp', 0)),
-                    'open_interest': int(float(data.get('oi', 0))) if data.get('oi') else 0,
-                    'prev_open_interest': int(float(data.get('poi', 0))) if data.get('poi') else 0,
-                    'symbol': symbol,  # Use OpenAlgo symbol from subscription
-                    'broker_symbol': data.get('ts', ''),  # Keep broker symbol for reference
-                    'timestamp': datetime.now().isoformat()
+                    "exchange": exchange,
+                    "token": token,
+                    "bids": bids,
+                    "asks": asks,
+                    "total_buy_quantity": int(data.get("tbq", 0)),
+                    "total_sell_quantity": int(data.get("tsq", 0)),
+                    "ltp": float(data.get("lp", 0)),
+                    "open_interest": int(float(data.get("oi", 0)))
+                    if data.get("oi")
+                    else 0,
+                    "prev_open_interest": int(float(data.get("poi", 0)))
+                    if data.get("poi")
+                    else 0,
+                    "symbol": symbol,  # Use OpenAlgo symbol from subscription
+                    "broker_symbol": data.get(
+                        "ts", ""
+                    ),  # Keep broker symbol for reference
+                    "timestamp": datetime.now().isoformat(),
                 }
 
-                logger.debug(f"Processed full market depth for {exchange}:{token} - Bid levels: {len(bids)}, Ask levels: {len(asks)}")
+                logger.debug(
+                    f"Processed full market depth for {exchange}:{token} - Bid levels: {len(bids)}, Ask levels: {len(asks)}"
+                )
 
-            elif message_type == 'df':
+            elif message_type == "df":
                 # For feed updates, update only the fields that are present in the message
                 with self.lock:
                     # Get existing depth or create a new one
-                    existing_depth = self.last_depth.get(key, {'bids': [], 'asks': []})
+                    existing_depth = self.last_depth.get(key, {"bids": [], "asks": []})
 
                     # Create updated depth by copying existing data
                     depth = existing_depth.copy()
-                    depth.update({
-                        'exchange': exchange,
-                        'token': token,
-                        'timestamp': datetime.now().isoformat()
-                    })
+                    depth.update(
+                        {
+                            "exchange": exchange,
+                            "token": token,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
 
                     # Update specific fields if they exist in the feed
-                    if 'lp' in data:
-                        depth['ltp'] = float(data.get('lp', 0))
-                    if 'pc' in data:
-                        depth['percent_change'] = float(data.get('pc', 0))
-                    if 'ft' in data:
-                        depth['last_trade_time'] = data.get('ft', '')
-                    if 'ltq' in data:
-                        depth['last_trade_quantity'] = int(data.get('ltq', 0))
-                    if 'tbq' in data:
-                        depth['total_buy_quantity'] = int(data.get('tbq', 0))
-                    if 'tsq' in data:
-                        depth['total_sell_quantity'] = int(data.get('tsq', 0))
-                    if 'oi' in data:
-                        depth['open_interest'] = int(float(data.get('oi', 0))) if data.get('oi') else 0
-                    if 'poi' in data:
-                        depth['prev_open_interest'] = int(float(data.get('poi', 0))) if data.get('poi') else 0
+                    if "lp" in data:
+                        depth["ltp"] = float(data.get("lp", 0))
+                    if "pc" in data:
+                        depth["percent_change"] = float(data.get("pc", 0))
+                    if "ft" in data:
+                        depth["last_trade_time"] = data.get("ft", "")
+                    if "ltq" in data:
+                        depth["last_trade_quantity"] = int(data.get("ltq", 0))
+                    if "tbq" in data:
+                        depth["total_buy_quantity"] = int(data.get("tbq", 0))
+                    if "tsq" in data:
+                        depth["total_sell_quantity"] = int(data.get("tsq", 0))
+                    if "oi" in data:
+                        depth["open_interest"] = (
+                            int(float(data.get("oi", 0))) if data.get("oi") else 0
+                        )
+                    if "poi" in data:
+                        depth["prev_open_interest"] = (
+                            int(float(data.get("poi", 0))) if data.get("poi") else 0
+                        )
 
                     # Update bid/ask levels if provided in the update
                     for i in range(1, 6):
                         # Update bid price, quantity, orders if provided
-                        if f'bp{i}' in data or f'bq{i}' in data or f'bo{i}' in data:
+                        if f"bp{i}" in data or f"bq{i}" in data or f"bo{i}" in data:
                             # Check if we have enough bid levels
-                            while len(depth['bids']) < i:
-                                depth['bids'].append({'price': 0, 'quantity': 0, 'orders': 0})
+                            while len(depth["bids"]) < i:
+                                depth["bids"].append(
+                                    {"price": 0, "quantity": 0, "orders": 0}
+                                )
 
                             # Update the bid level
-                            if f'bp{i}' in data:
-                                depth['bids'][i-1]['price'] = float(data.get(f'bp{i}', 0))
-                            if f'bq{i}' in data:
-                                depth['bids'][i-1]['quantity'] = int(data.get(f'bq{i}', 0))
-                            if f'bo{i}' in data:
-                                depth['bids'][i-1]['orders'] = int(data.get(f'bo{i}', 0))
+                            if f"bp{i}" in data:
+                                depth["bids"][i - 1]["price"] = float(
+                                    data.get(f"bp{i}", 0)
+                                )
+                            if f"bq{i}" in data:
+                                depth["bids"][i - 1]["quantity"] = int(
+                                    data.get(f"bq{i}", 0)
+                                )
+                            if f"bo{i}" in data:
+                                depth["bids"][i - 1]["orders"] = int(
+                                    data.get(f"bo{i}", 0)
+                                )
 
                         # Update ask price, quantity, orders if provided
-                        if f'sp{i}' in data or f'sq{i}' in data or f'so{i}' in data:
+                        if f"sp{i}" in data or f"sq{i}" in data or f"so{i}" in data:
                             # Check if we have enough ask levels
-                            while len(depth['asks']) < i:
-                                depth['asks'].append({'price': 0, 'quantity': 0, 'orders': 0})
+                            while len(depth["asks"]) < i:
+                                depth["asks"].append(
+                                    {"price": 0, "quantity": 0, "orders": 0}
+                                )
 
                             # Update the ask level
-                            if f'sp{i}' in data:
-                                depth['asks'][i-1]['price'] = float(data.get(f'sp{i}', 0))
-                            if f'sq{i}' in data:
-                                depth['asks'][i-1]['quantity'] = int(data.get(f'sq{i}', 0))
-                            if f'so{i}' in data:
-                                depth['asks'][i-1]['orders'] = int(data.get(f'so{i}', 0))
+                            if f"sp{i}" in data:
+                                depth["asks"][i - 1]["price"] = float(
+                                    data.get(f"sp{i}", 0)
+                                )
+                            if f"sq{i}" in data:
+                                depth["asks"][i - 1]["quantity"] = int(
+                                    data.get(f"sq{i}", 0)
+                                )
+                            if f"so{i}" in data:
+                                depth["asks"][i - 1]["orders"] = int(
+                                    data.get(f"so{i}", 0)
+                                )
 
                     logger.debug(f"Updated market depth for {exchange}:{token}")
             else:
@@ -502,11 +590,15 @@ class AliceBlueWebSocket:
             with self.lock:
                 self.last_depth[key] = depth
 
-            logger.info(f"✓ Stored depth data for {key} with {len(depth.get('bids', []))} bid levels and {len(depth.get('asks', []))} ask levels, Symbol: {depth.get('symbol', 'N/A')}, OI: {depth.get('open_interest', 'N/A')}")
+            logger.info(
+                f"✓ Stored depth data for {key} with {len(depth.get('bids', []))} bid levels and {len(depth.get('asks', []))} ask levels, Symbol: {depth.get('symbol', 'N/A')}, OI: {depth.get('open_interest', 'N/A')}"
+            )
 
             # Log the first time we get data for a token
-            if message_type == 'dk':
-                logger.info(f"Received first market depth for {exchange}:{token} - LTP: {depth.get('ltp', 'N/A')}")
+            if message_type == "dk":
+                logger.info(
+                    f"Received first market depth for {exchange}:{token} - LTP: {depth.get('ltp', 'N/A')}"
+                )
 
         except Exception as e:
             logger.error(f"Error processing market depth data: {str(e)}")
@@ -535,14 +627,16 @@ class AliceBlueWebSocket:
         with self.lock:
             self.is_connected = False
 
-        logger.info(f"AliceBlue WebSocket connection closed: {close_status_code}, {close_msg}")
+        logger.info(
+            f"AliceBlue WebSocket connection closed: {close_status_code}, {close_msg}"
+        )
 
         # Only attempt to reconnect if we didn't explicitly stop
         if not self._stop_event.is_set():
             self.reconnect_count += 1
 
             # Reconnect with exponential backoff
-            sleep_time = min(2 ** self.reconnect_count, 30)
+            sleep_time = min(2**self.reconnect_count, 30)
             logger.info(f"Attempting to reconnect in {sleep_time} seconds")
 
             def delayed_reconnect():
@@ -551,7 +645,6 @@ class AliceBlueWebSocket:
                     self.connect()
 
             threading.Thread(target=delayed_reconnect).start()
-
 
     def subscribe(self, instruments, is_depth=False):
         """Subscribe to market data for given instruments
@@ -578,8 +671,12 @@ class AliceBlueWebSocket:
             for instrument in instruments:
                 subscription_key = f"{instrument.exchange}|{instrument.token}"
                 self.subscriptions[subscription_key] = instrument
-                logger.info(f"Storing subscription: {subscription_key} -> {getattr(instrument, 'symbol', 'Unknown')}")
-                logger.info(f"Instrument attributes: exchange={instrument.exchange}, token={instrument.token}, symbol={getattr(instrument, 'symbol', 'None')}")
+                logger.info(
+                    f"Storing subscription: {subscription_key} -> {getattr(instrument, 'symbol', 'Unknown')}"
+                )
+                logger.info(
+                    f"Instrument attributes: exchange={instrument.exchange}, token={instrument.token}, symbol={getattr(instrument, 'symbol', 'None')}"
+                )
 
             # Format according to AliceBlue API documentation: {"k":"NFO|54957#MCX|239484","t":"t"}
             # For depth: {"k":"NFO|54957#MCX|239484","t":"d"}
@@ -594,15 +691,19 @@ class AliceBlueWebSocket:
                 subscription_key = "#".join(subscription_keys)
                 message = {
                     "t": "d" if is_depth else "t",  # d for depth, t for tick data
-                    "k": subscription_key  # Format: "NFO|54957#MCX|239484"
+                    "k": subscription_key,  # Format: "NFO|54957#MCX|239484"
                 }
 
-                logger.info(f"Sending {'depth' if is_depth else 'tick'} subscription message: {json.dumps(message)}")
+                logger.info(
+                    f"Sending {'depth' if is_depth else 'tick'} subscription message: {json.dumps(message)}"
+                )
 
                 # Send the message
                 self.ws.send(json.dumps(message))
 
-                logger.info(f"Subscribed to {len(instruments)} instruments for {'market depth' if is_depth else 'tick data'}")
+                logger.info(
+                    f"Subscribed to {len(instruments)} instruments for {'market depth' if is_depth else 'tick data'}"
+                )
                 return True
             else:
                 logger.warning("No valid subscription keys generated")
@@ -635,7 +736,7 @@ class AliceBlueWebSocket:
             subscription_key = "#".join(subscription_keys)
             message = {
                 "t": "u",  # t = Type of request, u for unsubscription
-                "k": subscription_key  # Format: "NFO|54957#MCX|239484"
+                "k": subscription_key,  # Format: "NFO|54957#MCX|239484"
             }
 
             logger.info(f"Sending unsubscription message: {json.dumps(message)}")
@@ -649,7 +750,6 @@ class AliceBlueWebSocket:
             logger.warning("No valid unsubscription keys generated")
             return False
 
-
     def _resubscribe(self):
         """
         Resubscribes to all previously subscribed tokens after reconnection.
@@ -660,19 +760,13 @@ class AliceBlueWebSocket:
         logger.info(f"Resubscribing to {len(self.subscribed_tokens)} instruments")
 
         tokens_list = list(self.subscribed_tokens)
-        subscription_key = '#'.join(tokens_list)
+        subscription_key = "#".join(tokens_list)
 
         # First resubscribe to tick data
-        tick_message = {
-            "k": subscription_key,
-            "t": "t"
-        }
+        tick_message = {"k": subscription_key, "t": "t"}
 
         # Then to market depth if needed
-        depth_message = {
-            "k": subscription_key,
-            "t": "d"
-        }
+        depth_message = {"k": subscription_key, "t": "d"}
 
         try:
             # Send tick subscription
@@ -681,11 +775,11 @@ class AliceBlueWebSocket:
 
             # Send depth subscription
             self.ws.send(json.dumps(depth_message))
-            logger.info(f"Resubscribed to market depth for {len(tokens_list)} instruments")
+            logger.info(
+                f"Resubscribed to market depth for {len(tokens_list)} instruments"
+            )
         except Exception as e:
             logger.error(f"Error resubscribing to instruments: {str(e)}")
-
-
 
     def is_websocket_connected(self):
         """
@@ -719,7 +813,9 @@ class AliceBlueWebSocket:
         with self.lock:
             quote = self.last_quotes.get(key)
             if quote:
-                logger.debug(f"Retrieved quote for {key} - LTP: {quote.get('ltp', 'N/A')}, Symbol: {quote.get('symbol', 'N/A')}")
+                logger.debug(
+                    f"Retrieved quote for {key} - LTP: {quote.get('ltp', 'N/A')}, Symbol: {quote.get('symbol', 'N/A')}"
+                )
             else:
                 logger.debug(f"No quote data available for {key}")
                 logger.debug(f"Available quote keys: {list(self.last_quotes.keys())}")
@@ -738,9 +834,11 @@ class AliceBlueWebSocket:
         with self.lock:
             depth = self.last_depth.get(key)
             if depth:
-                bid_levels = len(depth.get('bids', []))
-                ask_levels = len(depth.get('asks', []))
-                logger.debug(f"Retrieved market depth for {key} - Bid levels: {bid_levels}, Ask levels: {ask_levels}, Symbol: {depth.get('symbol', 'N/A')}")
+                bid_levels = len(depth.get("bids", []))
+                ask_levels = len(depth.get("asks", []))
+                logger.debug(
+                    f"Retrieved market depth for {key} - Bid levels: {bid_levels}, Ask levels: {ask_levels}, Symbol: {depth.get('symbol', 'N/A')}"
+                )
             else:
                 logger.debug(f"No market depth data available for {key}")
                 logger.debug(f"Available depth keys: {list(self.last_depth.keys())}")

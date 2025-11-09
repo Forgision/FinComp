@@ -156,7 +156,7 @@ async def get_order_status_with_auth(
         current_orderid = str(order.get("orderid"))
         if idx < 5:  # Log first 5 order IDs for debugging
             logger.debug(
-                f"[OrderStatus] Order {idx+1}: OrderID={current_orderid}, Symbol={order.get('symbol')}, Status={order.get('order_status')}"
+                f"[OrderStatus] Order {idx + 1}: OrderID={current_orderid}, Symbol={order.get('symbol')}, Status={order.get('order_status')}"
             )
 
         if current_orderid == str(orderid):
@@ -172,7 +172,7 @@ async def get_order_status_with_auth(
         )
         error_response = {
             "status": "error",
-            "message": f'Order {status_data["orderid"]} not found',
+            "message": f"Order {status_data['orderid']} not found",
         }
         if is_analyze_mode is True:
             error_response["mode"] = "analyze"
@@ -225,7 +225,7 @@ async def get_order_status_with_auth(
                     trade_orderid = str(trade.get("orderid"))
                     # Log all trades for better debugging
                     logger.debug(
-                        f"[OrderStatus] Trade {trade_idx+1}: OrderID={trade_orderid}, Symbol={trade.get('symbol')}, AvgPrice={trade.get('average_price')}"
+                        f"[OrderStatus] Trade {trade_idx + 1}: OrderID={trade_orderid}, Symbol={trade.get('symbol')}, AvgPrice={trade.get('average_price')}"
                     )
 
                     if trade_orderid == str(orderid):

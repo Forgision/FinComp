@@ -12,8 +12,12 @@ class SMTPConfig(BaseModel):
     smtp_from_email: Optional[EmailStr] = Field(None, description="From email address")
     smtp_helo_hostname: Optional[str] = Field(None, description="HELO/EHLO hostname")
 
+
 class SMTPTest(BaseModel):
-    test_email: EmailStr = Field(..., description="Email address to send a test email to")
+    test_email: EmailStr = Field(
+        ..., description="Email address to send a test email to"
+    )
+
 
 class SMTPDebug(BaseModel):
     success: bool

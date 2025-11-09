@@ -39,23 +39,23 @@ token_cache = TTLCache(maxsize=1024, ttl=3600)  # Dummy cache for compatibility
 
 # Re-export everything so imports work identically
 __all__ = [
-    'get_token',
-    'get_symbol',
-    'get_oa_symbol',
-    'get_br_symbol',
-    'get_brexchange',
-    'get_symbol_count',
-    'get_token_dbquery',
-    'get_symbol_dbquery',
-    'get_oa_symbol_dbquery',
-    'get_br_symbol_dbquery',
-    'get_brexchange_dbquery',
-    'token_cache',  # For backward compatibility
+    "get_token",
+    "get_symbol",
+    "get_oa_symbol",
+    "get_br_symbol",
+    "get_brexchange",
+    "get_symbol_count",
+    "get_token_dbquery",
+    "get_symbol_dbquery",
+    "get_oa_symbol_dbquery",
+    "get_br_symbol_dbquery",
+    "get_brexchange_dbquery",
+    "token_cache",  # For backward compatibility
     # New functions (won't affect existing code)
-    'get_tokens_bulk',
-    'get_symbols_bulk',
-    'search_symbols',
-    'load_cache_for_broker',
-    'clear_cache',
-    'get_cache_stats'
+    "get_tokens_bulk",
+    "get_symbols_bulk",
+    "search_symbols",
+    "load_cache_for_broker",
+    "clear_cache",
+    "get_cache_stats",
 ]

@@ -1,5 +1,5 @@
-#Mapping OpenAlgo API Request https://openalgo.in/docs
-#Mapping ibullssecurities Broking Parameters https://symphonyfintech.com/xts-trading-front-end-api/
+# Mapping OpenAlgo API Request https://openalgo.in/docs
+# Mapping ibullssecurities Broking Parameters https://symphonyfintech.com/xts-trading-front-end-api/
 from flask import session
 
 from app.core.schemas.auth_db import get_feed_token
@@ -16,60 +16,70 @@ def transform_data(data, token):
     - BUY: Uses bid price + 0.1%
     - SELL: Uses ask price + 0.1%
     """
-    get_br_symbol(data['symbol'], data['exchange'])
+    get_br_symbol(data["symbol"], data["exchange"])
 
     # Check if market order and convert to limit order with adjusted price
     order_type = map_order_type(data["pricetype"])
     price = data.get("price", "0")
-    action = data['action'].upper()
+    action = data["action"].upper()
 
     if data["pricetype"] == "MARKET":
         try:
             # Get username from Flask session
             username = None
-            if session and hasattr(session, 'get'):
-                username = session.get('username')
+            if session and hasattr(session, "get"):
+                username = session.get("username")
 
             # Get feed token for market data using username (not broker name)
             feed_token = get_feed_token(username if username else "kalaivani")
 
-            logger.info(f"Using feed token for user: {username if username else 'kalaivani'}")
+            logger.info(
+                f"Using feed token for user: {username if username else 'kalaivani'}"
+            )
 
             if feed_token:
                 # Create BrokerData instance to use get_quotes - only need feed_token for market data
                 broker_data = BrokerData(feed_token, feed_token)
 
                 # Fetch quotes for the symbol
-                quote_data = broker_data.get_quotes(data['symbol'], data['exchange'])
+                quote_data = broker_data.get_quotes(data["symbol"], data["exchange"])
                 logger.info(f"Quote data for market order adjustment: {quote_data}")
 
                 # Adjust price based on action (BUY or SELL)
                 if action == "BUY":
-                    bid_price = float(quote_data.get('bid', 0))
+                    bid_price = float(quote_data.get("bid", 0))
                     if bid_price > 0:
                         # Add 0.1% to bid price for BUY orders
                         adjusted_price = bid_price * 1.001
                         price = str(round(adjusted_price, 2))
-                        logger.info(f"Adjusted BUY price: bid {bid_price} + 0.1% = {price}")
+                        logger.info(
+                            f"Adjusted BUY price: bid {bid_price} + 0.1% = {price}"
+                        )
                         # Change order type to LIMIT
                         order_type = "LIMIT"
                 elif action == "SELL":
-                    ask_price = float(quote_data.get('ask', 0))
+                    ask_price = float(quote_data.get("ask", 0))
                     if ask_price > 0:
                         # Subtract 0.1% from ask price for SELL orders
                         adjusted_price = ask_price * 0.999
                         price = str(round(adjusted_price, 2))
-                        logger.info(f"Adjusted SELL price: ask {ask_price} - 0.1% = {price}")
+                        logger.info(
+                            f"Adjusted SELL price: ask {ask_price} - 0.1% = {price}"
+                        )
                         # Change order type to LIMIT
                         order_type = "LIMIT"
             else:
-                logger.warning("No feed token available, cannot fetch quotes for market order price adjustment")
+                logger.warning(
+                    "No feed token available, cannot fetch quotes for market order price adjustment"
+                )
         except Exception as e:
-            logger.error(f"Error adjusting market order price: {str(e)}. Proceeding with regular market order.")
+            logger.error(
+                f"Error adjusting market order price: {str(e)}. Proceeding with regular market order."
+            )
 
     # Basic mapping
     transformed = {
-        "exchangeSegment": map_exchange(data['exchange']),
+        "exchangeSegment": map_exchange(data["exchange"]),
         "exchangeInstrumentID": token,
         "productType": map_product_type(data["product"]),
         "orderType": order_type,
@@ -79,7 +89,7 @@ def transform_data(data, token):
         "orderQuantity": data["quantity"],
         "limitPrice": price,
         "stopPrice": data.get("trigger_price", "0"),
-        "orderUniqueIdentifier": "openalgo"
+        "orderUniqueIdentifier": "openalgo",
     }
     logger.info(f"transformed data: {transformed}")
     return transformed
@@ -95,8 +105,9 @@ def transform_modify_order_data(data, token):
         "modifiedLimitPrice": data["price"],
         "modifiedStopPrice": data.get("trigger_price", "0"),
         "modifiedTimeInForce": "DAY",
-        "orderUniqueIdentifier": "openalgo"
+        "orderUniqueIdentifier": "openalgo",
     }
+
 
 def map_exchange(exchange):
     """
@@ -109,10 +120,9 @@ def map_exchange(exchange):
         "NFO": "NSEFO",
         "BFO": "BSEFO",
         "CDS": "NSECD",
-        "EXCHANGE": "EXCHANGE"
+        "EXCHANGE": "EXCHANGE",
     }
     return exchange_mapping.get(exchange, "EXCHANGE")
-
 
 
 def map_order_type(pricetype):
@@ -123,9 +133,10 @@ def map_order_type(pricetype):
         "MARKET": "MARKET",
         "LIMIT": "LIMIT",
         "SL": "SL-L",
-        "SL-M": "SL-M"
+        "SL-M": "SL-M",
     }
     return order_type_mapping.get(pricetype, "MARKET")  # Default to MARKET if not found
+
 
 def map_product_type(product):
     """
@@ -138,7 +149,8 @@ def map_product_type(product):
     }
     return product_type_mapping.get(product, "MIS")  # Default to INTRADAY if not found
 
-def reverse_map_product_type(exchange,product):
+
+def reverse_map_product_type(exchange, product):
     """
     Reverse maps the broker product type to the OpenAlgo product type, considering the exchange.
     """

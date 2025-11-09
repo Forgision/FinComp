@@ -91,19 +91,23 @@ class FirstockWebSocket:
 
             # Build connection URL with query parameters
             params = {
-                'userId': self.user_id,
-                'jKey': self.auth_token,
-                'source': 'developer-api'
+                "userId": self.user_id,
+                "jKey": self.auth_token,
+                "source": "developer-api",
             }
 
             connection_url = f"{self.ROOT_URI}?{urlencode(params)}"
             self.logger.info(f"Connecting to Firstock WebSocket: {self.ROOT_URI}")
             self.logger.info(f"Using userId: {self.user_id}")
             self.logger.debug(f"Connection URL: {connection_url}")
-            self.logger.debug(f"Using auth token (jKey): {self.auth_token[:10]}...{self.auth_token[-5:] if len(self.auth_token) > 15 else self.auth_token}")
+            self.logger.debug(
+                f"Using auth token (jKey): {self.auth_token[:10]}...{self.auth_token[-5:] if len(self.auth_token) > 15 else self.auth_token}"
+            )
 
             # Important note about authentication
-            self.logger.info("Note: The jKey must be the 'susertoken' obtained from Firstock's login API")
+            self.logger.info(
+                "Note: The jKey must be the 'susertoken' obtained from Firstock's login API"
+            )
 
             # Create WebSocket connection
             self.wsapp = websocket.WebSocketApp(
@@ -112,14 +116,11 @@ class FirstockWebSocket:
                 on_message=self._on_message,
                 on_error=self._on_error,
                 on_close=self._on_close,
-                on_pong=self._on_pong
+                on_pong=self._on_pong,
             )
 
             # Start WebSocket in a separate thread
-            self.ws_thread = threading.Thread(
-                target=self._run_websocket,
-                daemon=True
-            )
+            self.ws_thread = threading.Thread(target=self._run_websocket, daemon=True)
             self.ws_thread.start()
 
         except Exception as e:
@@ -134,7 +135,9 @@ class FirstockWebSocket:
             self.wsapp.run_forever(
                 ping_interval=self.HEART_BEAT_INTERVAL,
                 ping_timeout=10,
-                sslopt={"cert_reqs": ssl.CERT_NONE}  # Add SSL options to avoid SSL errors
+                sslopt={
+                    "cert_reqs": ssl.CERT_NONE
+                },  # Add SSL options to avoid SSL errors
             )
             self.logger.info("WebSocket run_forever completed")
         except Exception as e:
@@ -171,13 +174,19 @@ class FirstockWebSocket:
         """
         if self.connection_state != self.CONNECTED:
             self.logger.error("Cannot subscribe: WebSocket not connected")
-            self.logger.error(f"Current connection state: {self.get_connection_state()}")
+            self.logger.error(
+                f"Current connection state: {self.get_connection_state()}"
+            )
             return
 
         # If not authenticated yet, queue the subscription
         if not self.authenticated:
-            self.logger.info(f"Queuing subscription for {correlation_id} until authentication completes")
-            self.logger.info("WebSocket is connected but waiting for authentication response from Firstock")
+            self.logger.info(
+                f"Queuing subscription for {correlation_id} until authentication completes"
+            )
+            self.logger.info(
+                "WebSocket is connected but waiting for authentication response from Firstock"
+            )
             self.pending_subscriptions.append((correlation_id, mode, token_list))
             return
 
@@ -192,7 +201,7 @@ class FirstockWebSocket:
             # Create subscription message
             subscribe_msg = {
                 "action": self.SUBSCRIBE_ACTION,
-                "tokens": "|".join(tokens)  # Firstock uses pipe-separated tokens
+                "tokens": "|".join(tokens),  # Firstock uses pipe-separated tokens
             }
 
             # Send subscription
@@ -235,7 +244,7 @@ class FirstockWebSocket:
             # Create unsubscription message
             unsubscribe_msg = {
                 "action": self.UNSUBSCRIBE_ACTION,
-                "tokens": "|".join(tokens)
+                "tokens": "|".join(tokens),
             }
 
             # Send unsubscription
@@ -256,10 +265,14 @@ class FirstockWebSocket:
         self.current_retry_attempt = 0
         self.last_pong_time = time.time()
 
-        self.logger.info("Firstock WebSocket connection established - waiting for authentication response")
+        self.logger.info(
+            "Firstock WebSocket connection established - waiting for authentication response"
+        )
 
         # Start ping monitoring
-        self.ping_thread = threading.Thread(target=self._monitor_connection, daemon=True)
+        self.ping_thread = threading.Thread(
+            target=self._monitor_connection, daemon=True
+        )
         self.ping_thread.start()
 
         # Call user callback
@@ -281,23 +294,38 @@ class FirstockWebSocket:
                     self.logger.debug(f"Parsed JSON message: {data}")
 
                     # Handle authentication response
-                    if 'status' in data:
-                        if data.get('status') == 'success':
-                            self.logger.info(f"Authentication successful: {data.get('message', 'No message')}")
+                    if "status" in data:
+                        if data.get("status") == "success":
+                            self.logger.info(
+                                f"Authentication successful: {data.get('message', 'No message')}"
+                            )
                             self.authenticated = True
                             # Process any pending subscriptions
                             self._process_pending_subscriptions()
-                        elif data.get('status') == 'failed' or data.get('message') == 'unauthenticated':
+                        elif (
+                            data.get("status") == "failed"
+                            or data.get("message") == "unauthenticated"
+                        ):
                             # Log more details about the auth failure
-                            self.logger.error(f"Authentication failed: {data.get('message', 'Unknown error')}")
+                            self.logger.error(
+                                f"Authentication failed: {data.get('message', 'Unknown error')}"
+                            )
                             self.logger.error(f"Full response: {data}")
                             self.logger.error(f"Using userId: {self.user_id}")
-                            self.logger.error(f"Using jKey (first 10 chars): {self.auth_token[:10] if self.auth_token else 'None'}...")
-                            self.logger.error("IMPORTANT: The jKey must be the 'susertoken' from Firstock's login API response")
+                            self.logger.error(
+                                f"Using jKey (first 10 chars): {self.auth_token[:10] if self.auth_token else 'None'}..."
+                            )
+                            self.logger.error(
+                                "IMPORTANT: The jKey must be the 'susertoken' from Firstock's login API response"
+                            )
                             self.logger.error("Make sure you have:")
                             self.logger.error("1. Logged in via Firstock's login API")
-                            self.logger.error("2. Stored the 'susertoken' from the login response as the auth_token")
-                            self.logger.error("3. The token is not expired (tokens may have limited validity)")
+                            self.logger.error(
+                                "2. Stored the 'susertoken' from the login response as the auth_token"
+                            )
+                            self.logger.error(
+                                "3. The token is not expired (tokens may have limited validity)"
+                            )
                             self.authenticated = False
                             # Close connection on auth failure to prevent spam
                             self.is_running = False
@@ -306,15 +334,19 @@ class FirstockWebSocket:
                         return
 
                     # Handle market data
-                    if 'c_symbol' in data:
+                    if "c_symbol" in data:
                         # This is market data - call the data callback
-                        self.logger.info(f"Received market data for symbol: {data.get('c_symbol')} on exchange: {data.get('c_exch_seg')}")
+                        self.logger.info(
+                            f"Received market data for symbol: {data.get('c_symbol')} on exchange: {data.get('c_exch_seg')}"
+                        )
                         if self.on_data:
                             self.on_data(wsapp, data)
                         return
 
                     # Log any other message types we receive
-                    self.logger.info(f"Received other message type: {list(data.keys())}")
+                    self.logger.info(
+                        f"Received other message type: {list(data.keys())}"
+                    )
 
                     # Handle other message types
                     if self.on_message:
@@ -327,7 +359,9 @@ class FirstockWebSocket:
                         self.on_message(wsapp, message)
             else:
                 # Handle binary messages (if any)
-                self.logger.info(f"Received binary message of length: {len(message) if hasattr(message, '__len__') else 'unknown'}")
+                self.logger.info(
+                    f"Received binary message of length: {len(message) if hasattr(message, '__len__') else 'unknown'}"
+                )
                 if self.on_data:
                     self.on_data(wsapp, message)
 
@@ -354,7 +388,9 @@ class FirstockWebSocket:
         if self.ping_thread:
             self.ping_thread = None
 
-        self.logger.info(f"Firstock WebSocket connection closed: {close_status_code} - {close_msg}")
+        self.logger.info(
+            f"Firstock WebSocket connection closed: {close_status_code} - {close_msg}"
+        )
 
         if self.on_close:
             try:
@@ -367,11 +403,15 @@ class FirstockWebSocket:
         if self.is_running and self.current_retry_attempt < self.max_retry_attempt:
             self.current_retry_attempt += 1
             if self.current_retry_attempt < self.max_retry_attempt:
-                self.logger.info(f"Attempting to reconnect (attempt {self.current_retry_attempt + 1})...")
+                self.logger.info(
+                    f"Attempting to reconnect (attempt {self.current_retry_attempt + 1})..."
+                )
                 time.sleep(self.retry_delay)  # Wait before reconnecting
                 threading.Thread(target=self._run_websocket, daemon=True).start()
             else:
-                self.logger.error("Max retry attempts reached. Stopping reconnection attempts.")
+                self.logger.error(
+                    "Max retry attempts reached. Stopping reconnection attempts."
+                )
                 self.is_running = False
 
     def _on_pong(self, wsapp, message):
@@ -386,7 +426,9 @@ class FirstockWebSocket:
                 # Check if we've received a pong recently
                 time_since_pong = time.time() - self.last_pong_time
                 if time_since_pong > 40:  # No pong for 40 seconds
-                    self.logger.warning("No pong received for 40 seconds, connection may be dead")
+                    self.logger.warning(
+                        "No pong received for 40 seconds, connection may be dead"
+                    )
                     if self.wsapp:
                         self.wsapp.close()
                     break
@@ -407,7 +449,7 @@ class FirstockWebSocket:
             self.CONNECTING: "CONNECTING",
             self.CONNECTED: "CONNECTED",
             self.DISCONNECTED: "DISCONNECTED",
-            self.ERROR: "ERROR"
+            self.ERROR: "ERROR",
         }
         return states.get(self.connection_state, "UNKNOWN")
 
@@ -420,14 +462,18 @@ class FirstockWebSocket:
         if not self.pending_subscriptions:
             return
 
-        self.logger.info(f"Processing {len(self.pending_subscriptions)} pending subscriptions")
+        self.logger.info(
+            f"Processing {len(self.pending_subscriptions)} pending subscriptions"
+        )
 
         # Process all pending subscriptions
         for correlation_id, mode, token_list in self.pending_subscriptions:
             try:
                 self.subscribe(correlation_id, mode, token_list)
             except Exception as e:
-                self.logger.error(f"Error processing pending subscription {correlation_id}: {e}")
+                self.logger.error(
+                    f"Error processing pending subscription {correlation_id}: {e}"
+                )
 
         # Clear the pending list
         self.pending_subscriptions.clear()
