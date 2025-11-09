@@ -5,14 +5,17 @@ import time as time_module
 import uuid
 from collections import deque
 from datetime import datetime
+from json import JSONDecodeError
 
 import pytz
 import requests
 from app.utils.session import check_session_validity_fastapi
 from app.web.frontend import templates
+from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -105,7 +108,7 @@ def process_orders():
                         logger.error(
                             f'Error placing smart order for {smart_order["payload"]["symbol"]}: {response.text}'
                         )
-                except Exception as e:
+                except requests.RequestException as e:
                     logger.error(f"Error placing smart order: {str(e)}")
 
                 # Always wait 1 second after smart order
@@ -145,7 +148,7 @@ def process_orders():
                             logger.error(
                                 f'Error placing regular order for {regular_order["payload"]["symbol"]}: {response.text}'
                             )
-                    except Exception as e:
+                    except requests.RequestException as e:
                         logger.error(f"Error placing regular order: {str(e)}")
 
                 except queue.Empty:
@@ -321,12 +324,12 @@ async def index(
         )
     except HTTPException:
         raise  # Re-raise HTTPException from dependency
-    except Exception as e:
-        logger.error(f"Error in index route: {str(e)}")
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in index route: {str(e)}")
         # In FastAPI, we raise HTTPException directly instead of flash and redirect
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error loading strategies",
+            detail="Error loading strategies due to a database issue.",
         )
 
 
@@ -427,11 +430,11 @@ async def new_strategy_post(
 
     except HTTPException:
         raise  # Re-raise HTTPException from dependency or above
-    except Exception as e:
-        logger.error(f"Error creating strategy: {str(e)}")
+    except SQLAlchemyError as e:
+        logger.error(f"Database error creating strategy: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error creating strategy",
+            detail="Error creating strategy due to a database issue.",
         )
 
 
@@ -484,7 +487,7 @@ async def toggle_strategy_route(
                 # Remove squareoff job if being deactivated
                 try:
                     scheduler.remove_job(f"squareoff_{strategy_id}")
-                except Exception:
+                except JobLookupError:
                     pass
 
             return RedirectResponse(
@@ -500,10 +503,10 @@ async def toggle_strategy_route(
             )
     except HTTPException:
         raise
-    except Exception as e:
+    except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error toggling strategy: {str(e)}",
+            detail=f"Error toggling strategy due to a database issue: {str(e)}",
         )
 
 
@@ -535,7 +538,7 @@ async def delete_strategy_route(
         # Remove squareoff job if exists
         try:
             scheduler.remove_job(f"squareoff_{strategy_id}")
-        except Exception:
+        except JobLookupError:
             pass
 
         if delete_strategy(strategy_id):
@@ -547,10 +550,10 @@ async def delete_strategy_route(
             )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error deleting strategy {strategy_id}: {str(e)}")
+    except SQLAlchemyError as e:
+        logger.error(f"Database error deleting strategy {strategy_id}: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error deleting strategy: {str(e)}"
         )
 
 
@@ -701,10 +704,16 @@ async def configure_symbols_post(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except (ValueError, JSONDecodeError) as e:
         error_msg = str(e)
-        logger.error(f"Error configuring symbols: {error_msg}")
+        logger.warning(f"Invalid data for symbol configuration: {error_msg}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    except SQLAlchemyError as e:
+        logger.error(f"Database error configuring symbols: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="A database error occurred while configuring symbols.",
+        )
 
 
 @strategy_router.post(
@@ -738,9 +747,9 @@ async def delete_symbol(
             )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error deleting symbol mapping: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except SQLAlchemyError as e:
+        logger.error(f"Database error deleting symbol mapping: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error deleting symbol mapping")
 
 
 @strategy_router.get("/search", response_class=JSONResponse)
@@ -973,9 +982,9 @@ async def webhook(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except (SQLAlchemyError, JSONDecodeError, ValueError) as e:
         logger.error(f"Error processing webhook: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid data or internal error: {str(e)}",
         )

@@ -21,7 +21,7 @@ import psutil
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from fastapi import (
     APIRouter,
     Depends,
@@ -39,7 +39,10 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from apscheduler.jobstores.base import JobLookupError
+from json import JSONDecodeError
 
 from app.utils.session import check_session_validity_fastapi
 
@@ -96,7 +99,7 @@ def load_configs():
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 STRATEGY_CONFIGS = json.load(f)
             logger.info(f"Loaded {len(STRATEGY_CONFIGS)} strategy configurations")
-        except Exception as e:
+        except (OSError, JSONDecodeError) as e:
             logger.error(f"Failed to load configs: {e}")
             STRATEGY_CONFIGS = {}
 
@@ -108,7 +111,7 @@ def save_configs():
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(STRATEGY_CONFIGS, f, indent=2, default=str, ensure_ascii=False)
         logger.info("Configurations saved")
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to save configs: {e}")
 
 
@@ -135,7 +138,7 @@ def ensure_directories():
             logger.warning(
                 f"Using temporary directories due to permission issues: {temp_base}"
             )
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to create directories: {e}")
         # Continue anyway, individual operations will handle missing directories
 
@@ -175,7 +178,7 @@ def load_env_variables(strategy_id: str):
             with open(ENV_FILE, "r", encoding="utf-8") as f:
                 all_env = json.load(f)
                 env_vars.update(all_env.get(strategy_id, {}))
-        except Exception as e:
+        except (OSError, JSONDecodeError) as e:
             logger.error(f"Failed to load env variables: {e}")
 
     # Load secure environment variables
@@ -186,7 +189,7 @@ def load_env_variables(strategy_id: str):
                 decrypted_data = CIPHER_SUITE.decrypt(encrypted_data)
                 secure_env = json.loads(decrypted_data.decode("utf-8"))
                 env_vars.update(secure_env.get(strategy_id, {}))
-        except Exception as e:
+        except (OSError, InvalidToken, JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to load secure env variables: {e}")
 
     return env_vars
@@ -204,7 +207,7 @@ def save_env_variables(
         try:
             with open(ENV_FILE, "r", encoding="utf-8") as f:
                 all_env = json.load(f)
-        except Exception as e:
+        except (OSError, JSONDecodeError) as e:
             logger.error(f"Error loading environment variables: {e}")
             pass
 
@@ -223,7 +226,7 @@ def save_env_variables(
                     encrypted_data = f.read()
                     decrypted_data = CIPHER_SUITE.decrypt(encrypted_data)
                     all_secure = json.loads(decrypted_data.decode("utf-8"))
-            except Exception as e:
+            except (OSError, InvalidToken, JSONDecodeError, ValueError) as e:
                 logger.error(f"Error loading secure environment variables: {e}")
                 pass
 
@@ -259,7 +262,7 @@ async def get_active_broker(db: AsyncSession):
         if auth_obj:
             return auth_obj.broker
         return None
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Error getting active broker: {e}")
         return None
 
@@ -292,9 +295,9 @@ async def check_master_contract_ready(
         else:
             return False, f"Master contracts not ready for broker: {broker}"
 
-    except Exception as e:
-        logger.error(f"Error checking master contract readiness: {e}")
-        return False, f"Error checking master contract readiness: {str(e)}"
+    except SQLAlchemyError as e:
+        logger.error(f"Database error checking master contract readiness: {e}")
+        return False, f"Database error checking master contract readiness: {str(e)}"
 
 
 def get_ist_time():
@@ -345,7 +348,7 @@ def create_subprocess_args():
         # Try to create new session for better process control
         try:
             args["start_new_session"] = True  # Create new process group
-        except Exception as e:
+        except AttributeError as e:
             logger.warning(f"Could not set start_new_session: {e}")
 
     return args
@@ -384,7 +387,7 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                 )
                 try:
                     os.chmod(file_path, 0o755)
-                except Exception as e:
+                except OSError as e:
                     logger.warning(f"Could not set execute permission: {e}")
 
         # Check if master contracts are ready before starting strategy
@@ -406,7 +409,7 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                 try:
                     # Ensure log directory is writable
                     os.chmod(log_file.parent, 0o755)
-                except Exception as e:
+                except OSError as e:
                     logger.warning(
                         f"Could not set permissions for log directory {log_file.parent}: {e}"
                     )
@@ -429,7 +432,7 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                     False,
                     "Permission denied creating log file. Check directory permissions.",
                 )
-            except Exception as e:
+            except OSError as e:
                 logger.error(f"Error creating log file: {e}")
                 return False, f"Error creating log file: {str(e)}"
 
@@ -486,7 +489,7 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                 else:
                     logger.error(f"OS error starting process: {e}")
                     return False, f"OS error: {str(e)}"
-            except Exception as e:
+            except (ValueError, subprocess.SubprocessError) as e:
                 log_handle.close()
                 logger.error(f"Unexpected error starting process: {e}")
                 return False, f"Failed to start process: {str(e)}"
@@ -518,7 +521,7 @@ async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Re
                 f"Strategy started with PID {process.pid} at {ist_now.strftime('%H:%M:%S IST')}",
             )
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to start strategy {strategy_id}: {e}")
             return False, f"Failed to start strategy: {str(e)}"
 
@@ -540,7 +543,7 @@ def stop_strategy_process(strategy_id: str):
                         ] = get_ist_time().isoformat()
                         save_configs()
                         return True, "Strategy stopped"
-                    except Exception as e:
+                    except psutil.Error as e:
                         logger.error(
                             f"Error stopping orphaned process {pid} for strategy {strategy_id}: {e}"
                         )
@@ -631,7 +634,7 @@ def stop_strategy_process(strategy_id: str):
             )
             return True, f"Strategy stopped at {ist_now.strftime('%H:%M:%S IST')}"
 
-        except Exception as e:
+        except (psutil.Error, subprocess.SubprocessError, OSError) as e:
             logger.error(f"Failed to stop strategy {strategy_id}: {e}")
             return False, f"Failed to stop strategy: {str(e)}"
 
@@ -662,7 +665,7 @@ def terminate_process_cross_platform(pid: int):
 
     except psutil.NoSuchProcess:
         pass  # Process already dead
-    except Exception as e:
+    except psutil.Error as e:
         logger.error(f"Error terminating process {pid}: {e}")
 
 
@@ -704,7 +707,7 @@ def cleanup_dead_processes():
                     pid = info.get("pid")
                     if pid and not psutil.pid_exists(pid):
                         is_dead = True
-                except Exception as e:
+                except psutil.Error as e:
                     logger.error(
                         f"Error checking PID {pid} for strategy {strategy_id}: {e}"
                     )
@@ -716,7 +719,7 @@ def cleanup_dead_processes():
                 if "log_handle" in info and info["log_handle"]:
                     try:
                         info["log_handle"].close()
-                    except Exception as e:
+                    except OSError as e:
                         logger.error(
                             f"Error closing log handle for dead strategy {strategy_id}: {e}"
                         )
@@ -867,13 +870,13 @@ async def initialize_with_app_context(db: AsyncSession, request: Request):
                         logger.info(
                             f"Restored schedule for strategy {strategy_id} at {start_time} IST"
                         )
-                    except Exception as e:
+                    except (ValueError, JobLookupError) as e:
                         logger.error(
                             f"Failed to restore schedule for {strategy_id}: {e}"
                         )
 
         logger.info(f"Python Strategy System fully initialized on {OS_TYPE}")
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.warning(
             f"Deferred initialization skipped (likely no app context yet): {e}"
         )
@@ -999,7 +1002,7 @@ async def new_strategy_post(
         content = await strategy_file.read()
         with open(file_path, "wb") as f:
             f.write(content)
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to save uploaded file: {e}")
         return templates.TemplateResponse(
             "python_strategy/new.html",
@@ -1015,7 +1018,7 @@ async def new_strategy_post(
     if not IS_WINDOWS:
         try:
             os.chmod(file_path, 0o755)
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Could not set execute permission for {file_path}: {e}")
             pass
 
@@ -1086,7 +1089,7 @@ async def schedule_strategy_route(strategy_id: str, data: Dict[str, Any], db: As
         if stop_time:
             schedule_info += f" - {stop_time} IST"
         return JSONResponse({"success": True, "message": schedule_info})
-    except Exception as e:
+    except (ValueError, JobLookupError) as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1110,7 +1113,7 @@ async def unschedule_strategy_route(strategy_id: str):
         return JSONResponse(
             {"success": True, "message": "Schedule removed successfully"}
         )
-    except Exception as e:
+    except JobLookupError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1137,7 +1140,7 @@ async def delete_strategy(strategy_id: str):
             if file_path.exists():
                 try:
                     file_path.unlink()
-                except Exception as e:
+                except OSError as e:
                     logger.error(f"Failed to delete file {file_path}: {e}")
 
             # Remove from configs
@@ -1172,7 +1175,7 @@ async def view_logs(strategy_id: str, request: Request, latest: Optional[bool] =
                     ),
                 }
             )
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error reading log files: {e}")
 
     # Sort by modified time (newest first)
@@ -1185,7 +1188,7 @@ async def view_logs(strategy_id: str, request: Request, latest: Optional[bool] =
         try:
             with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
                 log_content = f.read()
-        except Exception as e:
+        except OSError as e:
             log_content = f"Error reading log file: {e}"
 
     return templates.TemplateResponse(
@@ -1223,7 +1226,7 @@ async def clear_logs(strategy_id: str):
         for log_file in log_files:
             try:
                 total_size += log_file.stat().st_size
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Could not get size of log file {log_file.name}: {e}")
                 pass
 
@@ -1255,7 +1258,7 @@ async def clear_logs(strategy_id: str):
 
                 cleared_count += 1
 
-            except Exception as e:
+            except OSError as e:
                 logger.error(f"Error clearing log file {log_file.name}: {e}")
 
         if cleared_count > 0:
@@ -1276,7 +1279,7 @@ async def clear_logs(strategy_id: str):
                 {"success": False, "message": "No log files were cleared"}
             )
 
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error clearing logs for strategy {strategy_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing logs: {str(e)}")
 
@@ -1311,7 +1314,7 @@ async def clear_error_state(strategy_id: str):
             {"success": True, "message": "Error state cleared successfully"}
         )
 
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to clear error state for {strategy_id}: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to clear error state: {str(e)}"
@@ -1358,10 +1361,10 @@ async def check_contracts_route(db: AsyncSession = Depends(get_db), request: Req
     try:
         success, message = await check_and_start_pending_strategies(db, request)
         return JSONResponse({"success": success, "message": message})
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Error checking contracts: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Error checking contracts: {str(e)}"
+            status_code=500, detail=f"Database error checking contracts: {str(e)}"
         )
 
 
@@ -1395,7 +1398,7 @@ async def edit_strategy(strategy_id: str, request: Request):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-    except Exception:
+    except OSError:
         return RedirectResponse(
             url=python_strategy_router.url_path_for("index"),
             status_code=status.HTTP_303_SEE_OTHER,
@@ -1450,7 +1453,7 @@ async def export_strategy(strategy_id: str):
             headers={"Content-Disposition": f"attachment; filename={file_path.name}"},
         )
 
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to export strategy {strategy_id}: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to export strategy: {str(e)}"
@@ -1508,7 +1511,7 @@ async def save_strategy(strategy_id: str, data: Dict[str, Any]):
             }
         )
 
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Failed to save strategy {strategy_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to save: {str(e)}")
 
@@ -1542,7 +1545,7 @@ async def manage_env_variables_get(strategy_id: str):
                     decrypted_data = CIPHER_SUITE.decrypt(encrypted_data)
                     secure_env = json.loads(decrypted_data.decode("utf-8"))
                     secure_keys = list(secure_env.get(strategy_id, {}).keys())
-            except Exception as e:
+            except (OSError, InvalidToken, JSONDecodeError, ValueError) as e:
                 logger.error(f"Failed to load secure env keys: {e}")
 
         return JSONResponse(
@@ -1555,7 +1558,7 @@ async def manage_env_variables_get(strategy_id: str):
             }
         )
 
-    except Exception as e:
+    except (OSError, JSONDecodeError, InvalidToken) as e:
         logger.error(f"Failed to load env variables: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to load variables: {str(e)}"
@@ -1607,7 +1610,7 @@ async def manage_env_variables_post(strategy_id: str, data: Dict[str, Any]):
             }
         )
 
-    except Exception as e:
+    except (OSError, JSONDecodeError, InvalidToken) as e:
         logger.error(f"Failed to save env variables: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to save variables: {str(e)}"
@@ -1622,7 +1625,7 @@ def cleanup_on_exit():
         for strategy_id in list(RUNNING_STRATEGIES.keys()):
             try:
                 stop_strategy_process(strategy_id)
-            except Exception as e:
+            except (psutil.Error, subprocess.SubprocessError, OSError) as e:
                 logger.error(f"Error during cleanup of strategy {strategy_id}: {e}")
                 pass
     logger.info("Cleanup complete")
@@ -1718,7 +1721,7 @@ async def restore_strategy_states(db: AsyncSession, request: Request):
                 logger.debug(
                     f"Process {pid} for strategy {strategy_id} no longer exists"
                 )
-            except Exception as e:
+            except psutil.Error as e:
                 logger.error(
                     f"Error checking process {pid} for strategy {strategy_id}: {e}"
                 )
@@ -1742,7 +1745,7 @@ async def restore_strategy_states(db: AsyncSession, request: Request):
                             f"Failed to restart strategy {strategy_id}: {message}"
                         )
                         error_count += 1
-                except Exception as e:
+                except (psutil.Error, SQLAlchemyError, OSError, JSONDecodeError, InvalidToken, ValueError, subprocess.SubprocessError) as e:
                     # Mark as error state
                     config["is_running"] = False
                     config["is_error"] = True

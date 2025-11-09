@@ -2,7 +2,6 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
-from app.core.schemas.auth_db import get_feed_token
 from app.core.schemas import get_db
 from app.core.schemas.token_db import get_br_symbol
 from app.web.brokers.fivepaisaxts.baseurl import MARKET_DATA_URL
@@ -72,11 +71,11 @@ def get_api_response(
 
 
 class BrokerData:
-    def __init__(self, auth_token, feed_token=None, user_id=None):
-        """Initialize FivepaisaXTS data handler with authentication token"""
+    def __init__(self, auth_token, user_id, feed_token):
+        """Initialize FivepaisaXTS data handler with authentication token, user ID, and feed token"""
         self.auth_token = auth_token
-        self.feed_token = feed_token
         self.user_id = user_id
+        self.feed_token = feed_token
 
         # Map common timeframe format to FivepaisaXTS intervals
         self.timeframe_map = {
@@ -134,7 +133,7 @@ class BrokerData:
 
         return symbol_info, brexchange
 
-    def _fetch_market_data(self, token: dict, message_code: int) -> dict:
+    def _fetch_market_data(self, token: dict, message_code: int, feed_token: str) -> dict:
         """
         Helper method to fetch market data from FivepaisaXTS API
         Args:
@@ -155,7 +154,7 @@ class BrokerData:
                 self.auth_token,
                 method="POST",
                 payload=payload,
-                feed_token=self.feed_token,
+                feed_token=feed_token,
             )
 
             if not response or response.get("type") != "success":
@@ -209,14 +208,14 @@ class BrokerData:
             }
 
             # Fetch market data (xtsMessageCode 1502)
-            market_data = self._fetch_market_data(token, 1502)
+            market_data = self._fetch_market_data(token, 1502, self.feed_token)
             if not market_data:
                 raise Exception("Failed to fetch market data")
 
             # Fetch Open Interest data (xtsMessageCode 1510) - non-blocking
             oi_data = None
             try:
-                oi_data = self._fetch_market_data(token, 1510)
+                oi_data = self._fetch_market_data(token, 1510, self.feed_token)
             except Exception as e:
                 logger.warning(f"Failed to fetch OI data: {str(e)}")
 
@@ -245,7 +244,7 @@ class BrokerData:
             logger.error(f"Error fetching quotes: {str(e)}")
             raise Exception(f"Error fetching quotes: {str(e)}")
 
-    def get_history(self, symbol, exchange, timeframe, from_date, to_date):
+    def get_history(self, symbol, exchange, timeframe, from_date, to_date, feed_token):
         """Get historical data for a symbol"""
         try:
             db = next(get_db())
@@ -342,7 +341,7 @@ class BrokerData:
                     "/instruments/ohlc",
                     self.auth_token,
                     method="GET",
-                    feed_token=self.feed_token,
+                    feed_token=feed_token,
                     params=params,
                 )
 
@@ -534,71 +533,29 @@ class BrokerData:
         """
         return ["1s", "1m", "2m", "3m", "5m", "10m", "15m", "30m", "60m", "D"]
 
-    def get_market_depth(self, symbol: str, exchange: str) -> dict:
+    def get_market_depth(self, symbol: str, exchange: str, user_id: str, feed_token: str) -> dict:
         """
         Get market depth for given symbol via REST API
         Args:
             symbol: Trading symbol
             exchange: Exchange (e.g., NSE, BSE)
+            user_id: The user ID associated with the request
+            feed_token: The feed token for authentication
         Returns:
             dict: Market depth data
         """
         try:
             logger.info("=== Starting Market Depth Request ===")
-            logger.info(f"Symbol: {symbol}, Exchange: {exchange}")
+            logger.info(f"Symbol: {symbol}, Exchange: {exchange}, User ID: {user_id}")
             db = next(get_db())
-            # Get feed token and user ID for request
-            user_id = None
-            feed_token = None
 
-            # First check if we have user ID in the instance
-            if hasattr(self, "user_id") and self.user_id:
-                user_id = self.user_id
-                logger.debug(f"Using instance user_id: {user_id}")
-
-            # Try to get from session if not found in instance
-            if (
-                not user_id
-                and hasattr(session, "marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-                and session.get("marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-            ):
-                user_id = session.get("marketdata_userid") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-                logger.debug(f"Using session user_id: {user_id}")
-
-            # If no user ID is available, use the one from feed token authentication
-            if not user_id and self.user_id:
-                user_id = self.user_id
-                logger.debug(f"Using feed token auth user_id: {user_id}")
-
-            if not user_id:
-                logger.error("No user ID available for market depth request")
+            if not user_id or not feed_token:
+                logger.error("User ID or Feed Token is missing for market depth request")
                 return None
 
-            # Get feed token from instance
-            if hasattr(self, "feed_token") and self.feed_token:
-                feed_token = self.feed_token
-                logger.debug("Using instance feed_token")
-
-            # Try to get from session if not found in instance
-
-            # If still no feed token, try to get a new one
-            if not feed_token:
-                logger.info("No feed token available, attempting to get one")
-                feed_token, new_user_id, error = get_feed_token()
-                if error:
-                    logger.error(f"Failed to get feed token: {error}")
-                    raise Exception(f"Failed to get feed token: {error}")
-                if not user_id and new_user_id:
-                    user_id = new_user_id
-                    logger.info(f"Got new user_id from feed token: {user_id}")
-
-            # Log the user ID and feed token we're using
             logger.info(f"Using user ID: {user_id}")
-            logger.info(
-                f"Using feed token: {feed_token[:20]}..."
-                if feed_token
-                else "No feed token available"
-            )
+            logger.info(f"Using feed token: {feed_token[:20]}..." if feed_token else "No feed token available")
+
 
             # Exchange segment mapping
             exchange_segment_map = {
@@ -652,7 +609,7 @@ class BrokerData:
             }
 
             # Fetch market data (xtsMessageCode 1502)
-            market_data = self._fetch_market_data(token, 1502)
+            market_data = self._fetch_market_data(token, 1502, feed_token)
             if not market_data:
                 logger.error("Failed to fetch market data for depth")
                 raise Exception("Failed to fetch market data")
@@ -660,7 +617,7 @@ class BrokerData:
             # Fetch Open Interest data (xtsMessageCode 1510) - non-blocking
             oi = 0
             try:
-                oi_data = self._fetch_market_data(token, 1510)
+                oi_data = self._fetch_market_data(token, 1510, feed_token)
                 if oi_data and "OpenInterest" in oi_data:
                     oi = oi_data["OpenInterest"]
                     logger.debug(f"Fetched OI for depth: {oi}")
@@ -716,25 +673,6 @@ class BrokerData:
             logger.info("Returning empty market depth structure")
             return empty_depth
 
-        except Exception as e:
-            logger.error(f"Error in get_market_depth: {str(e)}", exc_info=True)
-            # Return empty structure on error
-            empty_depth = {
-                "bids": [{"price": 0, "quantity": 0} for _ in range(5)],
-                "asks": [{"price": 0, "quantity": 0} for _ in range(5)],
-                "totalbuyqty": 0,
-                "totalsellqty": 0,
-                "ltp": 0,
-                "ltq": 0,
-                "volume": 0,
-                "open": 0,
-                "high": 0,
-                "low": 0,
-                "prev_close": 0,
-                "oi": 0,
-            }
-            logger.info("Returning empty market depth structure due to error")
-            return empty_depth
 
     def get_depth(self, symbol: str, exchange: str) -> dict:
         """Alias for get_market_depth to maintain compatibility with common API"""
