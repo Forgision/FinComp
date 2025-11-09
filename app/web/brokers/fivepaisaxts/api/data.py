@@ -580,13 +580,6 @@ class BrokerData:
                 logger.debug("Using instance feed_token")
 
             # Try to get from session if not found in instance
-            if (
-                not feed_token
-                and hasattr(session, "marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-                and session.get("marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-            ):
-                feed_token = session.get("marketdata_token") # type: ignore  # noqa: F821 #TODO: Undefined name `session`
-                logger.debug("Using session feed_token")
 
             # If still no feed token, try to get a new one
             if not feed_token:

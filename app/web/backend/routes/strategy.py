@@ -47,7 +47,7 @@ scheduler = BackgroundScheduler(
 scheduler.start()
 
 # Get base URL from environment or default to localhost
-BASE_URL = settings.HOST_SERVER  # TODO: Update this to reflect FastAPI server URL
+BASE_URL = settings.HOST_SERVER
 
 # Valid exchanges
 VALID_EXCHANGES = ["NSE", "BSE", "NFO", "CDS", "BFO", "BCD", "MCX", "NCDEX"]

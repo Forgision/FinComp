@@ -4,6 +4,9 @@ from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+import numpy as np
 
 from app.core.config import settings
 from app.utils.logging import logger
@@ -226,3 +229,49 @@ async def get_latency_stats():
             "p99_rtt": 0,
             "broker_stats": {},
         }
+
+
+async def get_histogram_data(db: AsyncSession, broker: str = None):
+    """Get histogram data for RTT distribution"""
+    try:
+        query = select(OrderLatency.rtt_ms)
+        if broker:
+            query = query.filter(OrderLatency.broker == broker)
+
+        # Get all RTT values
+        rtts = [r[0] for r in (await db.execute(query)).scalars().all()]
+
+        if not rtts:
+            return {"bins": [], "counts": [], "avg_rtt": 0, "min_rtt": 0, "max_rtt": 0}
+
+        # Calculate statistics
+        avg_rtt = sum(rtts) / len(rtts)
+        min_rtt = min(rtts)
+        max_rtt = max(rtts)
+
+        # Create histogram bins
+        bin_count = 30  # Number of bins
+
+        # Create histogram using numpy
+        counts, bins = np.histogram(rtts, bins=bin_count, range=(min_rtt, max_rtt))
+
+        # Convert to list for JSON serialization
+        counts = counts.tolist()
+        bins = bins.tolist()
+
+        # Create bin labels (use the start of each bin)
+        bin_labels = [f"{bins[i]:.1f}" for i in range(len(bins) - 1)]
+
+        data = {
+            "bins": bin_labels,
+            "counts": counts,
+            "avg_rtt": float(avg_rtt),
+            "min_rtt": float(min_rtt),
+            "max_rtt": float(max_rtt),
+        }
+
+        return data
+
+    except Exception as e:
+        logger.error(f"Error getting histogram data: {e}")
+        return {"bins": [], "counts": [], "avg_rtt": 0, "min_rtt": 0, "max_rtt": 0}

@@ -14,7 +14,6 @@ import subprocess
 import sys
 import threading
 from datetime import datetime
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -39,15 +38,14 @@ from fastapi.responses import (
     RedirectResponse,
     StreamingResponse,
 )
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.session import check_session_validity_fastapi
 
 from app.web.frontend import templates
 from app.core.schemas.auth_db import Auth as DBAuth
-from app.core.schemas.master_contract_status_db import (
-    MasterContractStatus as DBMasterContractStatus,
-)
+from app.core.schemas.master_contract_status_db import check_if_ready
 
 # FastAPI specific imports
 from app.core.schemas import get_db
@@ -250,12 +248,14 @@ async def get_active_broker(db: AsyncSession):
     """Get the active broker from app.core.schemas (last logged in user's broker)"""
     try:
         # Get the most recent auth entry (last logged in user)
-        auth_obj = (
-            await db.query(DBAuth)
+        stmt = (
+            select(DBAuth)
             .filter_by(is_revoked=False)
             .order_by(DBAuth.id.desc())
-            .first()
         )
+        result = await db.execute(stmt)
+        auth_obj = result.scalars().first()
+
         if auth_obj:
             return auth_obj.broker
         return None
@@ -264,8 +264,8 @@ async def get_active_broker(db: AsyncSession):
         return None
 
 
-def check_master_contract_ready(
-    db: Session, request: Request, skip_on_startup: bool = False
+async def check_master_contract_ready(
+    db: AsyncSession, request: Request, skip_on_startup: bool = False
 ):
     """Check if master contracts are ready for the current broker"""
     try:
@@ -274,7 +274,7 @@ def check_master_contract_ready(
 
         # If no session broker, try to get from app.core.schemas (for app restart scenarios)
         if not broker:
-            broker = get_active_broker(db)
+            broker = await get_active_broker(db)
 
         if not broker:
             # During startup, we may not have a broker yet, so skip the check
@@ -286,7 +286,7 @@ def check_master_contract_ready(
             logger.warning("No broker found for master contract check")
             return False, "No broker session found"
 
-        is_ready = DBMasterContractStatus.check_if_ready(db, broker)
+        is_ready = await check_if_ready(db, broker)
         if is_ready:
             return True, "Master contracts ready"
         else:
@@ -351,7 +351,7 @@ def create_subprocess_args():
     return args
 
 
-def start_strategy_process(strategy_id: str, db: Session, request: Request):
+async def start_strategy_process(strategy_id: str, db: AsyncSession, request: Request):
     """Start a strategy in a new process - cross-platform implementation"""
     with PROCESS_LOCK:  # Thread-safe operation
         if strategy_id in RUNNING_STRATEGIES:
@@ -388,7 +388,7 @@ def start_strategy_process(strategy_id: str, db: Session, request: Request):
                     logger.warning(f"Could not set execute permission: {e}")
 
         # Check if master contracts are ready before starting strategy
-        contracts_ready, contract_message = check_master_contract_ready(db, request)
+        contracts_ready, contract_message = await check_master_contract_ready(db, request)
         if not contracts_ready:
             logger.warning(f"Cannot start strategy {strategy_id}: {contract_message}")
             return False, f"Master contract dependency not met: {contract_message}"
@@ -734,6 +734,7 @@ def cleanup_dead_processes():
 
 
 def schedule_strategy(
+    db: AsyncSession,
     strategy_id: str,
     start_time: str,
     stop_time: Optional[str] = None,
@@ -758,7 +759,8 @@ def schedule_strategy(
     if SCHEDULER:
         # Pass a partial function to func to defer db and request resolution to call time
         SCHEDULER.add_job(
-            func=partial(start_strategy_process_for_scheduler, strategy_id),
+            func=start_strategy_process_for_scheduler,
+            args=[db, strategy_id],
             trigger=CronTrigger(
                 hour=hour, minute=minute, day_of_week=",".join(days), timezone=IST
             ),
@@ -791,20 +793,16 @@ def schedule_strategy(
     )
 
 
-def start_strategy_process_for_scheduler(strategy_id: str):
+async def start_strategy_process_for_scheduler(db: AsyncSession, strategy_id: str):
     """Wrapper for start_strategy_process to be used by APScheduler."""
     # APScheduler jobs run in a background thread, outside of a FastAPI request context.
-    # We need to manually create a DB session and a dummy request object.
-    db = next(get_db())
     # Create a dummy request object for check_master_contract_ready
     # This is a simplified version and might need more attributes depending on usage
     dummy_request = Request({"type": "http", "scope": {"session": {}}})
-    try:
-        success, message = start_strategy_process(strategy_id, db, dummy_request)
-        if not success:
-            logger.error(f"Scheduled start of strategy {strategy_id} failed: {message}")
-    finally:
-        db.close()
+    success, message = await start_strategy_process(strategy_id, db, dummy_request)
+    if not success:
+        logger.error(f"Scheduled start of strategy {strategy_id} failed: {message}")
+    
 
 
 def unschedule_strategy(strategy_id: str):
@@ -824,15 +822,15 @@ def unschedule_strategy(strategy_id: str):
     logger.info(f"Unscheduled strategy {strategy_id}")
 
 
-def restore_strategies_after_login(db: Session, request: Request | None = None):
+async def restore_strategies_after_login(db: AsyncSession, request: Request | None = None):
     """Called after successful login to restore strategies that were waiting"""
     logger.info("Checking for strategies to restore after login...")
 
     # Re-run restore_strategy_states now that we have a proper session
-    restore_strategy_states(db, request)
+    await restore_strategy_states(db, request)
 
     # Then check and start any pending strategies
-    success, message = check_and_start_pending_strategies(db, request)
+    success, message = await check_and_start_pending_strategies(db, request)
     logger.info(f"Post-login strategy restoration: {message}")
     return success, message
 
@@ -846,7 +844,7 @@ init_scheduler()
 _initialized = False
 
 
-def initialize_with_app_context(db: Session, request: Request):
+async def initialize_with_app_context(db: AsyncSession, request: Request):
     """Initialize components that require app context/database access"""
     global _initialized
     if _initialized:
@@ -855,7 +853,7 @@ def initialize_with_app_context(db: Session, request: Request):
 
     try:
         # Now safe to restore strategy states (requires database)
-        restore_strategy_states(db, request)
+        await restore_strategy_states(db, request)
 
         # Restore scheduled strategies
         for strategy_id, config in STRATEGY_CONFIGS.items():
@@ -865,7 +863,7 @@ def initialize_with_app_context(db: Session, request: Request):
                 days = config.get("schedule_days", ["mon", "tue", "wed", "thu", "fri"])
                 if start_time:
                     try:
-                        schedule_strategy(strategy_id, start_time, stop_time, days)
+                        schedule_strategy(db, strategy_id, start_time, stop_time, days)
                         logger.info(
                             f"Restored schedule for strategy {strategy_id} at {start_time} IST"
                         )
@@ -893,10 +891,10 @@ def initialize_with_app_context(db: Session, request: Request):
     dependencies=[Depends(check_session_validity_fastapi)],
     name="python_strategy_bp.index",
 )
-async def index(request: Request, db: Session = Depends(get_db)):
+async def index(request: Request, db: AsyncSession = Depends(get_db)):
     """Main dashboard"""
     # Ensure initialization is done when first accessed
-    initialize_with_app_context(db, request)
+    await initialize_with_app_context(db, request)
     cleanup_dead_processes()
 
     strategies = []
@@ -1042,12 +1040,12 @@ async def new_strategy_post(
     "/start/{strategy_id}", dependencies=[Depends(check_session_validity_fastapi)]
 )
 async def start_strategy(
-    strategy_id: str, db: Session = Depends(get_db), request: Request = None
+    strategy_id: str, db: AsyncSession = Depends(get_db), request: Request = None
 ):
     """Start a strategy"""
     # Ensure initialization is done when starting strategies
-    initialize_with_app_context(db, request)
-    success, message = start_strategy_process(strategy_id, db, request)
+    await initialize_with_app_context(db, request)
+    success, message = await start_strategy_process(strategy_id, db, request)
     return JSONResponse({"success": success, "message": message})
 
 
@@ -1063,7 +1061,7 @@ async def stop_strategy(strategy_id: str):
 @python_strategy_router.post(
     "/schedule/{strategy_id}", dependencies=[Depends(check_session_validity_fastapi)]
 )
-async def schedule_strategy_route(strategy_id: str, data: Dict[str, Any]):
+async def schedule_strategy_route(strategy_id: str, data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
     """Schedule a strategy"""
     if strategy_id not in STRATEGY_CONFIGS:
         raise HTTPException(status_code=404, detail="Strategy not found")
@@ -1083,7 +1081,7 @@ async def schedule_strategy_route(strategy_id: str, data: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Start time is required")
 
     try:
-        schedule_strategy(strategy_id, start_time, stop_time, days)
+        schedule_strategy(db, strategy_id, start_time, stop_time, days)
         schedule_info = f"Scheduled at {start_time} IST"
         if stop_time:
             schedule_info += f" - {stop_time} IST"
@@ -1323,12 +1321,12 @@ async def clear_error_state(strategy_id: str):
 @python_strategy_router.get(
     "/status", dependencies=[Depends(check_session_validity_fastapi)]
 )
-async def status_route(db: Session = Depends(get_db), request: Request = None):
+async def status_route(db: AsyncSession = Depends(get_db), request: Request = None):
     """Get system status"""
     cleanup_dead_processes()
 
     # Check master contract status
-    contracts_ready, contract_message = check_master_contract_ready(db, request)
+    contracts_ready, contract_message = await check_master_contract_ready(db, request)
 
     return JSONResponse(
         {
@@ -1355,10 +1353,10 @@ async def status_route(db: Session = Depends(get_db), request: Request = None):
 @python_strategy_router.post(
     "/check-contracts", dependencies=[Depends(check_session_validity_fastapi)]
 )
-async def check_contracts_route(db: Session = Depends(get_db), request: Request = None):
+async def check_contracts_route(db: AsyncSession = Depends(get_db), request: Request = None):
     """Check master contracts and start pending strategies"""
     try:
-        success, message = check_and_start_pending_strategies(db, request)
+        success, message = await check_and_start_pending_strategies(db, request)
         return JSONResponse({"success": success, "message": message})
     except Exception as e:
         logger.error(f"Error checking contracts: {e}")
@@ -1633,13 +1631,13 @@ def cleanup_on_exit():
 # Register cleanup handler
 
 
-def restore_strategy_states(db: Session, request: Request):
+async def restore_strategy_states(db: AsyncSession, request: Request):
     """Restore strategy states on startup - restart running strategies or mark as error"""
     logger.info("Restoring strategy states from previous session...")
 
     # During startup, we need to be more lenient with master contract checks
     # since the session might not be fully initialized yet
-    contracts_ready, contract_message = check_master_contract_ready(
+    contracts_ready, contract_message = await check_master_contract_ready(
         db, request, skip_on_startup=False
     )
 
@@ -1729,7 +1727,7 @@ def restore_strategy_states(db: Session, request: Request):
             if not strategy_restored:
                 logger.info(f"Attempting to restart strategy {strategy_id}...")
                 try:
-                    success, message = start_strategy_process(strategy_id, db, request)
+                    success, message = await start_strategy_process(strategy_id, db, request)
                     if success:
                         logger.info(f"Successfully restarted strategy {strategy_id}")
                         restored_count += 1
@@ -1768,9 +1766,9 @@ def restore_strategy_states(db: Session, request: Request):
         logger.info("No strategies needed state restoration")
 
 
-def check_and_start_pending_strategies(db: Session, request: Request):
+async def check_and_start_pending_strategies(db: AsyncSession, request: Request):
     """Check if master contracts are ready and start strategies that were waiting"""
-    contracts_ready, contract_message = check_master_contract_ready(db, request)
+    contracts_ready, contract_message = await check_master_contract_ready(db, request)
     if not contracts_ready:
         return False, contract_message
 
@@ -1793,7 +1791,7 @@ def check_and_start_pending_strategies(db: Session, request: Request):
             config.pop("error_message", None)
             config.pop("error_time", None)
 
-            success, message = start_strategy_process(strategy_id, db, request)
+            success, message = await start_strategy_process(strategy_id, db, request)
             if success:
                 started_count += 1
                 logger.info(

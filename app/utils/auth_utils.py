@@ -61,7 +61,8 @@ async def async_master_contract_download(broker):
         try:
             from app.core.schemas.token_db import get_symbol_count
             total_symbols = get_symbol_count()
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError) as e:
+            logger.warning(f"Could not retrieve symbol count: {e}")
             total_symbols = None
 
         # Since socketio.emit doesn't return a meaningful value, we check if no exception was raised
@@ -75,11 +76,11 @@ async def async_master_contract_download(broker):
             )
             logger.info(f"Loading symbols into memory cache for broker: {broker}")
             await hook_into_master_contract_download(broker)
-        except Exception as cache_error:
+        except (ImportError, AttributeError, RuntimeError) as cache_error:
             logger.error(f"Failed to load symbols into cache: {cache_error}")
             # Don't fail the whole process if cache loading fails
 
-    except Exception as e:
+    except (AttributeError, ImportError, IOError, ValueError, TypeError, RuntimeError) as e:
         logger.error(f"Error during master contract download for {broker}: {str(e)}")
         update_status(broker, 'error', f'Master contract download error: {str(e)}')
         return {'status': 'error', 'message': str(e)}

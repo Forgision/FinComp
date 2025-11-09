@@ -1,6 +1,5 @@
 # services/sandbox_service.py
 
-# TODO: verify async database usage in this file
 """
 Sandbox Service - Routes analyzer mode requests to sandbox implementation
 

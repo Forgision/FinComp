@@ -68,7 +68,7 @@ class UniqueEnumDict(dict):
         if hasattr(self, key):
             try:
                 object.__delattr__(self, key)
-            except Exception:
+            except AttributeError:
                 # safe-guard: ignore if attr removal fails for some reason
                 pass
 

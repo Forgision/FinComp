@@ -7,7 +7,7 @@ from typing import Optional
 import qrcode  # type: ignore #Library stubs not installed for "qrcode"
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi_csrf_protect.flexible import CsrfProtect
+from fastapi_csrf_protect.flexible import CsrfProtect, CsrfProtectError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -210,12 +210,11 @@ async def setup_post(
     csrf_protect: CsrfProtect = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    # TODO: make crsf validation working. There is "The CSRF token is invalid" error.
-    # try:
-    #     # cs = await csrf_protect.get_csrf_from_body(re)
-    #     await csrf_protect.validate_csrf(request)
-    # except CsrfProtectError as e:
-    #     raise HTTPException(status_code=400, detail=f"CSRF token validation error:{e.message}")
+    # TODO: CSRF validation is now enabled, but the 'The CSRF token is invalid' error persists and needs further debugging (likely involving client-side interaction).
+    try:
+        await csrf_protect.validate_csrf(request)
+    except CsrfProtectError as e:
+        raise HTTPException(status_code=400, detail=f"CSRF token validation error:{e.message}")
 
     if await user_service.get_total_users_count(db) > 0:
         flash(request, "Setup has already been completed.", "warning")

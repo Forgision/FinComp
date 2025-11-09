@@ -1,4 +1,3 @@
-import logging
 from typing import List
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String

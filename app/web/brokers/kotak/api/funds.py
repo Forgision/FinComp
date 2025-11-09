@@ -36,13 +36,26 @@ def get_margin_data(auth_token):
 
         # Process and return the 'data' key from margin_data if it exists and is not None
 
-        #TODO FIX realized and unrealized
+        # Sum up realized and unrealized PnL from all segments
+        unrealized_pnl = (
+            float(margin_data.get("CurUnRlsMtomPrsnt", 0))
+            + float(margin_data.get("ComUnRlsMtomPrsnt", 0))
+            + float(margin_data.get("FoUnRlsMtomPrsnt", 0))
+            + float(margin_data.get("CashUnRlsMtomPrsnt", 0))
+        )
+        realized_pnl = (
+            float(margin_data.get("CurRlsMtomPrsnt", 0))
+            + float(margin_data.get("ComRlsMtomPrsnt", 0))
+            + float(margin_data.get("FoRlsMtomPrsnt", 0))
+            + float(margin_data.get("CashRlsMtomPrsnt", 0))
+        )
+
         processed_margin_data = {
-                "availablecash": f"{float(margin_data['Net']):.2f}",
-                "collateral": f"{float(margin_data['Collateral']):.2f}",
-                "m2munrealized": f"{(-float(margin_data['CurUnRlsMtomPrsnt'])+float(margin_data['ComUnRlsMtomPrsnt'])+float(margin_data['FoUnRlsMtomPrsnt'])+float(margin_data['CashUnRlsMtomPrsnt']))*-1}",
-                "m2mrealized": f"{(-float(margin_data['CurRlsMtomPrsnt'])+float(margin_data['ComRlsMtomPrsnt'])+float(margin_data['FoRlsMtomPrsnt'])+float(margin_data['CashRlsMtomPrsnt']))*-1}",
-                "utiliseddebits": f"{round(((float(margin_data['CurRlsMtomPrsnt'])+float(margin_data['ComRlsMtomPrsnt'])+float(margin_data['FoRlsMtomPrsnt'])+float(margin_data['CashRlsMtomPrsnt']))*-1)-(float(margin_data['MarginUsed'])*-1)-(float(margin_data['RealizedMtomPrsnt'])*-1),2)}"
+                "availablecash": f"{float(margin_data.get('Net', 0)):.2f}",
+                "collateral": f"{float(margin_data.get('Collateral', 0)):.2f}",
+                "m2munrealized": f"{unrealized_pnl:.2f}",
+                "m2mrealized": f"{realized_pnl:.2f}",
+                "utiliseddebits": f"{round(((float(margin_data.get('CurRlsMtomPrsnt', 0))+float(margin_data.get('ComRlsMtomPrsnt', 0))+float(margin_data.get('FoRlsMtomPrsnt', 0))+float(margin_data.get('CashRlsMtomPrsnt', 0)))*-1)-(float(margin_data.get('MarginUsed', 0))*-1)-(float(margin_data.get('RealizedMtomPrsnt', 0))*-1),2)}"
             }
         return processed_margin_data
     except Exception as e:
