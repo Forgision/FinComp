@@ -210,7 +210,7 @@ async def setup_post(
     csrf_protect: CsrfProtect = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    # FIXME: CSRF validation is now enabled, but the 'The CSRF token is invalid' error persists and needs further debugging (likely involving client-side interaction).
+    # TODO: The 'The CSRF token is invalid' error persists and needs further debugging (likely involving client-side interaction).
     try:
         await csrf_protect.validate_csrf(request)
     except CsrfProtectError as e:

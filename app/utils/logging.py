@@ -81,9 +81,9 @@ class SensitiveDataFilter(logging.Filter):
                         )
                     filtered_args.append(filtered_arg)
                 record.args = tuple(filtered_args)
-        except Exception:
-            # If filtering fails, don't block the log message
-            pass
+        except Exception as e:
+            # Log the exception, but don't block the log message
+            logging.error(f"Error during sensitive data filtering: {e}")
 
         return True
 
@@ -187,7 +187,8 @@ class LocationBuilder:
             if module_path.endswith(".__init__"):
                 module_path = module_path.rsplit(".__init__", 1)[0]
 
-        except Exception:
+        except Exception as e:
+            logging.warning(f"Error building caller path: {e}")
             # Fallback to Python's __name__ if path parsing fails.
             module_path = frame.f_globals.get("__name__", "unknown")
 
@@ -275,7 +276,10 @@ class ColoredFormatter(logging.Formatter):
                 )
                 if result.returncode == 0 and "VirtualTerminalLevel" in result.stdout:
                     return True
-            except Exception:
+            except Exception as e:
+                logging.debug(
+                    f"Failed to check VirtualTerminalLevel for color support: {e}"
+                )
                 pass
 
             # Check if running in Windows Terminal, VS Code, or similar
@@ -301,7 +305,8 @@ class ColoredFormatter(logging.Formatter):
                 record.message = str(record.msg)
                 record.args = None
                 original_format = super().format(record)
-            except Exception:
+            except Exception as e:
+                logging.error(f"Error during log formatting fallback: {e}")
                 return f"[{record.levelname}] {record.msg}"
 
         # Apply colors
@@ -421,7 +426,8 @@ class CallerLoggerAdapter(logging.LoggerAdapter):
             if module_path.endswith(".__init__"):
                 module_path = module_path.rsplit(".__init__", 1)[0]
 
-        except Exception:
+        except Exception as e:
+            logging.warning(f"Error building caller path: {e}")
             # Fallback to Python's __name__ if path parsing fails.
             module_path = frame.f_globals.get("__name__", "unknown")
 
@@ -476,7 +482,8 @@ def cleanup_old_logs(log_dir: Path, retention_days: int):
             file_mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
             if file_mtime < cutoff_date:
                 log_file.unlink()
-        except Exception:
+        except Exception as e:
+            logging.error(f"Error deleting old log file {log_file}: {e}")
             # Skip files that can't be processed
             pass
 

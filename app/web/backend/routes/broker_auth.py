@@ -62,7 +62,7 @@ async def getKotakOTP(userid: str, access_token: str):
 
 
 # FIXME: Implement rate limiting for FastAPI.
-# The original Flask app used `limiter.limiter`. This needs to be replaced with FastAPI-compatible rate limiting.
+# TODO: The original Flask app used `limiter.limiter`. This needs to be replaced with FastAPI-compatible rate limiting.
 
 
 @broker_router.get(
