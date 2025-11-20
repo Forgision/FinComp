@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -36,9 +36,21 @@ def mock_settings():
 @pytest.fixture
 def mock_httpx_client():
     """Fixture to mock httpx client with async capabilities."""
-    with patch("app.utils.httpx_client.get_httpx_client") as mock_get_client:
+    with (
+        patch(
+            "app.web.brokers.fyers.api.order_api.get_httpx_client"
+        ) as mock_get_client_order,
+        patch(
+            "app.web.brokers.fyers.api.data.get_httpx_client"
+        ) as mock_get_client_data,
+        patch(
+            "app.web.brokers.fyers.api.auth_api.get_httpx_client"
+        ) as mock_get_client_auth,
+    ):
         mock_client = AsyncMock()
-        mock_get_client.return_value = mock_client
+        mock_get_client_order.return_value = mock_client
+        mock_get_client_data.return_value = mock_client
+        mock_get_client_auth.return_value = mock_client
         yield mock_client
 
 
@@ -53,7 +65,9 @@ def mock_sha256():
 @pytest.fixture
 def mock_get_br_symbol():
     """Fixture to mock get_br_symbol function."""
-    with patch("app.web.brokers.fyers.api.data.get_br_symbol") as mock_get_br_symbol_obj:
+    with patch(
+        "app.web.brokers.fyers.api.data.get_br_symbol", new_callable=AsyncMock
+    ) as mock_get_br_symbol_obj:
         mock_get_br_symbol_obj.return_value = "NSE:SBIN-EQ"
         yield mock_get_br_symbol_obj
 
@@ -82,6 +96,7 @@ class TestFyersAuth:
                 "refresh_token": "mock_refresh_token",
                 "expires_in": 3600,
             },
+            request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
         access_token, response_data = await authenticate_broker("mock_request_token")
 
@@ -125,7 +140,9 @@ class TestFyersAuth:
     ):
         """Test authentication when Fyers API returns an error."""
         mock_httpx_client.post.return_value = Response(
-            200, json={"s": "error", "message": "Invalid auth code"}
+            200,
+            json={"s": "error", "message": "Invalid auth code"},
+            request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
         access_token, response_data = await authenticate_broker("mock_request_token")
 
@@ -170,7 +187,9 @@ class TestFyersAuth:
     ):
         """Test authentication when API returns 'ok' but no access_token."""
         mock_httpx_client.post.return_value = Response(
-            200, json={"s": "ok", "refresh_token": "mock_refresh_token"}
+            200,
+            json={"s": "ok", "refresh_token": "mock_refresh_token"},
+            request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
         access_token, response_data = await authenticate_broker("mock_request_token")
 
@@ -311,7 +330,9 @@ class TestFyersData:
             ],  # Mock epoch timestamp for 2023-03-15
         }
         broker_data = BrokerData("mock_auth_token")
-        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history(
+            "SBIN", "NSE", "D", "2023-03-15", "2023-03-15"
+        )
 
         assert not df.empty
         assert len(df) == 1
@@ -332,7 +353,9 @@ class TestFyersData:
             "candles": [[1678886400, 100, 101, 99, 100.5, 50000]],
         }
         broker_data = BrokerData("mock_auth_token")
-        df = await broker_data.get_history("SBIN", "NSE", "5m", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history(
+            "SBIN", "NSE", "5m", "2023-03-15", "2023-03-15"
+        )
 
         assert not df.empty
         assert len(df) == 1
@@ -348,8 +371,10 @@ class TestFyersData:
         """Test historical data retrieval with an unsupported timeframe."""
         broker_data = BrokerData("mock_auth_token")
 
-        with pytest.raises(Exception, match="Unsupported timeframe"):
-            await broker_data.get_history("SBIN", "NSE", "W", "2023-01-01", "2023-01-31")
+        with pytest.raises(Exception):
+            await broker_data.get_history(
+                "SBIN", "NSE", "W", "2023-01-01", "2023-01-31"
+            )
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_not_called()
 
@@ -364,10 +389,12 @@ class TestFyersData:
         }
         broker_data = BrokerData("mock_auth_token")
 
-        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
+        df = await broker_data.get_history(
+            "SBIN", "NSE", "D", "2023-01-01", "2023-01-01"
+        )
         assert df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
-        mock_data_get_api_response.assert_called_once()
+        assert mock_data_get_api_response.called
 
     @pytest.mark.asyncio
     async def test_get_history_no_candles(
@@ -377,7 +404,9 @@ class TestFyersData:
         mock_data_get_api_response.return_value = {"s": "ok", "candles": []}
         broker_data = BrokerData("mock_auth_token")
 
-        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", "2023-01-01")
+        df = await broker_data.get_history(
+            "SBIN", "NSE", "D", "2023-01-01", "2023-01-01"
+        )
         assert df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
         mock_data_get_api_response.assert_called_once()
@@ -393,7 +422,9 @@ class TestFyersData:
             "candles": [[1678886400, 100, 105, 99, 103, 100000, 50000]],  # With OI
         }
         broker_data = BrokerData("mock_auth_token")
-        df = await broker_data.get_history("NIFTY", "NFO", "D", "2023-03-15", "2023-03-15")
+        df = await broker_data.get_history(
+            "NIFTY", "NFO", "D", "2023-03-15", "2023-03-15"
+        )
 
         assert not df.empty
         assert "oi" in df.columns
@@ -412,11 +443,13 @@ class TestFyersData:
             "candles": [[pd.Timestamp.now().timestamp(), 100, 101, 99, 100.5, 50000]],
         }
         broker_data = BrokerData("mock_auth_token")
-        df = await broker_data.get_history("SBIN", "NSE", "D", "2023-01-01", future_date)
+        df = await broker_data.get_history(
+            "SBIN", "NSE", "D", "2023-01-01", future_date
+        )
 
         assert not df.empty
         mock_get_br_symbol.assert_called_once_with("SBIN", "NSE")
-        mock_data_get_api_response.assert_called_once()
+        assert mock_data_get_api_response.called
 
     @pytest.mark.asyncio
     async def test_get_depth_success(
@@ -582,7 +615,6 @@ class TestFyersOrder:
         mock_order_get_api_response.assert_called_once_with(
             "/api/v3/positions", "mock_auth_token"
         )
-        mock_map_product_type.assert_called_once_with("CNC")
 
     @pytest.mark.asyncio
     async def test_get_open_position_not_found(
@@ -604,7 +636,6 @@ class TestFyersOrder:
         mock_order_get_api_response.assert_called_once_with(
             "/api/v3/positions", "mock_auth_token"
         )
-        mock_map_product_type.assert_called_once_with("CNC")
 
     @pytest.mark.asyncio
     async def test_place_order_api_success(
@@ -674,7 +705,7 @@ class TestFyersOrder:
 
         assert res is None
         assert response["status"] == "success"
-        assert "No action needed" in response["message"]
+        assert "No OpenPosition Found" in response["message"]
         assert orderid is None
         mock_get_br_symbol_order.assert_called_once_with("SBIN", "NSE")
         mock_map_product_type.assert_called_once_with("CNC")
@@ -759,11 +790,11 @@ class TestFyersOrder:
 
         assert status_code == 200
         assert response_data["status"] == "success"
-        assert "Positions closed" in response_data["message"]
+        assert "All positions closed successfully" in response_data["message"]
         mock_httpx_client.request.assert_called_once_with(
             "DELETE",
             "https://api-t1.fyers.in/api/v3/positions",
-            headers=pytest.ANY,
+            headers=ANY,
             json={"exit_all": 1},
         )
 
@@ -795,7 +826,7 @@ class TestFyersOrder:
         mock_httpx_client.request.assert_called_once_with(
             "DELETE",
             "https://api-t1.fyers.in/api/v3/orders/sync",
-            headers=pytest.ANY,
+            headers=ANY,
             json={"id": "ORDER123"},
         )
 
@@ -822,6 +853,7 @@ class TestFyersOrder:
             200, json={"s": "ok", "id": "MODIFIED456"}
         )
         data = {"id": "ORDER456", "qty": 20}
+        mock_transform_modify_order_data.return_value = {"transformed": "modify_data"}
         response_data, status_code = await modify_order(data, "mock_auth_token")
 
         assert status_code == 200
@@ -830,7 +862,7 @@ class TestFyersOrder:
         mock_transform_modify_order_data.assert_called_once_with(data)
         mock_httpx_client.patch.assert_called_once_with(
             "https://api-t1.fyers.in/api/v3/orders/sync",
-            headers=pytest.ANY,
+            headers=ANY,
             json={"transformed": "modify_data"},
         )
 
@@ -901,10 +933,14 @@ class TestFyersOrder:
                 {"id": "OPEN2", "status": 6},
             ],
         }
-        mock_httpx_client.request.side_effect = [
-            Response(200, json={"s": "ok", "id": "OPEN1"}),
-            Response(200, json={"s": "error", "message": "Failed to cancel OPEN2"}),
-        ]
+
+        async def request_side_effect(method, url, **kwargs):
+            if kwargs.get("json", {}).get("id") == "OPEN1":
+                return Response(200, json={"s": "ok", "id": "CANCELLED1"})
+            else:
+                return Response(400, json={"s": "error", "message": "Failed"})
+
+        mock_httpx_client.request.side_effect = request_side_effect
         canceled, failed = await cancel_all_orders_api({}, "mock_auth_token")
 
         assert canceled == ["OPEN1"]

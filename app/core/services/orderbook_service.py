@@ -108,7 +108,7 @@ async def get_orderbook_with_auth(
     """
     # If in analyze mode AND we have original_data (API call), route to sandbox
     # If original_data is None (internal call), use live broker
-    if get_analyze_mode() and original_data:
+    if await get_analyze_mode(db) and original_data:
         api_key = original_data.get("apikey")
         if not api_key:
             return (
@@ -122,7 +122,7 @@ async def get_orderbook_with_auth(
             )
 
         order_manager = OrderManager(user_id=api_key)
-        return order_manager.get_orderbook()
+        return await order_manager.get_orderbook()
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -192,7 +192,7 @@ async def get_orderbook(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        AUTH_TOKEN, broker_name = await get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         original_data = {"apikey": api_key}

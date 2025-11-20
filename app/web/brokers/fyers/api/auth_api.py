@@ -72,7 +72,7 @@ async def authenticate_broker(
         )
 
         # Make the authentication request
-        response = client.post(
+        response = await client.post(
             url,
             headers=headers,
             json=payload,

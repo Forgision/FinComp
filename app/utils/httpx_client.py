@@ -13,7 +13,7 @@ from app.core.config import settings
 _httpx_client = None
 
 
-async def get_httpx_client() -> httpx.AsyncClient:
+def get_httpx_client() -> httpx.AsyncClient:
     """
     Returns an HTTP client with automatic protocol negotiation.
     The client will use HTTP/2 when the server supports it,
@@ -25,7 +25,7 @@ async def get_httpx_client() -> httpx.AsyncClient:
     global _httpx_client
 
     if _httpx_client is None:
-        _httpx_client = await _create_http_client()
+        _httpx_client = _create_http_client()
         logger.info(
             "Created HTTP client with automatic protocol negotiation (HTTP/2 preferred, HTTP/1.1 fallback)"
         )
@@ -47,7 +47,7 @@ async def request(method: str, url: str, **kwargs) -> httpx.Response:
     Raises:
         httpx.HTTPError: If the request fails
     """
-    client = await get_httpx_client()
+    client = get_httpx_client()
     response = await client.request(method, url, **kwargs)
 
     # Log the actual HTTP version used (info level for visibility)
@@ -74,7 +74,7 @@ async def delete(url: str, **kwargs) -> httpx.Response:
     return await request("DELETE", url, **kwargs)
 
 
-async def _create_http_client() -> httpx.AsyncClient:
+def _create_http_client() -> httpx.AsyncClient:
     """
     Create a new HTTP client with automatic protocol negotiation.
     Enables both HTTP/2 and HTTP/1.1, letting httpx choose the best protocol.

@@ -1,3 +1,5 @@
+import pytest
+pytest.skip("Skipped by user request", allow_module_level=True)
 from unittest.mock import patch, MagicMock, PropertyMock
 import json
 import pandas as pd

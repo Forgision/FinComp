@@ -98,7 +98,7 @@ async def get_holdings(auth):
 
 async def get_open_position(tradingsymbol, exchange, product, auth):
     # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
-    tradingsymbol = get_br_symbol(tradingsymbol, exchange)
+    tradingsymbol = await get_br_symbol(tradingsymbol, exchange)
 
     positions_data = await get_positions(auth)
     net_qty = "0"

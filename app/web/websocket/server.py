@@ -9,6 +9,7 @@ import zmq
 import zmq.asyncio
 
 from app.core.config import settings
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.auth_db import get_broker_name, verify_api_key
 from app.utils.logging import highlight_url, logger
 from app.web.websocket.broker_factory import create_broker_adapter
@@ -481,23 +482,26 @@ class WebSocketProxy:
             return
 
         # Verify the API key and get the user ID
-        user_id = verify_api_key(api_key)
+        async with AsyncSessionLocal() as db:
+            user_id = await verify_api_key(db, api_key)
 
-        if not user_id:
-            await self.send_error(client_id, "AUTHENTICATION_ERROR", "Invalid API key")
-            return
+            if not user_id:
+                await self.send_error(
+                    client_id, "AUTHENTICATION_ERROR", "Invalid API key"
+                )
+                return
 
-        # Store the user mapping
-        self.user_mapping[client_id] = user_id
+            # Store the user mapping
+            self.user_mapping[client_id] = user_id
 
-        # Get broker name
-        broker_name = get_broker_name(api_key)
+            # Get broker name
+            broker_name = await get_broker_name(db, api_key)
 
-        if not broker_name:
-            await self.send_error(
-                client_id, "BROKER_ERROR", "No broker configuration found for user"
-            )
-            return
+            if not broker_name:
+                await self.send_error(
+                    client_id, "BROKER_ERROR", "No broker configuration found for user"
+                )
+                return
 
         # Store the broker mapping for this user
         self.user_broker_mapping[user_id] = broker_name
@@ -934,7 +938,7 @@ class WebSocketProxy:
             websocket = self.clients[client_id]
             try:
                 await websocket.send(json.dumps(message))
-            except websockets.exceptions.ConnectionClosed:
+            except websockets.ConnectionClosed:
                 logger.info(
                     f"Connection closed while sending message to client {client_id}"
                 )

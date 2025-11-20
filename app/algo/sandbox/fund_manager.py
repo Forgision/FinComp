@@ -50,10 +50,13 @@ class FundManager:
 
     def __init__(self, user_id):
         self.user_id = user_id
-        self.starting_capital = Decimal(get_config("starting_capital", "10000000.00"))
+        self.starting_capital = Decimal("10000000.00")
 
     async def initialize_funds(self):
         """Initialize funds for a new user"""
+        self.starting_capital = Decimal(
+            await get_config("starting_capital", "10000000.00")
+        )
         async with AsyncSessionLocal() as db_session:
             try:
                 # Check if user already has funds
@@ -159,6 +162,9 @@ class FundManager:
 
     async def _reset_funds(self, funds):
         """Reset funds to starting capital"""
+        self.starting_capital = Decimal(
+            await get_config("starting_capital", "10000000.00")
+        )
         async with AsyncSessionLocal() as db_session:
             try:
                 logger.info(f"Resetting funds for user {self.user_id}")

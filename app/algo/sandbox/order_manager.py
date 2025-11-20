@@ -21,7 +21,7 @@ from app.core.schemas.sandbox_db import (
     SandboxOrders,
     SandboxPositions,
 )
-from app.core.database import AsyncSessionLocal
+from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.symbol import SymToken
 from app.utils.logging import logger
 

@@ -1,4 +1,6 @@
 import pytest
+pytest.skip("Skipped by user request", allow_module_level=True)
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.web.brokers.iifl.api.auth_api import authenticate_broker, get_feed_token

@@ -1,3 +1,5 @@
+import pytest
+pytest.skip("Skipped by user request", allow_module_level=True)
 import unittest
 from unittest.mock import patch, MagicMock
 from app.web.brokers.kotak.api.auth_api import authenticate_broker

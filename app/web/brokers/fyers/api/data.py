@@ -11,7 +11,7 @@ from app.utils.httpx_client import get_httpx_client
 from app.utils.logging import logger
 
 
-def get_api_response(endpoint, auth, method="GET", payload=""):
+async def get_api_response(endpoint, auth, method="GET", payload=""):
     """
     Make API requests to Fyers API using shared connection pooling.
 
@@ -41,15 +41,15 @@ def get_api_response(endpoint, auth, method="GET", payload=""):
 
         # Make the request
         if method == "GET":
-            response = client.get(url, headers=headers)
+            response = await client.get(url, headers=headers)
         elif method == "POST":
-            response = client.post(
+            response = await client.post(
                 url,
                 headers=headers,
                 json=payload if isinstance(payload, dict) else json.loads(payload),
             )
         else:
-            response = client.request(
+            response = await client.request(
                 method,
                 url,
                 headers=headers,
@@ -107,7 +107,7 @@ class BrokerData:
             "D": "1D",
         }
 
-    def get_quotes(self, symbol: str, exchange: str) -> dict:
+    async def get_quotes(self, symbol: str, exchange: str) -> dict:
         """
         Get real-time quotes for given symbol
         Args:
@@ -117,10 +117,10 @@ class BrokerData:
             dict: Simplified quote data with required fields
         """
         try:
-            br_symbol = get_br_symbol(symbol, exchange)
+            br_symbol = await get_br_symbol(symbol, exchange)
             encoded_symbol = urllib.parse.quote(br_symbol)
 
-            response = get_api_response(
+            response = await get_api_response(
                 f"/data/quotes?symbols={encoded_symbol}", self.auth_token
             )
             logger.debug(f"Fyers quotes API response: {response}")
@@ -150,7 +150,7 @@ class BrokerData:
             logger.exception(f"Error fetching quotes for {exchange}:{symbol}")
             raise Exception(f"Error fetching quotes: {e}")
 
-    def get_history(
+    async def get_history(
         self, symbol: str, exchange: str, interval: str, start_date: str, end_date: str
     ) -> pd.DataFrame:
         """
@@ -170,7 +170,7 @@ class BrokerData:
         """
         try:
             # Convert symbol to broker format
-            br_symbol = get_br_symbol(symbol, exchange)
+            br_symbol = await get_br_symbol(symbol, exchange)
             logger.debug(f"Using broker symbol: {br_symbol}")
 
             # Check for unsupported timeframes first
@@ -268,7 +268,7 @@ class BrokerData:
                         endpoint += "&oi_flag=1"
 
                     logger.debug(f"Making request to endpoint: {endpoint}")
-                    response = get_api_response(endpoint, self.auth_token)
+                    response = await get_api_response(endpoint, self.auth_token)
 
                     if response.get("s") != "ok":
                         error_msg = response.get("message", "Unknown error")
@@ -383,7 +383,7 @@ class BrokerData:
             logger.exception(error_msg)
             raise Exception(f"{error_msg}: {e}")
 
-    def get_depth(self, symbol: str, exchange: str) -> dict:
+    async def get_depth(self, symbol: str, exchange: str) -> dict:
         """
         Get market depth for given symbol
         Args:
@@ -393,10 +393,10 @@ class BrokerData:
             dict: Market depth data with OHLC, volume and open interest
         """
         try:
-            br_symbol = get_br_symbol(symbol, exchange)
+            br_symbol = await get_br_symbol(symbol, exchange)
             encoded_symbol = urllib.parse.quote(br_symbol)
 
-            response = get_api_response(
+            response = await get_api_response(
                 f"/data/depth?symbol={encoded_symbol}&ohlcv_flag=1", self.auth_token
             )
             logger.debug(f"Fyers depth API response: {response}")

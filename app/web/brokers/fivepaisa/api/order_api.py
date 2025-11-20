@@ -32,7 +32,7 @@ else:
 json_data = {"head": {"key": api_key}, "body": {"ClientCode": client_id}}
 
 
-def get_api_response(
+async def get_api_response(
     endpoint: str, auth: str, method: str = "GET", payload: str = ""
 ) -> Dict[str, Any]:
     """Generic function to make API calls to 5Paisa using shared httpx client
@@ -48,7 +48,7 @@ def get_api_response(
     """
     try:
         # Get the shared httpx client
-        client = get_httpx_client()
+        client = await get_httpx_client()
 
         headers = {
             "Authorization": f"bearer {auth}",
@@ -57,9 +57,9 @@ def get_api_response(
 
         # Make request based on method
         if method.upper() == "GET":
-            response = client.get(f"{BASE_URL}{endpoint}", headers=headers)
+            response = await client.get(f"{BASE_URL}{endpoint}", headers=headers)
         else:  # POST
-            response = client.post(
+            response = await client.post(
                 f"{BASE_URL}{endpoint}",
                 content=payload,  # Use content since payload is already JSON string
                 headers=headers,
@@ -82,7 +82,7 @@ def get_api_response(
         raise
 
 
-def get_order_book(auth: str) -> Dict[str, Any]:
+async def get_order_book(auth: str) -> Dict[str, Any]:
     """Get order book for the client
 
     Args:
@@ -93,7 +93,7 @@ def get_order_book(auth: str) -> Dict[str, Any]:
     """
     try:
         payload = json.dumps(json_data)
-        return get_api_response(
+        return await get_api_response(
             "/VendorsAPI/Service1.svc/V3/OrderBook",
             auth,
             method="POST",
@@ -104,7 +104,7 @@ def get_order_book(auth: str) -> Dict[str, Any]:
         raise
 
 
-def get_trade_book(auth: str) -> Dict[str, Any]:
+async def get_trade_book(auth: str) -> Dict[str, Any]:
     """Get trade book for the client
 
     Args:
@@ -115,7 +115,7 @@ def get_trade_book(auth: str) -> Dict[str, Any]:
     """
     try:
         payload = json.dumps(json_data)
-        return get_api_response(
+        return await get_api_response(
             "/VendorsAPI/Service1.svc/V1/TradeBook",
             auth,
             method="POST",
@@ -126,7 +126,7 @@ def get_trade_book(auth: str) -> Dict[str, Any]:
         raise
 
 
-def get_positions(auth: str) -> Dict[str, Any]:
+async def get_positions(auth: str) -> Dict[str, Any]:
     """Get net positions for the client
 
     Args:
@@ -142,7 +142,7 @@ def get_positions(auth: str) -> Dict[str, Any]:
     while current_retry < max_retries:
         try:
             # Get the shared httpx client
-            client = get_httpx_client()
+            client = await get_httpx_client()
             payload = json.dumps(json_data)
 
             # Use a longer timeout specifically for positions endpoint
@@ -152,7 +152,7 @@ def get_positions(auth: str) -> Dict[str, Any]:
             }
 
             # Make the request with extended timeout
-            response = client.post(
+            response = await client.post(
                 f"{BASE_URL}/VendorsAPI/Service1.svc/V2/NetPositionNetWise",
                 content=payload,
                 headers=headers,
@@ -181,7 +181,7 @@ def get_positions(auth: str) -> Dict[str, Any]:
             }  # Return empty position structure on any error
 
 
-def get_holdings(auth: str) -> Dict[str, Any]:
+async def get_holdings(auth: str) -> Dict[str, Any]:
     """Get holdings for the client
 
     Args:
@@ -192,7 +192,7 @@ def get_holdings(auth: str) -> Dict[str, Any]:
     """
     try:
         payload = json.dumps(json_data)
-        return get_api_response(
+        return await get_api_response(
             "/VendorsAPI/Service1.svc/V3/Holding", auth, method="POST", payload=payload
         )
     except Exception as e:
@@ -200,7 +200,7 @@ def get_holdings(auth: str) -> Dict[str, Any]:
         raise
 
 
-def get_open_position(
+async def get_open_position(
     tradingsymbol: str,
     exchange: str,
     Exch: str,
@@ -225,7 +225,7 @@ def get_open_position(
         # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
         token = int(get_token(tradingsymbol, exchange))  # Convert token to integer
         tradingsymbol = get_br_symbol(tradingsymbol, exchange)
-        positions_data = get_positions(auth)
+        positions_data = await get_positions(auth)
 
         logger.info("Token : ", token)
         logger.info("Product Type : ", producttype)
@@ -276,7 +276,7 @@ def get_open_position(
         return "0"  # Return default quantity on error
 
 
-def place_order_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
+async def place_order_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
     AUTH_TOKEN = auth
 
     token = get_token(data["symbol"], data["exchange"])
@@ -292,10 +292,10 @@ def place_order_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
 
     try:
         # Get the shared httpx client
-        client = get_httpx_client()
+        client = await get_httpx_client()
 
         # Make API request
-        response = client.post(
+        response = await client.post(
             f"{BASE_URL}/VendorsAPI/Service1.svc/V1/PlaceOrderRequest",
             content=payload,
             headers=headers,
@@ -320,7 +320,7 @@ def place_order_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         raise
 
 
-def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
+async def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
     AUTH_TOKEN = auth
 
     # If no API call is made in this function then res will return None
@@ -337,7 +337,7 @@ def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
 
     # Get current open position for the symbol
     current_position = int(
-        get_open_position(
+        await get_open_position(
             symbol, exchange, exch, exchtype, map_product_type(product), AUTH_TOKEN
         )
     )
@@ -355,7 +355,7 @@ def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         quantity = data["quantity"]
         # logger.info(f"action : {action}")
         # logger.info(f"Quantity : {quantity}")
-        res, response, orderid = place_order_api(data, AUTH_TOKEN)
+        res, response, orderid = await place_order_api(data, AUTH_TOKEN)
         # logger.info(f"{res}")
         # logger.info(f"{response}")
 
@@ -402,7 +402,7 @@ def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
 
         # logger.info(f"{order_data}")
         # Place the order
-        res, response, orderid = place_order_api(order_data, auth)
+        res, response, orderid = await place_order_api(order_data, auth)
         # logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
@@ -410,11 +410,11 @@ def place_smartorder_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         return res, response, orderid
 
 
-def close_all_positions(current_api_key: str, auth: str) -> Dict[str, Any]:
+async def close_all_positions(current_api_key: str, auth: str) -> Dict[str, Any]:
     # Fetch the current open positions
     AUTH_TOKEN = auth
 
-    positions_response = get_positions(AUTH_TOKEN)
+    positions_response = await get_positions(AUTH_TOKEN)
     logger.info(f"{positions_response}")
     # Check if the positions data is null or empty
     if (
@@ -454,7 +454,7 @@ def close_all_positions(current_api_key: str, auth: str) -> Dict[str, Any]:
             logger.info(f"{place_order_payload}")
 
             # Place the order to close the position
-            res, response, orderid = place_order_api(place_order_payload, auth)
+            res, response, orderid = await place_order_api(place_order_payload, auth)
 
             # logger.info(f"{res}")
             # logger.info(f"{response}")
@@ -465,7 +465,7 @@ def close_all_positions(current_api_key: str, auth: str) -> Dict[str, Any]:
     return {"status": "success", "message": "All Open Positions SquaredOff"}, 200
 
 
-def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
+async def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
     """Cancel an order using its order ID
 
     Args:
@@ -479,7 +479,7 @@ def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
         AUTH_TOKEN = auth
 
         # First get the order details from orderbook
-        orderbook_data = get_order_book(AUTH_TOKEN)
+        orderbook_data = await get_order_book(AUTH_TOKEN)
         order_details = None
 
         # Find the order in orderbook
@@ -523,7 +523,7 @@ def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
         logger.info(f"Using ExchOrderID: {exchange_order_id} for cancellation")
 
         # Get the shared httpx client
-        client = get_httpx_client()
+        client = await get_httpx_client()
 
         # Make API request
         headers = {
@@ -532,7 +532,7 @@ def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
         }
 
         logger.info(f"Cancel order request: {json.dumps(cancel_data)}")
-        response = client.post(
+        response = await client.post(
             f"{BASE_URL}/VendorsAPI/Service1.svc/V1/CancelOrderRequest",  # Official endpoint for cancel
             json=cancel_data,
             headers=headers,
@@ -557,7 +557,7 @@ def cancel_order(orderid: str, auth: str) -> Dict[str, Any]:
         return {"status": "error", "message": f"Exception: {str(e)}"}, 500
 
 
-def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
+async def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
     """Modify an existing order using FivePaisa's API
 
     Args:
@@ -571,7 +571,7 @@ def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         AUTH_TOKEN = auth
 
         # Get order details to extract the actual exchange order ID
-        order_book = get_order_book(AUTH_TOKEN)
+        order_book = await get_order_book(AUTH_TOKEN)
         matched_order = None
 
         if order_book.get("body", {}).get("OrderBookDetail"):
@@ -611,7 +611,7 @@ def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         logger.info(f"Modify Order Request: {json_data}")
 
         # Get the shared httpx client
-        client = get_httpx_client()
+        client = await get_httpx_client()
 
         # Make API request
         headers = {
@@ -619,7 +619,7 @@ def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
             "Content-Type": "application/json",
         }
 
-        response = client.post(
+        response = await client.post(
             f"{BASE_URL}/VendorsAPI/Service1.svc/V1/ModifyOrderRequest",
             json=json_data,
             headers=headers,
@@ -644,7 +644,7 @@ def modify_order(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}, 500
 
 
-def cancel_all_orders_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
+async def cancel_all_orders_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
     """Cancel all open orders
 
     Args:
@@ -658,7 +658,7 @@ def cancel_all_orders_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         AUTH_TOKEN = auth
 
         # Get the order book using shared client
-        order_book_response = get_order_book(AUTH_TOKEN)
+        order_book_response = await get_order_book(AUTH_TOKEN)
 
         if order_book_response["body"]["OrderBookDetail"] is None:
             return [], []  # Return empty lists if no orders found
@@ -677,7 +677,7 @@ def cancel_all_orders_api(data: Dict[str, Any], auth: str) -> Dict[str, Any]:
         for order in orders_to_cancel:
             try:
                 orderid = order["BrokerOrderId"]
-                cancel_response, status_code = cancel_order(orderid, auth)
+                cancel_response, status_code = await cancel_order(orderid, auth)
 
                 if status_code == 200:
                     canceled_orders.append(orderid)
