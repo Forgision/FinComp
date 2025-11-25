@@ -2,16 +2,18 @@
 
 ## Project Overview
 
+**Inspired from**: [OpenAlgo](https://github.com/marketcalls/openalgo)
 **FinComp (OpenAlgo)** is a comprehensive algorithmic trading platform. It provides a unified interface for interacting with multiple Indian stock brokers, streaming real-time market data, and deploy automated/semi automated trading strategies.
 
 ## Technology Stack
 
 - **Language**: Python 3.11+
 - **Web Framework**: FastAPI (Async)
-- **Database**: SQLAlchemy 2.0 (Async), SQLite/MySQL, **Redis (Hot Data)**
+- **Database**: SQLAlchemy 2.0 (Async), SQLite/MySQL
+- **Messaging/IPC**: **ZeroMQ (PyZMQ)** for ultra-low latency communication and state management.
 - **Real-time**: Socket.IO (python-socketio)
 - **Task Scheduling**: APScheduler
-- **Concurrency**: Multiprocessing (ProcessPoolExecutor) + Asyncio
+- **Concurrency**: Multiprocessing (Supervisor + Workers) + Asyncio
 - **Testing**: Pytest
 
 ## System Architecture
@@ -22,7 +24,9 @@ The application is structured into **four main independent processes** to ensure
 
 - **Host**: FastAPI + Socket.IO.
 - **Role**: Handles UI requests, REST API, and WebSocket streaming to frontend.
-- **Interaction**: Reads real-time market data from Redis to serve the dashboard. Does not maintain direct broker connections for data.
+- **Interaction**:
+  - **Requests Snapshot**: Uses ZeroMQ REQ socket to request initial market data state from the Data Engine.
+  - **Subscribes to ZeroMQ**: Streams real-time ticks to the frontend via Socket.IO (SUB socket).
 
 ### 2. Data Engine Process (`app/core/data`)
 
@@ -31,54 +35,62 @@ The application is structured into **four main independent processes** to ensure
 - **Responsibilities**:
   - Manages WebSocket connections to Brokers (Zerodha, Fyers, etc.).
   - Normalizes incoming ticks.
-  - **Writes to Redis**: Updates the "Hot Data" state in Redis immediately.
+  - **ZeroMQ Publisher**: Publishes ticks to a ZeroMQ PUB socket (Topic: `market_data`).
+  - **ZeroMQ Replier**: Listens on a REP socket to serve "Snapshot" requests (e.g., LTP, Volume) to the Web Server or Algo Engine.
 - **Isolation**: If this process lags or crashes, it does not affect active orders or the UI.
 
 ### 3. Algo Engine Process (`app/algo`)
 
 - **Host**: Multiprocessing Supervisor.
 - **Role**: Manages Strategy execution.
-- **Architecture**: **Worker Pool Model**.
-  - Uses `ProcessPoolExecutor` (or similar) to spawn a pool of worker processes (e.g., 4-8 workers).
-  - Strategies are distributed across these workers.
+- **Architecture**: **Supervisor + Worker Model**.
+  - **Supervisor Process**: Manages the lifecycle of worker processes.
+  - **Worker Processes**: A fixed number of long-lived worker processes as per CPU core count (e.g., 3-4 workers).
+  - Strategies are distributed and deployed across these worker processes.
 - **Responsibilities**:
-  - Reads market data from Redis (Pull model).
+  - **Subscribes to ZeroMQ**: Listens to `market_data` topic on the SUB socket.
   - Runs strategy logic (CPU bound).
-  - Publishes **Signals** to Redis Pub/Sub.
+  - Publishes **Signals** to ZeroMQ PUB socket (Topic: `signals`).
 
 ### 4. Execution Engine Process (`app/core/execution`)
 
 - **Host**: Asyncio Event Loop.
 - **Role**: Order Management System (OMS).
 - **Responsibilities**:
-  - Subscribes to **Signals** from Redis.
+  - Subscribes to **Signals** from ZeroMQ (Topic: `signals`).
   - Validates signals (Risk Management).
   - Executes orders via Broker APIs.
   - Manages the master OrderBook and TradeBook.
 
 ## Data Sharing & Concurrency
 
-### Redis (The "Shared Brain")
+### ZeroMQ (The "Nervous System")
 
-To avoid memory duplication and pickling overhead, we use **Redis** as the central data store.
+We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need for a central cache like Redis.
 
-- **Market Data**: The Data Engine writes ticks to Redis Hash Maps (e.g., `quote:INFY` -> `{'ltp': 1500.0, 'vol': 5000}`).
-  - *Benefit*: All other processes (Web, Algo) read from Redis. No data copying between processes.
-- **Pub/Sub**: Used for low-latency messaging.
-  - `channel:signals`: Algo -> Execution (Trade Signals).
-  - `channel:control`: Web -> Algo (Start/Stop Strategies).
+- **Pattern 1: Pub/Sub (Real-time Data)**
+  - **Transport**: TCP (Localhost) or IPC.
+  - **Flows**:
+    - `Market Data`: Data Engine (PUB) -> Algo Engine (SUB) & Web Server (SUB).
+    - `Signals`: Algo Engine (PUB) -> Execution Engine (SUB).
+    - `Control`: Web Server (PUB) -> Algo Engine (SUB) (Start/Stop Strategies).
+
+- **Pattern 2: Req/Rep (State/Snapshots)**
+  - **Flows**:
+    - `Snapshot`: Web Server (REQ) -> Data Engine (REP).
+      - *Use Case*: When a user opens the dashboard, the Web Server requests the current "Last Traded Price" for all visible symbols.
 
 ### Concurrency Strategy
 
 - **I/O Bound** (Data, Web, Execution): Use **Asyncio**.
-- **CPU Bound** (Algo): Use **Multiprocessing** (Worker Pool).
+- **CPU Bound** (Algo): Use **Multiprocessing** (Supervisor + Long-lived Workers).
 
 ## Key Workflows
 
 - **Authentication**: Users log in to the platform; the platform manages sessions and broker authentication tokens.
 - **Order Management**: Unified order placement API that routes requests to the specific broker adapter.
-- **Market Data**: Websocket connection to brokers to receive tick data, which is then broadcasted to the frontend/strategies.
-- **Telegram Integration**: Two-way communication via Telegram for alerts and executing trades via chat commands.
+- **Market Data**: Websocket connection to brokers to receive tick data, which is then broadcasted via ZeroMQ.
+- **Telegram Integration**: (Future Scope) Two-way communication via Telegram for alerts.
 
 ## Development Guidelines
 
@@ -97,7 +109,6 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
       - Top Volume Traded with percentage.
       - Top Value Traded with percentage.
       - Top OI Traded with percentage.
-      - Top OI Traded with percentage.
     - Counter of deployed strategies.
       - Counter of open positions amount by strategy.
       - P&L percentage and amount by strategy.
@@ -108,32 +119,33 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
   - Orders Page:
     - Showing all order segrageted as per status (open, complete, cancelled, rejected).
     - Showing all position segrageted as per status (open, closed).
-    - Showing all trade whichi is executed order with info like average price, quantity, buy/sell, etc, strategy id, timestamp, etc.
+    - Showing all trade which is executed order with info like average price, quantity, buy/sell, etc, strategy id, timestamp, etc.
   - Positions Page:
     - Showing all position segrageted as per status (open, closed).
-    - Showing all trade whichi is executed order with info like average price, quantity, buy/sell, etc, strategy id, timestamp, etc.
+    - Showing all trade which is executed order with info like average price, quantity, buy/sell, etc, strategy id, timestamp, etc.
   - Holdings Page:
     - Showing all holdings with info like symbol, quantity, average price, profit/loss percentage, profit/loss amount accorss all strategies (which are deployed) and brokers (which are active).
   - Strategy Page:
     - Deploy new strategy fuctionality.
     - Showing all strategy with info like strategy id, strategy name, strategy type, strategy status, strategy p&l percentage, strategy p&l amount, total amount of open positions by strategy, total amount of closed positions by strategy, total amount of trades by strategy, total amount of orders by strategy, strategy timestamp, etc.
   - Settings Page:
-    - Telegram Integration:
-      - Two-way communication via Telegram for alerts and executing trades via chat commands.
+    - Telegram Integration (Future Scope):
+      - Two-way communication via Telegram for alerts.
       - Showing all telegram commands with info like command, description, usage, etc.
-      - Broker Integration:
-        - Showing all broker with info like broker id, broker name, broker type, broker status, last checked timestamp, etc.
-        - Broker connection status with info like broker id, broker name, broker type, broker status, last checked timestamp, etc.
+    - Broker Integration:
+      - Showing all broker with info like broker id, broker name, broker type, broker status, last checked timestamp, etc.
+      - Broker connection status with info like broker id, broker name, broker type, broker status, last checked timestamp, etc.
       - Showing all settings with info like api key, api secret, api url, etc.
 - Backend should have following functionality.
   - Web Server Module (frontend and backend):
-    This module have all code related to web server functionality for frontend and backend. This module use fastapi for backend, fastapi with jinja2 for frontend and python `websockets` package for web socket server. Such as following functionality;
+    This module have all code related to web server functionality for frontend and backend. This module use fastapi for backend, fastapi with jinja2 for frontend and python `python-socketio` package for web socket server. Such as following functionality;
     - Routes for frontend.
     - API for frontend.
     - API for orders, account, positions, trades, holdings, strategies, settings, etc to place order, cancel order, modify order, close position, etc from other services like tradingview, etc.
     - WebSocket for real-time data streaming to frontend with async functionality.
       - Set up web socket server using python-socketio on web server start.
       - Connect/Disconnect web socket server with web server lifecycle.
+      - **Subscribe to ZeroMQ** to receive real-time ticks and forward to frontend clients.
     - services required for backend functionality.
   - Core Module:
     - This module have all code related to core functionality of the application which is common to all modules. Such as following functionality;
@@ -144,8 +156,6 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
         - Database operations.
         - Database transactions.
         - Database queries using SQLAlchemy 2.0.
-        - Database transactions using SQLAlchemy 2.0.
-        - Database queries using SQLAlchemy 2.0.
       - Logging Management:
         - This module will only provide logging functionality to all modules which use for debugging and monitoring. It is not for mobule specific logging such as Strategy Manager Logs.
         - Handling database operations for logs.
@@ -154,8 +164,8 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
         - **Responsibilities**:
           - Manage the registry of all active subscriptions (Symbol/Index).
           - Interface with `Broker Manager` to initiate actual data streams.
-          - Normalize incoming data from `Broker Manager` into a standard format.
-          - Broadcast normalized data to subscribers (Algo Module, Frontend, etc.).
+          - Normalizes incoming data from `Broker Manager` into a standard format.
+          - **Broadcasts normalized data via ZeroMQ**.
       - Event Bus (System-Wide Notifications):
         - A central asynchronous event dispatcher.
         - **Events**:
@@ -194,7 +204,7 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
         - Handles the specific protocol details of the connected broker (e.g., WebSocket management).
       - Broker Registry & Filtering:
         - `get_active_brokers(capability=None)`: Returns brokers matching the requested capability (e.g., only DATA brokers).
-        - `get_fallback_broker(broker_id, capability)`: Intelligent fallback finding another broker with the *same* capability.
+        - `get_fallback_broker(broker_id, capability)`: Intelligent fallback finding another broker with the *same* capability. **Note: Fallback is only supported for DATA capability.**
       - Order Management Functionality:
         - Manage orders across brokers with the ability to:
           - Place order which broker id.
@@ -244,7 +254,6 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
           - Get broker type.
           - Get broker status.
           - Get broker last checked timestamp.
-          - Get broker connection status.
           - Get broker connection status.
           - Order Management Functionality:
             - Place order.
@@ -324,6 +333,7 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
     - Start Web Server Module.
       - Start FastAPI server.
       - Start WebSocket server.
+      - Connect to ZeroMQ (Subscriber) for real-time data.
       - Notify running state to Application.
     - Start Data Provider.
       - Get data provider from Broker Manager.
@@ -333,10 +343,10 @@ To avoid memory duplication and pickling overhead, we use **Redis** as the centr
       - On data streaming start/stop/error, notify to Strategy Manager, Algo Module and Web Server Module to start/stop/error data streaming.
       - On data receving new data, notify to Strategy Manager, Algo Module and Web Server Module to process new data.
     - Start Algo Module.
-      - Start Strategy Manager.
+      - Start Strategy Manager (Supervisor).
       - Load all strategies from database.
       - Set initial status of deployed strategies to `WAITING_FOR_DATA`.
       - Subscribe to `DATA_STREAMING_STARTED` event from Data Provider.
       - **On `DATA_STREAMING_STARTED` event**:
         - Verify required data feeds are active.
-        - Transition applicable strategies to `RUNNING` (Deploy).
+        - Transition applicable strategies to `RUNNING` (Deploy to Worker Processes).
