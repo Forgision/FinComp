@@ -1,4 +1,4 @@
-# Guideline for Design of Project for Algo Trading Agent
+# Software Requirement Specification (SRS) for Design of Project for Algo Trading Agent
 
 ## Project Overview
 
@@ -8,10 +8,11 @@
 ## Technology Stack
 
 - **Language**: Python 3.11+
-- **Web Framework**: FastAPI (Async)
+- **Web Framework**: FastAPI (Async) + Jinja2 + Alpine.js (for reactivity)
+- **Frontend Architecture**: Progressive Web App (PWA)
 - **Database**: SQLAlchemy 2.0 (Async), SQLite/MySQL
-- **Messaging/IPC**: **ZeroMQ (PyZMQ)** for ultra-low latency communication and state management.
-- **Real-time**: Socket.IO (python-socketio)
+- **Messaging/IPC**: **ZeroMQ (PyZMQ)** for all inter-process communication and state management (PUB/SUB, REQ/REP).
+- **Real-time**: Socket.IO (python-socketio) - Updates every 1 second
 - **Task Scheduling**: APScheduler
 - **Concurrency**: Multiprocessing (Supervisor + Workers) + Asyncio
 - **Testing**: Pytest
@@ -58,8 +59,9 @@ The application is structured into **four main independent processes** to ensure
 - **Role**: Order Management System (OMS).
 - **Responsibilities**:
   - Subscribes to **Signals** from ZeroMQ (Topic: `signals`).
-  - Validates signals (Risk Management).
-  - Executes orders via Broker APIs.
+  - **Order Validation**: Validates signals against broker policies (e.g., quantity, margin).
+  - **Execution**: Converts signals to broker-specific order formats and executes via Broker APIs.
+  - **Gateway**: Acts as the single gateway for all order execution (Strategies & Web).
   - Manages the master OrderBook and TradeBook.
 
 ## Data Sharing & Concurrency
@@ -87,7 +89,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
 
 ## Key Workflows
 
-- **Authentication**: Users log in to the platform; the platform manages sessions and broker authentication tokens.
+- **Authentication**: Users log in using **Fyers OAuth** flow (similar to "Login with Google"). No local password management required.
 - **Order Management**: Unified order placement API that routes requests to the specific broker adapter.
 - **Market Data**: Websocket connection to brokers to receive tick data, which is then broadcasted via ZeroMQ.
 - **Telegram Integration**: (Future Scope) Two-way communication via Telegram for alerts.
@@ -98,13 +100,14 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
 - **Dependency Injection**: Services are typically instantiated and used via dependency injection or factory patterns.
 - **Testing**: Run tests using `pytest`. Ensure new features have corresponding unit/integration tests.
 
-## What user want to develop? (**RECOMMENDED DESIGN PATTERNS**)
+## System Requirements (**RECOMMENDED DESIGN PATTERNS**)
 
-- Web interface (reactive if possible). It should have following functionality.
+- Web interface (Progressive Web App - PWA). It MUST be real-time (1s latency) and have following functionality.
   - Dashboard with following information.
     - Market Summary with following information.
       - NIFY 50, NIFTY 200, NIFTY 500, BANKNIFTY, NIFTY MIDCAP, NIFTY SMALLCAP, etc.
-      - Advancers and Decliners with percentage.
+      - **Real-time Data**: Must stream Change, Change%, and OHLC (Open, High, Low, Close).
+      - Advancers and Decliners (Simple count display, e.g., "30 Adv / 20 Dec").
       - Top Gainers and Losers with percentage.
       - Top Volume Traded with percentage.
       - Top Value Traded with percentage.
@@ -115,7 +118,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
     - Total Today P&L Realized and Unrealized.
     - Total Open Positions (today and previous day) with quantity and average price and profit/loss percentage, profit/loss amount.
     - Total Utilised Margin and Margin Available
-    - Recent 5 Orders with info like symbol, quantity, average price, buy/sell, etc, strategy id, timestamp, etc.
+    - Recent 5 Orders (Exactly the last 5 orders regardless of status) with info like symbol, quantity, average price, buy/sell, etc, strategy id, timestamp, etc.
   - Orders Page:
     - Showing all order segrageted as per status (open, complete, cancelled, rejected).
     - Showing all position segrageted as per status (open, closed).
@@ -126,8 +129,13 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
   - Holdings Page:
     - Showing all holdings with info like symbol, quantity, average price, profit/loss percentage, profit/loss amount accorss all strategies (which are deployed) and brokers (which are active).
   - Strategy Page:
-    - Deploy new strategy fuctionality.
+    - Deploy new strategy functionality.
+      - User selects from a **predefined, hardcoded list** of strategies.
+      - Future Scope: Python file upload capability.
     - Showing all strategy with info like strategy id, strategy name, strategy type, strategy status, strategy p&l percentage, strategy p&l amount, total amount of open positions by strategy, total amount of closed positions by strategy, total amount of trades by strategy, total amount of orders by strategy, strategy timestamp, etc.
+    - **Kill Switch**:
+      - **Hard Kill**: Cancel ALL pending orders + Close ALL open positions + Undeploy ALL strategies.
+      - **Soft Kill**: Cancel ALL pending orders + Undeploy ALL strategies (Positions remain open).
   - Settings Page:
     - Telegram Integration (Future Scope):
       - Two-way communication via Telegram for alerts.
@@ -141,7 +149,10 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
     This module have all code related to web server functionality for frontend and backend. This module use fastapi for backend, fastapi with jinja2 for frontend and python `python-socketio` package for web socket server. Such as following functionality;
     - Routes for frontend.
     - API for frontend.
-    - API for orders, account, positions, trades, holdings, strategies, settings, etc to place order, cancel order, modify order, close position, etc from other services like tradingview, etc.
+    - API for orders, account, positions, trades, holdings, strategies, settings, etc.
+    - **Order Management**:
+      - **Manual Trading is DISABLED**. Users cannot place new manual Buy/Sell orders.
+      - Allowed Actions: **Cancel** existing orders, **Square Off** (Close) existing positions.
     - WebSocket for real-time data streaming to frontend with async functionality.
       - Set up web socket server using python-socketio on web server start.
       - Connect/Disconnect web socket server with web server lifecycle.
@@ -181,7 +192,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
             - On updating subscription, it should update in memory and in database.
             - Database is only used for backup and persistence.
           - subscribe/unsubscribe symbols for data streaming.
-          - Historical data for symbols.
+
           - Notify all subscribers on receiving new data from data provider.
           - Move to fallback data provider if one data provider is not available.
           - Subscription management for data streaming.
@@ -194,7 +205,12 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
               - Check if subscription is already registered or not.
               - If symbol is subscribed as part of index, then don't unsubscribe, else unsubscribe from data streaming.
   - Broker Manager Module:
-    This module have all code realted to controlling brokers. This module is for only managing and interacting with brokers. Such as following functionality;
+    This module contains the core logic for interacting with brokers. It is designed as a **library** to be instantiated by specific processes (Data Engine, Execution Engine).
+    - Authentication and authorization for brokers.
+    - **State Management**: Broker connection status is shared across processes using **ZeroMQ PUB/SUB**.
+      - `Data Engine` publishes data connection status.
+      - `Execution Engine` publishes trade connection status.
+      - `Web Server` subscribes to these topics to maintain a real-time registry for the UI.
     - Broker Manager Class:
       - It is registry of all brokers and their connection status.
       - All functionality related to brokers should be managed by Broker Manager.
@@ -313,7 +329,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
         - It calculate risk and reward for each signal generated by strategies.
         - Once risk is calculated, then audit risk and reward as per risk management rules.
         - Once audit is done, then take decision to execute trade or not.
-        - If decision is to execute trade, then it sent to broker manager.
+        - If decision is to execute trade, then it **Publishes a Signal** to ZeroMQ (Topic: `signals`).
         - Risk Management Rules can be global, strategy specific.
           - Global Risk Management Rules superceeds all other rules.
       - Position Size Management Module (sub-module):
@@ -322,6 +338,38 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
           - This class has main goal to calculate quantity for each signal generated by strategies as per risk management rules.
           - It can override tp and sl price of signal as per risk management rules, but entry price will not be overridden.
           - Once, quantity is calculated, then it send to broker manager to execute trade.
+
+## Data Structures
+
+- **Signal**:
+  - `strategy_id`: str
+  - `symbol`: str
+  - `entry_price`: float
+  - `stop_loss`: float
+  - `target_price`: float
+  - `timestamp`: int
+  - `signal_type`: str (BUY/SELL)
+
+- **OrderRequest** (Inherits Signal):
+  - `quantity`: int
+  - `estimated_pnl`: float
+  - `validity`: str (DAY/IOC)
+  - `order_type`: str (MARKET/LIMIT)
+
+- **Control Message**:
+  - `request_id`: str
+  - `command`: str
+  - `payload`: dict
+
+## Configuration & Logging
+
+- **Centralized Configuration**:
+  - Settings (API Keys, Secrets) are stored in the **Database**.
+  - A **Config Service** provides access to these settings.
+  - On startup, processes fetch config from the DB.
+- **Logging**:
+  - Future Scope: Logs will be stored in the database.
+  - Currently: File-based logging with rotation.
 
 - Flow of the application:
   - Application start. On start, do followings;
