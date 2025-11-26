@@ -9,7 +9,7 @@ from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi, get_db
 from app.web import ENDPOINTS
 
-templates = Jinja2Templates(directory="app/frontend/templates")
+templates = Jinja2Templates(directory="app/web/frontend/templates")
 
 dashboard_router = APIRouter()
 
@@ -21,7 +21,7 @@ async def dashboard(
     db: AsyncSession = Depends(get_db),
 ):
     login_username = user
-    AUTH_TOKEN = get_auth_token(db, login_username)
+    AUTH_TOKEN = await get_auth_token(db, login_username)
 
     if AUTH_TOKEN is None:
         logger.warning(f"No auth token found for user {login_username}")
@@ -29,13 +29,16 @@ async def dashboard(
 
     broker = request.session.get("broker")
     if not broker:
-        logger.error("Broker not set in session")
-        # In a real app, you'd probably redirect to a broker selection page
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error_message": "Broker not set in session."},
-            status_code=400,
-        )
+        if login_username == "dev_admin":
+            broker = "dummy_broker"
+        else:
+            logger.error("Broker not set in session")
+            # In a real app, you'd probably redirect to a broker selection page
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "error_message": "Broker not set in session."},
+                status_code=400,
+            )
 
     # In FastAPI, blocking calls should be run in a thread pool
     # For now, we call it directly but this is a candidate for `run_in_threadpool`

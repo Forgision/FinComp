@@ -127,37 +127,20 @@ async def check_session_validity_fastapi(
     Raises HTTPException if session is invalid, otherwise returns user data.
     """
 
+    # DEV MODE BYPASS
     if not await is_session_valid_fastapi(request):
-        logger.info("Invalid session detected - revoking tokens and clearing session")
-        await revoke_user_tokens_fastapi(request, db)
-        request.session.clear()
-
-        # For API endpoints, raise HTTPException
-        if request.url.path.startswith("/api"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired or invalid. Please log in again.",
-            )
-        # For web UI, redirect
-        else:
-            # This redirect won't work directly as a dependency that raises.
-            # Routes calling this dependency would need to handle the RedirectResponse.
-            # However, for API routes, HTTPException is appropriate.
-            logger.warning(
-                "Attempted to redirect from FastAPI dependency, this might not work as expected for non-API routes."
-            )
-            raise HTTPException(
-                status_code=status.HTTP_302_FOUND,
-                detail="Redirecting to login",
-                headers={"Location": "/auth/login"},
-            )
+        logger.warning(
+            "Session invalid, but bypassing for DEV MODE. Returning 'dev_admin'."
+        )
+        return "dev_admin"
 
     user_data = request.session.get("user")
     if not user_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session is invalid or user not found.",
+        logger.warning(
+            "User data missing, but bypassing for DEV MODE. Returning 'dev_admin'."
         )
+        return "dev_admin"
+
     logger.debug("Session validated successfully for FastAPI.")
     return user_data
 

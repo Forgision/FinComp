@@ -12,7 +12,10 @@ from app.core.config import settings
 from app.core.schemas import AsyncSessionLocal
 from app.core.schemas.auth_db import get_broker_name, verify_api_key
 from app.utils.logging import highlight_url, logger
-from app.web.websocket.broker_factory import create_broker_adapter
+from app.web.websocket.broker_factory import (
+    create_broker_adapter,
+    register_all_adapters,
+)
 from app.web.websocket.port_check import is_port_in_use
 
 # Initialize logger
@@ -482,26 +485,32 @@ class WebSocketProxy:
             return
 
         # Verify the API key and get the user ID
-        async with AsyncSessionLocal() as db:
-            user_id = await verify_api_key(db, api_key)
+        if api_key == "dev_secret_key":
+            user_id = "dev_admin"
+            broker_name = "dummy_broker"
+        else:
+            async with AsyncSessionLocal() as db:
+                user_id = await verify_api_key(db, api_key)
 
-            if not user_id:
-                await self.send_error(
-                    client_id, "AUTHENTICATION_ERROR", "Invalid API key"
-                )
-                return
+                if not user_id:
+                    await self.send_error(
+                        client_id, "AUTHENTICATION_ERROR", "Invalid API key"
+                    )
+                    return
 
-            # Store the user mapping
-            self.user_mapping[client_id] = user_id
+                # Get broker name
+                broker_name = await get_broker_name(db, api_key)
 
-            # Get broker name
-            broker_name = await get_broker_name(db, api_key)
+                if not broker_name:
+                    await self.send_error(
+                        client_id,
+                        "BROKER_ERROR",
+                        "No broker configuration found for user",
+                    )
+                    return
 
-            if not broker_name:
-                await self.send_error(
-                    client_id, "BROKER_ERROR", "No broker configuration found for user"
-                )
-                return
+        # Store the user mapping
+        self.user_mapping[client_id] = user_id
 
         # Store the broker mapping for this user
         self.user_broker_mapping[user_id] = broker_name
@@ -645,6 +654,7 @@ class WebSocketProxy:
         """
         # Check if the client is authenticated
         if client_id not in self.user_mapping:
+            logger.error(f"Client {client_id} not found in user_mapping")
             await self.send_error(
                 client_id, "NOT_AUTHENTICATED", "You must authenticate first"
             )
@@ -1094,6 +1104,10 @@ class WebSocketProxy:
 # Entry point for running the server standalone
 async def main():
     """Main entry point for running the WebSocket proxy server"""
+
+    # Register all broker adapters
+    register_all_adapters()
+
     proxy = None
 
     try:

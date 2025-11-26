@@ -1,95 +1,40 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="w-full">
-    <!-- Header -->
-    <div class="section-header">
-        <h1 class="text-2xl font-semibold text-base-content">Investor Summary</h1>
+<div x-data="holdings">
+    <div class="flex justify-between items-center mb-4">
+        <h1>Holdings</h1>
+        <button class="btn btn-primary" @click="fetchData()">Refresh</button>
     </div>
 
-    <!-- Holdings Summary Dashboard Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Total Holding Value Card -->
-        <div class="stat-card">
-            <div class="stat">
-                <div class="stat-title">Total Holding Value</div>
-                <div class="stat-value text-primary">
-                    {{ portfolio_stats.totalholdingvalue| round(2) }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Investment Value Card -->
-        <div class="stat-card">
-            <div class="stat">
-                <div class="stat-title">Total Investment Value</div>
-                <div class="stat-value text-secondary">
-                    {{ portfolio_stats.totalinvvalue| round(2) }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Profit and Loss Card -->
-        <div class="stat-card">
-            <div class="stat">
-                <div class="stat-title">Total Profit and Loss</div>
-                <div class="stat-value {% if portfolio_stats.totalprofitandloss > 0 %}text-success{% else %}text-error{% endif %}">
-                    {{ portfolio_stats.totalprofitandloss| round(2) }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Total PnL Percentage Card -->
-        <div class="stat-card">
-            <div class="stat">
-                <div class="stat-title">Total PnL Percentage</div>
-                <div class="stat-value {% if portfolio_stats.totalpnlpercentage > 0 %}text-success{% else %}text-error{% endif %}">
-                    {{ portfolio_stats.totalpnlpercentage| round(2) }}%
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Holdings Table -->
-    <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
-            <div class="overflow-x-auto">
-                <table class="table w-full">
-                    <thead>
-                        <tr>
-                            <th>Trading Symbol</th>
-                            <th>Exchange</th>
-                            <th>Quantity</th>
-                            <th>Product</th>
-                            <th>Profit and Loss</th>
-                            <th>PnL Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for holding in holdings_data %}
-                        <tr class="hover">
-                            <td class="font-medium">{{ holding.symbol }}</td>
-                            <td>
-                                <span class="badge badge-{{ holding.exchange.lower() }}">
-                                    {{ holding.exchange }}
-                                </span>
-                            </td>
-                            <td>{{ holding.quantity }}</td>
-                            <td>
-                                <div class="badge badge-ghost">{{ holding.product }}</div>
-                            </td>
-                            <td class="{% if holding.pnl > 0 %}text-success{% elif holding.pnl < 0 %}text-error{% endif %}">
-                                {{ holding.pnl }}
-                            </td>
-                            <td class="{% if holding.pnlpercent > 0 %}text-success{% elif holding.pnlpercent < 0 %}text-error{% endif %}">
-                                {{ '{:.2f}'.format(holding.pnlpercent) }}%
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="card table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Qty</th>
+                    <th>Avg. Price</th>
+                    <th>LTP</th>
+                    <th>P&L</th>
+                    <th>P&L %</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="holding in holdings" :key="holding.symbol">
+                    <tr>
+                        <td x-text="holding.symbol" class="font-bold"></td>
+                        <td x-text="holding.quantity"></td>
+                        <td x-text="formatCurrency(holding.average_price)"></td>
+                        <td x-text="formatCurrency(holding.ltp)"></td>
+                        <td :class="getColorClass(holding.pnl)" x-text="formatCurrency(holding.pnl)"></td>
+                        <td :class="getColorClass(holding.pnl_percent)" x-text="formatPercentage(holding.pnl_percent)"></td>
+                    </tr>
+                </template>
+                <tr x-show="holdings.length === 0 && !loading">
+                    <td colspan="6" class="text-center text-secondary">No holdings found</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

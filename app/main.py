@@ -46,6 +46,7 @@ from app.web.backend.api.telegram import telegram_router
 from app.web.frontend.routes.traffic import traffic_router
 from app.web.frontend.routes.tv_json import tv_json_router
 from app.web.frontend.routes.websocket import websocket_router
+from app.web.backend.api.dummy_api import dummy_router
 
 # from app.web.backend.api.monitoring import monitoring_router
 from app.web.websocket.fastapi_integration import (
@@ -158,6 +159,7 @@ _app.include_router(strategy_router)
 _app.include_router(traffic_router)
 _app.include_router(tv_json_router)
 _app.include_router(websocket_router)
+_app.include_router(dummy_router, prefix="/api/dummy", tags=["dummy"])
 # _app.include_router(monitoring_router)
 register_all_adapters()
 
@@ -190,7 +192,11 @@ async def rate_limit_exception_handler(request: Request, exc: RateLimitExceeded)
 
 @_app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+    if exc.status_code == status.HTTP_302_FOUND:
+        return RedirectResponse(
+            url=exc.headers.get("Location", "/"), status_code=status.HTTP_302_FOUND
+        )
+    elif exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
         content = BaseErrorResponse(
             message="Rate limit exceeded. Please try again later.",
             code="RATE_LIMIT_EXCEEDED",

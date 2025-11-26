@@ -17,6 +17,11 @@ from app.utils.session import invalidate_session_if_invalid
 core_router = APIRouter()
 
 
+@core_router.get("/")
+async def root():
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+
 @core_router.get("/download")
 async def download(request: Request, _=Depends(invalidate_session_if_invalid)):
     return templates.TemplateResponse("download.html", {"request": request})
@@ -34,7 +39,7 @@ async def setup_form(request: Request, db_session: AsyncSessionLocal = Depends(g
     return templates.TemplateResponse("setup.html", {"request": request})
 
 
-@core_router.post("/setup")
+@core_router.post("/setup", name="setup")
 async def setup_submit(
     request: Request,
     username: str = Form(...),

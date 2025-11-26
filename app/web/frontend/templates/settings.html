@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <div class="flex justify-between items-center mb-4">
+        <h1>Settings</h1>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- General Settings -->
+        <div class="card">
+            <h3>General Settings</h3>
+            <form class="mt-4">
+                <div class="mb-4">
+                    <label class="block text-secondary text-sm mb-2">Theme</label>
+                    <select class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white">
+                        <option>Dark</option>
+                        <option>Light</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-secondary text-sm mb-2">Refresh Rate</label>
+                    <select class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white">
+                        <option>1 Second</option>
+                        <option>5 Seconds</option>
+                        <option>10 Seconds</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Broker Settings -->
+        <div class="card">
+            <h3>Broker Configuration</h3>
+            <div class="mt-4">
+                <div class="flex justify-between items-center mb-4 p-3 rounded bg-gray-800 border border-gray-700">
+                    <div>
+                        <div class="font-bold">Zerodha (Kite)</div>
+                        <div class="text-xs text-secondary">Connected</div>
+                    </div>
+                    <button class="btn btn-danger text-xs">Disconnect</button>
+                </div>
+                <div class="flex justify-between items-center mb-4 p-3 rounded bg-gray-800 border border-gray-700">
+                    <div>
+                        <div class="font-bold">Fyers</div>
+                        <div class="text-xs text-secondary">Disconnected</div>
+                    </div>
+                    <button class="btn btn-primary text-xs">Connect</button>
+                </div>
+                <button class="btn btn-primary w-full">Add New Broker</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

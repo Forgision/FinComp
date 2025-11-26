@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="strategies">
+    <div class="flex justify-between items-center mb-4">
+        <h1>Strategies</h1>
+        <button class="btn btn-primary" @click="fetchData()">Refresh</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <template x-for="strategy in strategies" :key="strategy.strategy_id">
+            <div class="card">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 x-text="strategy.name" class="mb-1"></h3>
+                        <div class="text-xs text-secondary" x-text="strategy.type"></div>
+                    </div>
+                    <span class="px-2 py-1 rounded text-xs font-bold"
+                          :class="getStatusClass(strategy.status)"
+                          x-text="strategy.status">
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <div class="text-xs text-secondary">Total P&L</div>
+                        <div class="font-bold" :class="getColorClass(strategy.pnl)" x-text="formatCurrency(strategy.pnl)"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-secondary">ROI</div>
+                        <div class="font-bold" :class="getColorClass(strategy.pnl_percent)" x-text="formatPercentage(strategy.pnl_percent)"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-secondary">Open Pos</div>
+                        <div class="font-bold" x-text="strategy.open_positions"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-secondary">Trades</div>
+                        <div class="font-bold" x-text="strategy.trades_count"></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 mt-4">
+                    <button class="btn btn-primary w-full text-sm">Configure</button>
+                    <button class="btn btn-danger w-full text-sm" x-show="strategy.status === 'RUNNING'">Stop</button>
+                    <button class="btn btn-primary w-full text-sm" x-show="strategy.status !== 'RUNNING'">Start</button>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="orders">
+    <div class="flex justify-between items-center mb-4">
+        <h1>Orders</h1>
+        <button class="btn btn-primary" @click="fetchData()">Refresh</button>
+    </div>
+
+    <div class="card table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Order ID</th>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Side</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="order in orders" :key="order.order_id">
+                    <tr>
+                        <td x-text="new Date(order.timestamp).toLocaleTimeString()"></td>
+                        <td x-text="order.order_id"></td>
+                        <td x-text="order.symbol" class="font-bold"></td>
+                        <td>LIMIT</td>
+                        <td>
+                            <span class="px-2 py-1 rounded text-xs font-bold"
+                                  :class="order.side === 'BUY' ? 'bg-blue-500 bg-opacity-20 text-blue-400' : 'bg-red-500 bg-opacity-20 text-red-400'"
+                                  x-text="order.side">
+                            </span>
+                        </td>
+                        <td x-text="order.quantity"></td>
+                        <td x-text="formatCurrency(order.price)"></td>
+                        <td>
+                            <span :class="getStatusClass(order.status)" x-text="order.status"></span>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="orders.length === 0 && !loading">
+                    <td colspan="8" class="text-center text-secondary">No orders found</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

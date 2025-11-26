@@ -115,6 +115,9 @@ def register_all_adapters():
     from app.web.brokers.zerodha.streaming.zerodha_adapter import (
         ZerodhaWebSocketAdapter,
     )
+    from app.web.broker.broker.dummy_broker.streaming.dummy_broker_adapter import (
+        DummyBrokerWebSocketAdapter,
+    )
 
     register_adapter("fyers", FyersWebSocketAdapter)
     register_adapter("angel", AngelWebSocketAdapter)
@@ -130,3 +133,4 @@ def register_all_adapters():
     register_adapter("upstox", UpstoxWebSocketAdapter)
     register_adapter("kotak", KotakWebSocketAdapter)
     register_adapter("definedge", DefinedgeWebSocketAdapter)
+    register_adapter("dummy_broker", DummyBrokerWebSocketAdapter)

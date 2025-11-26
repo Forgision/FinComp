@@ -51,7 +51,7 @@ async def get_funds_with_auth(
     """
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode(db) and original_data:
+    if await get_analyze_mode(db) and original_data:
         from app.core.services.sandbox_service import sandbox_get_funds
 
         api_key = original_data.get("apikey")
