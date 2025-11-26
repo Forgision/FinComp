@@ -17,6 +17,25 @@
 - **Concurrency**: Multiprocessing (Supervisor + Workers) + Asyncio
 - **Testing**: Pytest
 
+## Phased Implementation Strategy
+
+To ensure rapid development while maintaining architectural integrity, the project will follow a **"Monolithic First"** approach that strictly enforces the distributed architecture patterns.
+
+### Phase 1: Logical Split (Current Phase)
+
+- **Architecture**: Single Process (Monolith).
+- **Enforcement**:
+  - All components (Data, Algo, Execution) run within the same `app/main.py` process.
+  - **CRITICAL**: ZeroMQ is **MANDATORY** for communication between logical modules.
+  - Direct function calls between modules (e.g., Adapter calling Service directly) are **FORBIDDEN**.
+  - **Data Flow**: `Broker Adapter` -> `ZeroMQ PUB` -> `Loopback (Localhost)` -> `ZeroMQ SUB` -> `MarketDataService`.
+- **Goal**: Get the system to a working state with full feature set without the complexity of managing multiple processes/containers.
+
+### Phase 2: Physical Split (Future)
+
+- **Architecture**: Distributed Multi-Process.
+- **Transition**: Since ZeroMQ is already enforcing the boundaries, this phase only requires moving modules into separate process entry points. No logic changes will be needed.
+
 ## System Architecture
 
 The application is structured into **four main independent processes** to ensure stability, fault isolation, and performance.

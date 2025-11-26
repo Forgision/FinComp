@@ -3,11 +3,14 @@ Market data service for handling real-time streaming data.
 Provides caching, transformation, and broadcasting capabilities.
 """
 
+import json
 import threading
 import time
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Set
 
+import zmq
+from app.core.config import settings
 from app.utils.logging import logger
 
 from .websocket_service import register_market_data_callback
@@ -67,11 +70,50 @@ class MarketDataService:
             "last_cleanup": time.time(),
         }
 
+        # ZMQ Setup
+        self.zmq_context = zmq.Context()
+        self.zmq_socket = self.zmq_context.socket(zmq.SUB)
+        try:
+            # Connect to the ZMQ publisher (Broker Adapter)
+            # In monolithic mode, this is localhost
+            zmq_url = f"tcp://localhost:{settings.ZMQ_PORT}"
+            self.zmq_socket.connect(zmq_url)
+            self.zmq_socket.subscribe("")  # Subscribe to all topics
+            logger.info(f"MarketDataService subscribed to ZMQ at {zmq_url}")
+        except Exception as e:
+            logger.error(f"Failed to connect to ZMQ: {e}")
+
+        # Start ZMQ listener thread
+        self.zmq_thread = threading.Thread(target=self._zmq_listener_loop, daemon=True)
+        self.zmq_thread.start()
+
         # Start cleanup thread
         self.cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
         self.cleanup_thread.start()
 
         logger.info("MarketDataService initialized")
+
+    def _zmq_listener_loop(self):
+        """
+        Background thread to listen for ZMQ messages.
+        Enforces the 'Logical Split' by consuming data via network loopback.
+        """
+        logger.info("Starting ZMQ listener loop")
+        while True:
+            try:
+                # Receive multipart message: [topic, payload]
+                if self.zmq_socket.poll(1000):  # Poll with 1s timeout
+                    msg = self.zmq_socket.recv_multipart()
+                    if len(msg) >= 2:
+                        # topic = msg[0].decode('utf-8')
+                        payload = json.loads(msg[1].decode("utf-8"))
+                        self.process_market_data(payload)
+            except zmq.ZMQError as e:
+                logger.error(f"ZMQ Error in listener loop: {e}")
+                time.sleep(1)  # Backoff on error
+            except Exception as e:
+                logger.error(f"Error in ZMQ listener loop: {e}")
+                time.sleep(0.1)  # Prevent tight loop on error
 
     def process_market_data(self, data: Dict[str, Any]) -> None:
         """
