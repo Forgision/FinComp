@@ -6,8 +6,8 @@ document.addEventListener('alpine:init', () => {
         socket: null,
         connected: false,
         indices: [
-            { name: 'NIFTY 50', value: 24350.50, change: 120.50, percent_change: 0.50, color: 'text-success' },
-            { name: 'BANKNIFTY', value: 52100.25, change: -150.75, percent_change: -0.29, color: 'text-danger' }
+            { symbol: 'NIFTY 50', ltp: 24350.50, change: 120.50, percent_change: 0.50, color: 'text-success' },
+            { symbol: 'BANKNIFTY', ltp: 52100.25, change: -150.75, percent_change: -0.29, color: 'text-danger' }
         ],
         
         connect() {
@@ -59,9 +59,9 @@ document.addEventListener('alpine:init', () => {
                  const data = message.data || message;
                  const symbol = message.symbol || data.symbol;
                  
-                 const index = this.indices.findIndex(i => i.name === symbol);
+                 const index = this.indices.findIndex(i => i.symbol === symbol);
                  if (index !== -1 && data.ltp) {
-                     this.indices[index].value = data.ltp;
+                     this.indices[index].ltp = data.ltp;
                      this.indices[index].change = data.change;
                      this.indices[index].percent_change = data.percent_change;
                      this.indices[index].color = data.change >= 0 ? 'text-success' : 'text-danger';

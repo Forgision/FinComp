@@ -71,8 +71,8 @@ class SandboxOrders(Base):
     )
 
     __table_args__ = (
-        Index("idx_user_status", "user_id", "order_status"),
-        Index("idx_symbol_exchange", "symbol", "exchange"),
+        Index("idx_user_status", "user_id", "order_status", if_not_exists=True),
+        Index("idx_symbol_exchange", "symbol", "exchange", if_not_exists=True),
         CheckConstraint(
             "order_status IN ('open', 'complete', 'cancelled', 'rejected')",
             name="check_order_status",
@@ -110,8 +110,8 @@ class SandboxTrades(Base):
     )
 
     __table_args__ = (
-        Index("idx_user_symbol", "user_id", "symbol"),
-        Index("idx_orderid", "orderid"),
+        Index("idx_user_symbol", "user_id", "symbol", if_not_exists=True),
+        Index("idx_orderid", "orderid", if_not_exists=True),
     )
 
 
@@ -158,7 +158,7 @@ class SandboxPositions(Base):
         UniqueConstraint(
             "user_id", "symbol", "exchange", "product", name="unique_position"
         ),
-        Index("idx_user_product", "user_id", "product"),
+        Index("idx_user_product", "user_id", "product", if_not_exists=True),
     )
 
 
