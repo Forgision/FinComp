@@ -25,7 +25,8 @@ To ensure rapid development while maintaining architectural integrity, the proje
 
 - **Architecture**: Single Process (Monolith).
 - **Enforcement**:
-  - All components (Data, Algo, Execution) run within the same `app/main.py` process.
+  - **Main Process**: `app/main.py` runs the **FastAPI** server.
+  - **Service Management**: The FastAPI `lifespan` handler initializes and runs the **Data**, **Algo**, and **Execution** services as background `asyncio` tasks.
   - **CRITICAL**: ZeroMQ is **MANDATORY** for communication between logical modules.
   - Direct function calls between modules (e.g., Adapter calling Service directly) are **FORBIDDEN**.
   - **Data Flow**: `Broker Adapter` -> `ZeroMQ PUB` -> `Loopback (Localhost)` -> `ZeroMQ SUB` -> `MarketDataService`.
@@ -38,41 +39,50 @@ To ensure rapid development while maintaining architectural integrity, the proje
 
 ## System Architecture
 
-The application is structured into **four main independent processes** to ensure stability, fault isolation, and performance.
+The application is structured into **four main independent logical services** (running as async tasks in Phase 1) to ensure stability, fault isolation, and performance.
 
-### 1. Web Server Process (`app/web`)
+### 1. Web Server Service (`app/web`)
 
 - **Host**: FastAPI + Socket.IO.
 - **Role**: Handles UI requests, REST API, and WebSocket streaming to frontend.
 - **Interaction**:
-  - **Requests Snapshot**: Uses ZeroMQ REQ socket to request initial market data state from the Data Engine.
+  - **Requests Snapshot**: Uses ZeroMQ **DEALER/REQ** socket to request initial market data state from the Data Engine.
   - **Subscribes to ZeroMQ**: Streams real-time ticks to the frontend via Socket.IO (SUB socket).
+  - **Control**: Publishes control commands (Start/Stop) to Algo Service via ZeroMQ PUB.
 
-### 2. Data Engine Process (`app/core/data`)
+### 2. Data Engine Service (`app/core/data`)
 
-- **Host**: Asyncio Event Loop (Single Process).
-- **Role**: Dedicated process for ingesting market data.
-- **Responsibilities**:
-  - Manages WebSocket connections to Brokers (Zerodha, Fyers, etc.).
-  - Normalizes incoming ticks.
-  - **ZeroMQ Publisher**: Publishes ticks to a ZeroMQ PUB socket (Topic: `market_data`).
-  - **ZeroMQ Replier**: Listens on a REP socket to serve "Snapshot" requests (e.g., LTP, Volume) to the Web Server or Algo Engine.
-- **Isolation**: If this process lags or crashes, it does not affect active orders or the UI.
+- **Host**: Asyncio Event Loop.
+- **Role**: Dedicated service for ingesting market data.
+- **Internal Architecture**: Spawns two concurrent tasks:
+  1. **Live Data Task**:
+      - Connects to Broker WebSocket.
+      - Normalizes incoming ticks.
+      - **ZeroMQ Publisher**: Publishes ticks to a ZeroMQ **PUB** socket (Topic: `market_data.{symbol}`).
+  2. **Historical Data Task**:
+      - **ZeroMQ Router**: Listens on a **ROUTER** socket to serve "Snapshot" and "Historical" requests (e.g., LTP, Volume, Candles).
+      - **Non-Blocking**: Spawns async tasks to query the database and replies to the specific client identity.
+- **Isolation**: If this service lags, it does not affect active orders or the UI.
 
-### 3. Algo Engine Process (`app/algo`)
+### 3. Algo Engine Service (`app/algo`)
 
-- **Host**: Multiprocessing Supervisor.
+- **Host**: Asyncio Event Loop (Phase 1).
 - **Role**: Manages Strategy execution.
-- **Architecture**: **Supervisor + Worker Model**.
-  - **Supervisor Process**: Manages the lifecycle of worker processes.
-  - **Worker Processes**: A fixed number of long-lived worker processes as per CPU core count (e.g., 3-4 workers).
-  - Strategies are distributed and deployed across these worker processes.
-- **Responsibilities**:
-  - **Subscribes to ZeroMQ**: Listens to `market_data` topic on the SUB socket.
-  - Runs strategy logic (CPU bound).
-  - Publishes **Signals** to ZeroMQ PUB socket (Topic: `signals`).
+- **Terminology**: **Algo Supervisor**.
+- **Internal Architecture**:
+  - **Workers (Strategies)**:
+    - Implemented as `asyncio.Task`s.
+    - **Input**: Subscribes to `market_data.{symbol}` via ZeroMQ SUB.
+    - **Logic**: Runs strategy logic.
+    - **Output**: Generates **Signals**.
+  - **Algo Supervisor**:
+    - **Input**: Receives Signals from Workers.
+    - **Risk Management**: Checks global/strategy limits.
+    - **Position Sizing**: Calculates quantity.
+    - **Output**: Publishes approved orders to ZeroMQ **PUB** (Topic: `signals`).
+    - **Feedback**: Subscribes to `execution_report` from Order Service to update strategy state.
 
-### 4. Execution Engine Process (`app/core/execution`)
+### 4. Execution Engine Service (`app/core/execution`)
 
 - **Host**: Asyncio Event Loop.
 - **Role**: Order Management System (OMS).
@@ -81,6 +91,7 @@ The application is structured into **four main independent processes** to ensure
   - **Order Validation**: Validates signals against broker policies (e.g., quantity, margin).
   - **Execution**: Converts signals to broker-specific order formats and executes via Broker APIs.
   - **Gateway**: Acts as the single gateway for all order execution (Strategies & Web).
+  - **Feedback Loop**: Publishes **Execution Reports** (PLACED, FILLED, CANCELLED) to ZeroMQ **PUB** (Topic: `execution_report`).
   - Manages the master OrderBook and TradeBook.
 
 ## Data Sharing & Concurrency
@@ -89,22 +100,25 @@ The application is structured into **four main independent processes** to ensure
 
 We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need for a central cache like Redis.
 
-- **Pattern 1: Pub/Sub (Real-time Data)**
+- **Pattern 1: Pub/Sub (Real-time Data & Signals)**
   - **Transport**: TCP (Localhost) or IPC.
   - **Flows**:
     - `Market Data`: Data Engine (PUB) -> Algo Engine (SUB) & Web Server (SUB).
+      - **Filtering**: Subscribers filter by topic `market_data.{symbol}`.
     - `Signals`: Algo Engine (PUB) -> Execution Engine (SUB).
+    - `Execution Reports`: Execution Engine (PUB) -> Algo Engine (SUB).
     - `Control`: Web Server (PUB) -> Algo Engine (SUB) (Start/Stop Strategies).
 
-- **Pattern 2: Req/Rep (State/Snapshots)**
+- **Pattern 2: Router/Dealer (State/Snapshots/History)**
   - **Flows**:
-    - `Snapshot`: Web Server (REQ) -> Data Engine (REP).
-      - *Use Case*: When a user opens the dashboard, the Web Server requests the current "Last Traded Price" for all visible symbols.
+    - `Snapshot/History`: Web Server/Algo (DEALER/REQ) -> Data Engine (ROUTER).
+      - *Use Case*: When a user opens the dashboard, the Web Server requests the current "Last Traded Price" or "Historical Candles".
+      - *Benefit*: **ROUTER** socket allows the Data Engine to handle multiple concurrent requests without blocking.
 
 ### Concurrency Strategy
 
-- **I/O Bound** (Data, Web, Execution): Use **Asyncio**.
-- **CPU Bound** (Algo): Use **Multiprocessing** (Supervisor + Long-lived Workers).
+- **Phase 1 (Monolith)**: All services run as **Asyncio Tasks** within the main FastAPI process.
+- **Phase 2 (Distributed)**: Services move to separate processes. Algo Workers may move to `multiprocessing` for CPU isolation.
 
 ## Key Workflows
 
