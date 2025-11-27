@@ -7,10 +7,10 @@ from datetime import datetime
 from pytz import timezone
 from unittest.mock import ANY
 
-from app.web.brokers.indmoney.api.auth_api import authenticate_broker
-from app.web.brokers.indmoney.api.data import BrokerData, get_api_response as get_data_api_response
-from app.web.brokers.indmoney.api.funds import get_margin_data, DEFAULT_MARGIN_RESPONSE
-from app.web.brokers.indmoney.api.order_api import (
+from app.core.brokers.indmoney.api.auth_api import authenticate_broker
+from app.core.brokers.indmoney.api.data import BrokerData, get_api_response as get_data_api_response
+from app.core.brokers.indmoney.api.funds import get_margin_data, DEFAULT_MARGIN_RESPONSE
+from app.core.brokers.indmoney.api.order_api import (
     get_api_response as get_order_api_response,
     get_positions
 )

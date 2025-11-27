@@ -3,8 +3,8 @@ pytest.skip("Skipped by user request", allow_module_level=True)
 from unittest.mock import patch, MagicMock
 import pandas as pd
 
-from app.web.brokers.compositedge.api.auth_api import authenticate_broker, get_feed_token
-from app.web.brokers.compositedge.api.data import BrokerData
+from app.core.brokers.compositedge.api.auth_api import authenticate_broker, get_feed_token
+from app.core.brokers.compositedge.api.data import BrokerData
 
 class TestCompositedgeIntegration:
     def setUp(self):

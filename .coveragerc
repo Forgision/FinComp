@@ -14,7 +14,7 @@ omit =
     .venv/*
     env/*
     .env/*
-    app/web/brokers/*
+    app/core/brokers/*
     
 
 [report]

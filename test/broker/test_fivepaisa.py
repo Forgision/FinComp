@@ -9,12 +9,12 @@ import pandas as pd
 # TODO: Fix assertions in this file manually. Many tests fail due to mismatch between expected None and actual error dict return values.
 import pytest
 from app.core.config import settings
-from app.web.brokers.fivepaisa.api.auth_api import authenticate_broker
-from app.web.brokers.fivepaisa.api.data import (
+from app.core.brokers.fivepaisa.api.auth_api import authenticate_broker
+from app.core.brokers.fivepaisa.api.data import (
     BrokerData,
     get_api_response,
 )
-from app.web.brokers.fivepaisa.api.order_api import (
+from app.core.brokers.fivepaisa.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -77,9 +77,9 @@ def mock_get_symbol():
 
 @pytest.fixture
 def mock_map_exchange():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.map_exchange."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.map_exchange."""
     with patch(
-        "app.web.brokers.fivepaisa.mapping.transform_data.map_exchange", autospec=True
+        "app.core.brokers.fivepaisa.mapping.transform_data.map_exchange", autospec=True
     ) as mock_map_exchange:
         mock_map_exchange.return_value = "MOCK_EXCH"
         yield mock_map_exchange
@@ -87,9 +87,9 @@ def mock_map_exchange():
 
 @pytest.fixture
 def mock_map_exchange_type():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.map_exchange_type."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.map_exchange_type."""
     with patch(
-        "app.web.brokers.fivepaisa.mapping.transform_data.map_exchange_type",
+        "app.core.brokers.fivepaisa.mapping.transform_data.map_exchange_type",
         autospec=True,
     ) as mock_map_exchange_type:
         mock_map_exchange_type.return_value = "MOCK_EXCH_TYPE"
@@ -98,9 +98,9 @@ def mock_map_exchange_type():
 
 @pytest.fixture
 def mock_reverse_map_exchange():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.reverse_map_exchange."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.reverse_map_exchange."""
     with patch(
-        "app.web.brokers.fivepaisa.mapping.transform_data.reverse_map_exchange",
+        "app.core.brokers.fivepaisa.mapping.transform_data.reverse_map_exchange",
         autospec=True,
     ) as mock_reverse_map_exchange:
         mock_reverse_map_exchange.return_value = "MOCK_OPENALGO_EXCHANGE"
@@ -109,9 +109,9 @@ def mock_reverse_map_exchange():
 
 @pytest.fixture
 def mock_reverse_map_product_type():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.reverse_map_product_type."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.reverse_map_product_type."""
     with patch(
-        "app.web.brokers.fivepaisa.mapping.transform_data.reverse_map_product_type",
+        "app.core.brokers.fivepaisa.mapping.transform_data.reverse_map_product_type",
         autospec=True,
     ) as mock_reverse_map_product_type:
         mock_reverse_map_product_type.return_value = "MOCK_OPENALGO_PRODUCT"
@@ -120,9 +120,9 @@ def mock_reverse_map_product_type():
 
 @pytest.fixture
 def mock_transform_data():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.transform_data."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.transform_data."""
     with patch(
-        "app.web.brokers.fivepaisa.mapping.transform_data.transform_data", autospec=True
+        "app.core.brokers.fivepaisa.mapping.transform_data.transform_data", autospec=True
     ) as mock_transform_data:
         mock_transform_data.return_value = {"mock": "transformed_data"}
         yield mock_transform_data
@@ -130,9 +130,9 @@ def mock_transform_data():
 
 @pytest.fixture
 def mock_transform_modify_order_data():
-    """Fixture to mock app.web.brokers.fivepaisa.mapping.transform_data.transform_modify_order_data."""
+    """Fixture to mock app.core.brokers.fivepaisa.mapping.transform_data.transform_modify_order_data."""
     with patch(
-        "app.web.brokers.fivepaisa.api.order_api.transform_modify_order_data",
+        "app.core.brokers.fivepaisa.api.order_api.transform_modify_order_data",
         autospec=True,
     ) as mock_transform_modify_order_data:
         mock_transform_modify_order_data.return_value = {
@@ -394,12 +394,12 @@ async def test_get_api_response_generic_exception(mock_httpx_client, mock_settin
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_quotes_success(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -429,7 +429,7 @@ async def test_get_quotes_success(
 
     # Mock get_market_depth to return processed data
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         return_value={"bid": 99.75, "ask": 100.75},
     ) as mock_get_market_depth:
         mock_httpx_client.post.return_value = mock_snapshot_response
@@ -452,12 +452,12 @@ async def test_get_quotes_success(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_quotes_snapshot_failure(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -483,12 +483,12 @@ async def test_get_quotes_snapshot_failure(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_quotes_market_depth_none(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -517,7 +517,7 @@ async def test_get_quotes_market_depth_none(
     }
 
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         return_value=None,
     ) as mock_get_market_depth:
         mock_httpx_client.post.return_value = mock_snapshot_response
@@ -540,12 +540,12 @@ async def test_get_quotes_market_depth_none(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_quotes_prev_close_fallback(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -575,7 +575,7 @@ async def test_get_quotes_prev_close_fallback(
     mock_snapshot_response.json.return_value = mock_response_data
 
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         return_value={"bid": 99.75, "ask": 100.75},
     ) as mock_get_market_depth:
         mock_httpx_client.post.return_value = mock_snapshot_response
@@ -589,12 +589,12 @@ async def test_get_quotes_prev_close_fallback(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_quotes_exception_handling(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -614,12 +614,12 @@ async def test_get_quotes_exception_handling(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_market_depth_success(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -650,12 +650,12 @@ async def test_get_market_depth_success(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_market_depth_api_failure(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -681,12 +681,12 @@ async def test_get_market_depth_api_failure(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_market_depth_empty_data(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -712,12 +712,12 @@ async def test_get_market_depth_empty_data(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_market_depth_no_bid_or_ask(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -751,12 +751,12 @@ async def test_get_market_depth_no_bid_or_ask(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="12345")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="12345")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
-@patch("app.web.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange", return_value="NSE")
+@patch("app.core.brokers.fivepaisa.api.data.map_exchange_type", return_value="C")
 async def test_get_market_depth_exception_handling(
     mock_map_exchange_type,
     mock_map_exchange,
@@ -780,7 +780,7 @@ async def test_get_depth_success(mock_httpx_client, mock_settings):
     """Test successful retrieval of depth data."""
     broker_data = BrokerData("mock_auth_token")
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         return_value={"bid": 100.00, "ask": 101.00},
     ) as mock_get_market_depth:
         depth = await broker_data.get_depth("TESTSYMBOL", "NSE")
@@ -794,7 +794,7 @@ async def test_get_depth_no_market_depth(mock_httpx_client, mock_settings):
     """Test get_depth when get_market_depth returns None."""
     broker_data = BrokerData("mock_auth_token")
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         return_value=None,
     ) as mock_get_market_depth:
         depth = await broker_data.get_depth("TESTSYMBOL", "NSE")
@@ -808,7 +808,7 @@ async def test_get_depth_exception_handling(mock_httpx_client, mock_settings):
     """Test get_depth exception handling."""
     broker_data = BrokerData("mock_auth_token")
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
+        "app.core.brokers.fivepaisa.api.data.BrokerData.get_market_depth",
         side_effect=Exception("Error getting market depth"),
     ) as mock_get_market_depth:
         depth = await broker_data.get_depth("TESTSYMBOL", "NSE")
@@ -898,7 +898,7 @@ def test_process_raw_candles_missing_keys():
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_order_book_api_error(mock_get_api_response):
     """Test get_order_book when API call raises an exception."""
     mock_get_api_response.side_effect = Exception("API error")
@@ -912,7 +912,7 @@ async def test_get_order_book_api_error(mock_get_api_response):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_trade_book_api_error(mock_get_api_response):
     """Test get_trade_book when API call raises an exception."""
     mock_get_api_response.side_effect = Exception("API error")
@@ -929,11 +929,11 @@ async def test_get_trade_book_api_error(mock_get_api_response):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_api_response")
-@patch("app.web.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
+@patch("app.core.brokers.fivepaisa.api.data.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
 async def test_get_history_success(
     mock_get_br_symbol,
@@ -968,7 +968,7 @@ async def test_get_history_success(
     }
     broker_data = BrokerData("mock_auth_token")
     with patch(
-        "app.web.brokers.fivepaisa.api.data.BrokerData._process_raw_candles",
+        "app.core.brokers.fivepaisa.api.data.BrokerData._process_raw_candles",
         return_value=[
             {
                 "date": "2023-01-01 09:15:00",
@@ -997,11 +997,11 @@ async def test_get_history_success(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_api_response")
-@patch("app.web.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
+@patch("app.core.brokers.fivepaisa.api.data.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
 async def test_get_history_api_failure(
     mock_get_br_symbol,
@@ -1023,11 +1023,11 @@ async def test_get_history_api_failure(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_api_response")
-@patch("app.web.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
+@patch("app.core.brokers.fivepaisa.api.data.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
 async def test_get_history_empty_data(
     mock_get_br_symbol,
@@ -1049,11 +1049,11 @@ async def test_get_history_empty_data(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.data.get_api_response")
-@patch("app.web.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
-@patch("app.web.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
+@patch("app.core.brokers.fivepaisa.api.data.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.data.BrokerData.map_interval", return_value="30")
+@patch("app.core.brokers.fivepaisa.api.data.get_token", return_value="mock_token")
 @patch(
-    "app.web.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
+    "app.core.brokers.fivepaisa.api.data.get_br_symbol", return_value="MOCK_BR_SYMBOL"
 )
 async def test_get_history_exception_handling(
     mock_get_br_symbol,
@@ -1138,7 +1138,7 @@ def test_get_supported_intervals():
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_order_book_success(mock_get_api_response):
     """Test successful retrieval of order book."""
     mock_get_api_response.return_value = {
@@ -1158,7 +1158,7 @@ async def test_get_order_book_success(mock_get_api_response):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_api_response")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_api_response")
 async def test_get_trade_book_success(mock_get_api_response):
     """Test successful retrieval of trade book."""
     mock_get_api_response.return_value = {
@@ -1178,7 +1178,7 @@ async def test_get_trade_book_success(mock_get_api_response):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_positions_success(mock_get_httpx_client):
     """Test successful retrieval of positions."""
     mock_response = MagicMock()
@@ -1205,7 +1205,7 @@ async def test_get_positions_success(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_positions_timeout_and_retry(mock_get_httpx_client):
     """Test handling of timeout with retries for positions."""
     mock_get_httpx_client.return_value.post = AsyncMock(
@@ -1220,7 +1220,7 @@ async def test_get_positions_timeout_and_retry(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_positions_http_error(mock_get_httpx_client):
     """Test handling of HTTPStatusError for positions."""
     mock_response = MagicMock()
@@ -1239,7 +1239,7 @@ async def test_get_positions_http_error(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_positions_general_exception(mock_get_httpx_client):
     """Test handling of general exception for positions."""
     mock_get_httpx_client.return_value.post = AsyncMock(
@@ -1254,7 +1254,7 @@ async def test_get_positions_general_exception(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_holdings_success(mock_get_httpx_client):
     """Test successful retrieval of holdings."""
     mock_response = MagicMock()
@@ -1281,7 +1281,7 @@ async def test_get_holdings_success(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_holdings_timeout_and_retry(mock_get_httpx_client):
     """Test handling of timeout with retries for holdings."""
     mock_get_httpx_client.return_value.post = AsyncMock(
@@ -1296,7 +1296,7 @@ async def test_get_holdings_timeout_and_retry(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_holdings_http_error(mock_get_httpx_client):
     """Test handling of HTTPStatusError for holdings."""
     mock_response = MagicMock()
@@ -1315,7 +1315,7 @@ async def test_get_holdings_http_error(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 async def test_get_holdings_general_exception(mock_get_httpx_client):
     """Test handling of general exception for holdings."""
     mock_get_httpx_client.return_value.post = AsyncMock(
@@ -1330,9 +1330,9 @@ async def test_get_holdings_general_exception(mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_order_api_success(mock_transform_data, mock_get_httpx_client):
@@ -1370,9 +1370,9 @@ async def test_place_order_api_success(mock_transform_data, mock_get_httpx_clien
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_order_api_failure(mock_transform_data, mock_get_httpx_client):
@@ -1400,9 +1400,9 @@ async def test_place_order_api_failure(mock_transform_data, mock_get_httpx_clien
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_order_api_http_error(mock_transform_data, mock_get_httpx_client):
@@ -1427,9 +1427,9 @@ async def test_place_order_api_http_error(mock_transform_data, mock_get_httpx_cl
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_order_api_request_error(
@@ -1452,9 +1452,9 @@ async def test_place_order_api_request_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_order_api_general_exception(
@@ -1477,9 +1477,9 @@ async def test_place_order_api_general_exception(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_smartorder_api_success(mock_transform_data, mock_get_httpx_client):
@@ -1519,9 +1519,9 @@ async def test_place_smartorder_api_success(mock_transform_data, mock_get_httpx_
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_smartorder_api_failure(mock_transform_data, mock_get_httpx_client):
@@ -1551,9 +1551,9 @@ async def test_place_smartorder_api_failure(mock_transform_data, mock_get_httpx_
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_smartorder_api_http_error(
@@ -1582,9 +1582,9 @@ async def test_place_smartorder_api_http_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_close_all_positions_success(mock_transform_data, mock_get_httpx_client):
@@ -1621,9 +1621,9 @@ async def test_close_all_positions_success(mock_transform_data, mock_get_httpx_c
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_close_all_positions_failure(mock_transform_data, mock_get_httpx_client):
@@ -1650,9 +1650,9 @@ async def test_close_all_positions_failure(mock_transform_data, mock_get_httpx_c
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_close_all_positions_http_error(
@@ -1678,9 +1678,9 @@ async def test_close_all_positions_http_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_order_success(mock_transform_data, mock_get_httpx_client):
@@ -1717,9 +1717,9 @@ async def test_cancel_order_success(mock_transform_data, mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_order_failure(mock_transform_data, mock_get_httpx_client):
@@ -1746,9 +1746,9 @@ async def test_cancel_order_failure(mock_transform_data, mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_order_http_error(mock_transform_data, mock_get_httpx_client):
@@ -1775,9 +1775,9 @@ async def test_cancel_order_http_error(mock_transform_data, mock_get_httpx_clien
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_modify_order_success(mock_transform_data, mock_get_httpx_client):
@@ -1811,9 +1811,9 @@ async def test_modify_order_success(mock_transform_data, mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_modify_order_failure(mock_transform_data, mock_get_httpx_client):
@@ -1837,9 +1837,9 @@ async def test_modify_order_failure(mock_transform_data, mock_get_httpx_client):
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_modify_order_http_error(mock_transform_data, mock_get_httpx_client):
@@ -1866,9 +1866,9 @@ async def test_modify_order_http_error(mock_transform_data, mock_get_httpx_clien
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_all_orders_api_success(
@@ -1904,9 +1904,9 @@ async def test_cancel_all_orders_api_success(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_all_orders_api_failure(
@@ -1932,9 +1932,9 @@ async def test_cancel_all_orders_api_failure(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_all_orders_api_http_error(
@@ -1960,9 +1960,9 @@ async def test_cancel_all_orders_api_http_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_all_orders_api_request_error(
@@ -1984,9 +1984,9 @@ async def test_cancel_all_orders_api_request_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_all_orders_api_general_exception(
@@ -2008,9 +2008,9 @@ async def test_cancel_all_orders_api_general_exception(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_modify_order_request_error(mock_transform_data, mock_get_httpx_client):
@@ -2030,9 +2030,9 @@ async def test_modify_order_request_error(mock_transform_data, mock_get_httpx_cl
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_modify_order_general_exception(
@@ -2054,9 +2054,9 @@ async def test_modify_order_general_exception(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_order_request_error(mock_transform_data, mock_get_httpx_client):
@@ -2079,9 +2079,9 @@ async def test_cancel_order_request_error(mock_transform_data, mock_get_httpx_cl
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_cancel_order_general_exception(
@@ -2106,9 +2106,9 @@ async def test_cancel_order_general_exception(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_close_all_positions_request_error(
@@ -2130,9 +2130,9 @@ async def test_close_all_positions_request_error(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_close_all_positions_general_exception(
@@ -2154,9 +2154,9 @@ async def test_close_all_positions_general_exception(
 
 
 @pytest.mark.asyncio
-@patch("app.web.brokers.fivepaisa.api.order_api.get_httpx_client")
+@patch("app.core.brokers.fivepaisa.api.order_api.get_httpx_client")
 @patch(
-    "app.web.brokers.fivepaisa.api.order_api.transform_data",
+    "app.core.brokers.fivepaisa.api.order_api.transform_data",
     return_value={"mock": "transformed_data"},
 )
 async def test_place_smartorder_api_general_exception(

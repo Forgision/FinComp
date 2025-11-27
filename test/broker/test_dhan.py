@@ -3,8 +3,8 @@ pytest.skip("Skipped by user request", allow_module_level=True)
 from unittest.mock import patch, MagicMock
 import json
 
-from app.web.brokers.dhan.api.auth_api import authenticate_broker
-from app.web.brokers.dhan.api.order_api import get_order_details_api
+from app.core.brokers.dhan.api.auth_api import authenticate_broker
+from app.core.brokers.dhan.api.order_api import get_order_details_api
 
 class TestDhanIntegration:
     def setUp(self):

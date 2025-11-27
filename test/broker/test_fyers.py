@@ -4,11 +4,11 @@ import pandas as pd
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
-from app.web.brokers.fyers.api.auth_api import authenticate_broker
-from app.web.brokers.fyers.api.data import (
+from app.core.brokers.fyers.api.auth_api import authenticate_broker
+from app.core.brokers.fyers.api.data import (
     BrokerData,
 )
-from app.web.brokers.fyers.api.order_api import (
+from app.core.brokers.fyers.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
     close_all_positions,
@@ -27,7 +27,7 @@ from app.web.brokers.fyers.api.order_api import (
 @pytest.fixture
 def mock_settings():
     """Fixture to mock app settings."""
-    with patch("app.web.brokers.fyers.api.auth_api.settings") as mock_settings_obj:
+    with patch("app.core.brokers.fyers.api.auth_api.settings") as mock_settings_obj:
         mock_settings_obj.BROKER_API_KEY = "mock_api_key"
         mock_settings_obj.BROKER_API_SECRET = "mock_api_secret"
         yield mock_settings_obj
@@ -38,13 +38,13 @@ def mock_httpx_client():
     """Fixture to mock httpx client with async capabilities."""
     with (
         patch(
-            "app.web.brokers.fyers.api.order_api.get_httpx_client"
+            "app.core.brokers.fyers.api.order_api.get_httpx_client"
         ) as mock_get_client_order,
         patch(
-            "app.web.brokers.fyers.api.data.get_httpx_client"
+            "app.core.brokers.fyers.api.data.get_httpx_client"
         ) as mock_get_client_data,
         patch(
-            "app.web.brokers.fyers.api.auth_api.get_httpx_client"
+            "app.core.brokers.fyers.api.auth_api.get_httpx_client"
         ) as mock_get_client_auth,
     ):
         mock_client = AsyncMock()
@@ -57,7 +57,7 @@ def mock_httpx_client():
 @pytest.fixture
 def mock_sha256():
     """Fixture to mock hashlib.sha256."""
-    with patch("app.web.brokers.fyers.api.auth_api.hashlib.sha256") as mock_sha256_obj:
+    with patch("app.core.brokers.fyers.api.auth_api.hashlib.sha256") as mock_sha256_obj:
         mock_sha256_obj.return_value.hexdigest.return_value = "mock_app_id_hash"
         yield mock_sha256_obj
 
@@ -66,7 +66,7 @@ def mock_sha256():
 def mock_get_br_symbol():
     """Fixture to mock get_br_symbol function."""
     with patch(
-        "app.web.brokers.fyers.api.data.get_br_symbol", new_callable=AsyncMock
+        "app.core.brokers.fyers.api.data.get_br_symbol", new_callable=AsyncMock
     ) as mock_get_br_symbol_obj:
         mock_get_br_symbol_obj.return_value = "NSE:SBIN-EQ"
         yield mock_get_br_symbol_obj
@@ -76,7 +76,7 @@ def mock_get_br_symbol():
 def mock_data_get_api_response():
     """Fixture to mock the get_api_response function in data.py."""
     with patch(
-        "app.web.brokers.fyers.api.data.get_api_response", new_callable=AsyncMock
+        "app.core.brokers.fyers.api.data.get_api_response", new_callable=AsyncMock
     ) as mock_get_api_response_obj:
         yield mock_get_api_response_obj
 
@@ -206,7 +206,7 @@ class TestFyersAuth:
 def mock_order_get_api_response():
     """Fixture to mock the get_api_response function in order_api.py."""
     with patch(
-        "app.web.brokers.fyers.api.order_api.get_api_response", new_callable=AsyncMock
+        "app.core.brokers.fyers.api.order_api.get_api_response", new_callable=AsyncMock
     ) as mock_get_api_response_obj:
         yield mock_get_api_response_obj
 
@@ -215,7 +215,7 @@ def mock_order_get_api_response():
 def mock_get_br_symbol_order():
     """Fixture to mock get_br_symbol function in order_api.py."""
     with patch(
-        "app.web.brokers.fyers.api.order_api.get_br_symbol"
+        "app.core.brokers.fyers.api.order_api.get_br_symbol"
     ) as mock_get_br_symbol_obj:
         mock_get_br_symbol_obj.return_value = "NSE:SBIN-EQ"
         yield mock_get_br_symbol_obj
@@ -225,7 +225,7 @@ def mock_get_br_symbol_order():
 def mock_transform_data():
     """Fixture to mock transform_data function."""
     with patch(
-        "app.web.brokers.fyers.api.order_api.transform_data"
+        "app.core.brokers.fyers.api.order_api.transform_data"
     ) as mock_transform_data_obj:
         mock_transform_data_obj.return_value = {"transformed": "data"}
         yield mock_transform_data_obj
@@ -235,7 +235,7 @@ def mock_transform_data():
 def mock_transform_modify_order_data():
     """Fixture to mock transform_modify_order_data function."""
     with patch(
-        "app.web.brokers.fyers.api.order_api.transform_modify_order_data"
+        "app.core.brokers.fyers.api.order_api.transform_modify_order_data"
     ) as mock_transform_modify_order_data_obj:
         mock_transform_modify_order_data_obj.return_value = {
             "transformed": "modify_data"
@@ -247,7 +247,7 @@ def mock_transform_modify_order_data():
 def mock_map_product_type():
     """Fixture to mock map_product_type function."""
     with patch(
-        "app.web.brokers.fyers.api.order_api.map_product_type"
+        "app.core.brokers.fyers.api.order_api.map_product_type"
     ) as mock_map_product_type_obj:
         mock_map_product_type_obj.return_value = "CNC"
         yield mock_map_product_type_obj

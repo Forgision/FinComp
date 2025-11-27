@@ -164,7 +164,7 @@ asyncio_mode = "auto"
 source = ["app"]
 omit = [
 "**/__init__.py",
-"app/web/brokers/*"
+"app/core/brokers/*"
 ]
 
 [tool.coverage.report]

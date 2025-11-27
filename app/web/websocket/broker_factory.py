@@ -87,32 +87,32 @@ def create_broker_adapter(broker_name: str) -> Optional[BaseBrokerWebSocketAdapt
 
 
 def register_all_adapters():
-    from app.web.brokers.angel.streaming.angel_adapter import AngelWebSocketAdapter
-    from app.web.brokers.compositedge.streaming.compositedge_adapter import (
+    from app.core.brokers.angel.streaming.angel_adapter import AngelWebSocketAdapter
+    from app.core.brokers.compositedge.streaming.compositedge_adapter import (
         CompositedgeWebSocketAdapter,
     )
-    from app.web.brokers.definedge.streaming.definedge_adapter import (
+    from app.core.brokers.definedge.streaming.definedge_adapter import (
         DefinedgeWebSocketAdapter,
     )
-    from app.web.brokers.dhan.streaming.dhan_adapter import DhanWebSocketAdapter
-    from app.web.brokers.fivepaisaxts.streaming.fivepaisaxts_adapter import (
+    from app.core.brokers.dhan.streaming.dhan_adapter import DhanWebSocketAdapter
+    from app.core.brokers.fivepaisaxts.streaming.fivepaisaxts_adapter import (
         FivepaisaXTSWebSocketAdapter,
     )
-    from app.web.brokers.flattrade.streaming.flattrade_adapter import (
+    from app.core.brokers.flattrade.streaming.flattrade_adapter import (
         FlattradeWebSocketAdapter,
     )
-    from app.web.brokers.fyers.streaming.fyers_websocket_adapter import (
+    from app.core.brokers.fyers.streaming.fyers_websocket_adapter import (
         FyersWebSocketAdapter,
     )
-    from app.web.brokers.ibulls.streaming.ibulls_adapter import IbullsWebSocketAdapter
-    from app.web.brokers.iifl.streaming.iifl_adapter import IiflWebSocketAdapter
-    from app.web.brokers.kotak.streaming.kotak_adapter import KotakWebSocketAdapter
-    from app.web.brokers.shoonya.streaming.shoonya_adapter import (
+    from app.core.brokers.ibulls.streaming.ibulls_adapter import IbullsWebSocketAdapter
+    from app.core.brokers.iifl.streaming.iifl_adapter import IiflWebSocketAdapter
+    from app.core.brokers.kotak.streaming.kotak_adapter import KotakWebSocketAdapter
+    from app.core.brokers.shoonya.streaming.shoonya_adapter import (
         ShoonyaWebSocketAdapter,
     )
-    from app.web.brokers.upstox.streaming.upstox_adapter import UpstoxWebSocketAdapter
-    from app.web.brokers.wisdom.streaming.wisdom_adapter import WisdomWebSocketAdapter
-    from app.web.brokers.zerodha.streaming.zerodha_adapter import (
+    from app.core.brokers.upstox.streaming.upstox_adapter import UpstoxWebSocketAdapter
+    from app.core.brokers.wisdom.streaming.wisdom_adapter import WisdomWebSocketAdapter
+    from app.core.brokers.zerodha.streaming.zerodha_adapter import (
         ZerodhaWebSocketAdapter,
     )
     from app.web.broker.broker.dummy_broker.streaming.dummy_broker_adapter import (

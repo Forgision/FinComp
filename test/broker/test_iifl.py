@@ -3,12 +3,12 @@ pytest.skip("Skipped by user request", allow_module_level=True)
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.web.brokers.iifl.api.auth_api import authenticate_broker, get_feed_token
-from app.web.brokers.iifl.api.data import BrokerData, get_api_response
-from app.web.brokers.iifl.api.order_api import (
+from app.core.brokers.iifl.api.auth_api import authenticate_broker, get_feed_token
+from app.core.brokers.iifl.api.data import BrokerData, get_api_response
+from app.core.brokers.iifl.api.order_api import (
     get_order_book,
 )
-from app.web.brokers.iifl.api.funds import get_margin_data
+from app.core.brokers.iifl.api.funds import get_margin_data
 
 def test_iifl_placeholder():
     # TODO: Implement actual tests for IIFL broker integration.
@@ -38,7 +38,7 @@ class TestIIFLAuth:
 
     @pytest.fixture
     def mock_get_feed_token_func(self):
-        with patch('app.web.brokers.iifl.api.auth_api.get_feed_token') as mock_get_feed_token:
+        with patch('app.core.brokers.iifl.api.auth_api.get_feed_token') as mock_get_feed_token:
             yield mock_get_feed_token
 
     @pytest.mark.asyncio
@@ -289,19 +289,19 @@ class TestIIFLApiResponse:
 class TestIIFLBrokerData_GetInstrumentToken:
     @pytest.fixture
     def mock_db_session(self):
-        with patch('app.web.brokers.iifl.api.data.db_session') as mock_db_session:
+        with patch('app.core.brokers.iifl.api.data.db_session') as mock_db_session:
             mock_session = MagicMock()
             mock_db_session.return_value.__enter__.return_value = mock_session
             yield mock_session
 
     @pytest.fixture
     def mock_symtoken(self):
-        with patch('app.web.brokers.iifl.api.data.SymToken') as mock_symtoken:
+        with patch('app.core.brokers.iifl.api.data.SymToken') as mock_symtoken:
             yield mock_symtoken
 
     @pytest.fixture
     def mock_get_br_symbol(self):
-        with patch('app.web.brokers.iifl.api.data.get_br_symbol') as mock_get_br_symbol:
+        with patch('app.core.brokers.iifl.api.data.get_br_symbol') as mock_get_br_symbol:
             yield mock_get_br_symbol
 
     def test_get_instrument_token_success(self, mock_db_session, mock_symtoken, mock_get_br_symbol):
@@ -344,7 +344,7 @@ class TestIIFLBrokerData_GetInstrumentToken:
 class TestIIFLBrokerData_FetchMarketData:
     @pytest.fixture
     def mock_get_api_response(self):
-        with patch('app.web.brokers.iifl.api.data.get_api_response') as mock_get_api_response:
+        with patch('app.core.brokers.iifl.api.data.get_api_response') as mock_get_api_response:
             yield mock_get_api_response
 
     @pytest.fixture
@@ -481,7 +481,7 @@ class TestIIFLOrderApi:
 
     @pytest.mark.asyncio
     async def test_get_order_book_success(self, mock_httpx_client, mock_logger):
-        with patch('app.web.brokers.iifl.api.order_api.get_api_response') as mock_get_api_response:
+        with patch('app.core.brokers.iifl.api.order_api.get_api_response') as mock_get_api_response:
             mock_get_api_response.return_value = {"type": "success", "data": [{"orderid": "123"}]}
 
             auth_token = "test_auth_token"
@@ -493,7 +493,7 @@ class TestIIFLOrderApi:
 class TestIIFLFundsApi:
     @pytest.fixture
     def mock_get_httpx_client(self):
-        with patch('app.web.brokers.iifl.api.funds.get_httpx_client') as mock_client:
+        with patch('app.core.brokers.iifl.api.funds.get_httpx_client') as mock_client:
             yield mock_client
     @pytest.fixture
     def mock_logger(self):

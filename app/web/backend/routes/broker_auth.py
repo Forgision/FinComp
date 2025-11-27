@@ -371,7 +371,7 @@ async def broker_callback(
         auth_token, feed_token, user_id, error_message = await auth_function(code)
 
     elif broker == "dhan":
-        from app.web.brokers.dhan.api.funds import (
+        from app.core.brokers.dhan.api.funds import (
             test_auth_token,  # Assuming this path will be valid in FastAPI context # type: ignore # type: ignore
         )
 
@@ -525,7 +525,7 @@ async def broker_callback(
             api_token = settings.BROKER_API_KEY
             api_secret = settings.BROKER_API_SECRET
 
-            from app.web.brokers.definedge.api.auth_api import (
+            from app.core.brokers.definedge.api.auth_api import (
                 login_step1,  # Assuming this path will be valid in FastAPI context # type: ignore
             )
 
@@ -575,7 +575,7 @@ async def broker_callback(
                 api_token = settings.BROKER_API_KEY
                 api_secret = settings.BROKER_API_SECRET
 
-                from app.web.brokers.definedge.api.auth_api import (
+                from app.core.brokers.definedge.api.auth_api import (
                     login_step1,  # type: ignore # type: ignore
                 )
 
@@ -621,7 +621,7 @@ async def broker_callback(
 
                 api_secret = settings.BROKER_API_SECRET
 
-                from app.web.brokers.definedge.api.auth_api import (
+                from app.core.brokers.definedge.api.auth_api import (
                     authenticate_broker,  # type: ignore # type: ignore
                 )
 
