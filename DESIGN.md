@@ -59,8 +59,11 @@ The application is structured into **four main independent logical services** (r
       - Connects to Broker WebSocket.
       - Normalizes incoming ticks.
       - **ZeroMQ Publisher**: Publishes ticks to a ZeroMQ **PUB** socket (Topic: `market_data.{symbol}`).
-  2. **Historical Data Task**:
+      - **Note**: Currently implemented with **Dummy Data** generation for testing purposes.
+      - **Future Scope**: Replace dummy data with real broker integration (e.g., Fyers, Zerodha) using the `Broker Manager` initialized with **tokens passed from the Web Server**.
+  2. **Historical Data & Subscription Task**:
       - **ZeroMQ Router**: Listens on a **ROUTER** socket to serve "Snapshot" and "Historical" requests (e.g., LTP, Volume, Candles).
+      - **ZeroMQ Reply**: Listens on a **REP** socket to handle **Subscription** requests (`subscribe`, `unsubscribe`).
       - **Non-Blocking**: Spawns async tasks to query the database and replies to the specific client identity.
 - **Isolation**: If this service lags, it does not affect active orders or the UI.
 
@@ -122,7 +125,15 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
 
 ## Key Workflows
 
-- **Authentication**: Users log in using **Fyers OAuth** flow (similar to "Login with Google"). No local password management required.
+- **Authentication**:
+  - **Centralized Auth**: The **Web Server Service** (FastAPI) is the *only* component responsible for performing user and broker authentication (e.g., Fyers OAuth, TOTP).
+  - **Token Distribution**: Once authenticated, the Web Server stores the session tokens (Access Token, Refresh Token) in the database and/or passes them explicitly to other services (Data Engine, Execution Engine) via ZeroMQ or during service initialization.
+  - **Stateless Brokers**: Broker Adapters in other services (Data, Execution) are initialized *with* valid tokens. They do *not* perform login logic themselves. They only handle token expiry/refresh if necessary, or report it back to the Web Server.
+  - **Flow**:
+    1. User logs in via Web UI -> Web Server performs OAuth with Broker.
+    2. Web Server receives Access Token.
+    3. Web Server publishes `BROKER_AUTH_SUCCESS` event (or updates DB).
+    4. Data/Algo Services receive token/notification and initialize their Broker Adapters.
 - **Order Management**: Unified order placement API that routes requests to the specific broker adapter.
 - **Market Data**: Websocket connection to brokers to receive tick data, which is then broadcasted via ZeroMQ.
 - **Telegram Integration**: (Future Scope) Two-way communication via Telegram for alerts.
@@ -239,7 +250,8 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
               - If symbol is subscribed as part of index, then don't unsubscribe, else unsubscribe from data streaming.
   - Broker Manager Module:
     This module contains the core logic for interacting with brokers. It is designed as a **library** to be instantiated by specific processes (Data Engine, Execution Engine).
-    - Authentication and authorization for brokers.
+    - **Authentication**: Uses **pre-authenticated tokens** provided by the Web Server. Does not handle interactive login flows (e.g., OTP entry) directly.
+    - **Authorization**: Validates that the provided token has the necessary permissions (e.g., Trading vs Data only).
     - **State Management**: Broker connection status is shared across processes using **ZeroMQ PUB/SUB**.
       - `Data Engine` publishes data connection status.
       - `Execution Engine` publishes trade connection status.
@@ -417,11 +429,13 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
       - Connect to ZeroMQ (Subscriber) for real-time data.
       - Notify running state to Application.
     - Start Data Provider.
-      - Get data provider from Broker Manager.
-      - Data Provider required authentication, then wait for authentication to complete (Authentication is done from frontend).
-      - Once authentication is complete or not required authentication, then start data streaming for all subscriptions.
+      - Initialize `Broker Manager` (in passive mode, waiting for auth).
+      - **Wait for Auth**: Subscribe to `BROKER_AUTH_SUCCESS` event from Web Server or wait for token injection via ZeroMQ.
+      - **On Token Receive**:
+        - Initialize specific Broker Adapter (e.g., Fyers) with the received token.
+        - Start data streaming for all subscriptions.
       - Notify running state to Broker Manager and Algo Module.
-      - On data streaming start/stop/error, notify to Strategy Manager, Algo Module and Web Server Module to start/stop/error data streaming.
+      - On data streaming start/stop/error, notify to Strategy Manager, Algo Module and Web Server Module.
       - On data receving new data, notify to Strategy Manager, Algo Module and Web Server Module to process new data.
     - Start Algo Module.
       - Start Strategy Manager (Supervisor).
