@@ -50,22 +50,11 @@ The application is structured into **four main independent logical services** (r
   - **Subscribes to ZeroMQ**: Streams real-time ticks to the frontend via Socket.IO (SUB socket).
   - **Control**: Publishes control commands (Start/Stop) to Algo Service via ZeroMQ PUB.
 
-### 2. Data Engine Service (`app/core/data`)
+### 2. Data Engine Service (`app/data`)
 
 - **Host**: Asyncio Event Loop.
 - **Role**: Dedicated service for ingesting market data.
-- **Internal Architecture**: Spawns two concurrent tasks:
-  1. **Live Data Task**:
-      - Connects to Broker WebSocket.
-      - Normalizes incoming ticks.
-      - **ZeroMQ Publisher**: Publishes ticks to a ZeroMQ **PUB** socket (Topic: `market_data.{symbol}`).
-      - **Note**: Currently implemented with **Dummy Data** generation for testing purposes.
-      - **Future Scope**: Replace dummy data with real broker integration (e.g., Fyers, Zerodha) using the `Broker Manager` initialized with **tokens passed from the Web Server**.
-  2. **Historical Data & Subscription Task**:
-      - **ZeroMQ Router**: Listens on a **ROUTER** socket to serve "Snapshot" and "Historical" requests (e.g., LTP, Volume, Candles).
-      - **ZeroMQ Reply**: Listens on a **REP** socket to handle **Subscription** requests (`subscribe`, `unsubscribe`).
-      - **Non-Blocking**: Spawns async tasks to query the database and replies to the specific client identity.
-- **Isolation**: If this service lags, it does not affect active orders or the UI.
+- **Details**: For detailed architecture, components, and data formats, please refer to [DATA_Service.md](DATA_Service.md).
 
 ### 3. Algo Engine Service (`app/algo`)
 
@@ -406,15 +395,24 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
   - `command`: str
   - `payload`: dict
 
-## Configuration & Logging
+## Centralized Configuration (Future Scope)
 
-- **Centralized Configuration**:
-  - Settings (API Keys, Secrets) are stored in the **Database**.
-  - A **Config Service** provides access to these settings.
-  - On startup, processes fetch config from the DB.
-- **Logging**:
-  - Future Scope: Logs will be stored in the database.
-  - Currently: File-based logging with rotation.
+- **Config Service**:
+  - **Role**: Serves configuration to all services via ZeroMQ **REP** socket.
+  - **Bootstrapping**: Services connect to a known URL (env var) to fetch their config (ports, keys, etc.).
+  - **Protocol**: JSON-RPC.
+
+## Centralized Logging (Future Scope)
+
+- **Logger Service**:
+  - **Role**: Aggregates logs from all services.
+  - **Transport**: ZeroMQ **PULL** (Server) / **PUSH** (Client) or **ROUTER/DEALER**.
+  - **Storage**: Writes to file/database.
+  - **Client**: Services use a lightweight ZeroMQ logger adapter instead of local file logging.
+
+- **Current Implementation**:
+  - **Config**: `app.core.config` (Pydantic BaseSettings) loading from `.env`.
+  - **Logging**: `app.utils.logging` writing to local files/console.
 
 - Flow of the application:
   - Application start. On start, do followings;

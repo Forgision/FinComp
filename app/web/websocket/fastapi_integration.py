@@ -15,18 +15,19 @@ _websocket_server_started = False
 _websocket_proxy_instance = None
 _websocket_thread = None
 
+# TODO: assessment usage of this method and remove if not needed
+# def should_start_websocket() -> bool:
+#     """
+#     Determine if the current process should start the WebSocket server.
+#     In a FastAPI context, we always start the WebSocket server.
 
-def should_start_websocket() -> bool:
-    """
-    Determine if the current process should start the WebSocket server.
-    In a FastAPI context, we always start the WebSocket server.
-
-    Returns:
-        bool: Always True in a FastAPI context.
-    """
-    return True
+#     Returns:
+#         bool: Always True in a FastAPI context.
+#     """
+#     return True
 
 
+# Merge with app/web/websocket/server.py:WebSocketProxy.stop() method
 def cleanup_websocket_server():
     """Clean up WebSocket server resources - cross-platform compatible"""
     global _websocket_proxy_instance, _websocket_thread
@@ -93,6 +94,7 @@ def cleanup_websocket_server():
         _websocket_thread = None
 
 
+# Merge with app/web/websocket/server.py:WebSocketProxy.start() method
 def start_websocket_server():
     """
     Start the WebSocket proxy server in a separate thread.
