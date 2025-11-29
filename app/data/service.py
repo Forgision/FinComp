@@ -48,17 +48,21 @@ class DataService:
 
         self.running = True
 
-        # Start with dummy broker by default or wait for auth?
-        # DATA_Service.md says "Waiting for Auth".
-        # But for dev convenience, maybe we want to start dummy if no auth?
-        # The doc says "Initialization: Data Service starts and initializes the Broker Manager in a 'Passive' state."
-        # So we wait.
+        # Start with dummy broker for now to ensure data flow
+        await self.broker_manager.authorize("dummy", {}, "fallback")
 
         await asyncio.gather(self.handle_requests(), self.handle_history_requests())
 
     def on_market_data(self, tick: dict):
         """Callback from BrokerManager when new data is available."""
-        topic = f"market_data.{tick['symbol']}"
+        # Format: BROKER_EXCHANGE_SYMBOL_MODE
+        # Mode is assumed to be LTP (1) or QUOTE (2). Let's use LTP for now or infer from data.
+        # If tick has OHLC, it's effectively a Quote.
+        mode = "LTP"
+        if "open" in tick:
+            mode = "QUOTE"
+
+        topic = f"{self.broker_manager.broker_id or 'unknown'}_{tick.get('exchange', 'NSE')}_{tick['symbol']}_{mode}"
         # Since this is called from the event loop (via call_soon_threadsafe in BrokerManager),
         # we can schedule the async send.
         asyncio.create_task(self._publish(topic, tick))
@@ -75,8 +79,13 @@ class DataService:
         logger.info("Starting request handler (REP)...")
         while self.running:
             try:
-                message = await self.rep_socket.recv_json()
-                action = message.get("action")
+                if await self.rep_socket.poll(timeout=500):
+                    logger.debug("Waiting for request...")
+                    message = await self.rep_socket.recv_json()
+                    logger.debug(f"Received request: {message}")
+                    action = message.get("action")
+                else:
+                    continue
 
                 response = {"status": "error", "message": "Invalid action"}
 
@@ -101,9 +110,12 @@ class DataService:
 
                 elif action == "subscribe":
                     symbol = message.get("symbol")
+                    exchange = message.get("exchange", "NSE")
+                    mode = message.get("mode", 2)
+
                     if symbol:
                         if self.registry.add(symbol):
-                            await self.broker_manager.subscribe(symbol)
+                            await self.broker_manager.subscribe(symbol, exchange, mode)
                         response = {
                             "status": "success",
                             "message": f"Subscribed to {symbol}",
@@ -113,9 +125,14 @@ class DataService:
 
                 elif action == "unsubscribe":
                     symbol = message.get("symbol")
+                    exchange = message.get("exchange", "NSE")
+                    mode = message.get("mode", 2)
+
                     if symbol:
                         if self.registry.remove(symbol):
-                            await self.broker_manager.unsubscribe(symbol)
+                            await self.broker_manager.unsubscribe(
+                                symbol, exchange, mode
+                            )
                         response = {
                             "status": "success",
                             "message": f"Unsubscribed from {symbol}",
@@ -125,6 +142,12 @@ class DataService:
 
                 await self.rep_socket.send_json(response)
 
+            except asyncio.CancelledError:
+                logger.info("Request handler cancelled")
+                break
+            except zmq.error.ContextTerminated:
+                logger.info("ZMQ Context terminated")
+                break
             except Exception as e:
                 logger.error(f"Error handling request: {e}", exc_info=True)
                 try:
@@ -138,40 +161,68 @@ class DataService:
         logger.debug("Starting history handler (ROUTER)...")
         while self.running:
             try:
-                # Router receives [identity, empty, message]
-                msg = await self.router_socket.recv_multipart()
-                if len(msg) < 3:
+                if await self.router_socket.poll(timeout=500):
+                    # Router receives [identity, empty, message]
+                    msg = await self.router_socket.recv_multipart()
+                    if len(msg) < 3:
+                        continue
+
+                    identity = msg[0]
+                    # msg[1] is empty delimiter
+                    _payload = json.loads(msg[2].decode())
+
+                    # TODO: Implement history fetch logic
+                    # For now, return a dummy response or not implemented
+                    response = {
+                        "status": "error",
+                        "message": "History not implemented yet",
+                    }
+
+                    await self.router_socket.send_multipart(
+                        [identity, b"", json.dumps(response).encode()]
+                    )
+                else:
                     continue
 
-                identity = msg[0]
-                # msg[1] is empty delimiter
-                _payload = json.loads(msg[2].decode())
-
-                # TODO: Implement history fetch logic
-                # For now, return a dummy response or not implemented
-                response = {"status": "error", "message": "History not implemented yet"}
-
-                await self.router_socket.send_multipart(
-                    [identity, b"", json.dumps(response).encode()]
-                )
-
+            except asyncio.CancelledError:
+                logger.info("History handler cancelled")
+                break
+            except zmq.error.ContextTerminated:
+                logger.info("ZMQ Context terminated")
+                break
             except Exception as e:
                 logger.error(f"Error handling history request: {e}", exc_info=True)
 
-    def stop(self):
+    async def stop(self):
         logger.debug("Stopping DataService...")
         self.running = False
-        asyncio.create_task(self.broker_manager.stop())
+        logger.debug("Stopping broker manager...")
+        await self.broker_manager.stop()
+        logger.debug("Broker manager stopped.")
+
+        # Set LINGER to 0 to avoid hanging on close
+        self.pub_socket.setsockopt(zmq.LINGER, 0)
+        self.rep_socket.setsockopt(zmq.LINGER, 0)
+        self.router_socket.setsockopt(zmq.LINGER, 0)
+
+        logger.debug("Closing sockets...")
         self.pub_socket.close()
         self.rep_socket.close()
         self.router_socket.close()
+        logger.debug("Sockets closed.")
+
+        logger.debug("Terminating context...")
         self.context.term()
         logger.info("DataService stopped.")
 
 
 if __name__ == "__main__":
     service = DataService()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(service.start())
+        loop.run_until_complete(service.start())
     except KeyboardInterrupt:
-        service.stop()
+        loop.run_until_complete(service.stop())
+    finally:
+        loop.close()

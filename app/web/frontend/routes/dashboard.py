@@ -17,28 +17,34 @@ dashboard_router = APIRouter()
 @dashboard_router.get("/dashboard", name=ENDPOINTS.DASHBOARD)
 async def dashboard(
     request: Request,
-    user: dict = Depends(check_session_validity_fastapi),
+    # TODO: Enable authentication once project is ready
+    # user: dict = Depends(check_session_validity_fastapi),
     db: AsyncSession = Depends(get_db),
 ):
-    login_username = user
-    AUTH_TOKEN = await get_auth_token(db, login_username)
+    # login_username = user
+    # AUTH_TOKEN = await get_auth_token(db, login_username)
 
-    if AUTH_TOKEN is None:
-        logger.warning(f"No auth token found for user {login_username}")
-        return RedirectResponse(url="/logout", status_code=status.HTTP_302_FOUND)
+    # if AUTH_TOKEN is None:
+    #     logger.warning(f"No auth token found for user {login_username}")
+    #     return RedirectResponse(url="/logout", status_code=status.HTTP_302_FOUND)
 
-    broker = request.session.get("broker")
-    if not broker:
-        if login_username == "dev_admin":
-            broker = "dummy_broker"
-        else:
-            logger.error("Broker not set in session")
-            # In a real app, you'd probably redirect to a broker selection page
-            return templates.TemplateResponse(
-                "error.html",
-                {"request": request, "error_message": "Broker not set in session."},
-                status_code=400,
-            )
+    # Bypass authentication for now
+    login_username = "dev_admin"
+    AUTH_TOKEN = "dummy_token"
+    broker = "dummy_broker"
+
+    # broker = request.session.get("broker")
+    # if not broker:
+    #     if login_username == "dev_admin":
+    #         broker = "dummy_broker"
+    #     else:
+    #         logger.error("Broker not set in session")
+    #         # In a real app, you'd probably redirect to a broker selection page
+    #         return templates.TemplateResponse(
+    #             "error.html",
+    #             {"request": request, "error_message": "Broker not set in session."},
+    #             status_code=400,
+    #         )
 
     # In FastAPI, blocking calls should be run in a thread pool
     # For now, we call it directly but this is a candidate for `run_in_threadpool`

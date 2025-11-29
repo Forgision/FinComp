@@ -141,4 +141,41 @@ def start_websocket_server():
     return _websocket_thread
 
 
-# Removing Flask-specific integration function
+# Global flag for DataService
+_data_service_task = None
+_data_service_instance = None
+
+
+def cleanup_data_service():
+    """Clean up DataService resources"""
+    global _data_service_instance, _data_service_task
+
+    try:
+        logger.info("Cleaning up DataService...")
+        if _data_service_instance:
+            _data_service_instance.stop()
+            _data_service_instance = None
+
+        if _data_service_task:
+            _data_service_task.cancel()
+            _data_service_task = None
+
+        logger.info("DataService cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during DataService cleanup: {e}")
+
+
+def start_data_service():
+    """Start DataService as a background task"""
+    global _data_service_instance, _data_service_task
+
+    try:
+        logger.info("Starting DataService...")
+        from app.data.service import DataService
+
+        _data_service_instance = DataService()
+        # Create task in the current loop (FastAPI's loop)
+        _data_service_task = asyncio.create_task(_data_service_instance.start())
+        logger.info("DataService started")
+    except Exception as e:
+        logger.error(f"Failed to start DataService: {e}")

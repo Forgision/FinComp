@@ -31,7 +31,7 @@ class BrokerManager:
 
         self.broker_id = broker_id
 
-        if broker_id == "dummy" or mode == "fallback":
+        if broker_id in ["dummy", "dummy_broker"] or mode == "fallback":
             self.is_dummy = True
             self.running = True
             self._dummy_task = asyncio.create_task(self._run_dummy_stream())
@@ -72,10 +72,11 @@ class BrokerManager:
         logger.error(f"Unsupported broker: {broker_id}")
         return False
 
-    async def subscribe(self, symbol: str):
-        self.subscribed_symbols.add(symbol)
+    async def subscribe(self, symbol: str, exchange: str = "NSE", mode: int = 2):
+        # Store as tuple (symbol, exchange, mode)
+        self.subscribed_symbols.add((symbol, exchange, mode))
         if self.is_dummy:
-            logger.info(f"Dummy subscribed to {symbol}")
+            logger.info(f"Dummy subscribed to {symbol} ({exchange}, {mode})")
             return
 
         if self.active_broker and self.broker_id == "zerodha":
@@ -86,9 +87,10 @@ class BrokerManager:
             else:
                 logger.warning(f"Could not resolve token for symbol: {symbol}")
 
-    async def unsubscribe(self, symbol: str):
-        if symbol in self.subscribed_symbols:
-            self.subscribed_symbols.discard(symbol)
+    async def unsubscribe(self, symbol: str, exchange: str = "NSE", mode: int = 2):
+        # Remove tuple
+        if (symbol, exchange, mode) in self.subscribed_symbols:
+            self.subscribed_symbols.discard((symbol, exchange, mode))
 
         if self.is_dummy:
             logger.info(f"Dummy unsubscribed from {symbol}")
@@ -119,6 +121,7 @@ class BrokerManager:
         # Basic normalization - adjust fields as per DATA_Service.md
         return {
             "symbol": symbol,
+            "exchange": "NSE",  # Default to NSE for now
             "timestamp": datetime.now().timestamp(),  # Ideally use tick timestamp if available
             "ltp": tick.get("last_price"),
             "open": tick.get("ohlc", {}).get("open"),
@@ -135,10 +138,34 @@ class BrokerManager:
                 await asyncio.sleep(1)
                 continue
 
-            for symbol in list(self.subscribed_symbols):
-                price = round(random.uniform(100, 20000), 2)
+            for sub in list(self.subscribed_symbols):
+                # Handle both old string format (if any lingering) and new tuple format
+                if isinstance(sub, tuple):
+                    symbol, exchange, mode = sub
+                else:
+                    symbol = sub
+                    exchange = "NSE"
+                    mode = 2
+
+                # Use realistic prices for indices
+                if symbol == "NIFTY 50":
+                    base_price = 24350.0
+                elif symbol == "BANKNIFTY":
+                    base_price = 52100.0
+                else:
+                    base_price = 1000.0
+
+                # Add some random fluctuation
+                price = round(base_price + random.uniform(-50, 50), 2)
+
+                # Calculate change and percent change
+                # We use base_price as the "previous close" for dummy data consistency
+                change = round(price - base_price, 2)
+                percent_change = round((change / base_price) * 100, 2)
+
                 tick = {
                     "symbol": symbol,
+                    "exchange": exchange,
                     "timestamp": datetime.now().timestamp(),
                     "ltp": price,
                     "open": round(price * 0.99, 2),
@@ -146,6 +173,8 @@ class BrokerManager:
                     "low": round(price * 0.98, 2),
                     "close": price,
                     "volume": random.randint(1000, 100000),
+                    "change": change,
+                    "percent_change": percent_change,
                 }
                 self.on_tick(tick)
 

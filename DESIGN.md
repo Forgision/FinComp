@@ -27,6 +27,7 @@ To ensure rapid development while maintaining architectural integrity, the proje
 - **Enforcement**:
   - **Main Process**: `app/main.py` runs the **FastAPI** server.
   - **Service Management**: The FastAPI `lifespan` handler initializes and runs the **Data**, **Algo**, and **Execution** services as background `asyncio` tasks.
+  - **Startup**: `app/main.py` explicitly calls `start_data_service()` (and others) during startup and `cleanup_data_service()` during shutdown.
   - **CRITICAL**: ZeroMQ is **MANDATORY** for communication between logical modules.
   - Direct function calls between modules (e.g., Adapter calling Service directly) are **FORBIDDEN**.
   - **Data Flow**: `Broker Adapter` -> `ZeroMQ PUB` -> `Loopback (Localhost)` -> `ZeroMQ SUB` -> `MarketDataService`.
@@ -96,7 +97,8 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
   - **Transport**: TCP (Localhost) or IPC.
   - **Flows**:
     - `Market Data`: Data Engine (PUB) -> Algo Engine (SUB) & Web Server (SUB).
-      - **Filtering**: Subscribers filter by topic `market_data.{symbol}`.
+      - **Filtering**: Subscribers filter by topic `BROKER_EXCHANGE_SYMBOL_MODE` (e.g., `dummy_NSE_NIFTY 50_QUOTE`).
+      - **Subscription**: Requires `symbol`, `exchange` (default: NSE), and `mode` (LTP: 1, QUOTE: 2, DEPTH: 3).
     - `Signals`: Algo Engine (PUB) -> Execution Engine (SUB).
     - `Execution Reports`: Execution Engine (PUB) -> Algo Engine (SUB).
     - `Control`: Web Server (PUB) -> Algo Engine (SUB) (Start/Stop Strategies).
@@ -208,7 +210,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
         - **Responsibilities**:
           - Manage the registry of all active subscriptions (Symbol/Index).
           - Interface with `Broker Manager` to initiate actual data streams.
-          - Normalizes incoming data from `Broker Manager` into a standard format.
+          - Normalizes incoming data from `Broker Manager` into a standard format (Symbol, LTP, Change, %Change, OHLC, Volume).
           - **Broadcasts normalized data via ZeroMQ**.
       - Event Bus (System-Wide Notifications):
         - A central asynchronous event dispatcher.
@@ -395,6 +397,19 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
   - `command`: str
   - `payload`: dict
 
+- **MarketData**:
+  - `symbol`: str
+  - `exchange`: str
+  - `ltp`: float
+  - `change`: float
+  - `percent_change`: float
+  - `open`: float
+  - `high`: float
+  - `low`: float
+  - `close`: float
+  - `volume`: int
+  - `timestamp`: float
+
 ## Centralized Configuration (Future Scope)
 
 - **Config Service**:
@@ -427,6 +442,7 @@ We use **ZeroMQ (ZMQ)** for all inter-process communication, replacing the need 
       - Connect to ZeroMQ (Subscriber) for real-time data.
       - Notify running state to Application.
     - Start Data Provider.
+      - **Started by Web Server**: In Phase 1, `DataService` is started as a background task by `app/main.py`.
       - Initialize `Broker Manager` (in passive mode, waiting for auth).
       - **Wait for Auth**: Subscribe to `BROKER_AUTH_SUCCESS` event from Web Server or wait for token injection via ZeroMQ.
       - **On Token Receive**:
