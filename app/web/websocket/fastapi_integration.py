@@ -153,7 +153,7 @@ def cleanup_data_service():
     try:
         logger.info("Cleaning up DataService...")
         if _data_service_instance:
-            _data_service_instance.stop()
+            asyncio.create_task(_data_service_instance.stop())
             _data_service_instance = None
 
         if _data_service_task:
@@ -173,7 +173,7 @@ def start_data_service():
         logger.info("Starting DataService...")
         from app.data.service import DataService
 
-        _data_service_instance = DataService()
+        _data_service_instance = DataService(mode="CLIENT")
         # Create task in the current loop (FastAPI's loop)
         _data_service_task = asyncio.create_task(_data_service_instance.start())
         logger.info("DataService started")

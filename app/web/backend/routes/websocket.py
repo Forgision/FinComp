@@ -12,9 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.services.market_data_service import (
-    get_market_data_service,
-)
+from app.data.service import get_data_service
 from app.core.services.websocket_service import (
     get_market_data,
     get_websocket_status,
@@ -355,7 +353,7 @@ async def handle_get_ltp(sid: str, data: Dict[str, Any]):
         )
         return
 
-    market_service = get_market_data_service()
+    market_service = get_data_service()
     ltp_data = market_service.get_ltp(symbol, exchange)
 
     await sio.emit(
@@ -381,7 +379,7 @@ async def handle_get_quote(sid: str, data: Dict[str, Any]):
         )
         return
 
-    market_service = get_market_data_service()
+    market_service = get_data_service()
     quote_data = market_service.get_quote(symbol, exchange)
 
     await sio.emit(
@@ -407,7 +405,7 @@ async def handle_get_depth(sid: str, data: Dict[str, Any]):
         )
         return
 
-    market_service = get_market_data_service()
+    market_service = get_data_service()
     depth_data = market_service.get_market_depth(symbol, exchange)
 
     await sio.emit(

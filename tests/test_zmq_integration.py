@@ -2,7 +2,7 @@ import json
 import time
 import zmq
 import pytest
-from app.core.services.market_data_service import get_market_data_service
+from app.data.service import get_data_service
 from app.core.config import settings
 
 
@@ -12,7 +12,7 @@ async def test_zmq_integration():
     Test that MarketDataService correctly receives data published to ZMQ.
     """
     # 1. Get the service instance (this starts the ZMQ listener thread)
-    service = get_market_data_service()
+    service = get_data_service(mode="CLIENT")
 
     # Allow some time for the subscriber to connect
     time.sleep(1)
