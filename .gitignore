@@ -62,3 +62,5 @@ coverage/
 .ruff_cache/
 .garbage
 test.ipynb
+verify_fix.py
+verify_zmq_sub.py
