@@ -60,9 +60,15 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     try:
-        module_path = f"app.web.broker.{broker_name}.api.order_api"
-        broker_module = importlib.import_module(module_path)
-        return broker_module
+        if broker_name in ["fyers", "upstox"]:
+            module_path = f"app.core.brokers.{broker_name}"
+            broker_module = importlib.import_module(module_path)
+            class_name = f"{broker_name.capitalize()}Account"
+            return getattr(broker_module, class_name)()
+        else:
+            module_path = f"app.web.broker.{broker_name}.api.order_api"
+            broker_module = importlib.import_module(module_path)
+            return broker_module
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
@@ -89,10 +95,35 @@ async def place_single_order(
         Order result dictionary
     """
     try:
-        # Place the order using place_order_api
-        res, response_data, order_id = broker_module.place_order_api(
-            order_data, auth_token
-        )
+        # Place the order using standardized call or legacy api
+        if hasattr(broker_module, "place_order"):
+            # New structure
+            response_data = await broker_module.place_order(order_data, auth_token)
+
+            # Mock response object for compatibility within this function if needed
+            # Logic below uses res.status and response_data
+            class PseudoResponse:
+                def __init__(self, data):
+                    self.status = (
+                        200
+                        if (data.get("s") == "ok" or data.get("status") == "success")
+                        else 400
+                    )
+
+            res = PseudoResponse(response_data)
+
+            # Extract order_id based on broker (not pretty but needed if response structure varies)
+            # Ideally response_data should be standardized in BaseAccount, but we returned raw broker response.
+            # Fyers: 'id', Upstox: data.order_id
+            order_id = response_data.get("id") or response_data.get("data", {}).get(
+                "order_id"
+            )
+
+        else:
+            # Legacy
+            res, response_data, order_id = broker_module.place_order_api(
+                order_data, auth_token
+            )
 
         if res.status == 200:
             # Emit order event for toast notification with batch info

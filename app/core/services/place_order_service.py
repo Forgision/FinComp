@@ -26,9 +26,15 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     try:
-        module_path = f"app.web.broker.{broker_name}.api.order_api"
-        broker_module = importlib.import_module(module_path)
-        return broker_module
+        if broker_name in ["fyers", "upstox"]:
+            module_path = f"app.core.brokers.{broker_name}"
+            broker_module = importlib.import_module(module_path)
+            class_name = f"{broker_name.capitalize()}Account"
+            return getattr(broker_module, class_name)()
+        else:
+            module_path = f"app.web.broker.{broker_name}.api.order_api"
+            broker_module = importlib.import_module(module_path)
+            return broker_module
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
@@ -120,12 +126,37 @@ async def place_order_with_auth(
         return False, error_response, 404
 
     try:
-        # Call the broker's place_order_api function
-        res, response_data, order_id = broker_module.place_order_api(
-            order_data, auth_token
-        )
+        if broker in ["fyers", "upstox"]:
+            # New Class-based structure
+            # broker_module is an instance of BaseBrokerAccount
+            response_data = await broker_module.place_order(order_data, auth_token)
+
+            # Mock response object for compatibility
+            class PseudoResponse:
+                def __init__(self, data):
+                    self.status = (
+                        200
+                        if (data.get("s") == "ok" or data.get("status") == "success")
+                        else 400
+                    )
+
+            res = PseudoResponse(response_data)
+
+            # Extract order_id
+            if broker == "fyers":
+                order_id = response_data.get("id")
+            elif broker == "upstox":
+                order_id = response_data.get("data", {}).get("order_id")
+            else:
+                order_id = None
+
+        else:
+            # Legacy function-based structure
+            res, response_data, order_id = await broker_module.place_order_api(
+                order_data, auth_token
+            )
     except Exception as e:
-        logger.error(f"Error in broker_module.place_order_api: {e}")
+        logger.error(f"Error in broker_module.place_order: {e}")
         traceback.print_exc()
         error_response = {
             "status": "error",

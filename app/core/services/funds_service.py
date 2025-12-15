@@ -20,10 +20,17 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
         The imported module or None if import fails
     """
     module_path = None
+    module_path = None
     try:
-        module_path = f"app.web.broker.broker.{broker_name}.api.funds"
-        broker_module = importlib.import_module(module_path)
-        return broker_module
+        if broker_name in ["fyers", "upstox"]:
+            module_path = f"app.core.brokers.{broker_name}"
+            broker_module = importlib.import_module(module_path)
+            class_name = f"{broker_name.capitalize()}Account"
+            return getattr(broker_module, class_name)()
+        else:
+            module_path = f"app.web.broker.broker.{broker_name}.api.funds"
+            broker_module = importlib.import_module(module_path)
+            return broker_module
     except ImportError as error:
         logger.error(f"Error importing broker module '{module_path}': {error}")
         return None
@@ -78,7 +85,11 @@ async def get_funds_with_auth(
 
     try:
         # Get funds data using broker's implementation
-        funds = broker_module.get_margin_data(auth_token)
+        # Get funds data using broker's implementation
+        if broker in ["fyers", "upstox"]:
+            funds = await broker_module.get_funds(auth_token)
+        else:
+            funds = broker_module.get_margin_data(auth_token)
 
         return True, {"status": "success", "data": funds}, 200
     except Exception as e:

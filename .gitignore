@@ -64,3 +64,4 @@ coverage/
 test.ipynb
 verify_fix.py
 verify_zmq_sub.py
+PrevVer

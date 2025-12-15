@@ -151,17 +151,17 @@ If you are an AI model working on this repository, follow this order **without a
      - `npm install`
      - `npm run dev` (watch) or `npm run build` (one-shot)
 3. **Harden for production**
-  
-  - Enforce "one owner per domain" (Web/Data/Algo/Execution).
-  - Ensure background services are not duplicated under multi-worker servers.
-  - Add/verify health endpoints, readiness checks, and graceful shutdown.
-  - Add/verify DB migrations (Alembic) and deterministic startup.
-  - Remove/contain legacy/unused framework paths (e.g., Flask-era modules) so they cannot break prod.
+
+- Enforce "one owner per domain" (Web/Data/Algo/Execution).
+- Ensure background services are not duplicated under multi-worker servers.
+- Add/verify health endpoints, readiness checks, and graceful shutdown.
+- Add/verify DB migrations (Alembic) and deterministic startup.
+- Remove/contain legacy/unused framework paths (e.g., Flask-era modules) so they cannot break prod.
 
 4. **Prove correctness**
 
-  - Add tests for all changes (unit + integration where appropriate).
-  - Update this `DESIGN.md` if new constraints or contracts are introduced.
+- Add tests for all changes (unit + integration where appropriate).
+- Update this `DESIGN.md` if new constraints or contracts are introduced.
 
 ## Phased Implementation Strategy
 
@@ -188,17 +188,20 @@ To ensure rapid development while maintaining architectural integrity, the proje
 For lowest latency and best isolation, the recommended runtime is a **Supervisor** that starts services as OS processes:
 
 - **Supervisor process**:
+
   - Starts and monitors: **Data Engine**, **Algo Engine**, **Execution Engine**, and **Web (FastAPI)**.
   - Restarts crashed child processes with backoff.
   - Owns shutdown ordering (stop strategies → stop execution → stop data → stop web).
   - Publishes a unified health/readiness status (optional).
 
 - **Web (FastAPI) process**:
+
   - Runs REST + WebSocket fan-out only (no tick ingestion, no strategy execution).
   - On startup: connects to ZMQ endpoints and warms required snapshots.
   - On shutdown: closes sockets cleanly.
 
 - **Why not start OS processes from FastAPI `lifespan` (Important)**:
+
   - Production servers often run **multiple web workers** (e.g., `uvicorn --workers N` / gunicorn). Each worker would run `lifespan` and accidentally start **duplicate** Data/Algo/Execution processes.
   - Therefore:
     - **Preferred**: Supervisor owns process startup (web `lifespan` does not spawn other services).
@@ -232,6 +235,7 @@ Broker Manager is a **library** that provides broker-specific adapters. It is **
   - **Target**: React/Vite build output served as static files by FastAPI.
 - **Role**: Serves the UI, exposes REST APIs, and streams real-time data to the frontend (Socket.IO/WebSockets).
 - **Interaction**:
+
   - **Requests Snapshots**:
     - Market-data snapshot/history from **Data Engine** (ROUTER/DEALER).
     - Account snapshots (orders/positions/trades/holdings/margins) from **Execution Engine** (ROUTER/DEALER).
@@ -378,8 +382,10 @@ Therefore, all real-time planes MUST be designed as:
 - **Snapshots (ROUTER/DEALER)**: authoritative state used for initialization and recovery.
 
 - **Pattern 1: Pub/Sub (Real-time Data & Signals)**
+
   - **Transport**: TCP (Localhost) or IPC.
   - **Flows**:
+
     - `Market Data`: Data Engine (PUB) -> Algo Engine (SUB) & Web Server (SUB).
       - **Topic schema (canonical)**: `md.{broker}.{exchange}.{symbol}.{mode}`
         - Examples: `md.fyers.NSE.NIFTY50.QUOTE`, `md.zerodha.NSE.RELIANCE.LTP`
@@ -397,8 +403,8 @@ Therefore, all real-time planes MUST be designed as:
   - **Flows**:
     - `Market Snapshot/History`: Web/Algo (DEALER/REQ) -> Data Engine (ROUTER).
     - `Account Snapshot/Actions`: Web/Algo (DEALER/REQ) -> Execution Engine (ROUTER).
-      - *Use Case*: Dashboard initialization, gap recovery, and UI actions (cancel/square-off).
-      - *Benefit*: **ROUTER** socket allows concurrent requests without blocking.
+      - **Use Case**: Dashboard initialization, gap recovery, and UI actions (cancel/square-off).
+      - **Benefit**: **ROUTER** socket allows concurrent requests without blocking.
 
 ### Concurrency Strategy
 
@@ -408,12 +414,12 @@ Therefore, all real-time planes MUST be designed as:
 ## Key Workflows
 
 - **Authentication**:
-  - **Centralized Auth**: The **Web Server Service** (FastAPI) is the *only* component responsible for performing user and broker authentication (e.g., Fyers OAuth, TOTP).
+  - **Centralized Auth**: The **Web Server Service** (FastAPI) is the **only** component responsible for performing user and broker authentication (e.g., Fyers OAuth, TOTP).
   - **Token Storage**: Tokens must never be returned to the frontend and must not be logged.
   - **Token Distribution (Concrete & Safer)**:
     - Tokens must not be broadcast via PUB/SUB.
     - Other services obtain tokens by reference: Web stores tokens in DB and issues a `broker_session_id`, then Data/Execution request token material over ROUTER/DEALER (local-only in Phase 1).
-  - **Stateless Brokers**: Broker Adapters in other services (Data, Execution) are initialized *with* valid tokens. They do *not* perform interactive login flows. If refresh is required, they request it via Web or emit a `BROKER_AUTH_REQUIRED` event.
+  - **Stateless Brokers**: Broker Adapters in other services (Data, Execution) are initialized _with_ valid tokens. They do **not** perform interactive login flows. If refresh is required, they request it via Web or emit a `BROKER_AUTH_REQUIRED` event.
   - **Flow**:
     1. User logs in via Web UI -> Web Server performs OAuth with Broker.
     2. Web Server receives Access Token.
@@ -510,12 +516,12 @@ Therefore, all real-time planes MUST be designed as:
 
 **Decision**: FastAPI is the preferred backend framework for this project because it is a better fit for **low-latency, WebSocket-heavy, high-concurrency** real-time dashboards.
 
-| Aspect | FastAPI | Django |
-| --- | --- | --- |
-| WebSockets | Native & simple | Requires Channels |
-| Performance | High | Lower |
-| Complexity | Low | Higher |
-| Real-time streaming | Excellent | Not ideal |
+| Aspect              | FastAPI         | Django            |
+| ------------------- | --------------- | ----------------- |
+| WebSockets          | Native & simple | Requires Channels |
+| Performance         | High            | Lower             |
+| Complexity          | Low             | Higher            |
+| Real-time streaming | Excellent       | Not ideal         |
 
 Django can still be used in the future for **admin/internal tools** if needed, but **not** for the real-time market data plane.
 
@@ -564,6 +570,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
       - Broker connection status with info like broker id, broker name, broker type, broker status, last checked timestamp, etc.
       - Showing all settings with info like api key, api secret, api url, etc.
 - Backend should have following functionality.
+
   - Web Server Module (frontend and backend):
     This module contains all web server functionality for the frontend and backend.
     - **Backend**: FastAPI (REST + WebSockets, async).
@@ -602,6 +609,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
         - NOTE: Market-data subscription registry and fallback logic are owned by **Data Engine** (not Core).
   - Broker Manager Module:
     This module contains the core logic for interacting with brokers. It is designed as a **library** to be instantiated by specific processes (Data Engine, Execution Engine).
+
     - **Authentication**: Uses **pre-authenticated tokens** provided by the Web Server. Does not handle interactive login flows (e.g., OTP entry) directly.
     - **Authorization**: Validates that the provided token has the necessary permissions (e.g., Trading vs Data only).
     - **State Management**: Broker connection status is shared across processes using **ZeroMQ PUB/SUB**.
@@ -609,6 +617,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
       - `Execution Engine` publishes trade connection status.
       - `Web Server` subscribes to these topics to maintain a real-time registry for the UI.
     - Broker Manager Class:
+
       - It is registry of all brokers and their connection status.
       - All functionality related to brokers should be managed by Broker Manager.
       - Manage all brokers and their connection status.
@@ -617,8 +626,9 @@ Django can still be used in the future for **admin/internal tools** if needed, b
         - Handles the specific protocol details of the connected broker (e.g., WebSocket management).
       - Broker Registry & Filtering:
         - `get_active_brokers(capability=None)`: Returns brokers matching the requested capability (e.g., only DATA brokers).
-        - `get_fallback_broker(broker_id, capability)`: Intelligent fallback finding another broker with the *same* capability. **Note: Fallback is only supported for DATA capability.**
+        - `get_fallback_broker(broker_id, capability)`: Intelligent fallback finding another broker with the **same** capability. **Note: Fallback is only supported for DATA capability.**
       - Order/Account Adapter Functionality (Library Only):
+
         - Place/Cancel/Modify orders for a single broker instance (broker-native API).
         - Fetch broker-native order/trade/position/holding snapshots for **reconciliation**.
         - NOTE: Global consolidated books and OMS rules are owned by **Execution Engine** (system-of-record).
@@ -637,37 +647,47 @@ Django can still be used in the future for **admin/internal tools** if needed, b
           - Fallback mechanism to get data from other active brokers if one broker is not available.
           - This is only provide active brokers which setup for providing data streaming.
 
-      - Brokers (sub-module):
-      This module also have sub-modules named `brokers`, which have all code related to specific brokers. Each broker should have functionality to manage orders, account, positions, trades, holdings, etc of their own. Such as following functionality;
-      - Broker Capability Enum:
+      - **Brokers (sub-module)**:
+        To improve modularity and separation of concerns, new broker implementations MUST follow the split-service architecture defined in `app/core/brokers/base.py`.
+
+        - **Authentication (`BaseBrokerAuth`)**:
+
+          - **Consumer**: Web Server Service.
+          - Responsible solely for login mechanisms (OAuth, TOTP, etc.) and returning tokens.
+          - Configured via `AuthConfig` Pydantic models.
+
+        - **Account (`BaseBrokerAccount`)**:
+
+          - **Consumer**: Execution Engine Service.
+          - Responsible for Order Management (Place/Cancel/Modify) and Account State (Positions/Holdings/Funds).
+          - Methods: `place_order`, `get_positions`, `get_funds`, etc.
+
+        - **Data (`BaseBrokerData`)**:
+
+          - **Consumer**: Data Engine Service.
+          - Responsible for Market Data (Quotes, History, Depth).
+          - Methods: `get_quotes`, `get_history`, `get_depth`.
+
+        - **Legacy Note**: Older broker implementations (e.g., in `app/web/broker`) may still follow the monolithic `Broker` class pattern. These SHOULD be refactored to the new modular structure over time.
+
+      - Broker Capability Enum (Legacy/Transition):
+
         - `ORDER`: Can execute trades.
         - `DATA`: Can stream real-time market data.
         - `BOTH`: Supports both.
 
-      - Broker State:
+      - Broker State (Legacy/Transition):
         - `is_active`: Boolean, master switch.
         - `capabilities`: List of `BrokerCapability`.
         - `connection_status`: Connected/Disconnected.
         - `data_streaming_status`: Streaming/Idle (if DATA capability exists).
-        - Broker:
-          This is base class for all brokers. Broker should have following functionality.
-          - Get broker id.
-          - Get broker name.
-          - Get broker type.
-          - Get broker status.
-          - Get broker last checked timestamp.
-          - Get broker connection status.
-          - Order Management Functionality:
-            - Place order.
-            - Cancel order.
-            - Modify order.
-          - Get order book.
-          - Get trade book.
-          - Get position book.
-          - Get holding book.
-          - authenticate broker.
-          - disconnect broker.
-          - get real-time data.
+      - Broker (Legacy Monolithic Base Optional):
+        This is the base class for legacy brokers. Future implementations should use the Modular Architecture.
+        - Get broker id, name, type, status.
+        - Order Management Functionality (Place, Cancel, Modify).
+        - Get books (Order, Trade, Position, Holding).
+        - authenticate, disconnect, get real-time data.
+
   - Algo Module:
     This module have all code/modules/packages related to algo trading functionality. Such as following;
     - Strategy Manager Module (sub-module):
@@ -728,6 +748,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
 ## Data Structures
 
 - **MessageEnvelope** (All ZMQ messages MUST use this envelope):
+
   - `type`: str (e.g., `md.update`, `orders.signal`, `orders.exec_report`, `control.strategy`)
   - `schema_version`: int
   - `correlation_id`: str (request/reply tracing)
@@ -738,6 +759,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
   - `payload`: dict (one of the typed payloads below)
 
 - **Signal**:
+
   - `strategy_id`: str
   - `symbol`: str
   - `entry_price`: float
@@ -747,17 +769,20 @@ Django can still be used in the future for **admin/internal tools** if needed, b
   - `signal_type`: str (BUY/SELL)
 
 - **OrderRequest** (Inherits Signal):
+
   - `quantity`: int
   - `estimated_pnl`: float
   - `validity`: str (DAY/IOC)
   - `order_type`: str (MARKET/LIMIT)
 
 - **Control Message**:
+
   - `request_id`: str
   - `command`: str
   - `payload`: dict
 
 - **ExecutionReport**:
+
   - `order_id`: str
   - `strategy_id`: str | None
   - `symbol`: str
@@ -791,6 +816,7 @@ Django can still be used in the future for **admin/internal tools** if needed, b
 ## Centralized Logging (Future Scope)
 
 - **Logger Service**:
+
   - **Role**: Aggregates logs from all services.
   - **Transport**: ZeroMQ **PULL** (Server) / **PUSH** (Client) or **ROUTER/DEALER**.
   - **Storage**: Writes to file/database.

@@ -186,3 +186,6 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "ruff>=0.14.3",
 ]
+
+[tool.mypy]
+exclude = ["tests", ".venv", ".garbage"]

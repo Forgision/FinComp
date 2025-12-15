@@ -146,7 +146,7 @@ async def place_order_api(data, auth):
         }
 
         # Transform the order data
-        payload = transform_data(data)
+        payload = await transform_data(data)
         logger.debug(f"Placing order with payload: {json.dumps(payload, indent=2)}")
 
         # Make the POST request

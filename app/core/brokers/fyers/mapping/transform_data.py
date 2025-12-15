@@ -6,11 +6,11 @@ from app.core.schemas.token_db import get_br_symbol
 from app.utils.logging import logger
 
 
-def transform_data(data):
+async def transform_data(data):
     """
     Transforms the OpenAlgo Platform API request structure to the format expected by the Fyers API.
     """
-    symbol = get_br_symbol(data["symbol"], data["exchange"])
+    symbol = await get_br_symbol(data["symbol"], data["exchange"])
 
     quantity = int(data["quantity"])
     price = float(data.get("price", 0))
