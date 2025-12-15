@@ -15,17 +15,6 @@ _websocket_server_started = False
 _websocket_proxy_instance = None
 _websocket_thread = None
 
-# TODO: assessment usage of this method and remove if not needed
-# def should_start_websocket() -> bool:
-#     """
-#     Determine if the current process should start the WebSocket server.
-#     In a FastAPI context, we always start the WebSocket server.
-
-#     Returns:
-#         bool: Always True in a FastAPI context.
-#     """
-#     return True
-
 
 # Merge with app/web/websocket/server.py:WebSocketProxy.stop() method
 def cleanup_websocket_server():
@@ -134,14 +123,11 @@ def start_websocket_server():
     )
     _websocket_thread.start()
 
-    # The lifespan manager in main.py now handles cleanup.
-    # Signal handlers are removed to avoid conflicts with uvicorn's hot-reloading.
-
     logger.info("WebSocket proxy server thread started")
     return _websocket_thread
 
 
-# Global flag for DataService
+# --- Data Service ---
 _data_service_task = None
 _data_service_instance = None
 
@@ -173,9 +159,87 @@ def start_data_service():
         logger.info("Starting DataService...")
         from app.data.service import DataService
 
-        _data_service_instance = DataService(mode="CLIENT")
-        # Create task in the current loop (FastAPI's loop)
+        # Phase 1: DataService runs as SERVER in the background task
+        _data_service_instance = DataService(mode="SERVER")
         _data_service_task = asyncio.create_task(_data_service_instance.start())
         logger.info("DataService started")
     except Exception as e:
         logger.error(f"Failed to start DataService: {e}")
+
+
+# --- Algo Service ---
+_algo_service_task = None
+_algo_service_instance = None
+
+
+def cleanup_algo_service():
+    """Clean up AlgoService resources"""
+    global _algo_service_instance, _algo_service_task
+
+    try:
+        logger.info("Cleaning up AlgoService...")
+        if _algo_service_instance:
+            asyncio.create_task(_algo_service_instance.stop())
+            _algo_service_instance = None
+
+        if _algo_service_task:
+            _algo_service_task.cancel()
+            _algo_service_task = None
+
+        logger.info("AlgoService cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during AlgoService cleanup: {e}")
+
+
+def start_algo_service():
+    """Start AlgoService as a background task"""
+    global _algo_service_instance, _algo_service_task
+
+    try:
+        logger.info("Starting AlgoService...")
+        from app.algo.service import AlgoService
+
+        _algo_service_instance = AlgoService()
+        _algo_service_task = asyncio.create_task(_algo_service_instance.start())
+        logger.info("AlgoService started")
+    except Exception as e:
+        logger.error(f"Failed to start AlgoService: {e}")
+
+
+# --- Execution Service ---
+_execution_service_task = None
+_execution_service_instance = None
+
+
+def cleanup_execution_service():
+    """Clean up ExecutionService resources"""
+    global _execution_service_instance, _execution_service_task
+
+    try:
+        logger.info("Cleaning up ExecutionService...")
+        if _execution_service_instance:
+            asyncio.create_task(_execution_service_instance.stop())
+            _execution_service_instance = None
+
+        if _execution_service_task:
+            _execution_service_task.cancel()
+            _execution_service_task = None
+
+        logger.info("ExecutionService cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during ExecutionService cleanup: {e}")
+
+
+def start_execution_service():
+    """Start ExecutionService as a background task"""
+    global _execution_service_instance, _execution_service_task
+
+    try:
+        logger.info("Starting ExecutionService...")
+        from app.core.execution.service import ExecutionService
+
+        _execution_service_instance = ExecutionService()
+        _execution_service_task = asyncio.create_task(_execution_service_instance.start())
+        logger.info("ExecutionService started")
+    except Exception as e:
+        logger.error(f"Failed to start ExecutionService: {e}")

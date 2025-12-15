@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     ZMQ_PORT: int = 5555
     ZMQ_DATA_REQ_PORT: int = 5556
     ZMQ_DATA_ROUTER_PORT: int = 5557
+    ZMQ_ALGO_PUB_PORT: int = 5558
+    ZMQ_EXECUTION_PUB_PORT: int = 5559
+    ZMQ_EXECUTION_ROUTER_PORT: int = 5560
     TELEGRAM_MESSAGE_RATE_LIMIT: str = "10 per minute"
     WEBHOOK_RATE_LIMIT: str = "100 per minute"
     STRATEGY_RATE_LIMIT: str = "200 per minute"

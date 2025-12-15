@@ -54,6 +54,10 @@ from app.web.websocket.fastapi_integration import (
     start_websocket_server,
     start_data_service,
     cleanup_data_service,
+    start_algo_service,
+    cleanup_algo_service,
+    start_execution_service,
+    cleanup_execution_service,
 )
 from app.web.websocket.broker_factory import register_all_adapters
 from app.core.models.error_models import BaseErrorResponse
@@ -102,6 +106,8 @@ async def lifespan(app: FastAPI):
     await setup_environment()
     start_websocket_server()
     start_data_service()
+    start_algo_service()
+    start_execution_service()
     separate_str = "=" * 60
     logger.info(separate_str)
     logger.info("OpenAlgo FastAPI is running!")
@@ -113,6 +119,8 @@ async def lifespan(app: FastAPI):
     yield
     cleanup_websocket_server()
     cleanup_data_service()
+    cleanup_algo_service()
+    cleanup_execution_service()
 
 
 _app = FastAPI(debug=settings.APP_DEBUG, lifespan=lifespan)
