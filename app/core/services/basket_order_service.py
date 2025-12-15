@@ -9,6 +9,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.core.services.telegram_alert_service import telegram_alert_service
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.schemas import AsyncSessionLocal
 
 from app.utils.constants import (
     REQUIRED_ORDER_FIELDS,
@@ -195,6 +196,62 @@ async def place_single_order(
         }
 
 
+async def place_single_sandbox_order(
+    order: Dict[str, Any],
+    basket_data: Dict[str, Any],
+    api_key: Optional[str],
+    total_orders: int,
+    order_index: int
+) -> Dict[str, Any]:
+    """
+    Place a single order in sandbox mode.
+    Uses its own DB session to handle concurrency safely.
+    """
+    from app.core.services.sandbox_service import sandbox_place_order
+
+    # Create order data with common fields from basket order
+    order_with_auth = order.copy()
+    order_with_auth["apikey"] = api_key
+    order_with_auth["strategy"] = basket_data["strategy"]
+
+    # Validate order
+    is_valid, error_message = validate_order(order_with_auth)
+    if not is_valid:
+        return {
+            "symbol": order.get("symbol", "Unknown"),
+            "status": "error",
+            "message": error_message,
+        }
+
+    # Use a fresh session for each concurrent task
+    async with AsyncSessionLocal() as db:
+        if api_key:
+            success, response, status_code = await sandbox_place_order(
+                db,
+                order_with_auth,
+                api_key,
+                {"apikey": api_key, "order_type": "basket"},
+            )
+        else:
+            success = False
+            response = {"status": "error", "message": "API key is missing"}
+
+        if success:
+            return {
+                "symbol": order.get("symbol", "Unknown"),
+                "status": "success",
+                "orderid": response.get("orderid"),
+                "batch_order": True,
+                "is_last_order": order_index == total_orders - 1,
+            }
+        else:
+            return {
+                "symbol": order.get("symbol", "Unknown"),
+                "status": "error",
+                "message": response.get("message", "Order placement failed"),
+            }
+
+
 async def process_basket_order_with_auth(
     db: AsyncSession,
     basket_data: Dict[str, Any],
@@ -225,12 +282,8 @@ async def process_basket_order_with_auth(
 
     # If in analyze mode, route each order to sandbox
     if await get_analyze_mode(db) is True:
-        from app.core.services.sandbox_service import sandbox_place_order
 
-        analyze_results = []
-        total_orders = len(basket_data["orders"])
-
-        # Sort orders to prioritize BUY orders before SELL orders (same as live mode)
+        # Sort orders to prioritize BUY orders before SELL orders
         buy_orders = [
             order
             for order in basket_data["orders"]
@@ -241,56 +294,34 @@ async def process_basket_order_with_auth(
             for order in basket_data["orders"]
             if order.get("action", "").upper() == "SELL"
         ]
-        sorted_orders = buy_orders + sell_orders
 
-        for i, order in enumerate(sorted_orders):
-            # Create order data with common fields from basket order
-            order_with_auth = order.copy()
-            order_with_auth["apikey"] = api_key
-            order_with_auth["strategy"] = basket_data["strategy"]
+        total_orders = len(buy_orders) + len(sell_orders)
 
-            # Validate order
-            is_valid, error_message = validate_order(order_with_auth)
-            if not is_valid:
-                analyze_results.append(
-                    {
-                        "symbol": order.get("symbol", "Unknown"),
-                        "status": "error",
-                        "message": error_message,
-                    }
-                )
-                continue
+        # Use semaphore to prevent DB connection pool exhaustion
+        # Pool size is 50, so 20 concurrent orders is safe
+        sem = asyncio.Semaphore(20)
 
-            # Place order in sandbox
-            if api_key:
-                success, response, status_code = await sandbox_place_order(
-                    db,
-                    order_with_auth,
-                    api_key,
-                    {"apikey": api_key, "order_type": "basket"},
+        async def _bounded_place_order(order, idx):
+            async with sem:
+                return await place_single_sandbox_order(
+                    order, basket_data, api_key, total_orders, idx
                 )
-            else:
-                success = False
-                response = {"status": "error", "message": "API key is missing"}
 
-            if success:
-                analyze_results.append(
-                    {
-                        "symbol": order.get("symbol", "Unknown"),
-                        "status": "success",
-                        "orderid": response.get("orderid"),
-                        "batch_order": True,
-                        "is_last_order": i == total_orders - 1,
-                    }
-                )
-            else:
-                analyze_results.append(
-                    {
-                        "symbol": order.get("symbol", "Unknown"),
-                        "status": "error",
-                        "message": response.get("message", "Order placement failed"),
-                    }
-                )
+        # Process BUY orders first (concurrently within the group)
+        buy_tasks = [
+            _bounded_place_order(order, i)
+            for i, order in enumerate(buy_orders)
+        ]
+        buy_results = await asyncio.gather(*buy_tasks)
+
+        # Process SELL orders next (concurrently within the group)
+        sell_tasks = [
+            _bounded_place_order(order, len(buy_orders) + i)
+            for i, order in enumerate(sell_orders)
+        ]
+        sell_results = await asyncio.gather(*sell_tasks)
+
+        analyze_results = buy_results + sell_results
 
         response_data = {
             "mode": "analyze",
