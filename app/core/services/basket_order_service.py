@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import importlib
+import inspect
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.analyzer_db import async_log_analyzer
@@ -68,6 +69,14 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     module_path = None
     try:
+        # Try importing from the new core location first (for fyers/upstox etc)
+        if broker_name in ["fyers", "upstox"]:
+            module_path = f"app.core.brokers.{broker_name}.api.order_api"
+            try:
+                return importlib.import_module(module_path)
+            except ImportError:
+                pass  # Fallback to legacy path
+
         module_path = f"broker.{broker_name}.api.order_api"
         broker_module = importlib.import_module(module_path)
         return broker_module
@@ -146,10 +155,17 @@ async def place_single_order(
         Order result dictionary
     """
     try:
-        # Place the order
-        res, response_data, order_id = broker_module.place_order_api(
-            order_data, auth_token
-        )
+        # Place the order - handle both async and sync implementations
+        if inspect.iscoroutinefunction(broker_module.place_order_api):
+            res, response_data, order_id = await broker_module.place_order_api(
+                order_data, auth_token
+            )
+        else:
+            # Run blocking call in a separate thread to avoid blocking the event loop
+            loop = asyncio.get_running_loop()
+            res, response_data, order_id = await loop.run_in_executor(
+                None, broker_module.place_order_api, order_data, auth_token
+            )
 
         if res.status == 200:
             # Emit order event for toast notification
@@ -357,7 +373,7 @@ async def process_basket_order_with_auth(
         await async_log_order("basketorder", original_data, error_response)
         return False, error_response, 404
 
-    # Sort orders to prioritize BUY orders before SELL orders
+    # Separate orders by action
     buy_orders = [
         order
         for order in basket_data["orders"]
@@ -368,27 +384,37 @@ async def process_basket_order_with_auth(
         for order in basket_data["orders"]
         if order.get("action", "").upper() == "SELL"
     ]
-    sorted_orders = buy_orders + sell_orders
 
-    total_orders = len(sorted_orders)
+    total_orders = len(buy_orders) + len(sell_orders)
+    results = []
 
-    # Process BUY orders first
-    tasks = []
-    for i, order in enumerate(sorted_orders):
-        order_with_auth = {
-            **order,
-            "apikey": api_key,
-            "strategy": basket_data["strategy"],
-        }
-        tasks.append(
-            place_single_order(
-                order_with_auth, broker_module, auth_token, total_orders, i
+    # Helper to create tasks for a group of orders
+    def create_tasks(orders, start_idx):
+        tasks = []
+        for i, order in enumerate(orders):
+            order_with_auth = {
+                **order,
+                "apikey": api_key,
+                "strategy": basket_data["strategy"],
+            }
+            tasks.append(
+                place_single_order(
+                    order_with_auth, broker_module, auth_token, total_orders, start_idx + i
+                )
             )
-        )
-    results = await asyncio.gather(*tasks)
+        return tasks
 
-    # Sort results to maintain order consistency
-    results.sort(key=lambda x: 0 if x.get("action", "").upper() == "BUY" else 1)
+    # Phase 1: Process BUY orders first (concurrently)
+    if buy_orders:
+        buy_tasks = create_tasks(buy_orders, 0)
+        buy_results = await asyncio.gather(*buy_tasks)
+        results.extend(buy_results)
+
+    # Phase 2: Process SELL orders next (concurrently), only after BUYs are done
+    if sell_orders:
+        sell_tasks = create_tasks(sell_orders, len(buy_orders))
+        sell_results = await asyncio.gather(*sell_tasks)
+        results.extend(sell_results)
 
     # Log the basket order results
     response_data = {"status": "success", "results": results}
