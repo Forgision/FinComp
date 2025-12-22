@@ -1,3 +1,4 @@
+import functools
 import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.logging import logger
 
 
+@functools.lru_cache(maxsize=128)
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     Dynamically import the broker-specific funds module.
@@ -19,7 +21,6 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
-    module_path = None
     module_path = None
     try:
         if broker_name in ["fyers", "upstox"]:
@@ -84,7 +85,6 @@ async def get_funds_with_auth(
         )
 
     try:
-        # Get funds data using broker's implementation
         # Get funds data using broker's implementation
         if broker in ["fyers", "upstox"]:
             funds = await broker_module.get_funds(auth_token)

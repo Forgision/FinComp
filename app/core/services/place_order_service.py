@@ -1,4 +1,5 @@
 import copy
+import functools
 import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
@@ -15,6 +16,7 @@ from app.utils.logging import logger
 from app.utils.web.socketio import sio
 
 
+@functools.lru_cache(maxsize=128)
 def import_broker_module(broker_name: str) -> Optional[Any]:
     """
     Dynamically import the broker-specific order API module.
