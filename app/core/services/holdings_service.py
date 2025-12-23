@@ -1,5 +1,8 @@
 import importlib
 import traceback
+import inspect
+import asyncio
+from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
@@ -34,9 +37,11 @@ def format_statistics(stats):
     return stats
 
 
+@lru_cache(maxsize=16)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific holdings modules.
+    Supports both new 'app.core.brokers' and legacy 'broker' structures.
 
     Args:
         broker_name: Name of the broker
@@ -44,6 +49,31 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     Returns:
         Dictionary of broker functions or None if import fails
     """
+    # 1. Try new structure (app.core.brokers)
+    try:
+        if broker_name in ["fyers", "upstox"]:
+            broker_module = importlib.import_module(f"app.core.brokers.{broker_name}")
+            class_name = f"{broker_name.capitalize()}Account"
+            broker_instance = getattr(broker_module, class_name)()
+
+            mapping_module = None
+            try:
+                mapping_module = importlib.import_module(f"app.core.brokers.{broker_name}.mapping.order_data")
+            except ImportError:
+                 # Fallback for fyers which might not have it in expected place or name
+                 pass
+
+            return {
+                "get_holdings": broker_instance.get_holdings,
+                # Safe access handling missing mapping module
+                "map_portfolio_data": getattr(mapping_module, "map_portfolio_data", lambda x: x) if mapping_module else lambda x: x,
+                "calculate_portfolio_statistics": getattr(mapping_module, "calculate_portfolio_statistics", lambda x: {}) if mapping_module else lambda x: {},
+                "transform_holdings_data": getattr(mapping_module, "transform_holdings_data", lambda x: x) if mapping_module else lambda x: x,
+            }
+    except (ImportError, AttributeError):
+        pass
+
+    # 2. Try legacy structure
     try:
         # Import API module
         api_module = importlib.import_module(f"broker.{broker_name}.api.order_api")
@@ -61,12 +91,23 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
                 mapping_module, "transform_holdings_data"
             ),
         }
-    except (ImportError, AttributeError) as error:
-        logger.error(f"Error importing broker modules: {error}")
-        return None
+    except (ImportError, AttributeError):
+        # 3. Try app.web.broker fallback
+        try:
+             api_module = importlib.import_module(f"app.web.broker.{broker_name}.api.order_api")
+             mapping_module = importlib.import_module(f"app.web.broker.{broker_name}.mapping.order_data")
+             return {
+                "get_holdings": getattr(api_module, "get_holdings"),
+                "map_portfolio_data": getattr(mapping_module, "map_portfolio_data"),
+                "calculate_portfolio_statistics": getattr(mapping_module, "calculate_portfolio_statistics"),
+                "transform_holdings_data": getattr(mapping_module, "transform_holdings_data"),
+            }
+        except (ImportError, AttributeError) as error:
+             logger.error(f"Error importing broker modules for {broker_name}: {error}")
+             return None
 
 
-def get_holdings_with_auth(
+async def get_holdings_with_auth(
     db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -87,7 +128,10 @@ def get_holdings_with_auth(
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode() and original_data:
+    # Fix: pass db and await
+    is_analyze = await get_analyze_mode(db) if original_data else False
+
+    if is_analyze and original_data:
         from services.sandbox_service import sandbox_get_holdings
 
         api_key = original_data.get("apikey")
@@ -102,7 +146,7 @@ def get_holdings_with_auth(
                 400,
             )
 
-        return sandbox_get_holdings(api_key, original_data)
+        return await sandbox_get_holdings(api_key, original_data)
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -114,7 +158,15 @@ def get_holdings_with_auth(
 
     try:
         # Get holdings using broker functions
-        holdings = broker_funcs["get_holdings"](auth_token)
+        func = broker_funcs["get_holdings"]
+
+        # Performance: Handle async/sync transparently
+        if inspect.iscoroutinefunction(func):
+            holdings = await func(auth_token)
+        else:
+            # Offload sync I/O to executor
+            loop = asyncio.get_running_loop()
+            holdings = await loop.run_in_executor(None, func, auth_token)
 
         if "status" in holdings and holdings["status"] == "error":
             return (
@@ -127,6 +179,8 @@ def get_holdings_with_auth(
             )
 
         # Transform data using mapping functions
+        # Note: mapping functions are assumed to be synchronous CPU-bound pure functions
+        # If they become heavy, they should also be offloaded.
         holdings = broker_funcs["map_portfolio_data"](holdings)
         portfolio_stats = broker_funcs["calculate_portfolio_statistics"](holdings)
         holdings = broker_funcs["transform_holdings_data"](holdings)
@@ -149,7 +203,7 @@ def get_holdings_with_auth(
         return False, {"status": "error", "message": str(e)}, 500
 
 
-def get_holdings(
+async def get_holdings(
     db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -172,15 +226,16 @@ def get_holdings(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        # Fix: await async function
+        AUTH_TOKEN, broker_name = await get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         original_data = {"apikey": api_key}
-        return get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_holdings_with_auth(db, auth_token, broker, None)
+        return await get_holdings_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:
