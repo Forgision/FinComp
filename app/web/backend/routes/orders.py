@@ -325,7 +325,9 @@ async def holdings(request: Request, db: AsyncSession = Depends(get_db)):
     if await get_analyze_mode(db):
         api_key = await get_api_key_for_tradingview(db, login_username)
         if api_key:
-            success, response, status_code_service = await get_holdings(api_key=api_key)
+            success, response, status_code_service = await get_holdings(
+                db, api_key=api_key
+            )
         else:
             logger.error("No API key found for analyze mode")
             raise HTTPException(
@@ -334,7 +336,7 @@ async def holdings(request: Request, db: AsyncSession = Depends(get_db)):
             )
     else:
         success, response, status_code_service = await get_holdings(
-            auth_token=auth_token, broker=broker
+            db, auth_token=auth_token, broker=broker
         )
 
     if not success:
