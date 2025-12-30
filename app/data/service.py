@@ -3,7 +3,7 @@ import json
 import threading
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, Optional, Set
 
 import zmq
 import zmq.asyncio
@@ -31,6 +31,15 @@ class DataService:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
+
+    @classmethod
+    async def reset_instance(cls):
+        """Reset the singleton instance (for testing)."""
+        if cls._instance:
+            if cls._instance.running:
+                await cls._instance.stop()
+            with cls._lock:
+                cls._instance = None
 
     def __init__(self, mode: str = "SERVER"):
         if self._initialized:
@@ -121,6 +130,7 @@ class DataService:
         await asyncio.gather(self.handle_requests(), self.handle_history_requests())
 
     def start_client(self):
+        self.running = True
         # Connect to Server
         zmq_url = f"tcp://{settings.ZMQ_HOST}:{settings.ZMQ_PORT}"
         req_url = f"tcp://{settings.ZMQ_HOST}:{settings.ZMQ_DATA_REQ_PORT}"

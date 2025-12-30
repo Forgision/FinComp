@@ -11,6 +11,7 @@ from app.core.config import settings
 class TestDataService:
     @pytest.fixture(autouse=True)
     async def setup_service(self):
+        await DataService.reset_instance()
         self.service = DataService()
         self.start_task = asyncio.create_task(self.service.start())
         # Give it a moment to start
@@ -46,7 +47,7 @@ class TestDataService:
 
         response = await asyncio.wait_for(req_socket.recv_json(), timeout=2.0)
         assert response["status"] == "success"
-        assert "Authorized dummy" in response["message"]
+        assert "Authorization success" in response["message"]
 
         req_socket.close()
 
