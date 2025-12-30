@@ -4,10 +4,11 @@ import pandas as pd
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
-from app.core.brokers.fyers.api.auth_api import authenticate_broker
+from app.core.brokers.fyers.fyers_auth import FyersAuth
 from app.core.brokers.fyers.api.data import (
     BrokerData,
 )
+
 from app.core.brokers.fyers.api.order_api import (
     cancel_all_orders_api,
     cancel_order,
@@ -26,11 +27,8 @@ from app.core.brokers.fyers.api.order_api import (
 # --- Fixtures ---
 @pytest.fixture
 def mock_settings():
-    """Fixture to mock app settings."""
-    with patch("app.core.brokers.fyers.api.auth_api.settings") as mock_settings_obj:
-        mock_settings_obj.BROKER_API_KEY = "mock_api_key"
-        mock_settings_obj.BROKER_API_SECRET = "mock_api_secret"
-        yield mock_settings_obj
+    """Fixture to mock app settings (unused in new auth but kept for signature compatibility)."""
+    return AsyncMock()
 
 
 @pytest.fixture
@@ -44,7 +42,7 @@ def mock_httpx_client():
             "app.core.brokers.fyers.api.data.get_httpx_client"
         ) as mock_get_client_data,
         patch(
-            "app.core.brokers.fyers.api.auth_api.get_httpx_client"
+            "app.core.brokers.fyers.fyers_auth.get_httpx_client"
         ) as mock_get_client_auth,
     ):
         mock_client = AsyncMock()
@@ -57,7 +55,7 @@ def mock_httpx_client():
 @pytest.fixture
 def mock_sha256():
     """Fixture to mock hashlib.sha256."""
-    with patch("app.core.brokers.fyers.api.auth_api.hashlib.sha256") as mock_sha256_obj:
+    with patch("app.core.brokers.fyers.fyers_auth.hashlib.sha256") as mock_sha256_obj:
         mock_sha256_obj.return_value.hexdigest.return_value = "mock_app_id_hash"
         yield mock_sha256_obj
 
@@ -81,7 +79,6 @@ def mock_data_get_api_response():
         yield mock_get_api_response_obj
 
 
-# --- Test Cases for Authentication ---
 class TestFyersAuth:
     @pytest.mark.asyncio
     async def test_authenticate_broker_success(
@@ -98,11 +95,20 @@ class TestFyersAuth:
             },
             request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token == "mock_access_token"
-        assert response_data["status"] == "success"
-        assert response_data["data"]["access_token"] == "mock_access_token"
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        config = AuthConfig(
+            auth_code="mock_request_token",
+            api_key="mock_api_key",
+            api_secret="mock_api_secret",
+        )
+
+        response = await auth.authenticate(config)
+
+        assert response.access_token == "mock_access_token"
+        assert response.status == "success"
         mock_sha256.assert_called_once_with(b"mock_api_key:mock_api_secret")
         mock_httpx_client.post.assert_called_once()
         args, kwargs = mock_httpx_client.post.call_args
@@ -115,11 +121,16 @@ class TestFyersAuth:
     ):
         """Test authentication failure due to missing API key."""
         mock_settings.BROKER_API_KEY = None
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert "Missing BROKER_API_KEY" in response_data["message"]
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        # Missing keys in config
+        config = AuthConfig(auth_code="mock_request_token")
+
+        with pytest.raises(ValueError, match="api_key and api_secret are required"):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_not_called()
 
     @pytest.mark.asyncio
@@ -127,11 +138,14 @@ class TestFyersAuth:
         self, mock_settings, mock_httpx_client
     ):
         """Test authentication failure due to missing request token."""
-        access_token, response_data = await authenticate_broker(None)
+        from app.core.brokers.base import AuthConfig
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert "No request token provided" in response_data["message"]
+        auth = FyersAuth()
+        config = AuthConfig(auth_code=None)
+
+        with pytest.raises(ValueError, match="auth_code is required"):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_not_called()
 
     @pytest.mark.asyncio
@@ -144,11 +158,15 @@ class TestFyersAuth:
             json={"s": "error", "message": "Invalid auth code"},
             request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert "API error: Invalid auth code" in response_data["message"]
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        config = AuthConfig(auth_code="mock_request_token", api_key="k", api_secret="s")
+
+        with pytest.raises(Exception, match="API error: Invalid auth code"):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -161,11 +179,15 @@ class TestFyersAuth:
             request=Request("POST", "http://test.com"),
             response=Response(400),
         )
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert "Authentication failed: Bad Request" in response_data["message"]
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        config = AuthConfig(auth_code="mock_request_token", api_key="k", api_secret="s")
+
+        with pytest.raises(HTTPStatusError):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -174,11 +196,15 @@ class TestFyersAuth:
     ):
         """Test authentication when an unexpected exception occurs."""
         mock_httpx_client.post.side_effect = Exception("Network down")
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert "Authentication failed: Network down" in response_data["message"]
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        config = AuthConfig(auth_code="mock_request_token", api_key="k", api_secret="s")
+
+        with pytest.raises(Exception, match="Network down"):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -191,14 +217,17 @@ class TestFyersAuth:
             json={"s": "ok", "refresh_token": "mock_refresh_token"},
             request=Request("POST", "https://api-t1.fyers.in/api/v3/validate-authcode"),
         )
-        access_token, response_data = await authenticate_broker("mock_request_token")
 
-        assert access_token is None
-        assert response_data["status"] == "error"
-        assert (
-            "Authentication succeeded but no access token was returned"
-            in response_data["message"]
-        )
+        from app.core.brokers.base import AuthConfig
+
+        auth = FyersAuth()
+        config = AuthConfig(auth_code="mock_request_token", api_key="k", api_secret="s")
+
+        with pytest.raises(
+            Exception, match="Authentication succeeded but no access token was returned"
+        ):
+            await auth.authenticate(config)
+
         mock_httpx_client.post.assert_called_once()
 
 

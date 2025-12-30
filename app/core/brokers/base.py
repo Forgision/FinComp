@@ -22,6 +22,22 @@ class AuthConfig(BaseModel):
         extra = "allow"
 
 
+class AuthResponse(BaseModel):
+    """
+    Standardized response for broker authentication.
+    """
+
+    access_token: str
+    refresh_token: Optional[str] = None
+    expires_in: Optional[int] = None
+    message: Optional[str] = None
+    status: Optional[str] = None
+    # Add other relevant fields if needed
+
+    class Config:
+        extra = "allow"
+
+
 class BaseBrokerAuth(ABC):
     """
     Abstract base class for Broker Authentication.
@@ -29,7 +45,7 @@ class BaseBrokerAuth(ABC):
     """
 
     @abstractmethod
-    async def authenticate(self, config: AuthConfig) -> str:
+    async def authenticate(self, config: AuthConfig) -> AuthResponse:
         """
         Authenticate with the broker and return an auth token (or session id).
         """

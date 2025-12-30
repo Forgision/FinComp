@@ -56,9 +56,6 @@ async def get_api_response(endpoint, auth, method="GET", payload=""):
                 json=payload if isinstance(payload, dict) else json.loads(payload),
             )
 
-        # Add status attribute for compatibility
-        response.status = response.status_code
-
         # Raise HTTPError for bad responses (4xx, 5xx)
         response.raise_for_status()
 

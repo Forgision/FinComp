@@ -13,7 +13,9 @@ async def test_fyers_auth_instantiation():
 @pytest.mark.asyncio
 async def test_fyers_auth_authenticate():
     auth = FyersAuth()
-    config = AuthConfig(auth_code="test_code")
+    config = AuthConfig(
+        auth_code="test_code", api_key="test_key", api_secret="test_secret"
+    )
 
     with patch("app.core.brokers.fyers.fyers_auth.get_httpx_client") as mock_get_client:
         mock_client = MagicMock()
@@ -23,12 +25,29 @@ async def test_fyers_auth_authenticate():
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"s": "ok", "access_token": "token123"}
+        mock_response.json.return_value = {
+            "s": "ok",
+            "access_token": "token123",
+            "refresh_token": "refresh123",
+            "expires_in": 3600,
+        }
         mock_post.return_value = mock_response
 
-        token = await auth.authenticate(config)
-        assert token == "token123"
+        response = await auth.authenticate(config)
+        assert response.access_token == "token123"
+        assert response.refresh_token == "refresh123"
+        assert response.status == "success"
         mock_post.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_fyers_auth_missing_credentials():
+    auth = FyersAuth()
+    # Missing api_key/secret
+    config = AuthConfig(auth_code="test_code")
+
+    with pytest.raises(ValueError, match="api_key and api_secret are required"):
+        await auth.authenticate(config)
 
 
 @pytest.mark.asyncio

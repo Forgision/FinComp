@@ -1,4 +1,5 @@
-from app.core.brokers.fyers.api.auth_api import authenticate_broker
+from app.core.brokers.fyers.fyers_auth import FyersAuth
+
 
 def test_import():
-    assert authenticate_broker is not None
+    assert FyersAuth is not None
