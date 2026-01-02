@@ -1,10 +1,11 @@
 import importlib
+import inspect
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
-
 from app.utils.logging import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def format_decimal(value):
@@ -66,8 +67,8 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_holdings_with_auth(
-    db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
+async def get_holdings_with_auth(
+    db: AsyncSession, auth_token: str, broker: str, original_data: Dict[str, Any] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get holdings details using provided auth token.
@@ -87,8 +88,8 @@ def get_holdings_with_auth(
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode() and original_data:
-        from services.sandbox_service import sandbox_get_holdings
+    if await get_analyze_mode(db) and original_data:
+        from app.core.services.sandbox_service import sandbox_get_holdings
 
         api_key = original_data.get("apikey")
         if not api_key:
@@ -102,7 +103,7 @@ def get_holdings_with_auth(
                 400,
             )
 
-        return sandbox_get_holdings(api_key, original_data)
+        return await sandbox_get_holdings(db, api_key, original_data)
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -114,7 +115,13 @@ def get_holdings_with_auth(
 
     try:
         # Get holdings using broker functions
-        holdings = broker_funcs["get_holdings"](auth_token)
+        func = broker_funcs["get_holdings"]
+        if inspect.iscoroutinefunction(func):
+            holdings = await func(auth_token)
+        else:
+            holdings = func(auth_token)
+            if inspect.isawaitable(holdings):
+                holdings = await holdings
 
         if "status" in holdings and holdings["status"] == "error":
             return (
@@ -149,8 +156,8 @@ def get_holdings_with_auth(
         return False, {"status": "error", "message": str(e)}, 500
 
 
-def get_holdings(
-    db,
+async def get_holdings(
+    db: AsyncSession,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     broker: Optional[str] = None,
@@ -172,15 +179,15 @@ def get_holdings(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        AUTH_TOKEN, broker_name = await get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         original_data = {"apikey": api_key}
-        return get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_holdings_with_auth(db, auth_token, broker, None)
+        return await get_holdings_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:
