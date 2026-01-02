@@ -1,7 +1,3 @@
-## 2024-05-22 - Async Sequential Await in Analyze Mode
-**Learning:** Found sequential `await` calls inside a loop for `sandbox_place_order` in `basket_order_service.py`. This caused linear latency growth with the number of orders in a basket.
-**Action:** Refactored to use `asyncio.gather()` for concurrent execution.
-**Crucial Details:**
-1. **Ordering:** Must maintain "BUYs then SELLs" execution order. Split into two `asyncio.gather` phases (Batch BUYs, await, then Batch SELLs).
-2. **Concurrency Safety:** Each concurrent task must instantiate its own `AsyncSession` using `AsyncSessionLocal()` because SQLAlchemy sessions are not concurrency-safe.
-3. **Resource Management:** Use `asyncio.Semaphore` to limit concurrent DB connections and avoid pool exhaustion.
+## 2024-05-23 - Dynamic Import Overhead
+**Learning:** `importlib.import_module` and subsequent `getattr` calls inside a hot loop (or frequently called function) add significant overhead, even if Python caches the modules. The overhead comes from function calls, string formatting, and dictionary construction.
+**Action:** Use `functools.lru_cache` for functions that dynamically import modules and return their attributes, provided the returned objects are stateless (like module-level functions). This can yield ~99% performance improvement for that specific operation.
