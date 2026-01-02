@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import importlib
+import inspect
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.analyzer_db import async_log_analyzer
@@ -66,6 +67,15 @@ def import_broker_module(broker_name: str) -> Optional[Any]:
     Returns:
         The imported module or None if import fails
     """
+    # 1. Try the new modular structure in app.core.brokers
+    try:
+        module_path = f"app.core.brokers.{broker_name}.api.order_api"
+        broker_module = importlib.import_module(module_path)
+        return broker_module
+    except ImportError:
+        pass
+
+    # 2. Fallback to legacy structure (e.g. at root level or in garbage)
     module_path = None
     try:
         module_path = f"broker.{broker_name}.api.order_api"
@@ -147,9 +157,16 @@ async def place_single_order(
     """
     try:
         # Place the order
-        res, response_data, order_id = broker_module.place_order_api(
-            order_data, auth_token
-        )
+        # Handle both async and sync broker APIs
+        if inspect.iscoroutinefunction(broker_module.place_order_api):
+            res, response_data, order_id = await broker_module.place_order_api(
+                order_data, auth_token
+            )
+        else:
+            # Offload sync I/O to a thread to prevent blocking the event loop
+            res, response_data, order_id = await asyncio.to_thread(
+                broker_module.place_order_api, order_data, auth_token
+            )
 
         if res.status == 200:
             # Emit order event for toast notification
@@ -368,27 +385,48 @@ async def process_basket_order_with_auth(
         for order in basket_data["orders"]
         if order.get("action", "").upper() == "SELL"
     ]
-    sorted_orders = buy_orders + sell_orders
+    # We maintain buy_orders and sell_orders separately for phased execution
 
-    total_orders = len(sorted_orders)
+    total_orders = len(buy_orders) + len(sell_orders)
 
-    # Process BUY orders first
-    tasks = []
-    for i, order in enumerate(sorted_orders):
-        order_with_auth = {
-            **order,
-            "apikey": api_key,
-            "strategy": basket_data["strategy"],
-        }
-        tasks.append(
-            place_single_order(
-                order_with_auth, broker_module, auth_token, total_orders, i
+    # Phase 1: Process BUY orders
+    # We process all BUY orders concurrently
+    buy_results = []
+    if buy_orders:
+        tasks = []
+        for i, order in enumerate(buy_orders):
+            order_with_auth = {
+                **order,
+                "apikey": api_key,
+                "strategy": basket_data["strategy"],
+            }
+            tasks.append(
+                place_single_order(
+                    order_with_auth, broker_module, auth_token, total_orders, i
+                )
             )
-        )
-    results = await asyncio.gather(*tasks)
+        buy_results = await asyncio.gather(*tasks)
 
-    # Sort results to maintain order consistency
-    results.sort(key=lambda x: 0 if x.get("action", "").upper() == "BUY" else 1)
+    # Phase 2: Process SELL orders
+    # Executed strictly AFTER Buy phase completes
+    sell_results = []
+    if sell_orders:
+        tasks = []
+        for i, order in enumerate(sell_orders):
+            order_with_auth = {
+                **order,
+                "apikey": api_key,
+                "strategy": basket_data["strategy"],
+            }
+            # Offset index by number of buy orders
+            tasks.append(
+                place_single_order(
+                    order_with_auth, broker_module, auth_token, total_orders, len(buy_orders) + i
+                )
+            )
+        sell_results = await asyncio.gather(*tasks)
+
+    results = buy_results + sell_results
 
     # Log the basket order results
     response_data = {"status": "success", "results": results}
