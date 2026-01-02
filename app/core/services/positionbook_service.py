@@ -1,3 +1,4 @@
+import functools
 import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
@@ -26,9 +27,13 @@ def format_position_data(position_data):
     return position_data
 
 
+@functools.lru_cache(maxsize=32)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific positionbook modules.
+
+    Optimized with lru_cache to avoid repeated importlib overhead.
+    Time Complexity: O(1) for cached hits.
 
     Args:
         broker_name: Name of the broker
