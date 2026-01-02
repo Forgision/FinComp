@@ -1,5 +1,6 @@
 import importlib
 import traceback
+from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
@@ -26,6 +27,7 @@ def format_position_data(position_data):
     return position_data
 
 
+@lru_cache(maxsize=32)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific positionbook modules.
