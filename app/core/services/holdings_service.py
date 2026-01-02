@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
@@ -66,7 +67,7 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_holdings_with_auth(
+async def get_holdings_with_auth(
     db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -87,7 +88,7 @@ def get_holdings_with_auth(
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode() and original_data:
+    if await get_analyze_mode(db) and original_data:
         from services.sandbox_service import sandbox_get_holdings
 
         api_key = original_data.get("apikey")
@@ -102,7 +103,7 @@ def get_holdings_with_auth(
                 400,
             )
 
-        return sandbox_get_holdings(api_key, original_data)
+        return await sandbox_get_holdings(db, api_key, original_data)
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -115,6 +116,10 @@ def get_holdings_with_auth(
     try:
         # Get holdings using broker functions
         holdings = broker_funcs["get_holdings"](auth_token)
+
+        # Handle async brokers
+        if inspect.isawaitable(holdings):
+            holdings = await holdings
 
         if "status" in holdings and holdings["status"] == "error":
             return (
@@ -149,7 +154,7 @@ def get_holdings_with_auth(
         return False, {"status": "error", "message": str(e)}, 500
 
 
-def get_holdings(
+async def get_holdings(
     db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -172,15 +177,20 @@ def get_holdings(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        auth_details = await get_auth_token_broker(db, api_key)
+        if auth_details is None:
+             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
+
+        AUTH_TOKEN, broker_name = auth_details
         if AUTH_TOKEN is None:
-            return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
+             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
+
         original_data = {"apikey": api_key}
-        return get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_holdings_with_auth(db, auth_token, broker, None)
+        return await get_holdings_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:
