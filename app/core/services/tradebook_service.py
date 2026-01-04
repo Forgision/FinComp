@@ -1,9 +1,9 @@
-import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
 from app.utils.logging import logger
+from app.utils.broker_adapter import get_broker_funcs
 
 
 def format_decimal(value):
@@ -24,35 +24,6 @@ def format_trade_data(trade_data):
             for item in trade_data
         ]
     return trade_data
-
-
-def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Dynamically import the broker-specific tradebook modules.
-
-    Args:
-        broker_name: Name of the broker
-
-    Returns:
-        Dictionary of broker functions or None if import fails
-    """
-    try:
-        # Import API module
-        api_module = importlib.import_module(f"broker.{broker_name}.api.order_api")
-        # Import mapping module
-        mapping_module = importlib.import_module(
-            f"broker.{broker_name}.mapping.order_data"
-        )
-        return {
-            "get_trade_book": getattr(api_module, "get_trade_book"),
-            "map_trade_data": getattr(mapping_module, "map_trade_data"),
-            "transform_tradebook_data": getattr(
-                mapping_module, "transform_tradebook_data"
-            ),
-        }
-    except (ImportError, AttributeError) as error:
-        logger.error(f"Error importing broker modules: {error}")
-        return None
 
 
 def get_tradebook_with_auth(
@@ -93,7 +64,7 @@ def get_tradebook_with_auth(
 
         return sandbox_get_tradebook(api_key, original_data)
 
-    broker_funcs = import_broker_module(broker)
+    broker_funcs = get_broker_funcs(broker, "tradebook")
     if broker_funcs is None:
         return (
             False,

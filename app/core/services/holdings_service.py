@@ -1,8 +1,8 @@
-import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
+from app.utils.broker_adapter import get_broker_funcs
 
 from app.utils.logging import logger
 
@@ -32,38 +32,6 @@ def format_statistics(stats):
     if isinstance(stats, dict):
         return {key: format_decimal(value) for key, value in stats.items()}
     return stats
-
-
-def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Dynamically import the broker-specific holdings modules.
-
-    Args:
-        broker_name: Name of the broker
-
-    Returns:
-        Dictionary of broker functions or None if import fails
-    """
-    try:
-        # Import API module
-        api_module = importlib.import_module(f"broker.{broker_name}.api.order_api")
-        # Import mapping module
-        mapping_module = importlib.import_module(
-            f"broker.{broker_name}.mapping.order_data"
-        )
-        return {
-            "get_holdings": getattr(api_module, "get_holdings"),
-            "map_portfolio_data": getattr(mapping_module, "map_portfolio_data"),
-            "calculate_portfolio_statistics": getattr(
-                mapping_module, "calculate_portfolio_statistics"
-            ),
-            "transform_holdings_data": getattr(
-                mapping_module, "transform_holdings_data"
-            ),
-        }
-    except (ImportError, AttributeError) as error:
-        logger.error(f"Error importing broker modules: {error}")
-        return None
 
 
 def get_holdings_with_auth(
@@ -104,7 +72,7 @@ def get_holdings_with_auth(
 
         return sandbox_get_holdings(api_key, original_data)
 
-    broker_funcs = import_broker_module(broker)
+    broker_funcs = get_broker_funcs(broker, "holdings")
     if broker_funcs is None:
         return (
             False,
