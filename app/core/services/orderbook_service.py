@@ -1,4 +1,3 @@
-import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
@@ -6,6 +5,7 @@ from app.core.schemas.auth_db import get_auth_token_broker
 from app.core.schemas.settings_db import get_analyze_mode
 from app.algo.sandbox.order_manager import OrderManager
 from app.utils.logging import logger
+from app.utils.broker_adapter import get_broker_funcs
 
 
 def format_decimal(value):
@@ -59,36 +59,6 @@ def format_statistics(stats):
     return stats
 
 
-def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
-    """
-    Dynamically import the broker-specific order modules.
-
-    Args:
-        broker_name: Name of the broker
-
-    Returns:
-        Dictionary of broker functions or None if import fails
-    """
-    try:
-        # Import API module
-        api_module = importlib.import_module(f"broker.{broker_name}.api.order_api")
-        # Import mapping module
-        mapping_module = importlib.import_module(
-            f"broker.{broker_name}.mapping.order_data"
-        )
-        return {
-            "get_order_book": getattr(api_module, "get_order_book"),
-            "map_order_data": getattr(mapping_module, "map_order_data"),
-            "calculate_order_statistics": getattr(
-                mapping_module, "calculate_order_statistics"
-            ),
-            "transform_order_data": getattr(mapping_module, "transform_order_data"),
-        }
-    except (ImportError, AttributeError) as error:
-        logger.error(f"Error importing broker modules: {error}")
-        return None
-
-
 async def get_orderbook_with_auth(
     db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
@@ -124,7 +94,7 @@ async def get_orderbook_with_auth(
         order_manager = OrderManager(user_id=api_key)
         return await order_manager.get_orderbook()
 
-    broker_funcs = import_broker_module(broker)
+    broker_funcs = get_broker_funcs(broker, "orderbook")
     if broker_funcs is None:
         return (
             False,
