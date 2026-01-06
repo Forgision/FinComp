@@ -1,5 +1,8 @@
 import importlib
 import traceback
+import inspect
+import asyncio
+from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple
 
 from app.core.schemas.auth_db import get_auth_token_broker
@@ -34,9 +37,11 @@ def format_statistics(stats):
     return stats
 
 
+@lru_cache(maxsize=32)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific holdings modules.
+    Cached to improve performance on repeated calls.
 
     Args:
         broker_name: Name of the broker
@@ -66,8 +71,8 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_holdings_with_auth(
-    db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
+async def get_holdings_with_auth(
+    db, auth_token: str, broker: str, original_data: Optional[Dict[str, Any]] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
     Get holdings details using provided auth token.
@@ -87,8 +92,15 @@ def get_holdings_with_auth(
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode() and original_data:
-        from services.sandbox_service import sandbox_get_holdings
+    # Check for analyze mode (await if it returns a coroutine)
+    analyze_mode_result = get_analyze_mode(db)
+    if inspect.isawaitable(analyze_mode_result):
+        analyze_mode = await analyze_mode_result
+    else:
+        analyze_mode = analyze_mode_result  # type: ignore
+
+    if analyze_mode and original_data:
+        from app.core.services.sandbox_service import sandbox_get_holdings
 
         api_key = original_data.get("apikey")
         if not api_key:
@@ -102,7 +114,12 @@ def get_holdings_with_auth(
                 400,
             )
 
-        return sandbox_get_holdings(api_key, original_data)
+        # sandbox_get_holdings is typically async, check and await
+        # It requires (db, api_key, original_data)
+        result = sandbox_get_holdings(db, api_key, original_data)
+        if inspect.isawaitable(result):
+            return await result
+        return result
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -114,7 +131,16 @@ def get_holdings_with_auth(
 
     try:
         # Get holdings using broker functions
-        holdings = broker_funcs["get_holdings"](auth_token)
+        get_holdings_func = broker_funcs["get_holdings"]
+
+        # Check if the broker function is async or sync
+        if inspect.iscoroutinefunction(get_holdings_func):
+            holdings = await get_holdings_func(auth_token)
+        else:
+            # If it's sync, run it directly.
+            holdings = get_holdings_func(auth_token)
+            if inspect.isawaitable(holdings):
+                holdings = await holdings
 
         if "status" in holdings and holdings["status"] == "error":
             return (
@@ -149,7 +175,7 @@ def get_holdings_with_auth(
         return False, {"status": "error", "message": str(e)}, 500
 
 
-def get_holdings(
+async def get_holdings(
     db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -172,15 +198,21 @@ def get_holdings(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        # get_auth_token_broker is async
+        result = get_auth_token_broker(db, api_key)
+        if inspect.isawaitable(result):
+            AUTH_TOKEN, broker_name = await result
+        else:
+            AUTH_TOKEN, broker_name = result
+
         if AUTH_TOKEN is None:
             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         original_data = {"apikey": api_key}
-        return get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_holdings_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_holdings_with_auth(db, auth_token, broker, None)
+        return await get_holdings_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:
