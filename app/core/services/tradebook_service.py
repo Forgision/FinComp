@@ -1,4 +1,6 @@
+import functools
 import importlib
+import inspect
 import traceback
 from typing import Any, Dict, Optional, Tuple
 
@@ -26,6 +28,7 @@ def format_trade_data(trade_data):
     return trade_data
 
 
+@functools.lru_cache(maxsize=32)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific tradebook modules.
@@ -55,7 +58,7 @@ def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_tradebook_with_auth(
+async def get_tradebook_with_auth(
     db, auth_token: str, broker: str, original_data: Dict[str, Any] = None
 ) -> Tuple[bool, Dict[str, Any], int]:
     """
@@ -76,8 +79,8 @@ def get_tradebook_with_auth(
     # If original_data is None (internal call), use live broker
     from app.core.schemas.settings_db import get_analyze_mode
 
-    if get_analyze_mode() and original_data:
-        from services.sandbox_service import sandbox_get_tradebook
+    if await get_analyze_mode(db) and original_data:
+        from app.core.services.sandbox_service import sandbox_get_tradebook
 
         api_key = original_data.get("apikey")
         if not api_key:
@@ -91,7 +94,7 @@ def get_tradebook_with_auth(
                 400,
             )
 
-        return sandbox_get_tradebook(api_key, original_data)
+        return await sandbox_get_tradebook(db, api_key, original_data)
 
     broker_funcs = import_broker_module(broker)
     if broker_funcs is None:
@@ -103,7 +106,14 @@ def get_tradebook_with_auth(
 
     try:
         # Get tradebook data using broker's implementation
-        trade_data = broker_funcs["get_trade_book"](auth_token)
+        trade_func = broker_funcs["get_trade_book"]
+        if inspect.iscoroutinefunction(trade_func):
+            trade_data = await trade_func(auth_token)
+        else:
+            trade_data = trade_func(auth_token)
+
+        if inspect.iscoroutine(trade_data):
+            trade_data = await trade_data
 
         if "status" in trade_data and trade_data["status"] == "error":
             return (
@@ -129,7 +139,7 @@ def get_tradebook_with_auth(
         return False, {"status": "error", "message": str(e)}, 500
 
 
-def get_tradebook(
+async def get_tradebook(
     db,
     api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -152,15 +162,15 @@ def get_tradebook(
     """
     # Case 1: API-based authentication
     if api_key and not (auth_token and broker):
-        AUTH_TOKEN, broker_name = get_auth_token_broker(db, api_key)
+        AUTH_TOKEN, broker_name = await get_auth_token_broker(db, api_key)
         if AUTH_TOKEN is None:
             return False, {"status": "error", "message": "Invalid openalgo apikey"}, 403
         original_data = {"apikey": api_key}
-        return get_tradebook_with_auth(db, AUTH_TOKEN, broker_name, original_data)
+        return await get_tradebook_with_auth(db, AUTH_TOKEN, broker_name, original_data)
 
     # Case 2: Direct internal call with auth_token and broker
     elif auth_token and broker:
-        return get_tradebook_with_auth(db, auth_token, broker, None)
+        return await get_tradebook_with_auth(db, auth_token, broker, None)
 
     # Case 3: Invalid parameters
     else:
