@@ -1,3 +1,4 @@
+import functools
 import importlib
 import traceback
 from typing import Any, Dict, Optional, Tuple
@@ -59,9 +60,12 @@ def format_statistics(stats):
     return stats
 
 
+@functools.lru_cache(maxsize=32)
 def import_broker_module(broker_name: str) -> Optional[Dict[str, Any]]:
     """
     Dynamically import the broker-specific order modules.
+    Cached to prevent repetitive disk I/O and dictionary creation.
+    Time Complexity: O(1) for cached access vs O(1) + I/O overhead for non-cached.
 
     Args:
         broker_name: Name of the broker
