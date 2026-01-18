@@ -108,12 +108,13 @@ def format_request(req: AnalyzerLog, ist: tzinfo):
         return None
 
 
-def get_recent_requests(db: AsyncSession):
+async def get_recent_requests(db: AsyncSession):
     """Get recent analyzer requests"""
     try:
         ist = pytz.timezone("Asia/Kolkata")
         stmt = select(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100)
-        recent = db.execute(stmt).scalars().all()
+        result = await db.execute(stmt)
+        recent = result.scalars().all()
         requests = []
 
         for req in recent:
@@ -127,7 +128,7 @@ def get_recent_requests(db: AsyncSession):
         return []
 
 
-def get_filtered_requests(db: AsyncSession, start_date=None, end_date=None):
+async def get_filtered_requests(db: AsyncSession, start_date=None, end_date=None):
     """Get analyzer requests with date filtering"""
     try:
         ist = pytz.timezone("Asia/Kolkata")
@@ -149,9 +150,8 @@ def get_filtered_requests(db: AsyncSession, start_date=None, end_date=None):
             stmt = stmt.where(func.date(AnalyzerLog.created_at) == today_ist)
 
         # Get results ordered by created_at
-        results = (
-            db.execute(stmt.order_by(AnalyzerLog.created_at.desc())).scalars().all()
-        )
+        result = await db.execute(stmt.order_by(AnalyzerLog.created_at.desc()))
+        results = result.scalars().all()
         requests = []
 
         for req in results:
@@ -212,16 +212,16 @@ def generate_csv(requests: list) -> str:
         return ""
 
 
-def clear_analyzer_logs(db: AsyncSession):
+async def clear_analyzer_logs(db: AsyncSession):
     """Clear analyzer logs"""
     try:
         # Delete all logs older than 24 hours
         cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
         stmt = delete(AnalyzerLog).where(AnalyzerLog.created_at < cutoff)
-        db.execute(stmt)
-        db.commit()
+        await db.execute(stmt)
+        await db.commit()
         return True, "Analyzer logs cleared successfully"
     except Exception as e:
         logger.error(f"Error clearing analyzer logs: {str(e)}")
-        db.rollback()
+        await db.rollback()
         return False, "Error clearing analyzer logs"

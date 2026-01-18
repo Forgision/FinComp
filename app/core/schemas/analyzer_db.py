@@ -22,7 +22,7 @@ class AnalyzerLog(Base):
     request_data: Mapped[str] = mapped_column(Text, nullable=False)
     response_data: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
+        DateTime(timezone=True), default=func.now(), index=True
     )
 
     def to_dict(self):
