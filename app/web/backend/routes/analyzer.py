@@ -1,195 +1,21 @@
-import csv
-import io
-import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pytz
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.schemas.analyzer_db import AnalyzerLog
 from app.core.schemas import get_db
 from app.utils.api_analyzer import get_analyzer_stats
 from app.utils.logging import logger
 from app.utils.session import check_session_validity_fastapi
+from app.core.services import analyzer_service
 
 analyzer_router = APIRouter(prefix="/analyzer", tags=["analyzer"])
 
 
 async def get_current_user(user: str = Depends(check_session_validity_fastapi)):
     return user
-
-
-def format_request(req, ist):
-    """Format a single request entry"""
-    try:
-        request_data = (
-            json.loads(req.request_data)
-            if isinstance(req.request_data, str)
-            else req.request_data
-        )
-        response_data = (
-            json.loads(req.response_data)
-            if isinstance(req.response_data, str)
-            else req.response_data
-        )
-
-        # Base request info
-        formatted_request = {
-            "timestamp": req.created_at.astimezone(ist).strftime("%Y-%m-%d %H:%M:%S"),
-            "api_type": req.api_type,
-            "source": request_data.get("strategy", "Unknown"),
-            "request_data": request_data,
-            "response_data": response_data,  # Include complete response data
-            "analysis": {
-                "issues": response_data.get("status") == "error",
-                "error": response_data.get("message"),
-                "error_type": (
-                    "error" if response_data.get("status") == "error" else "success"
-                ),
-                "warnings": response_data.get("warnings", []),
-            },
-        }
-
-        # Add fields based on API type
-        if req.api_type in ["placeorder", "placesmartorder"]:
-            formatted_request.update(
-                {
-                    "symbol": request_data.get("symbol", "Unknown"),
-                    "exchange": request_data.get("exchange", "Unknown"),
-                    "action": request_data.get("action", "Unknown"),
-                    "quantity": request_data.get("quantity", 0),
-                    "price_type": request_data.get("pricetype", "Unknown"),
-                    "product_type": request_data.get("product", "Unknown"),
-                }
-            )
-            if req.api_type == "placesmartorder":
-                formatted_request["position_size"] = request_data.get(
-                    "position_size", 0
-                )
-        elif req.api_type == "cancelorder":
-            formatted_request.update(
-                {"orderid": request_data.get("orderid", "Unknown")}
-            )
-
-        return formatted_request
-    except Exception as e:
-        logger.error(f"Error formatting request {req.id}: {str(e)}")
-        return None
-
-
-async def get_recent_requests(db: AsyncSession):
-    """Get recent analyzer requests"""
-    try:
-        ist = pytz.timezone("Asia/Kolkata")
-        result = await db.execute(
-            select(AnalyzerLog).order_by(AnalyzerLog.created_at.desc()).limit(100)
-        )
-        recent = result.scalars().all()
-        requests = []
-
-        for req in recent:
-            formatted = format_request(req, ist)
-            if formatted:
-                requests.append(formatted)
-
-        return requests
-    except Exception as e:
-        logger.error(f"Error getting recent requests: {str(e)}")
-        return []
-
-
-async def get_filtered_requests(
-    db: AsyncSession, start_date: str = None, end_date: str = None
-):
-    """Get analyzer requests with date filtering"""
-    try:
-        ist = pytz.timezone("Asia/Kolkata")
-        query = select(AnalyzerLog)
-
-        # Apply date filters if provided
-        if start_date:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-            query = query.filter(AnalyzerLog.created_at >= start_date_obj)
-        if end_date:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-            # To include the entire end_date, filter up to the end of the day
-            query = query.filter(
-                AnalyzerLog.created_at < (end_date_obj + timedelta(days=1))
-            )
-
-        # If no dates provided, default to today
-        if not start_date and not end_date:
-            today_ist = datetime.now(ist).date()
-            query = query.filter(AnalyzerLog.created_at >= today_ist)
-            query = query.filter(
-                AnalyzerLog.created_at < (today_ist + timedelta(days=1))
-            )
-
-        # Get results ordered by created_at
-        result = await db.execute(query.order_by(AnalyzerLog.created_at.desc()))
-        results = result.scalars().all()
-        requests = []
-
-        for req in results:
-            formatted = format_request(req, ist)
-            if formatted:
-                requests.append(formatted)
-
-        return requests
-    except Exception as e:
-        logger.error(
-            f"Error getting filtered requests: {str(e)}\n{traceback.format_exc()}"
-        )
-        return []
-
-
-def generate_csv(requests):
-    """Generate CSV from analyzer requests"""
-    try:
-        output = io.StringIO()
-        writer = csv.writer(output)
-
-        # Write headers
-        headers = [
-            "Timestamp",
-            "API Type",
-            "Source",
-            "Symbol",
-            "Exchange",
-            "Action",
-            "Quantity",
-            "Price Type",
-            "Product Type",
-            "Status",
-            "Error Message",
-        ]
-        writer.writerow(headers)
-
-        # Write data
-        for req in requests:
-            row = [
-                req["timestamp"],
-                req["api_type"],
-                req["source"],
-                req.get("symbol", ""),
-                req.get("exchange", ""),
-                req.get("action", ""),
-                req.get("quantity", ""),
-                req.get("price_type", ""),
-                req.get("product_type", ""),
-                "Error" if req["analysis"]["issues"] else "Success",
-                req["analysis"].get("error", ""),
-            ]
-            writer.writerow(row)
-
-        return output.getvalue()
-    except Exception as e:
-        logger.error(f"Error generating CSV: {str(e)}\n{traceback.format_exc()}")
-        return ""
 
 
 @analyzer_router.get("/")
@@ -222,7 +48,9 @@ async def analyzer(
             }
 
         # Get filtered requests
-        requests = await get_filtered_requests(db, start_date, end_date)
+        requests = await analyzer_service.get_filtered_requests(
+            db, start_date, end_date
+        )
 
         return JSONResponse(
             content={
@@ -282,7 +110,7 @@ async def get_requests(
 ):
     """Get analyzer requests endpoint"""
     try:
-        requests = await get_recent_requests(db)
+        requests = await analyzer_service.get_recent_requests(db)
         return JSONResponse({"requests": requests})
     except HTTPException as http_exc:
         raise http_exc
@@ -299,10 +127,7 @@ async def clear_logs(
 ):
     """Clear analyzer logs"""
     try:
-        # Delete all logs older than 24 hours
-        cutoff = datetime.now(pytz.UTC) - timedelta(hours=24)
-        await db.execute(delete(AnalyzerLog).filter(AnalyzerLog.created_at < cutoff))
-        await db.commit()
+        await analyzer_service.clear_analyzer_logs(db)
         # In FastAPI, you might use a redirect with a query parameter for a message, or a dedicated flash message system
         return Response(
             status_code=303,
@@ -328,10 +153,12 @@ async def export_requests(
     """Export analyzer requests to CSV"""
     try:
         # Get filtered requests
-        requests = await get_filtered_requests(db, start_date, end_date)
+        requests = await analyzer_service.get_filtered_requests(
+            db, start_date, end_date
+        )
 
         # Generate CSV
-        csv_data = generate_csv(requests)
+        csv_data = analyzer_service.generate_csv(requests)
 
         # Create the response
         response = Response(content=csv_data, media_type="text/csv")
